@@ -477,6 +477,9 @@
 }
 .tw-color-pop *, .tw-color-pop *::before, .tw-color-pop *::after { box-sizing: border-box; }
 .tw-color-pop.is-open { opacity: 1; transform: none; pointer-events: auto; }
+/* The picker body — the plane + strips + mode + channels — as one column, so it can be
+ * mounted on its own (the colour pop) or under the stop bar (the gradient pop). */
+.tw-color-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .tw-color-mode-row { display: flex; align-items: center; gap: 8px; }
 .tw-color-mode { appearance: none; -webkit-appearance: none; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background-color: var(--tw-surface); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6px center; border: 1px solid var(--tw-border); border-radius: 6px; padding: 4px 26px 4px 10px; cursor: pointer; outline: none; } /* right 6px: the bg chevron's 4px side-bearing then clears the edge by ~10px, matching the 10px text inset on the left */
 .tw-color-mode:hover { background-color: var(--tw-surface-hover); }
@@ -503,22 +506,38 @@
 .tw-wg-alpha { position: relative; width: 100%; height: 14px; border-radius: 999px; cursor: ew-resize; touch-action: none; box-shadow: inset 0 0 0 1px var(--tw-border); background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 10px 10px; }
 .tw-wg-alpha-grad { position: absolute; inset: 0; border-radius: inherit; }
 
-/* ── Gradient editor — a wide-gamut stop bar over the reused colour picker ── */
-.tw-gradient { display: flex; flex-direction: column; gap: 10px; }
+/* ── Gradient — a swatch-trigger row (preview + stop count) that opens a stop-bar +
+ * picker-body editor in a popover, mirroring the colour control. ── */
+.tw-gradient { position: relative; }
+.tw-gradient-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  height: var(--tw-row-height); padding: 0 10px 0 12px;
+  font: inherit; color: inherit; cursor: pointer;
+  background: var(--tw-surface); border: none; border-radius: var(--tw-radius); transition: background 0.15s;
+}
+.tw-gradient-trigger:hover { background: var(--tw-surface-hover); }
+.tw-gradient.is-open .tw-gradient-trigger { background: var(--tw-surface-active); }
+.tw-gradient-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); flex-shrink: 0; }
+.tw-gradient-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tw-gradient-count { font-family: var(--tw-font-sans); font-size: 11px; font-weight: 500; color: var(--tw-text-tertiary); flex-shrink: 0; }
+/* A wide gradient swatch (checker shows through any alpha stops). */
+.tw-gradient-preview { width: 48px; height: 18px; border-radius: 4px; flex-shrink: 0; box-shadow: inset 0 0 0 1px var(--tw-border-hover); background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
+
+/* the gradient editor popover — wider than the colour pop to give the bar room */
+.tw-gradient-pop { width: 260px; }
+.tw-gradient-bar-row { display: flex; align-items: stretch; gap: 6px; }
+.tw-gradient-bar-row > .tw-gradient-bar { flex: 1; min-width: 0; }
 .tw-gradient-bar { position: relative; width: 100%; height: 28px; border-radius: var(--tw-radius); box-shadow: inset 0 0 0 1px var(--tw-border); background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
 .tw-gradient-grad { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
 .tw-gradient-rail { position: absolute; left: 0; right: 0; bottom: -5px; height: 14px; pointer-events: none; }
-.tw-gradient-stop { position: absolute; top: 0; width: 13px; height: 13px; padding: 0; transform: translateX(-50%); border-radius: 4px; background: var(--stop); border: 2px solid var(--tw-base); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 1px 3px rgba(0, 0, 0, 0.4); cursor: ew-resize; touch-action: none; pointer-events: auto; }
+.tw-gradient-stop { position: absolute; top: 0; width: 13px; height: 13px; padding: 0; transform: translateX(-50%); border-radius: 4px; background: var(--stop); border: 2px solid var(--tw-dropdown-bg); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 1px 3px rgba(0, 0, 0, 0.4); cursor: ew-resize; touch-action: none; pointer-events: auto; }
 .tw-gradient-stop[data-sel="true"] { box-shadow: 0 0 0 2px var(--tw-accent, var(--tw-text-focus)), 0 1px 3px rgba(0, 0, 0, 0.4); z-index: 1; }
 .tw-gradient-stop:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
 /* Drag-off-to-remove cue — a stop dragged clear of the bar fades + shrinks to signal
  * release-to-remove (the touch-friendly removal path, no − button). */
 .tw-gradient-stop { transition: opacity 0.12s ease, transform 0.12s ease; }
 .tw-gradient-stop[data-removing="true"] { opacity: 0.3; transform: translateX(-50%) scale(0.7); }
-/* The add-stop (+) lives in the picker field row, beside the selected stop's
- * swatch/value — its own square button, matching the field height. */
-.tw-gradient-picker { display: flex; align-items: stretch; gap: 6px; }
-.tw-gradient-picker > .tw-color { flex: 1; min-width: 0; }
+/* The add-stop (+) sits at the end of the bar row — its own square button. */
 .tw-gradient-add { display: flex; align-items: center; justify-content: center; flex: none; width: 32px; padding: 0; border: none; border-radius: var(--tw-radius); background: var(--tw-surface); color: var(--tw-text-primary); cursor: pointer; transition: background 0.15s, transform 0.15s; }
 .tw-gradient-add:hover { background: var(--tw-surface-hover); }
 .tw-gradient-add:active { transform: scale(0.92); }

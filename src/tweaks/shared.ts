@@ -120,6 +120,44 @@ const resolveTheme = (theme) => {
 };
 const applyThemeVars = (node, vars) => { if (node && vars) for (const k in vars) node.style.setProperty(k, vars[k]); };
 
+// ── Popover — the portal-to-<body> editor popover shared by the colour picker and
+// the gradient editor: it opens under its trigger (placeBelow, flipping up when it
+// won't fit), carries the host panel's theme onto the portaled node, and closes on
+// outside-click / Esc / scroll-away. Globally single-open — opening one closes any
+// other (so a colour and a gradient popover are mutually exclusive). The select
+// dropdown keeps its own machinery (it has bespoke listbox keyboarding). onOpen runs
+// once it's placed at real size; onReflow on scroll/resize while open.
+let activePopoverClose: null | (() => void) = null;
+function popover(root: any, trigger: any, pop: any, opts: { width?: number | "match"; fallbackH?: number; gap?: number; onOpen?: () => void; onReflow?: () => void } = {}) {
+  let open = false;
+  stopPointerLeak(pop); // on <body>, outside the panel's own pointer-stop
+  const place = () => placeBelow(trigger, pop, { width: opts.width, fallbackH: opts.fallbackH, gap: opts.gap });
+  const reflow = () => { if (open) { place(); opts.onReflow && opts.onReflow(); } };
+  const onOutside = (e) => { if (!root.contains(e.target) && !pop.contains(e.target)) close(); };
+  const onKey = (e) => { if (e.key === "Escape" && open) { close(); trigger.focus(); } };
+  const openPop = () => {
+    if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open editor popover first
+    activePopoverClose = close;
+    open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
+    document.body.appendChild(pop);
+    applyThemeVars(pop, root.closest(".tw-panel")?._twTheme); // carry the host panel's theme onto the portaled popover
+    place();
+    requestAnimationFrame(() => { pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed)
+    setTimeout(() => document.addEventListener("pointerdown", onOutside), 0); // skip the opening click
+    document.addEventListener("keydown", onKey); // Esc closes from anywhere while open, not only when focus is inside
+    window.addEventListener("scroll", reflow, true); window.addEventListener("resize", reflow);
+  };
+  const close = () => {
+    if (activePopoverClose === close) activePopoverClose = null;
+    open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); trigger.setAttribute("aria-expanded", "false");
+    document.removeEventListener("pointerdown", onOutside); document.removeEventListener("keydown", onKey);
+    window.removeEventListener("scroll", reflow, true); window.removeEventListener("resize", reflow);
+    setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
+  };
+  trigger.addEventListener("click", () => (open ? close() : openPop()));
+  return { open: openPop, close, isOpen: () => open, reflow };
+}
+
 // Dependency-free fuzzy match (for the filter): true if `q` is a substring of `text`,
 // or within a small edit distance of some window of it — so "blut" finds "blur". The
 // edit-distance DP starts its first row at 0, which lets the query begin matching at
@@ -212,6 +250,7 @@ function numField(spec, onChange) {
   return { el: f, set: (val) => set(val, false), get: () => value };
 }
 
+// ICON_GRIP — original 2-bar drag handle, not from an icon set (Lucide's grip is dots).
 const ICON_GRIP = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 4v8M10 4v8"/></svg>`;
 
 // ── Control registry — control type → constructor. Core controls register on
@@ -224,7 +263,7 @@ export const getControl = (type) => REGISTRY[type];
 export {
   titleCase, clamp, isHex, isColorStr, stepPrecision, roundToStep, inferStep, defaultMax,
   optValue, optLabel, svgNS, el, svgEl, cssVar, accentColor, stopPointerLeak, onReady,
-  wireHoverClass, dragGesture, boxFrac, fitCanvas, placeBelow, THEME_ALIASES, TW_PX_ALIASES,
+  wireHoverClass, dragGesture, boxFrac, fitCanvas, placeBelow, popover, THEME_ALIASES, TW_PX_ALIASES,
   resolveTheme, applyThemeVars, fuzzyMatch, setRadioActive, radioButton, makeGrabGuide,
   attachScrub, numField, ICON_GRIP,
 };

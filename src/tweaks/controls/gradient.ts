@@ -1,15 +1,20 @@
 // ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the colour
-// module (reuses its picker, parseColor, and oklchStr).
-import { el, dragGesture, clamp, registerControl } from "../shared.js";
-import { createColor, parseColor, oklchStr } from "./colour.js";
+// module (reuses its picker body, parseColor, and oklchStr).
+import { el, dragGesture, clamp, popover, registerControl } from "../shared.js";
+import { createPickerBody, parseColor, oklchStr } from "./colour.js";
 
+// ICON_PLUS — adapted from Lucide/Feather `plus` (MIT). See ../../../THIRD-PARTY-NOTICES.md.
 const ICON_PLUS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`;
+const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px";
 
-// ── Gradient — a wide-gamut gradient editor. A bar of colour stops, each a full
-// OKLCH colour (edited by the reused picker below). Drag a stop to move it, click
-// the bar to add one, double-click to remove (min 2). The bar blends in OKLCH (CSS
-// `linear-gradient(in oklch …)`) — a true wide-gamut gradient no sRGB picker makes.
-// Value: { stops: [{ color, pos }] }. ──
+// ── Gradient — a Figma-style editor: the panel shows a swatch-trigger row (the
+// gradient preview + stop count, mirroring the colour row), and clicking it opens a
+// popover holding the stop bar over a reused colour picker body. The bar is a row of
+// colour stops, each a full OKLCH colour; selecting one re-points the picker body at
+// it — one editor surface, no nested popover. Drag a stop to move it, drag it clear of
+// the bar (or double-click / Delete) to remove it (min 2), + to add one. The bar blends
+// in OKLCH (CSS `linear-gradient(in oklch …)`) — a true wide-gamut gradient no sRGB
+// picker makes. Value: { stops: [{ color, pos }] }. ──
 function normalizeStops(value) {
   const DEF = [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }];
   const arr = Array.isArray(value) ? value : (value && Array.isArray(value.stops) ? value.stops : null);
@@ -26,29 +31,45 @@ function normalizeStops(value) {
 function createGradient(meta, onChange) {
   let stops = normalizeStops(meta.value);
   let selStop = stops[0];
+
+  // ── Trigger row — a gradient preview + stop count that opens the editor (mirrors
+  // the colour control's swatch-trigger row). ──
   const root = el("div", "tw-gradient");
+  const trigger = el("button", "tw-gradient-trigger"); trigger.type = "button"; trigger.setAttribute("aria-expanded", "false");
+  const labelEl = el("span", "tw-gradient-label"); labelEl.textContent = meta.label || "Gradient";
+  const right = el("span", "tw-gradient-right");
+  const countEl = el("span", "tw-gradient-count");
+  const preview = el("span", "tw-gradient-preview");
+  right.append(countEl, preview);
+  trigger.append(labelEl, right);
+
+  // ── Editor popover — the stop bar (+ add) over the reused picker body. Carries the
+  // colour popover's class so it inherits its tokens, shell, and short-viewport scroll. ──
+  const pop = el("div", "tw-color-pop tw-gradient-pop");
+  const barRow = el("div", "tw-gradient-bar-row");
   const bar = el("div", "tw-gradient-bar");
   const grad = el("div", "tw-gradient-grad");
   const rail = el("div", "tw-gradient-rail");
-  bar.append(grad, rail); root.append(bar);
+  bar.append(grad, rail);
+  const addBtn = el("button", "tw-gradient-add", ICON_PLUS); addBtn.type = "button"; addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a colour stop after the selected one");
+  barRow.append(bar, addBtn);
 
   const sorted = () => [...stops].sort((a, b) => a.pos - b.pos);
   const cssStops = () => sorted().map((s) => `${s.color} ${(s.pos * 100).toFixed(1)}%`).join(", ");
-  const paint = () => { grad.style.background = `linear-gradient(in oklch to right, ${cssStops()})`; };
+  const gradientCss = () => `linear-gradient(in oklch to right, ${cssStops()})`;
+  const paint = () => { const css = gradientCss(); grad.style.background = css; preview.style.background = `${css}, ${CHECKER}`; };
+  const reflectCount = () => { countEl.textContent = `${stops.length} stop${stops.length === 1 ? "" : "s"}`; };
   const value = () => ({ stops: sorted().map((s) => ({ color: s.color, pos: +s.pos.toFixed(4) })) });
   const emit = () => onChange(value());
 
-  // The picker (a reused colour row) edits whichever stop is selected.
-  const picker = createColor({ value: selStop.color, label: "Stop" }, (c) => {
+  // The picker body edits whichever stop is selected.
+  const body = createPickerBody({ value: selStop.color }, (c) => {
     selStop.color = c;
     const h = [...rail.children].find((x) => x._stop === selStop); if (h) h.style.setProperty("--stop", c);
     paint(); emit();
   });
-  // The selected stop's swatch + value sit in a field; the + (add stop) lives in
-  // that field beside it, so there's one place to read, edit, and add a stop.
-  const pickerRow = el("div", "tw-gradient-picker");
-  pickerRow.append(picker.el);
-  root.append(pickerRow);
+  pop.append(barRow, body.el);
+  root.append(trigger, pop);
 
   const reflectSel = () => { for (const h of rail.children) h.dataset.sel = String(h._stop === selStop); };
   const renderHandles = () => {
@@ -76,12 +97,12 @@ function createGradient(meta, onChange) {
   };
   // During a drag we only flip the selected flag (no re-render), so the dragged
   // handle element stays live; full re-render happens on add / remove / external set.
-  const select = (s, rerender) => { selStop = s; picker.set(s.color); rerender ? renderHandles() : reflectSel(); };
+  const select = (s, rerender) => { selStop = s; body.set(s.color); rerender ? renderHandles() : reflectSel(); };
 
   // Stop drag rides the shared dragGesture (pointer capture + automatic pointercancel
   // cleanup), wired per handle in renderHandles — so a touch-drag the browser interrupts
   // with a scroll can't leak a document listener or strand the drag. (.tw-gradient-stop is
-  // touch-action:none now, like every other drag surface, so it drags cleanly on touch.)
+  // touch-action:none, like every other drag surface, so it drags cleanly on touch.)
   const posFromX = (x) => { const r = rail.getBoundingClientRect(); return clamp((x - r.left) / (r.width || 1), 0, 1); };
 
   // Colour for a new stop: interpolate the two bracketing stops in OKLCH (short-way hue).
@@ -98,7 +119,7 @@ function createGradient(meta, onChange) {
     if (stops.length <= 2) return;
     const i = stops.indexOf(s); stops.splice(i, 1);
     if (selStop === s) selStop = stops[Math.max(0, i - 1)];
-    paint(); select(selStop, true); emit();
+    paint(); select(selStop, true); reflectCount(); emit();
     const h = [...rail.children].find((x) => x._stop === selStop); if (h) h.focus(); // keep focus on a handle so Delete can chain
   };
   // Add a stop next to the SELECTED one, so where it lands is predictable: midway toward
@@ -106,8 +127,6 @@ function createGradient(meta, onChange) {
   // one on its left. (Was the widest gap, which felt arbitrary — you couldn't tell where
   // the new stop would appear.) It samples the gradient there; drag it to taste. No
   // click-to-add on the bar: that fought with grabbing a stop to reposition it.
-  const addBtn = el("button", "tw-gradient-add", ICON_PLUS); addBtn.type = "button"; addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a colour stop after the selected one");
-  pickerRow.append(addBtn);
   const addStop = () => {
     const ss = sorted();
     let i = ss.indexOf(selStop); if (i < 0) i = 0;
@@ -115,23 +134,26 @@ function createGradient(meta, onChange) {
              : i > 0             ? (ss[i - 1].pos + ss[i].pos) / 2   // selected is last → midway toward the previous
              : clamp(ss[i].pos + 0.1, 0, 1);                         // lone stop (floor is 2, so a safety net)
     const s = { color: colorAt(at), pos: at };
-    stops.push(s); paint(); select(s, true); emit();
+    stops.push(s); paint(); select(s, true); reflectCount(); emit();
   };
   addBtn.addEventListener("click", (e) => { e.stopPropagation(); addStop(); });
 
-  // Delete / Backspace removes the selected stop (min 2). Ignored while typing in a field.
-  root.tabIndex = -1;
-  root.addEventListener("keydown", (e) => {
+  // Delete / Backspace removes the selected stop (min 2). Ignored while typing in a field
+  // (a channel input). Lives on the popover, where the stop handles + picker now sit.
+  pop.tabIndex = -1;
+  pop.addEventListener("keydown", (e) => {
     if ((e.key === "Delete" || e.key === "Backspace") && !/^(input|textarea|select)$/i.test(e.target.tagName) && stops.length > 2) { e.preventDefault(); removeStop(selStop); }
   });
 
-  renderHandles(); paint();
+  // Open the editor under the trigger; reflow the picker body once it's at real size.
+  popover(root, trigger, pop, { width: 260, fallbackH: 392, gap: 6, onOpen: () => body.reflow(), onReflow: () => body.reflow() });
+
+  renderHandles(); paint(); reflectCount();
   return {
     el: root,
-    set: (v) => { stops = normalizeStops(v); selStop = stops[0]; renderHandles(); paint(); picker.set(selStop.color); },
+    set: (v) => { stops = normalizeStops(v); selStop = stops[0]; renderHandles(); paint(); reflectCount(); body.set(selStop.color); },
     get: () => value(),
   };
 }
 
 registerControl("gradient", createGradient);
-
