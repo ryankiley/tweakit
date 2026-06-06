@@ -590,6 +590,10 @@ function createControl(meta, onChange) {
 }
 
 // ── Icons for the toolbar ──
+// Inline SVGs adapted from Lucide (https://lucide.dev, ISC) and, upstream, Feather
+// (https://feathericons.com, MIT). A few are lightly modified — two paths merged into
+// one, a radius nudged, a polygon redrawn as a path. ICON_GRIP (shared.ts) is original.
+// Per-icon origins and the full ISC + MIT notices: ../../THIRD-PARTY-NOTICES.md.
 const ICON_COPY = `<svg class="tw-toolbar-btn__copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 const ICON_CHECK = `<svg class="tw-toolbar-btn__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
 const ICON_RESET = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>`;
@@ -633,7 +637,7 @@ function hideHint() { if (hintTip) hintTimer = setTimeout(() => hintTip.classLis
 // text in the tooltip on hover/focus — discoverable and keyboard-reachable, unlike
 // the old native `title`. Shared by the panel build (registerCond) and enhance().
 function addHintMarker(node: any, hint: string, themeVars?: any) {
-  const label = node.querySelector(".tw-slider-label, .tw-row-label, .tw-select-label, .tw-color-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label") || node;
+  const label = node.querySelector(".tw-slider-label, .tw-row-label, .tw-select-label, .tw-color-label, .tw-gradient-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label") || node;
   const mark = el("button", "tw-hint", ICON_INFO); mark.type = "button"; mark.setAttribute("aria-label", hint);
   const show = () => showHint(mark, hint, themeVars);
   mark.addEventListener("pointerenter", show);
@@ -745,7 +749,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const resetEntry = (e) => { e.set(e.def); e.target[e.key] = e.get(); params._last = e.key; notify(); };
   const wireReset = (root, entry) => {
     const t = root.querySelector(".tw-slider-value")
-      || root.querySelector(".tw-row-label, .tw-select-label, .tw-color-label, .tw-radiogrid-label, .tw-field-label")
+      || root.querySelector(".tw-row-label, .tw-select-label, .tw-color-label, .tw-gradient-label, .tw-radiogrid-label, .tw-field-label")
       || root;
     t.classList.add("tw-resettable"); t.title = "Double-click or hold to reset";
     // Coarse pointers get a press-and-hold reset — the desktop double-click fights

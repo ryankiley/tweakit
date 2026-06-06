@@ -1,6 +1,6 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, clamp, dragGesture, boxFrac, placeBelow, stopPointerLeak, applyThemeVars, numField, registerControl } from "../shared.js";
+import { el, clamp, dragGesture, boxFrac, numField, popover, registerControl } from "../shared.js";
 import { oklchGamutProbe, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, convert, num } from "../../wide-gamut.js";
 
 // ── Colour — one module: a row that opens a dropdown OKLCH picker. Ported from
@@ -56,27 +56,23 @@ function parseColor(str) {
   return [num(k[0]), num(k[1]), num(k[2]), cm[3] != null ? cm[3] : 1];
 }
 
-// Only one colour picker may be open at a time — opening one closes any other.
-let activeColorClose = null;
-function createColor(meta, onChange) {
+// ── Picker body — the editor surface itself: the L×C plane, the hue + alpha strips,
+// the mode dropdown + gamut label, and the per-mode channel inputs. No trigger and no
+// popover of its own — just the controls, wired to a colour and an onChange. The
+// colour control mounts one inside its popover; the gradient editor mounts one and
+// re-points it at whichever stop is selected (so there's one editor surface, never a
+// nested popover). `reflow()` re-renders + re-positions once it's mounted at real size;
+// swatchCss()/valueText() expose the readout so the host can paint its own trigger. ──
+function createPickerBody(meta, onChange) {
   let [L, C, H, A] = parseColor(meta.value || "#7c5cff");
-  let mode = "oklch", open = false, paintedHue = NaN, chromaCurve = null, chanFields = [];
+  let mode = "oklch", paintedHue = NaN, chromaCurve = null, chanFields = [];
   const colorStr = () =>
     mode === "hex" ? oklchToHex(L, C, H) + (A < 0.999 ? hexByte(A) : "")
     : A < 0.999 ? oklchStr(L, C, H, A)
     : wrapCss(readout([L, C, H], mode), mode);
   const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px";
 
-  const root = el("div", "tw-color");
-  const trigger = el("button", "tw-color-trigger"); trigger.type = "button"; trigger.setAttribute("aria-expanded", "false");
-  const labelEl = el("span", "tw-color-label"); labelEl.textContent = meta.label || "Colour";
-  const right = el("span", "tw-color-right");
-  const swatch = el("span", "tw-color-swatch");
-  const valueEl = el("span", "tw-color-value");
-  right.append(swatch, valueEl);
-  trigger.append(labelEl, right);
-
-  const pop = el("div", "tw-color-pop");
+  const root = el("div", "tw-color-body");
   const area = el("div", "tw-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "tw-wg-canvas"; const areaThumb = el("div", "tw-wg-thumb"); area.append(areaCanvas, areaThumb);
   const hueBar = el("div", "tw-wg-hue"); const hueCanvas = document.createElement("canvas"); hueCanvas.className = "tw-wg-hue-canvas"; const hueThumb = el("div", "tw-wg-hue-thumb"); hueBar.append(hueCanvas, hueThumb);
   const alphaBar = el("div", "tw-wg-alpha"); const alphaGrad = el("div", "tw-wg-alpha-grad"); const alphaThumb = el("div", "tw-wg-hue-thumb"); alphaBar.append(alphaGrad, alphaThumb);
@@ -87,8 +83,7 @@ function createColor(meta, onChange) {
   const gamut2 = el("span", "tw-color-gamut tw-color-gamut--pop");
   modeRow.append(modeSel, gamut2);
   const channels = el("div", "tw-color-channels");
-  pop.append(area, hueBar, alphaBar, modeRow, channels);
-  root.append(trigger, pop);
+  root.append(area, hueBar, alphaBar, modeRow, channels);
 
   const actx = areaCanvas.getContext("2d", CANVAS_CS) as CanvasRenderingContext2D;
   const hctx = hueCanvas.getContext("2d");
@@ -157,14 +152,14 @@ function createColor(meta, onChange) {
   };
   const refresh = () => {
     gamut2.textContent = gamutLabel([L, C, H], mode); // gamut shows in the picker only
-    swatch.style.background = `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), ${CHECKER}`;
-    valueEl.textContent = readout([L, C, H], mode) + (A < 0.999 ? (mode === "hex" ? hexByte(A) : ` / ${+A.toFixed(2)}`) : "");
     if (mode === "hex") { const hx = channels.querySelector(".tw-color-chan-input"); if (hx && document.activeElement !== hx) hx.value = oklchToHex(L, C, H) + (A < 0.999 ? hexByte(A) : ""); }
     else { const vals = channelValues([L, C, H], mode); chanFields.forEach((f, i) => { if (!f.el.contains(document.activeElement)) f.set(vals[i]); }); }
   };
-  const reposition = () => { renderHue(); renderArea(); positionThumbs(); };
+  const reflow = () => { renderHue(); renderArea(); positionThumbs(); }; // mounted at real size → rasterise + place the thumbs
   const emit = () => onChange(colorStr());
-  const sync = (repaint) => { if (repaint && open && H !== paintedHue) renderArea(); positionThumbs(); refresh(); };
+  // renderArea self-guards on width (a detached/hidden body bails at getBoundingClientRect),
+  // so no `open` flag is needed — when the body is offscreen the repaint is a cheap no-op.
+  const sync = (repaint) => { if (repaint && H !== paintedHue) renderArea(); positionThumbs(); refresh(); };
 
   const renderChannels = () => {
     channels.replaceChildren(); chanFields = [];
@@ -198,47 +193,52 @@ function createColor(meta, onChange) {
   const setAlpha = (e) => { A = alphaAt(e); positionThumbs(); refresh(); emit(); };
   dragGesture(alphaBar, { onDown: setAlpha, onMove: setAlpha });
 
-  modeSel.addEventListener("change", () => { mode = modeSel.value; renderChannels(); if (open) renderArea(); emit(); });
-
-  // The popover is portaled to <body> on open and placed from the trigger's
-  // viewport rect. That escapes BOTH the panel's overflow (no clipping) AND any
-  // ancestor that becomes a containing block for position:fixed (a transform /
-  // filter / backdrop-filter — e.g. .prose's entrance transform), so it lands
-  // right under its trigger and reads as one component. Guard pointer leaks too,
-  // since on <body> it's outside the panel's own pointer-stop.
-  stopPointerLeak(pop);
-  const placePop = () => placeBelow(trigger, pop, { width: 240, fallbackH: 340, gap: 6 });
-  const onReflow = () => { if (open) { placePop(); reposition(); } };
-  const onOutside = (e) => { if (!root.contains(e.target) && !pop.contains(e.target)) closePop(); };
-  const onKey = (e) => { if (e.key === "Escape" && open) { closePop(); trigger.focus(); } };
-  const openPop = () => {
-    if (activeColorClose && activeColorClose !== closePop) activeColorClose(); // close any other open picker first
-    activeColorClose = closePop;
-    open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
-    document.body.appendChild(pop);
-    applyThemeVars(pop, root.closest(".tw-panel")?._twTheme); // carry the host panel's theme onto the portaled popover
-    placePop(); requestAnimationFrame(() => { pop.classList.add("is-open"); reposition(); placePop(); });
-    setTimeout(() => document.addEventListener("pointerdown", onOutside), 0);
-    document.addEventListener("keydown", onKey); // Esc closes from anywhere while open, not only when focus is inside the popover
-    window.addEventListener("scroll", onReflow, true); window.addEventListener("resize", onReflow);
-  };
-  const closePop = () => {
-    if (activeColorClose === closePop) activeColorClose = null;
-    open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); trigger.setAttribute("aria-expanded", "false");
-    document.removeEventListener("pointerdown", onOutside); document.removeEventListener("keydown", onKey); window.removeEventListener("scroll", onReflow, true); window.removeEventListener("resize", onReflow);
-    setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
-  };
-  trigger.addEventListener("click", () => (open ? closePop() : openPop()));
+  modeSel.addEventListener("change", () => { mode = modeSel.value; renderChannels(); renderArea(); emit(); }); // renderArea self-guards when the body is offscreen
 
   renderChannels();
 
-  return { el: root, set: (v) => { [L, C, H, A] = parseColor(v); if (open) reposition(); refresh(); positionThumbs(); }, get: () => colorStr() };
+  return {
+    el: root,
+    set: (v) => { [L, C, H, A] = parseColor(v); reflow(); refresh(); }, // reflow self-guards offscreen; refresh keeps the channel inputs in sync
+    get: () => colorStr(),
+    reflow,
+    // The host paints its own trigger from these — the body carries no swatch/value of its own.
+    swatchCss: () => `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), ${CHECKER}`,
+    valueText: () => readout([L, C, H], mode) + (A < 0.999 ? (mode === "hex" ? hexByte(A) : ` / ${+A.toFixed(2)}`) : ""),
+  };
+}
+
+// ── Colour — a trigger row (label + swatch + value readout) that opens a picker body
+// in a portaled popover. A thin wrapper: the body does the editing, this paints the
+// row and drives open/close through the shared popover() shell. ──
+function createColor(meta, onChange) {
+  const root = el("div", "tw-color");
+  const trigger = el("button", "tw-color-trigger"); trigger.type = "button"; trigger.setAttribute("aria-expanded", "false");
+  const labelEl = el("span", "tw-color-label"); labelEl.textContent = meta.label || "Colour";
+  const right = el("span", "tw-color-right");
+  const swatch = el("span", "tw-color-swatch");
+  const valueEl = el("span", "tw-color-value");
+  right.append(swatch, valueEl);
+  trigger.append(labelEl, right);
+
+  const pop = el("div", "tw-color-pop");
+  const paintTrigger = () => { swatch.style.background = body.swatchCss(); valueEl.textContent = body.valueText(); };
+  const body = createPickerBody({ value: meta.value }, (c) => { paintTrigger(); onChange(c); });
+  pop.append(body.el);
+  root.append(trigger, pop);
+
+  // The popover portals `pop` to <body> on open — escaping the panel's overflow and
+  // any transformed/filtered ancestor — and reflows the body once it's at real size.
+  popover(root, trigger, pop, { width: 240, fallbackH: 340, gap: 6, onOpen: body.reflow, onReflow: body.reflow });
+  paintTrigger();
+
+  return { el: root, set: (v) => { body.set(v); paintTrigger(); }, get: () => body.get() };
 }
 
 const oklchStr = (L, C, H, A) => A < 0.999
   ? `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)} / ${+A.toFixed(3)})`
   : `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)})`;
 
-export { createColor, parseColor, oklchStr };
+export { createColor, createPickerBody, parseColor, oklchStr };
 registerControl("color", createColor);
 
