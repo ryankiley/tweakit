@@ -54,8 +54,10 @@ function createInterval(meta, onChange) {
   const setLo = (v) => { lo = clamp(Math.min(q(v), hi), min, max); render(); };
   const setHi = (v) => { hi = clamp(Math.max(q(v), lo), min, max); render(); };
 
-  let rect = null, active = null;
-  const valFromX = (x) => { const native = wrap.offsetWidth || rect.width; const p = clamp((x - rect.left) / native, 0, 1); return clamp(min + p * (max - min), min, max); };
+  let rect = null, scale = 1, active = null;
+  // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px) —
+  // same correction as the single slider, so a scaled panel still tracks the cursor 1:1.
+  const valFromX = (x) => { const native = wrap.offsetWidth || rect.width; const p = clamp((x - rect.left) / scale / native, 0, 1); return clamp(min + p * (max - min), min, max); };
   const grab = (x) => {
     const v = valFromX(x);
     if (!active) active = v < lo ? "lo" : v > hi ? "hi" : (Math.abs(v - lo) <= Math.abs(v - hi) ? "lo" : "hi");
@@ -63,7 +65,8 @@ function createInterval(meta, onChange) {
   };
   track.addEventListener("pointerdown", (e) => {
     e.preventDefault(); try { e.target.setPointerCapture(e.pointerId); } catch {}
-    rect = wrap.getBoundingClientRect(); track.classList.add("is-active", "is-dragging"); active = null;
+    rect = wrap.getBoundingClientRect(); scale = rect.width / (wrap.offsetWidth || rect.width);
+    track.classList.add("is-active", "is-dragging"); active = null;
     grab(e.clientX);
   });
   track.addEventListener("pointermove", (e) => { if (!rect) return; if (e.buttons === 0) { up(); return; } grab(e.clientX); });
@@ -75,7 +78,8 @@ function createInterval(meta, onChange) {
   // widths it measures), and on any track-width change. The dodge already reads the
   // real offsetWidth, so it adapts to any font — this just keeps it in sync.
   onReady(render);
-  window.addEventListener("resize", render);
+  const onResize = () => { if (!track.isConnected) return window.removeEventListener("resize", onResize); render(); }; // panel removed → drop the listener (matches fps/bezier self-cleanup)
+  window.addEventListener("resize", onResize);
 
   const onKey = (which) => (e) => {
     const coarse = e.shiftKey ? 10 : 1;

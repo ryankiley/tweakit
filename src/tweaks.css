@@ -377,7 +377,7 @@
   cursor: pointer; transition: background 0.15s;
 }
 .tw-select-trigger:hover { background: var(--tw-surface-hover); }
-.tw-select-trigger[data-open="true"] { background: var(--tw-surface-active); }
+.tw-select.is-open .tw-select-trigger { background: var(--tw-surface-active); }
 .tw-select-label { font-weight: 500; flex-shrink: 0; }
 .tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .tw-select-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -385,7 +385,7 @@
  * side-bearing — its visible edge then clears the right edge by the same 12px the
  * label clears the left, instead of looking ~4.5px more inset. */
 .tw-select-chevron { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; margin-right: -4.5px; transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1); }
-.tw-select-trigger[data-open="true"] .tw-select-chevron { transform: rotate(180deg); }
+.tw-select.is-open .tw-select-chevron { transform: rotate(180deg); }
 .tw-select-dropdown {
   position: fixed; z-index: 50; /* portaled to <body> + JS-placed → never clipped by the panel's overflow */
   padding: 4px; border-radius: 10px; /* concentric: option radius 6 + padding 4 */

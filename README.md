@@ -40,15 +40,16 @@ npm run build      # → dist/
 ```
 
 `dist/` contains the minified split chunks (`tweaks/`), the readable single file
-(`tweaks.js`), the panel CSS (`tweaks.css`), the OKLCH engine (`wide-gamut.js`), and
+(`tweaks.js`), the panel CSS (`tweaks.css`), the type declarations (`types/`), and
 the demo (`index.html`). `npm run serve` builds and serves it on :4330.
 
 ## Layout
 
-- `src/tweaks/` — the kit. `shared.js` (DOM/math helpers, drag/scrub, the numeric
-  field, theming, a control registry), `core.js` (schema → meta inference, the cheap
-  always-loaded controls, the panel, `enhance`), and `controls/*.js` (the heavy
-  controls, dynamic-imported on first use; `colour` is the only one that pulls in the
-  engine, so basic panels never pay for it).
-- `src/wide-gamut.js` — the OKLCH / wide-gamut colour engine.
+- `src/tweaks/` — the kit. `shared.ts` (DOM/math helpers, drag/scrub, the numeric
+  field, theming, the popover shell, a control registry), `core.ts` (schema → meta
+  inference, the cheap always-loaded controls, the panel, `enhance`), `types.ts` (the
+  public type surface), and `controls/*.ts` (the heavy controls, dynamic-imported on
+  first use; `colour` is the only one that pulls in the engine, so basic panels never
+  pay for it).
+- `src/wide-gamut.ts` — the OKLCH / wide-gamut colour engine.
 - `src/tweaks.css` — the panel styling (runs entirely on `--tw-*` custom properties).

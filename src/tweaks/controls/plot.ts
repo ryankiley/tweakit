@@ -160,7 +160,8 @@ function createPlot(meta, onChange) {
   });
 
   onReady(draw);
-  window.addEventListener("resize", draw);
+  const onResize = () => { if (!root.isConnected) return window.removeEventListener("resize", onResize); draw(); }; // panel removed → drop the listener (matches fps/bezier self-cleanup)
+  window.addEventListener("resize", onResize);
 
   return {
     el: root,

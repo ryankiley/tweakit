@@ -13,12 +13,15 @@
  */
 
 import {
-  titleCase, clamp, isHex, isColorStr, stepPrecision, roundToStep, inferStep, defaultMax,
-  optValue, optLabel, el, placeBelow, stopPointerLeak, applyThemeVars, resolveTheme, onReady,
+  titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultMax,
+  optValue, optLabel, el, popover, stopPointerLeak, applyThemeVars, resolveTheme, onReady,
   wireHoverClass, fuzzyMatch, setRadioActive, radioButton, attachScrub, ICON_GRIP,
-  REGISTRY, registerControl, getControl,
+  registerControl, getControl,
 } from "./shared.js";
 import type { Schema, TweaksOptions, Panel, Params } from "./types.js";
+// Re-export the public types so `import type { Schema, Panel } from "tweakability"`
+// works from either entry — they erase at build time.
+export type { Schema, SchemaValue, SchemaObject, ControlOptions, Option, GradientStop, Get, TweaksOptions, Params, Panel, Control } from "./types.js";
 
 // ── Lazy controls — each maps to a dynamic import of its module, which registers
 // its constructor(s) into the shared registry on load. ensure() kicks the import
@@ -42,7 +45,7 @@ const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
   point: () => import("./controls/point.js"),
   plot: () => import("./controls/plot.js"),
 } : {};
-const loading = {};
+const loading: Record<string, Promise<unknown>> = {};
 const ensure = (type) => (getControl(type) || !LAZY_IMPORT[type]) ? null : (loading[type] ||= LAZY_IMPORT[type]());
 const scanTypes = (metas, set = new Set()) => {
   for (const m of metas) {
@@ -72,12 +75,55 @@ function metaFor(key, value) {
   }
   return meta;
 }
-// True for an object-form schema value (the verbose `{ type, … }` shapes); typed()
-// narrows that to one tagged with a specific control type.
+// True for an object-form schema value (the verbose `{ type, … }` shapes).
 const isObj = (v) => v && typeof v === "object";
-const typed = (v, t) => isObj(v) && v.type === t;
+
+// ── Verbose `{ type: "…" }` forms — one handler per control type. Adding a control
+// means one entry here (plus its constructor in the registry). A handler returns a
+// falsy value for a malformed shape (e.g. a point without components), which falls
+// through to the shorthand inference — where a plain object still becomes a folder.
+// The explicit slider/number/toggle forms exist so shorthand controls can carry
+// options (render / disabled / hint / step) the array/boolean shorthands can't.
+const radiogridMeta = (v, key, label) => Array.isArray(v.options) && { type: "radiogrid", key, label, options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
+const TYPED_META: Record<string, (v: any, key: string, label: string) => any> = {
+  slider: (v, key, label) => { const mn = v.min ?? 0, mx = v.max ?? 1; return { type: "slider", key, label, value: v.value ?? mn, min: mn, max: mx, step: v.step ?? inferStep(mn, mx), soft: v.soft, alt: v.alt }; },
+  number: (v, key, label) => ({ type: "number", key, label, value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
+  toggle: (v, key, label) => ({ type: "toggle", key, label, value: !!v.value }),
+  // "segmented" is kept as an alias: picking one of a list renders as the radio
+  // grid (the nicer-looking single-select). The inline pill is reserved for booleans.
+  radiogrid: radiogridMeta,
+  segmented: radiogridMeta,
+  select: (v, key, label) => Array.isArray(v.options) && { type: "select", key, label, options: v.options, value: v.value ?? optValue(v.options[0]) },
+  // An explicit colour with a custom label: { type: "color", value: "#hex", label: "Background" }.
+  color: (v, key, label) => ({ type: "color", key, label: v.label || label, value: v.value }),
+  string: (v, key, label) => ({ type: "string", key, label, value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
+  interval: (v, key, label) => { const mn = v.min ?? 0, mx = v.max ?? 1; return { type: "interval", key, label, value: (Array.isArray(v.value) ? v.value : [mn, mx]).map(Number), min: mn, max: mx, step: v.step ?? inferStep(mn, mx) }; },
+  // The config reads off the top level or a nested `value: {…}` — both published forms.
+  spring: (v, key, label) => { const s = isObj(v.value) ? v.value : v; return { type: "spring", key, label, value: { stiffness: s.stiffness ?? 300, damping: s.damping ?? 26, mass: s.mass ?? 1 } }; },
+  bezier: (v, key, label) => ({ type: "bezier", key, label, value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
+  point: (v, key, label) => Array.isArray(v.components) && { type: "point", key, label, components: v.components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(v.components.map((c) => [c.key, c.value ?? 0])) }, // `value` = the default component map, so reset() / double-click-reset can restore it
+  gradient: (v, key, label) => ({ type: "gradient", key, label, value: v.value ?? v.stops ?? null }),
+  image: (v, key, label) => ({ type: "image", key, label, value: v.value || "" }),
+  plot: (v, key, label) => {
+    const expr = v.expr != null ? String(v.expr) : (typeof v.fn === "function" ? "" : "sin(x)");
+    return { type: "plot", key, label, value: expr, expr, fn: typeof v.fn === "function" ? v.fn : null,
+      xMin: v.xMin ?? v.min ?? -10, xMax: v.xMax ?? v.max ?? 10,
+      yMin: v.yMin, yMax: v.yMax, samples: v.samples, editable: v.editable };
+  },
+  fps: (v, key, label) => ({ type: "fps", key, label: v.label || label }),
+  monitor: (v, key, label) => ({ type: "monitor", key, label, get: v.get, value: v.value, graph: v.graph, view: v.view, min: v.min, max: v.max, interval: v.interval, rows: v.rows, decimals: v.decimals }),
+  buttongroup: (v, key, label) => ({ type: "buttongroup", key, label, buttons: v.buttons }),
+  separator: (v, key, label) => ({ type: "separator", key, label }),
+  tabs: (v, key, label) => v.pages && typeof v.pages === "object" && { type: "tabs", key, label, pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => ({ key: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"), title, children: Object.entries(schema).map(([k, sv]) => metaFor(k, sv)).filter(Boolean) })) },
+};
+
 function baseMetaFor(key, value) {
   const label = titleCase(key);
+  if (isObj(value) && !Array.isArray(value) && Object.prototype.hasOwnProperty.call(TYPED_META, value.type)) { // hasOwnProperty, so a stray type like "toString" can't hit Object.prototype
+    const meta = TYPED_META[value.type](value, key, label);
+    if (meta) return meta;
+  }
+  // ── Shorthand inference ──
   // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple.
   if (Array.isArray(value) && Array.isArray(value[0]) && value[0].length === 2 && typeof value[0][0] === "number") {
     return { type: "interval", key, label, value: value[0].map(Number), min: value[1], max: value[2], step: value[3] ?? inferStep(value[1], value[2]) };
@@ -95,43 +141,13 @@ function baseMetaFor(key, value) {
     return { type: "slider", key, label, value, min, max, step: inferStep(min, max) };
   }
   if (typeof value === "boolean") return { type: "toggle", key, label, value };
-  // "segmented" is kept as an alias: picking one of a list now renders as the radio
-  // grid (the nicer-looking single-select). The inline pill is reserved for booleans.
-  if (typed(value, "segmented") && Array.isArray(value.options)) return { type: "radiogrid", key, label, options: value.options, value: value.value ?? optValue(value.options[0]), cols: value.cols };
-  if (typed(value, "radiogrid") && Array.isArray(value.options)) return { type: "radiogrid", key, label, options: value.options, value: value.value ?? optValue(value.options[0]), cols: value.cols };
   if (Array.isArray(value)) return { type: "select", key, label, options: value, value: optValue(value[0]) };
   if (isObj(value) && typeof value.action === "function")
     return { type: "button", key, label: value.label || label, action: value.action };
   if (isObj(value) && Array.isArray(value.options))
     return { type: "select", key, label, options: value.options, value: value.value ?? optValue(value.options[0]) };
-  // An explicit colour with a custom label: { type: "color", value: "#hex", label: "Background" }.
-  if (typed(value, "color")) return { type: "color", key, label: value.label || label, value: value.value };
   if (isColorStr(value)) return { type: "color", key, label, value };
   if (typeof value === "string") return { type: "string", key, label, value };
-  if (typed(value, "spring")) return { type: "spring", key, label, value: { stiffness: value.stiffness ?? 300, damping: value.damping ?? 26, mass: value.mass ?? 1 } };
-  if (typed(value, "bezier")) return { type: "bezier", key, label, value: Array.isArray(value.value) && value.value.length === 4 ? value.value.map(Number) : [0.25, 0.1, 0.25, 1] };
-  if (typed(value, "point") && Array.isArray(value.components)) return { type: "point", key, label, components: value.components, pad: value.pad, invertY: value.invertY, value: Object.fromEntries(value.components.map((c) => [c.key, c.value ?? 0])) }; // `value` = the default component map, so reset() / double-click-reset can restore it
-  if (typed(value, "fps")) return { type: "fps", key, label: value.label || label };
-  if (typed(value, "monitor")) return { type: "monitor", key, label, get: value.get, value: value.value, graph: value.graph, view: value.view, min: value.min, max: value.max, interval: value.interval, rows: value.rows, decimals: value.decimals };
-  if (typed(value, "interval")) { const mn = value.min ?? 0, mx = value.max ?? 1; return { type: "interval", key, label, value: (Array.isArray(value.value) ? value.value : [mn, mx]).map(Number), min: mn, max: mx, step: value.step ?? inferStep(mn, mx) }; }
-  if (typed(value, "gradient")) return { type: "gradient", key, label, value: value.value ?? value.stops ?? null };
-  if (typed(value, "buttongroup")) return { type: "buttongroup", key, label, buttons: value.buttons };
-  if (typed(value, "separator")) return { type: "separator", key, label };
-  if (typed(value, "tabs") && value.pages && typeof value.pages === "object") return { type: "tabs", key, label, pages: Object.entries(value.pages).map(([title, schema]) => ({ key: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"), title, children: Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean) })) };
-  if (typed(value, "string")) return { type: "string", key, label, value: value.value ?? "", rows: value.rows, placeholder: value.placeholder };
-  if (typed(value, "image")) return { type: "image", key, label, value: value.value || "" };
-  if (typed(value, "plot")) {
-    const expr = value.expr != null ? String(value.expr) : (typeof value.fn === "function" ? "" : "sin(x)");
-    return { type: "plot", key, label, value: expr, expr, fn: typeof value.fn === "function" ? value.fn : null,
-      xMin: value.xMin ?? value.min ?? -10, xMax: value.xMax ?? value.max ?? 10,
-      yMin: value.yMin, yMax: value.yMax, samples: value.samples, editable: value.editable };
-  }
-  // Explicit slider/number object forms so shorthand controls can carry options
-  // (render / disabled / hint / step) that the [min,max] array shorthand can't.
-  if (typed(value, "slider")) { const mn = value.min ?? 0, mx = value.max ?? 1; return { type: "slider", key, label, value: value.value ?? mn, min: mn, max: mx, step: value.step ?? inferStep(mn, mx), soft: value.soft, alt: value.alt }; }
-  if (typed(value, "number")) return { type: "number", key, label, value: value.value ?? 0, min: value.min, max: value.max, step: value.step ?? 1, soft: value.soft };
-  // Explicit toggle object form so a boolean can carry a hint/render/disabled — a bare `true` has nowhere to hang them.
-  if (typed(value, "toggle")) return { type: "toggle", key, label, value: !!value.value };
   if (isObj(value)) return { type: "folder", key, label, children: Object.entries(value).map(([k, v]) => metaFor(k, v)).filter(Boolean) };
   return null;
 }
@@ -315,7 +331,8 @@ function createSlider(meta, onChange) {
   // widths it measures), and on any track-width change. The dodge already reads the
   // real offsetWidth, so it adapts to any font — this just keeps it in sync.
   onReady(render);
-  window.addEventListener("resize", render);
+  const onResize = () => { if (!track.isConnected) return window.removeEventListener("resize", onResize); render(); }; // panel removed → drop the listener (matches fps/bezier self-cleanup)
+  window.addEventListener("resize", onResize);
   track.addEventListener("keydown", (e) => {
     const coarse = e.shiftKey ? 10 : 1, page = (max - min) / 10 || step * 10;
     let nv = value;
@@ -437,7 +454,7 @@ function createSelect(meta, onChange) {
   let value = meta.value;
   const opts = meta.options.map((o) => ({ value: optValue(o), label: optLabel(o) }));
   const root = el("div", "tw-select");
-  const trigger = el("button", "tw-select-trigger"); trigger.type = "button"; trigger.dataset.open = "false"; trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
+  const trigger = el("button", "tw-select-trigger"); trigger.type = "button"; trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
   const labelEl = el("span", "tw-select-label"); labelEl.textContent = meta.label;
   const right = el("span", "tw-select-right");
   const valEl = el("span", "tw-select-value");
@@ -447,42 +464,28 @@ function createSelect(meta, onChange) {
   const dropdown = el("div", "tw-select-dropdown"); dropdown.setAttribute("role", "listbox");
   const optButtons = opts.map((o) => {
     const b = el("button", "tw-select-option"); b.type = "button"; b.setAttribute("role", "option"); b.textContent = o.label; b.dataset.value = o.value;
-    b.addEventListener("click", () => { set(o.value); close(); });
+    b.addEventListener("click", () => { set(o.value); pop.close(); });
     dropdown.append(b); return b;
   });
   root.append(trigger, dropdown);
   const reflect = () => { valEl.textContent = (opts.find((o) => o.value === value) || {}).label ?? value; optButtons.forEach((b) => { const sel = b.dataset.value === value; b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); };
   const set = (v, fire = true) => { value = v; reflect(); if (fire) onChange(v); };
-  // Portal the dropdown to <body> on open (same as the colour popover) so it's
-  // never clipped by the panel's overflow or a transformed ancestor.
-  stopPointerLeak(dropdown);
-  const place = () => placeBelow(trigger, dropdown, { width: "match", fallbackH: 200, gap: 4 });
-  const reflow = () => { if (root.classList.contains("is-open")) place(); };
-  const open = () => {
-    root.classList.add("is-open"); trigger.dataset.open = "true"; trigger.setAttribute("aria-expanded", "true");
-    document.body.appendChild(dropdown);
-    applyThemeVars(dropdown, root.closest(".tw-panel")?._twTheme);
-    place(); requestAnimationFrame(() => { dropdown.classList.add("is-open"); place(); (optButtons.find((b) => b.dataset.value === value) || optButtons[0])?.focus(); });
-    document.addEventListener("pointerdown", outside, true);
-    window.addEventListener("scroll", reflow, true); window.addEventListener("resize", reflow);
-  };
-  const close = () => {
-    root.classList.remove("is-open"); dropdown.classList.remove("is-open"); trigger.dataset.open = "false"; trigger.setAttribute("aria-expanded", "false");
-    document.removeEventListener("pointerdown", outside, true);
-    window.removeEventListener("scroll", reflow, true); window.removeEventListener("resize", reflow);
-    setTimeout(() => { if (!root.classList.contains("is-open")) dropdown.remove(); }, 200); // remove the portaled node once faded out
-  };
-  const outside = (e) => { if (!root.contains(e.target) && !dropdown.contains(e.target)) close(); };
-  trigger.addEventListener("click", () => (root.classList.contains("is-open") ? close() : open()));
+  // The shared popover shell portals the dropdown to <body> (never clipped by the
+  // panel's overflow or a transformed ancestor), themes + places it, and closes on
+  // outside-press / Esc-back-to-trigger / scroll-away — the same machinery as the
+  // colour and gradient editors, so opening the listbox closes any other popover.
+  // Only the roving-focus listbox keyboarding below is select-specific.
+  const pop = popover(root, trigger, dropdown, {
+    width: "match", fallbackH: 200, gap: 4,
+    onOpen: () => (optButtons.find((b) => b.dataset.value === value) || optButtons[0])?.focus(),
+  });
   // Keyboard: open from the trigger with ↑/↓; once open, roving focus moves through
   // the options (Enter/Space on a focused option selects it natively via click),
   // Escape closes back to the trigger, and Tab/click away closes the listbox.
   trigger.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && root.classList.contains("is-open")) { close(); trigger.focus(); }
-    else if (!root.classList.contains("is-open") && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); open(); }
+    if (!pop.isOpen() && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); pop.open(); }
   });
   dropdown.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { close(); trigger.focus(); return; }
     const i = optButtons.indexOf(document.activeElement); let j = i;
     if (e.key === "ArrowDown") j = i < 0 ? 0 : Math.min(optButtons.length - 1, i + 1);
     else if (e.key === "ArrowUp") j = i < 0 ? optButtons.length - 1 : Math.max(0, i - 1);
@@ -491,7 +494,7 @@ function createSelect(meta, onChange) {
     else return;
     e.preventDefault(); optButtons[j]?.focus();
   });
-  const onFocusOut = (e) => { if (root.classList.contains("is-open") && !root.contains(e.relatedTarget) && !dropdown.contains(e.relatedTarget)) close(); };
+  const onFocusOut = (e) => { if (pop.isOpen() && !root.contains(e.relatedTarget) && !dropdown.contains(e.relatedTarget)) pop.close(); };
   trigger.addEventListener("focusout", onFocusOut); dropdown.addEventListener("focusout", onFocusOut);
   reflect();
   return { el: root, set: (v) => set(v, false), get: () => value };
@@ -578,6 +581,10 @@ function createFolder(meta) {
   header.addEventListener("click", () => { const c = root.classList.toggle("is-collapsed"); header.setAttribute("aria-expanded", c ? "false" : "true"); });
   return { el: root, body: inner };
 }
+
+// Display/action controls — they carry no value, so the panel build skips the
+// entry/reset/persist wiring for them.
+const VALUELESS = new Set(["button", "fps", "monitor", "buttongroup", "separator"]);
 
 // One bad control constructor must not abort the whole panel build — degrade to
 // skipping just that control (every caller null-checks). Constructors come from
@@ -803,7 +810,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         build(f.body, m.children, sub, [...basePath, m.key], fi); registerCond(f.el, m); container.append(f.el);
         continue;
       }
-      if (m.type === "button" || m.type === "fps" || m.type === "monitor" || m.type === "buttongroup" || m.type === "separator") { const ctrl = createControl(m, () => {}); if (ctrl) { if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); registerCond(ctrl.el, m); container.append(ctrl.el); } continue; }
+      if (VALUELESS.has(m.type)) { const ctrl = createControl(m, () => {}); if (ctrl) { if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); registerCond(ctrl.el, m); container.append(ctrl.el); } continue; }
       const ctrl = createControl(m, (v) => { target[m.key] = v; params._last = m.key; notify(); });
       if (!ctrl) continue;
       target[m.key] = ctrl.get();
@@ -928,11 +935,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     saveRow.append(input, saveBtn);
     const list = el("div", "tw-presets-list");
     menu.append(saveRow, list);
-    stopPointerLeak(menu);
-    let isOpen = false;
-    const place = () => { const r = presetsBtn.getBoundingClientRect(), w = menu.offsetWidth || 200; menu.style.top = r.bottom + 6 + "px"; menu.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + "px"; };
-    const onOutside = (e) => { if (!menu.contains(e.target) && !presetsBtn.contains(e.target)) close(); };
-    const close = () => { isOpen = false; menu.classList.remove("is-open"); presetsBtn.setAttribute("aria-expanded", "false"); document.removeEventListener("pointerdown", onOutside, true); window.removeEventListener("resize", place); setTimeout(() => { if (!isOpen) menu.remove(); }, 180); };
     const renderList = () => {
       const all = listPresets(), names = Object.keys(all);
       list.replaceChildren();
@@ -940,18 +942,22 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       for (const nm of names) {
         const row = el("div", "tw-presets-row");
         const load = el("button", "tw-presets-load"); load.type = "button"; load.textContent = nm;
-        load.addEventListener("click", () => { loadPreset(nm); close(); showToast(`Loaded “${nm}”`); });
+        load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); showToast(`Loaded “${nm}”`); });
         const del = el("button", "tw-presets-del", ICON_X); del.type = "button"; del.setAttribute("aria-label", `Delete preset ${nm}`);
         del.addEventListener("click", (e) => { e.stopPropagation(); deletePreset(nm); renderList(); });
         row.append(load, del); list.append(row);
       }
     };
     const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } savePreset(nm); input.value = ""; renderList(); showToast(`Saved “${nm}”`); };
-    const open = () => { isOpen = true; renderList(); document.body.appendChild(menu); applyThemeVars(menu, panel._twTheme); place(); requestAnimationFrame(() => { menu.classList.add("is-open"); place(); }); presetsBtn.setAttribute("aria-expanded", "true"); document.addEventListener("pointerdown", onOutside, true); window.addEventListener("resize", place); input.focus(); };
+    // The shared popover shell again — portaled, theme-carried, outside/Esc/scroll-away
+    // close, single-open with the editors. align:"end" hangs it off the button's right
+    // edge (it sits at the panel's right corner).
+    const menuPop = popover(presetsBtn, presetsBtn, menu, {
+      width: 208, fallbackH: 160, gap: 6, align: "end",
+      onOpen: () => { renderList(); input.focus(); },
+    });
     saveBtn.addEventListener("click", doSave);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") doSave(); else if (e.key === "Escape") { close(); presetsBtn.focus(); } });
-    menu.addEventListener("keydown", (e) => { if (e.key === "Escape") { close(); presetsBtn.focus(); } });
-    presetsBtn.addEventListener("click", () => (isOpen ? close() : open()));
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") doSave(); });
   }
 
   copyBtn.addEventListener("click", async () => {

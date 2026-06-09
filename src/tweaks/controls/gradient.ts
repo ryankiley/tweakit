@@ -1,11 +1,10 @@
 // ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the colour
 // module (reuses its picker body, parseColor, and oklchStr).
 import { el, dragGesture, clamp, popover, registerControl } from "../shared.js";
-import { createPickerBody, parseColor, oklchStr } from "./colour.js";
+import { createPickerBody, parseColor, oklchStr, CHECKER } from "./colour.js";
 
 // ICON_PLUS — adapted from Lucide/Feather `plus` (MIT). See ../../../THIRD-PARTY-NOTICES.md.
 const ICON_PLUS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`;
-const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px";
 
 // ── Gradient — a Figma-style editor: the panel shows a swatch-trigger row (the
 // gradient preview + stop count, mirroring the colour row), and clicking it opens a
@@ -62,10 +61,11 @@ function createGradient(meta, onChange) {
   const value = () => ({ stops: sorted().map((s) => ({ color: s.color, pos: +s.pos.toFixed(4) })) });
   const emit = () => onChange(value());
 
+  const handleFor = (s) => [...rail.children].find((h: any) => h._stop === s);
   // The picker body edits whichever stop is selected.
   const body = createPickerBody({ value: selStop.color }, (c) => {
     selStop.color = c;
-    const h = [...rail.children].find((x) => x._stop === selStop); if (h) h.style.setProperty("--stop", c);
+    handleFor(selStop)?.style.setProperty("--stop", c);
     paint(); emit();
   });
   pop.append(barRow, body.el);
@@ -120,7 +120,7 @@ function createGradient(meta, onChange) {
     const i = stops.indexOf(s); stops.splice(i, 1);
     if (selStop === s) selStop = stops[Math.max(0, i - 1)];
     paint(); select(selStop, true); reflectCount(); emit();
-    const h = [...rail.children].find((x) => x._stop === selStop); if (h) h.focus(); // keep focus on a handle so Delete can chain
+    handleFor(selStop)?.focus(); // keep focus on a handle so Delete can chain
   };
   // Add a stop next to the SELECTED one, so where it lands is predictable: midway toward
   // the next stop on its right — or, when the selected stop is the last, midway toward the

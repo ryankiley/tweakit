@@ -5,7 +5,6 @@
 // ── helpers ──
 const titleCase = (s) => s.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-const isHex = (v) => typeof v === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v);
 // A colour-valued string: hex, or any CSS colour function (oklch/rgb/hsl/…). Used
 // to route a schema string to the colour control (a plain label stays a string).
 const isColorStr = (v) => typeof v === "string" && (/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v.trim()) || /^(oklch|oklab|rgba?|hsla?|hwb|lab|lch|color)\(/i.test(v.trim()));
@@ -85,12 +84,13 @@ const fitCanvas = (canvas, ctx, maxDpr = Infinity) => {
 };
 // Place a portaled popover under its trigger — flipping above when it won't fit below —
 // clamped into the viewport. width:"match" sizes it to the trigger; a number is the
-// fallback width to use before layout. Shared by the select dropdown + colour picker.
-const placeBelow = (trigger: any, pop: any, { width, fallbackH = 300, gap = 6 }: { width?: number | "match"; fallbackH?: number; gap?: number } = {}) => {
+// fallback width to use before layout; align:"end" lines up the right edges instead
+// (the presets menu, which hangs off a toolbar button near the panel's right edge).
+const placeBelow = (trigger: any, pop: any, { width, fallbackH = 300, gap = 6, align = "start" }: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end" } = {}) => {
   const r = trigger.getBoundingClientRect();
   if (width === "match") pop.style.width = r.width + "px";
   const w = width === "match" ? r.width : (pop.offsetWidth || width || 0);
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+  pop.style.left = Math.max(8, Math.min(align === "end" ? r.right - w : r.left, window.innerWidth - w - 8)) + "px";
   const h = pop.offsetHeight || fallbackH, below = window.innerHeight - r.bottom;
   const top = below < h + 12 && r.top > h + 12 ? r.top - h - gap : r.bottom + gap;
   pop.style.top = clamp(top, gap, window.innerHeight - h - gap) + "px"; // clamp Y into the viewport too (only X was) so a tall picker can't open off a short screen
@@ -120,37 +120,39 @@ const resolveTheme = (theme) => {
 };
 const applyThemeVars = (node, vars) => { if (node && vars) for (const k in vars) node.style.setProperty(k, vars[k]); };
 
-// ── Popover — the portal-to-<body> editor popover shared by the colour picker and
-// the gradient editor: it opens under its trigger (placeBelow, flipping up when it
-// won't fit), carries the host panel's theme onto the portaled node, and closes on
-// outside-click / Esc / scroll-away. Globally single-open — opening one closes any
-// other (so a colour and a gradient popover are mutually exclusive). The select
-// dropdown keeps its own machinery (it has bespoke listbox keyboarding). onOpen runs
-// once it's placed at real size; onReflow on scroll/resize while open.
+// ── Popover — the one portal-to-<body> shell behind every transient surface: the
+// colour picker, the gradient editor, the select dropdown, and the presets menu.
+// It opens under its trigger (placeBelow, flipping up when it won't fit), carries
+// the host panel's theme onto the portaled node, and closes on outside-press /
+// Esc / scroll-away. Globally single-open — opening any popover closes whichever
+// other one is up. onOpen runs once it's placed at real size (then it re-places,
+// so content rendered in onOpen is measured); onReflow on scroll/resize while open.
 let activePopoverClose: null | (() => void) = null;
-function popover(root: any, trigger: any, pop: any, opts: { width?: number | "match"; fallbackH?: number; gap?: number; onOpen?: () => void; onReflow?: () => void } = {}) {
+function popover(root: any, trigger: any, pop: any, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void } = {}) {
   let open = false;
   stopPointerLeak(pop); // on <body>, outside the panel's own pointer-stop
-  const place = () => placeBelow(trigger, pop, { width: opts.width, fallbackH: opts.fallbackH, gap: opts.gap });
+  const place = () => placeBelow(trigger, pop, { width: opts.width, fallbackH: opts.fallbackH, gap: opts.gap, align: opts.align });
   const reflow = () => { if (open) { place(); opts.onReflow && opts.onReflow(); } };
   const onOutside = (e) => { if (!root.contains(e.target) && !pop.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === "Escape" && open) { close(); trigger.focus(); } };
   const openPop = () => {
-    if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open editor popover first
+    if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open popover first
     activePopoverClose = close;
     open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
     document.body.appendChild(pop);
     applyThemeVars(pop, root.closest(".tw-panel")?._twTheme); // carry the host panel's theme onto the portaled popover
     place();
     requestAnimationFrame(() => { pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed)
-    setTimeout(() => document.addEventListener("pointerdown", onOutside), 0); // skip the opening click
+    // Capture phase, so a press anywhere else in the panel closes too — the panel's own
+    // stopPointerLeak would otherwise swallow the event before it bubbles to document.
+    setTimeout(() => document.addEventListener("pointerdown", onOutside, true), 0); // skip the opening click
     document.addEventListener("keydown", onKey); // Esc closes from anywhere while open, not only when focus is inside
     window.addEventListener("scroll", reflow, true); window.addEventListener("resize", reflow);
   };
   const close = () => {
     if (activePopoverClose === close) activePopoverClose = null;
     open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); trigger.setAttribute("aria-expanded", "false");
-    document.removeEventListener("pointerdown", onOutside); document.removeEventListener("keydown", onKey);
+    document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", reflow, true); window.removeEventListener("resize", reflow);
     setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
   };
@@ -229,9 +231,9 @@ function attachScrub(grab, wrap, step, read, apply, text) {
 function numField(spec, onChange) {
   // A 0 or non-finite step divides the round-to-step to NaN; a non-finite seed shows
   // literal "NaN". set() already guards both — match it at construction.
-  const step = Number.isFinite(+spec.step) && +spec.step !== 0 ? +spec.step : 1, min = spec.min, max = spec.max, decimals = (String(step).split(".")[1] || "").length;
+  const step = Number.isFinite(+spec.step) && +spec.step !== 0 ? +spec.step : 1, min = spec.min, max = spec.max, decimals = stepPrecision(step);
   const fit = (val) => {
-    let n = +(Math.round(val / step) * step).toFixed(6);
+    let n = roundToStep(val, 0, step);
     if (Number.isFinite(min)) n = Math.max(min, n);
     if (Number.isFinite(max)) n = Math.min(max, n);
     return n;
@@ -256,15 +258,15 @@ const ICON_GRIP = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" st
 // ── Control registry — control type → constructor. Core controls register on
 // load; a lazy control registers when its module is dynamically imported. build()
 // looks constructors up by type, so the loaded set drives what can be built.
-export const REGISTRY = {};
+const REGISTRY: Record<string, any> = {};
 export const registerControl = (type, ctor) => { REGISTRY[type] = ctor; };
 export const getControl = (type) => REGISTRY[type];
 
 export {
-  titleCase, clamp, isHex, isColorStr, stepPrecision, roundToStep, inferStep, defaultMax,
-  optValue, optLabel, svgNS, el, svgEl, cssVar, accentColor, stopPointerLeak, onReady,
-  wireHoverClass, dragGesture, boxFrac, fitCanvas, placeBelow, popover, THEME_ALIASES, TW_PX_ALIASES,
-  resolveTheme, applyThemeVars, fuzzyMatch, setRadioActive, radioButton, makeGrabGuide,
+  titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultMax,
+  optValue, optLabel, el, svgEl, cssVar, accentColor, stopPointerLeak, onReady,
+  wireHoverClass, dragGesture, boxFrac, fitCanvas, popover,
+  resolveTheme, applyThemeVars, fuzzyMatch, setRadioActive, radioButton,
   attachScrub, numField, ICON_GRIP,
 };
 

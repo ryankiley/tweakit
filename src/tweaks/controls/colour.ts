@@ -1,7 +1,7 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
 import { el, clamp, dragGesture, boxFrac, numField, popover, registerControl } from "../shared.js";
-import { oklchGamutProbe, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, convert, num } from "../../wide-gamut.js";
+import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, convert, num } from "../../wide-gamut.js";
 
 // ── Colour — one module: a row that opens a dropdown OKLCH picker. Ported from
 // Ryan's tweakpane-plugin-wide-gamut (the real engine; see wide-gamut.js): an
@@ -17,15 +17,14 @@ const WIDE_CANVAS = (() => { try { return document.createElement("canvas").getCo
 const CANVAS_CS: any = WIDE_CANVAS ? { colorSpace: "display-p3" } : {}; // any: colorSpace is a runtime-feature-detected string, looser than the DOM lib's PredefinedColorSpace
 const ENGINE_GAMUT = WIDE_CANVAS ? "p3" : "srgb"; // working gamut for the rasterised pixels
 const sampleCurve = (curve, t) => { const last = curve.length - 1, pos = Math.max(0, Math.min(last, t * last)), i = Math.floor(pos), f = pos - i; return curve[i] * (1 - f) + curve[Math.min(i + 1, last)] * f; };
-const chromaCeil = (probe, L, hi = 0.5) => { if (!probe(L, 0)) return 0; let lo = 0; for (let k = 0; k < 16; k++) { const m = (lo + hi) / 2; probe(L, m) ? (lo = m) : (hi = m); } return lo; };
 const gamutCurve = (hue, gamut) => { const probe = oklchGamutProbe(hue, gamut), c = new Float64Array(128); for (let i = 0; i < 128; i++) c[i] = chromaCeil(probe, i / 127); return c; };
 const wrapCss = (t, mode) =>
   mode === "hex" ? t : mode === "srgb" ? `rgb(${t})` : mode === "css" ? `rgba(${t}, 1)` :
   mode === "hsl" ? `hsl(${t})` : mode === "hwb" ? `hwb(${t})` :
   mode === "p3" ? `color(display-p3 ${t})` : mode === "rec2020" ? `color(rec2020 ${t})` : `${mode}(${t})`;
-// One alpha byte → 2-digit hex, so hex mode emits #RRGGBBAA (valid CSS) for a
-// translucent colour instead of the invalid "#rrggbb / a".
-const hexByte = (a) => Math.round(clamp(a, 0, 1) * 255).toString(16).padStart(2, "0");
+// The alpha chequerboard a translucent swatch composites over — shared with the
+// gradient control's trigger preview.
+const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px";
 
 // Parse any CSS colour (hex / oklch / rgb / hsl / named / oklab / lab / lch / color()) → [L, C, H, alpha].
 function parseColor(str) {
@@ -70,7 +69,6 @@ function createPickerBody(meta, onChange) {
     mode === "hex" ? oklchToHex(L, C, H) + (A < 0.999 ? hexByte(A) : "")
     : A < 0.999 ? oklchStr(L, C, H, A)
     : wrapCss(readout([L, C, H], mode), mode);
-  const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px";
 
   const root = el("div", "tw-color-body");
   const area = el("div", "tw-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "tw-wg-canvas"; const areaThumb = el("div", "tw-wg-thumb"); area.append(areaCanvas, areaThumb);
@@ -88,6 +86,11 @@ function createPickerBody(meta, onChange) {
   const actx = areaCanvas.getContext("2d", CANVAS_CS) as CanvasRenderingContext2D;
   const hctx = hueCanvas.getContext("2d");
 
+  // One offscreen raster canvas per body, reused across repaints — a hue drag
+  // repaints every move, so don't allocate a canvas + pixel buffer per frame.
+  const off = document.createElement("canvas");
+  const octx = off.getContext("2d", CANVAS_CS) as CanvasRenderingContext2D;
+  let offData: ImageData | null = null;
   const renderArea = () => {
     const r = area.getBoundingClientRect(); const cssW = Math.round(r.width), cssH = Math.round(r.height); if (cssW < 2) return;
     const dpr = window.devicePixelRatio || 1;
@@ -95,11 +98,11 @@ function createPickerBody(meta, onChange) {
     const curve = gamutCurve(H, stretch); chromaCurve = curve; // per-lightness chroma ceiling of the plane gamut
     const backingW = Math.round(cssW * dpr), backingH = Math.round(cssH * dpr);
     const W = Math.max(1, Math.round(backingW / 4)), Hh = Math.max(1, Math.round(backingH / 4)); // gradient rasterised at 1/4 res
-    const off = document.createElement("canvas"); off.width = W; off.height = Hh;
-    const octx = off.getContext("2d", CANVAS_CS) as CanvasRenderingContext2D; const data = new Uint8ClampedArray(W * Hh * 4);
+    if (off.width !== W || off.height !== Hh) { off.width = W; off.height = Hh; offData = new ImageData(W, Hh, CANVAS_CS); }
+    const data = offData.data;
     const invH = Hh > 1 ? 1 / (Hh - 1) : 0, invW = W > 1 ? 1 / (W - 1) : 0;
     for (let y = 0; y < Hh; y++) { const Lp = 1 - y * invH, rowMax = sampleCurve(curve, Lp); for (let x = 0; x < W; x++) { const rgb = convert([Lp, x * invW * rowMax, H], "oklch", ENGINE_GAMUT); const o = (y * W + x) * 4; data[o] = Math.round(clamp(rgb[0], 0, 1) * 255); data[o + 1] = Math.round(clamp(rgb[1], 0, 1) * 255); data[o + 2] = Math.round(clamp(rgb[2], 0, 1) * 255); data[o + 3] = 255; } }
-    octx.putImageData(new ImageData(data, W, Hh, CANVAS_CS), 0, 0);
+    octx.putImageData(offData, 0, 0);
     areaCanvas.width = backingW; areaCanvas.height = backingH; actx.imageSmoothingEnabled = true; actx.drawImage(off, 0, 0, backingW, backingH);
     // Gamut boundaries on the dpr-backed canvas → crisp: solid sRGB line inside,
     // dashed P3 line riding the displayable edge (wide modes only).
@@ -199,7 +202,7 @@ function createPickerBody(meta, onChange) {
 
   return {
     el: root,
-    set: (v) => { [L, C, H, A] = parseColor(v); reflow(); refresh(); }, // reflow self-guards offscreen; refresh keeps the channel inputs in sync
+    set: (v) => { [L, C, H, A] = parseColor(v); sync(true); }, // repaint the plane only if the hue moved (gradient stop-hopping at the same hue skips the raster); renderArea self-guards offscreen
     get: () => colorStr(),
     reflow,
     // The host paints its own trigger from these — the body carries no swatch/value of its own.
@@ -239,6 +242,6 @@ const oklchStr = (L, C, H, A) => A < 0.999
   ? `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)} / ${+A.toFixed(3)})`
   : `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)})`;
 
-export { createColor, createPickerBody, parseColor, oklchStr };
+export { createColor, createPickerBody, parseColor, oklchStr, CHECKER };
 registerControl("color", createColor);
 

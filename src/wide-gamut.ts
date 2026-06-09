@@ -127,7 +127,7 @@ export function convert(coords, from, to) {
 
 // ── gamut ──
 const SLACK = 0.000075;
-export function inGamut(oklch, gamut) { const rgb = convert(oklch, "oklch", gamut); return rgb.every((c) => c >= -SLACK && c <= 1 + SLACK); }
+function inGamut(oklch, gamut) { const rgb = convert(oklch, "oklch", gamut); return rgb.every((c) => c >= -SLACK && c <= 1 + SLACK); }
 const clip = (rgb) => rgb.map((c) => Math.min(1, Math.max(0, c)));
 const deltaEOK = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 /** Map OKLCH into an RGB gamut (CSS Color 4 chroma reduction + local clip). */
@@ -145,8 +145,6 @@ export function toGamut(oklch, dest) {
   }
   return clipped;
 }
-/** OKLCH [L,C,H] → gamma RGB in `gamut` (no clamp) — for painting the plane. */
-export const oklchToRgb = (L, C, H, gamut = "srgb") => convert([L, C, H], "oklch", gamut);
 /** Fast in-gamut probe at a fixed hue — `(L,C)=>inside?` (his chroma-boundary loop). */
 export function oklchGamutProbe(hue, gamut) {
   const h = hue * RAD, cos = Math.cos(h), sin = Math.sin(h);
@@ -162,15 +160,18 @@ export function oklchGamutProbe(hue, gamut) {
     const b = gam(F[2][0] * c0 + F[2][1] * c1 + F[2][2] * c2); return b >= lo && b <= hi;
   };
 }
-export function maxChroma(L, hue, gamut, hi = 0.5) {
-  const probe = oklchGamutProbe(hue, gamut); if (!probe(L, 0)) return 0;
-  let lo = 0; for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (probe(L, m)) lo = m; else hi = m; }
+/** Bisect the chroma ceiling at lightness L for an `oklchGamutProbe` — the highest
+ * in-gamut C. The picker traces its plane gamut, boundary lines, and hue strip with it. */
+export function chromaCeil(probe, L, hi = 0.5) {
+  if (!probe(L, 0)) return 0;
+  let lo = 0; for (let k = 0; k < 16; k++) { const m = (lo + hi) / 2; probe(L, m) ? (lo = m) : (hi = m); }
   return lo;
 }
 
 // ── hex ──
-const hex2 = (n) => Math.round(Math.min(1, Math.max(0, n)) * 255).toString(16).padStart(2, "0");
-export const rgbToHex = (rgb) => `#${hex2(rgb[0])}${hex2(rgb[1])}${hex2(rgb[2])}`;
+/** One 0–1 channel → a 2-digit hex byte (also the alpha suffix for #RRGGBBAA). */
+export const hexByte = (n) => Math.round(Math.min(1, Math.max(0, n)) * 255).toString(16).padStart(2, "0");
+const rgbToHex = (rgb) => `#${hexByte(rgb[0])}${hexByte(rgb[1])}${hexByte(rgb[2])}`;
 export const oklchToHex = (L, C, H) => rgbToHex(toGamut([L, C, H], "srgb"));
 export function hexToOklch(hex) {
   let h = String(hex).replace("#", "").trim();
@@ -185,7 +186,7 @@ export const EDIT_MODES = ["hex", "srgb", "css", "hsl", "hwb", "oklch", "oklab",
 export const MODE_LABELS = { hex: "HEX", srgb: "RGB", css: "CSS", hsl: "HSL", hwb: "HWB", oklch: "OKLCH", oklab: "OKLab", lch: "LCH", lab: "Lab", p3: "P3", rec2020: "Rec2020" };
 const SRGB_BOUND = ["srgb", "css", "hsl", "hwb", "hex"];
 export const showsGamutBoundary = (mode) => !SRGB_BOUND.includes(mode);
-export const modeSpaceId = (mode) => (mode === "hex" || mode === "css" ? "srgb" : mode);
+const modeSpaceId = (mode) => (mode === "hex" || mode === "css" ? "srgb" : mode);
 const MAX_CHROMA = 0.5;
 export const MODE_CHANNELS = {
   oklch: [{ k: "L", min: 0, max: 100, step: 1, scale: 100 }, { k: "C", min: 0, max: MAX_CHROMA, step: 0.01, scale: 1 }, { k: "H", min: 0, max: 360, step: 1, scale: 1 }],
@@ -199,7 +200,7 @@ export const MODE_CHANNELS = {
   p3: [{ k: "R", min: 0, max: 1, step: 0.01, scale: 1 }, { k: "G", min: 0, max: 1, step: 0.01, scale: 1 }, { k: "B", min: 0, max: 1, step: 0.01, scale: 1 }],
   rec2020: [{ k: "R", min: 0, max: 1, step: 0.01, scale: 1 }, { k: "G", min: 0, max: 1, step: 0.01, scale: 1 }, { k: "B", min: 0, max: 1, step: 0.01, scale: 1 }],
 };
-export const digitsFor = (step) => (step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3);
+const digitsFor = (step) => (step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3);
 
 /** Display-unit channel values for `mode` from canonical OKLCH. */
 export function channelValues(oklch, mode) {
