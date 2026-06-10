@@ -69,5 +69,5 @@ function createBezier(meta, onChange) {
   return { el: root, set: (nv) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = m.map((n, i) => clamp(n, SPECS[i].lo, SPECS[i].hi)); drawGraph(); syncFields(); } }, get: () => v.slice() }; // clamp each to its field range so get() agrees with the handles + fields
 }
 
-registerControl("bezier", createBezier);
+registerControl("cubicbezier", createBezier);
 

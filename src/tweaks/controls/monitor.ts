@@ -104,6 +104,6 @@ function createMonitor(meta) {
   return { el: wrap, set: () => {}, get: () => undefined };
 }
 
-registerControl("fps", createFps);
+registerControl("fpsgraph", createFps);
 registerControl("monitor", createMonitor);
 

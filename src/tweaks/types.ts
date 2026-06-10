@@ -25,18 +25,18 @@ export interface ControlOptions {
 export type SchemaObject =
   | { type: "slider"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; alt?: boolean }
   | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean }
-  | { type: "toggle"; value?: boolean }
-  | { type: "select"; options: Option[]; value?: string }
+  | { type: "checkbox"; value?: boolean }
+  | { type: "list"; options: Option[]; value?: string }
   | { type: "radiogrid" | "segmented"; options: Option[]; value?: string; cols?: number }
   | { type: "color"; value?: string; label?: string }
-  | { type: "string"; value?: string; rows?: number; placeholder?: string }
+  | { type: "text"; value?: string; rows?: number; placeholder?: string }
   | { type: "interval"; value?: [number, number]; min?: number; max?: number; step?: number }
   | { type: "spring"; stiffness?: number; damping?: number; mass?: number; value?: { stiffness?: number; damping?: number; mass?: number } }
-  | { type: "bezier"; value?: [number, number, number, number] }
+  | { type: "cubicbezier"; value?: [number, number, number, number] }
   | { type: "point"; components: Array<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
   | { type: "gradient"; value?: { stops: GradientStop[] } | Array<GradientStop | [string, number]> }
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean }
-  | { type: "fps"; label?: string }
+  | { type: "fpsgraph"; label?: string }
   | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }
   | { type: "image"; value?: string }
   | { type: "button"; action: () => void; label?: string }

@@ -7,8 +7,8 @@
  *   • enhance(root)             — turn [data-tw] markup into a live control (the showcase)
  *
  * Schema shorthands:
- *   [default, min, max, step?] → slider     true|false → toggle
- *   ["a","b"] | {options,value}→ select     "#rrggbb"  → colour
+ *   [default, min, max, step?] → slider     true|false → checkbox
+ *   ["a","b"] | {options,value}→ list       "#rrggbb"  → colour
  *   { action: fn, label? }     → button
  */
 
@@ -38,10 +38,10 @@ const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
   gradient: () => import("./controls/gradient.js"),
   tabs: () => import("./controls/tabs.js"),
   image: () => import("./controls/image.js"),
-  fps: () => import("./controls/monitor.js"),
+  fpsgraph: () => import("./controls/monitor.js"),
   monitor: () => import("./controls/monitor.js"),
   spring: () => import("./controls/spring.js"),
-  bezier: () => import("./controls/bezier.js"),
+  cubicbezier: () => import("./controls/bezier.js"),
   point: () => import("./controls/point.js"),
   plot: () => import("./controls/plot.js"),
 } : {};
@@ -82,25 +82,25 @@ const isObj = (v) => v && typeof v === "object";
 // means one entry here (plus its constructor in the registry). A handler returns a
 // falsy value for a malformed shape (e.g. a point without components), which falls
 // through to the shorthand inference — where a plain object still becomes a folder.
-// The explicit slider/number/toggle forms exist so shorthand controls can carry
+// The explicit slider/number/checkbox forms exist so shorthand controls can carry
 // options (render / disabled / hint / step) the array/boolean shorthands can't.
 const radiogridMeta = (v, key, label) => Array.isArray(v.options) && { type: "radiogrid", key, label, options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
 const TYPED_META: Record<string, (v: any, key: string, label: string) => any> = {
   slider: (v, key, label) => { const mn = v.min ?? 0, mx = v.max ?? 1; return { type: "slider", key, label, value: v.value ?? mn, min: mn, max: mx, step: v.step ?? inferStep(mn, mx), soft: v.soft, alt: v.alt }; },
   number: (v, key, label) => ({ type: "number", key, label, value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
-  toggle: (v, key, label) => ({ type: "toggle", key, label, value: !!v.value }),
+  checkbox: (v, key, label) => ({ type: "checkbox", key, label, value: !!v.value }),
   // "segmented" is kept as an alias: picking one of a list renders as the radio
   // grid (the nicer-looking single-select). The inline pill is reserved for booleans.
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
-  select: (v, key, label) => Array.isArray(v.options) && { type: "select", key, label, options: v.options, value: v.value ?? optValue(v.options[0]) },
+  list: (v, key, label) => Array.isArray(v.options) && { type: "list", key, label, options: v.options, value: v.value ?? optValue(v.options[0]) },
   // An explicit colour with a custom label: { type: "color", value: "#hex", label: "Background" }.
   color: (v, key, label) => ({ type: "color", key, label: v.label || label, value: v.value }),
-  string: (v, key, label) => ({ type: "string", key, label, value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
+  text: (v, key, label) => ({ type: "text", key, label, value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
   interval: (v, key, label) => { const mn = v.min ?? 0, mx = v.max ?? 1; return { type: "interval", key, label, value: (Array.isArray(v.value) ? v.value : [mn, mx]).map(Number), min: mn, max: mx, step: v.step ?? inferStep(mn, mx) }; },
   // The config reads off the top level or a nested `value: {…}` — both published forms.
   spring: (v, key, label) => { const s = isObj(v.value) ? v.value : v; return { type: "spring", key, label, value: { stiffness: s.stiffness ?? 300, damping: s.damping ?? 26, mass: s.mass ?? 1 } }; },
-  bezier: (v, key, label) => ({ type: "bezier", key, label, value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
+  cubicbezier: (v, key, label) => ({ type: "cubicbezier", key, label, value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
   point: (v, key, label) => Array.isArray(v.components) && { type: "point", key, label, components: v.components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(v.components.map((c) => [c.key, c.value ?? 0])) }, // `value` = the default component map, so reset() / double-click-reset can restore it
   gradient: (v, key, label) => ({ type: "gradient", key, label, value: v.value ?? v.stops ?? null }),
   image: (v, key, label) => ({ type: "image", key, label, value: v.value || "" }),
@@ -110,7 +110,7 @@ const TYPED_META: Record<string, (v: any, key: string, label: string) => any> = 
       xMin: v.xMin ?? v.min ?? -10, xMax: v.xMax ?? v.max ?? 10,
       yMin: v.yMin, yMax: v.yMax, samples: v.samples, editable: v.editable };
   },
-  fps: (v, key, label) => ({ type: "fps", key, label: v.label || label }),
+  fpsgraph: (v, key, label) => ({ type: "fpsgraph", key, label: v.label || label }),
   monitor: (v, key, label) => ({ type: "monitor", key, label, get: v.get, value: v.value, graph: v.graph, view: v.view, min: v.min, max: v.max, interval: v.interval, rows: v.rows, decimals: v.decimals }),
   buttongroup: (v, key, label) => ({ type: "buttongroup", key, label, buttons: v.buttons }),
   separator: (v, key, label) => ({ type: "separator", key, label }),
@@ -140,14 +140,14 @@ function baseMetaFor(key, value) {
     const min = 0, max = defaultMax(value);
     return { type: "slider", key, label, value, min, max, step: inferStep(min, max) };
   }
-  if (typeof value === "boolean") return { type: "toggle", key, label, value };
-  if (Array.isArray(value)) return { type: "select", key, label, options: value, value: optValue(value[0]) };
+  if (typeof value === "boolean") return { type: "checkbox", key, label, value };
+  if (Array.isArray(value)) return { type: "list", key, label, options: value, value: optValue(value[0]) };
   if (isObj(value) && typeof value.action === "function")
     return { type: "button", key, label: value.label || label, action: value.action };
   if (isObj(value) && Array.isArray(value.options))
-    return { type: "select", key, label, options: value.options, value: value.value ?? optValue(value.options[0]) };
+    return { type: "list", key, label, options: value.options, value: value.value ?? optValue(value.options[0]) };
   if (isColorStr(value)) return { type: "color", key, label, value };
-  if (typeof value === "string") return { type: "string", key, label, value };
+  if (typeof value === "string") return { type: "text", key, label, value };
   if (isObj(value)) return { type: "folder", key, label, children: Object.entries(value).map(([k, v]) => metaFor(k, v)).filter(Boolean) };
   return null;
 }
@@ -589,7 +589,7 @@ function createFolder(meta) {
 
 // Display/action controls — they carry no value, so the panel build skips the
 // entry/reset/persist wiring for them.
-const VALUELESS = new Set(["button", "fps", "monitor", "buttongroup", "separator"]);
+const VALUELESS = new Set(["button", "fpsgraph", "monitor", "buttongroup", "separator"]);
 
 // One bad control constructor must not abort the whole panel build — degrade to
 // skipping just that control (every caller null-checks). Constructors come from
@@ -674,13 +674,13 @@ async function copyText(text) {
 
 // Core controls register synchronously; lazy ones register when imported.
 registerControl("slider", createSlider);
-registerControl("toggle", createToggle);
+registerControl("checkbox", createToggle);
 registerControl("radiogrid", createRadiogrid);
-registerControl("select", createSelect);
+registerControl("list", createSelect);
 registerControl("button", createButton);
 registerControl("buttongroup", createButtonGroup);
 registerControl("separator", createSeparator);
-registerControl("string", createString);
+registerControl("text", createString);
 registerControl("number", createNumber);
 registerControl("folder", createFolder);
 
@@ -1081,25 +1081,25 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 const dataMeta = (host) => {
   const d = host.dataset, type = d.tw, label = d.label || titleCase(d.key || type);
   if (type === "slider") return { type, key: "v", label, value: +(d.value ?? 0), min: +(d.min ?? 0), max: +(d.max ?? 100), step: +(d.step || inferStep(+(d.min ?? 0), +(d.max ?? 100))), soft: d.soft === "true" || d.soft === "", alt: d.alt === "true" || d.alt === "" };
-  if (type === "toggle") {
-    // A list of options is a single-select → radio grid; a bare toggle is boolean.
+  if (type === "checkbox") {
+    // A list of options is a single-select → radio grid; a bare checkbox is boolean.
     const options = d.options ? d.options.split(",").map((s) => s.trim()).filter(Boolean) : null;
     if (options) return { type: "radiogrid", key: "v", label, options, value: d.value ?? options[0], cols: d.cols != null ? +d.cols : undefined };
     return { type, key: "v", label, value: d.checked === "true" };
   }
   if (type === "radiogrid") return { type, key: "v", label, options: (d.options || "").split(",").map((s) => s.trim()).filter(Boolean), value: d.value, cols: d.cols != null ? +d.cols : undefined };
-  if (type === "select") return { type, key: "v", label, options: (d.options || "").split(",").map((s) => s.trim()).filter(Boolean), value: d.value };
+  if (type === "list") return { type, key: "v", label, options: (d.options || "").split(",").map((s) => s.trim()).filter(Boolean), value: d.value };
   if (type === "color") return { type, key: "v", label, value: d.value || "#7c5cff" };
   if (type === "button") return { type, key: "v", label, action: () => showToast(`${label} pressed`) };
   if (type === "buttongroup") return { type, key: "v", label, buttons: (d.buttons || "").split(",").map((s) => s.trim()).filter(Boolean).map((lab) => ({ label: lab, action: () => showToast(`${lab} pressed`) })) };
   if (type === "separator") return { type, key: "v", label };
   if (type === "number") return { type, key: "v", label, value: +(d.value ?? 0), min: d.min != null ? +d.min : undefined, max: d.max != null ? +d.max : undefined, step: +(d.step || 1) };
-  if (type === "string") return { type, key: "v", label, value: d.value ?? "", placeholder: d.placeholder, rows: d.rows != null ? +d.rows : undefined };
+  if (type === "text") return { type, key: "v", label, value: d.value ?? "", placeholder: d.placeholder, rows: d.rows != null ? +d.rows : undefined };
   if (type === "image") return { type, key: "v", label, value: d.value || "" };
-  if (type === "fps") return { type, key: "v", label: d.label || "FPS" };
+  if (type === "fpsgraph") return { type, key: "v", label: d.label || "FPS" };
   if (type === "interval") { const mn = +(d.min ?? 0), mx = +(d.max ?? 1); return { type, key: "v", label, value: (d.value || (mn + "," + mx)).split(",").map(Number), min: mn, max: mx, step: +(d.step || inferStep(mn, mx)) }; }
   if (type === "spring") return { type, key: "v", label, value: { stiffness: +(d.stiffness ?? 300), damping: +(d.damping ?? 26), mass: +(d.mass ?? 1) } };
-  if (type === "bezier") return { type, key: "v", label, value: (d.value || "0.25,0.1,0.25,1").split(",").map(Number) };
+  if (type === "cubicbezier") return { type, key: "v", label, value: (d.value || "0.25,0.1,0.25,1").split(",").map(Number) };
   if (type === "point") {
     const labels = (d.components || "X,Y").split(",").map((s) => s.trim()).filter(Boolean);
     const vals = (d.value || "").split(",").map((s) => parseFloat(s));
