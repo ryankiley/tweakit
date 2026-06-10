@@ -21,7 +21,7 @@ import {
 import type { Schema, TweaksOptions, Panel, Params } from "./types.js";
 // Re-export the public types so `import type { Schema, Panel } from "tweakability"`
 // works from either entry — they erase at build time.
-export type { Schema, SchemaValue, SchemaObject, ControlOptions, Option, GradientStop, Get, TweaksOptions, Params, Panel, Control } from "./types.js";
+export type { Schema, SchemaValue, SchemaObject, ControlOptions, Option, GradientStop, Get, TweaksOptions, Theme, Params, Panel, Control } from "./types.js";
 
 // ── Lazy controls — each maps to a dynamic import of its module, which registers
 // its constructor(s) into the shared registry on load. ensure() kicks the import

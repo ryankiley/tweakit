@@ -7,29 +7,39 @@
  * with tabular figures on the value readouts so the live numbers hold their column.
  */
 .tw-panel {
-  /* Surfaces */
-  --tw-surface: rgba(255, 255, 255, 0.05);
-  --tw-surface-hover: rgba(255, 255, 255, 0.1);
-  --tw-surface-active: rgba(255, 255, 255, 0.11);
-  --tw-surface-subtle: rgba(255, 255, 255, 0.06);
+  /* Surfaces — controls float on faint films over the base. A quieter, slightly wider
+   * ramp than before so the kit reads as its own design rather than mirroring another. */
+  --tw-surface: rgba(255, 255, 255, 0.04);
+  --tw-surface-hover: rgba(255, 255, 255, 0.075);
+  --tw-surface-active: rgba(255, 255, 255, 0.13);
+  --tw-surface-subtle: rgba(255, 255, 255, 0.025);
   /* Text hierarchy */
-  --tw-text-root: #ffffff;
-  --tw-text-section: rgba(255, 255, 255, 0.7);
-  --tw-text-label: rgba(255, 255, 255, 0.7);
+  --tw-text-root: #fafafa;
+  --tw-text-section: rgba(255, 255, 255, 0.64);
+  --tw-text-label: rgba(255, 255, 255, 0.64);
   --tw-text-focus: #ffffff;
-  --tw-text-primary: rgba(255, 255, 255, 0.95);
-  --tw-text-secondary: rgba(255, 255, 255, 0.6);
-  --tw-text-tertiary: rgba(255, 255, 255, 0.4);
-  /* Borders */
-  --tw-border: rgba(255, 255, 255, 0.1);
-  --tw-border-hover: rgba(255, 255, 255, 0.15);
+  --tw-text-primary: rgba(255, 255, 255, 0.92);
+  --tw-text-secondary: rgba(255, 255, 255, 0.56);
+  --tw-text-tertiary: rgba(255, 255, 255, 0.36);
+  /* Borders — deliberately faint: the panel leans on its shadow for definition, not
+   * outlines, so every hairline here is a whisper. */
+  --tw-border: rgba(255, 255, 255, 0.045);
+  --tw-border-hover: rgba(255, 255, 255, 0.11);
   /* Base surface — the panel background, reused for recessed insets (viz, number
    * wells). Opaque, never frosted glass (the site's surface rule). */
-  --tw-base: #212121;
-  --tw-dropdown-bg: #2a2a2a;
+  /* A clear step brighter than a typical dark page (~#161616), so the panel reads as a
+   * raised surface on dark even before the shadow — tonal lift does what a drop shadow
+   * can't against a dark backdrop. */
+  --tw-base: #242424;
+  --tw-dropdown-bg: #292929;
   --tw-radius: 8px;
   --tw-row-height: 32px;
-  --tw-shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
+  /* Container elevation — on dark, the readable cues are the 1px rim-light and the lit
+   * top edge (they separate the panel from the page where a black shadow can't), backed
+   * by a layered soft pool. -lifted deepens it while floating / being dragged. */
+  --tw-shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.5), 0 16px 32px -8px rgba(0, 0, 0, 0.6), 0 32px 64px -16px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  --tw-shadow-panel-lifted: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 6px 16px -3px rgba(0, 0, 0, 0.6), 0 36px 80px -18px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   /* Success accent — the copy-confirmation check. Self-contained (no host --green-*
    * or color-scheme reliance); flips in the light-mode block below like every other
    * --tw-* colour, so the kit confirms in green wherever it's lifted. */
@@ -56,9 +66,12 @@
   width: 248px;
   box-sizing: border-box;
   background: var(--tw-base);
-  border: 1px solid var(--tw-border);
-  /* Concentric with the controls: panel radius = control radius (8) + padding (10). */
-  border-radius: 18px;
+  /* No flat outline — the layered shadow (with its 1px ring + lit top edge) carries
+   * the panel's definition instead. */
+  box-shadow: var(--tw-shadow-panel);
+  /* Concentric with the controls: panel radius = control radius + padding (10), so
+   * theming `radius` scales the panel with its controls. Default 8 + 10 = 18. */
+  border-radius: calc(var(--tw-radius) + 10px);
   /* No backdrop-filter: the bg is opaque so a blur shows nothing, AND a
    * backdrop-filter would make the panel the containing block for the colour
    * popover's position:fixed — detaching it from its trigger. */
@@ -72,7 +85,7 @@
  * grab cursor + a lift in elevation on pickup signal it. Below the portaled
  * popovers (z 50) so a control's dropdown still renders over the panel body.
  * Left/top are set inline by the JS. */
-.tw-panel[data-mode="floating"] { position: fixed; z-index: 40; box-shadow: var(--tw-shadow-dropdown); transition: box-shadow 0.2s var(--tw-ease-out); }
+.tw-panel[data-mode="floating"] { position: fixed; z-index: 40; box-shadow: var(--tw-shadow-panel-lifted); transition: box-shadow 0.25s var(--tw-ease-out); }
 /* The header is the drag handle — a grab cursor advertises it whether the panel is
  * still inline (draggable) or already floated. touch-action:none so a touch-drag moves
  * the panel rather than scrolling the page. The negative-top margin (cancelled by an
@@ -87,7 +100,7 @@
 .tw-panel[data-draggable="true"] > .tw-header,
 .tw-panel[data-mode="floating"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
 /* Pickup: the panel lifts on a deeper shadow (eased in via the transition above). */
-.tw-panel.is-dragging { user-select: none; box-shadow: 0 18px 52px rgba(0, 0, 0, 0.55); z-index: 41; }
+.tw-panel.is-dragging { user-select: none; box-shadow: var(--tw-shadow-panel-lifted); z-index: 41; }
 .tw-panel.is-dragging > .tw-header,
 .tw-panel.is-dragging > .tw-header .tw-header-toggle { cursor: grabbing; }
 
@@ -150,7 +163,7 @@
 .tw-hint:hover, .tw-hint:focus-visible { color: var(--tw-text-secondary); transform: scale(1.2); }
 .tw-hint:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; border-radius: 999px; }
 .tw-hint svg { width: 13px; height: 13px; display: block; }
-.tw-tip { position: fixed; z-index: 60; max-width: 220px; padding: 6px 9px; font-family: var(--tw-font-sans); font-size: 12px; line-height: 1.4; color: var(--tw-text-primary, rgba(255, 255, 255, 0.95)); background: var(--tw-dropdown-bg, #2a2a2a); border: 1px solid var(--tw-border, rgba(255, 255, 255, 0.1)); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown, 0 8px 24px rgba(0, 0, 0, 0.4)); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
+.tw-tip { position: fixed; z-index: 60; max-width: 220px; padding: 6px 9px; font-family: var(--tw-font-sans); font-size: 12px; line-height: 1.4; color: var(--tw-text-primary, rgba(255, 255, 255, 0.92)); background: var(--tw-dropdown-bg, #292929); border: 1px solid var(--tw-border, rgba(255, 255, 255, 0.05)); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown, 0 12px 32px -8px rgba(0, 0, 0, 0.6)); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
 .tw-tip.is-open { opacity: 1; transform: none; }
 
 /* Collapse — grid-rows 1fr→0fr animates the body height, dependency-free */
@@ -525,12 +538,12 @@
  * position:fixed (a transform/filter, e.g. .prose's entrance transform) and the
  * panel's overflow. So they carry the panel's tokens themselves (light below). */
 .tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu {
-  --tw-surface: rgba(255, 255, 255, 0.05); --tw-surface-hover: rgba(255, 255, 255, 0.1);
-  --tw-surface-active: rgba(255, 255, 255, 0.11);
-  --tw-text-label: rgba(255, 255, 255, 0.7); --tw-text-primary: rgba(255, 255, 255, 0.95);
-  --tw-text-focus: #ffffff; --tw-text-tertiary: rgba(255, 255, 255, 0.4);
-  --tw-border: rgba(255, 255, 255, 0.1); --tw-border-hover: rgba(255, 255, 255, 0.15);
-  --tw-dropdown-bg: #2a2a2a; --tw-base: #1f1f1f; --tw-radius: 8px; --tw-shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --tw-surface: rgba(255, 255, 255, 0.04); --tw-surface-hover: rgba(255, 255, 255, 0.075);
+  --tw-surface-active: rgba(255, 255, 255, 0.13);
+  --tw-text-label: rgba(255, 255, 255, 0.64); --tw-text-primary: rgba(255, 255, 255, 0.92);
+  --tw-text-focus: #ffffff; --tw-text-tertiary: rgba(255, 255, 255, 0.36);
+  --tw-border: rgba(255, 255, 255, 0.045); --tw-border-hover: rgba(255, 255, 255, 0.11);
+  --tw-dropdown-bg: #292929; --tw-base: #242424; --tw-radius: 8px; --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
   --tw-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   /* The portaled popovers live on <body>, outside .tw-panel — carry the motion tokens too. */
   --tw-ease-out: cubic-bezier(0.25, 1, 0.5, 1); --tw-ease-spring: cubic-bezier(0.22, 1, 0.36, 1); --tw-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -769,34 +782,40 @@
 /* ── Light theme — flips with the page (the site is color-scheme: light dark) ── */
 @media (prefers-color-scheme: light) {
   .tw-panel {
-    --tw-surface: rgba(0, 0, 0, 0.04);
-    --tw-surface-hover: rgba(0, 0, 0, 0.08);
+    /* Mirrors dark mode's tonal logic: an off-white base with item containers a step
+     * brighter (white), rather than darker films on white. Items go lighter than the
+     * base, same gentle step as dark. Hover/active stay subtle darkenings so fills and
+     * pressed states keep contrast against the near-white items. */
+    --tw-surface: rgba(255, 255, 255, 0.82);
+    --tw-surface-hover: rgba(0, 0, 0, 0.04);
     --tw-surface-active: rgba(0, 0, 0, 0.1);
-    --tw-surface-subtle: rgba(0, 0, 0, 0.06);
-    --tw-text-root: #000000;
-    --tw-text-section: rgba(0, 0, 0, 0.65);
-    --tw-text-label: rgba(0, 0, 0, 0.6);
+    --tw-surface-subtle: rgba(255, 255, 255, 0.55);
+    --tw-text-root: #1a1a1a;
+    --tw-text-section: rgba(0, 0, 0, 0.62);
+    --tw-text-label: rgba(0, 0, 0, 0.58);
     --tw-text-focus: #000000;
-    --tw-text-primary: rgba(0, 0, 0, 0.9);
-    --tw-text-secondary: rgba(0, 0, 0, 0.55);
-    --tw-text-tertiary: rgba(0, 0, 0, 0.35);
-    --tw-border: rgba(0, 0, 0, 0.1);
-    --tw-border-hover: rgba(0, 0, 0, 0.15);
-    --tw-base: #fafafa;
-    --tw-dropdown-bg: #ffffff;
-    --tw-shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --tw-text-primary: rgba(0, 0, 0, 0.88);
+    --tw-text-secondary: rgba(0, 0, 0, 0.52);
+    --tw-text-tertiary: rgba(0, 0, 0, 0.34);
+    --tw-border: rgba(0, 0, 0, 0.045);
+    --tw-border-hover: rgba(0, 0, 0, 0.1);
+    --tw-base: #f3f3f3;
+    --tw-dropdown-bg: #f6f6f6;
+    --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.14);
+    --tw-shadow-panel: 0 0 0 1px rgba(0, 0, 0, 0.045), 0 2px 8px -2px rgba(0, 0, 0, 0.08), 0 18px 44px -12px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    --tw-shadow-panel-lifted: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 6px 16px -3px rgba(0, 0, 0, 0.12), 0 30px 70px -16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 1);
     --tw-success: #15803d;
   }
   /* Light mode: thumb/handle need definition — a subtle thumb shadow */
   .tw-slider-handle { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08); }
   /* Portaled popovers carry their own tokens — flip them to light too. */
   .tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu {
-    --tw-surface: rgba(0, 0, 0, 0.04); --tw-surface-hover: rgba(0, 0, 0, 0.08);
+    --tw-surface: rgba(255, 255, 255, 0.82); --tw-surface-hover: rgba(0, 0, 0, 0.04);
     --tw-surface-active: rgba(0, 0, 0, 0.1);
-    --tw-text-label: rgba(0, 0, 0, 0.6); --tw-text-primary: rgba(0, 0, 0, 0.9);
-    --tw-text-focus: #000000; --tw-text-tertiary: rgba(0, 0, 0, 0.35);
-    --tw-border: rgba(0, 0, 0, 0.1); --tw-border-hover: rgba(0, 0, 0, 0.15);
-    --tw-dropdown-bg: #ffffff; --tw-base: #f4f4f4; --tw-shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --tw-text-label: rgba(0, 0, 0, 0.58); --tw-text-primary: rgba(0, 0, 0, 0.88);
+    --tw-text-focus: #000000; --tw-text-tertiary: rgba(0, 0, 0, 0.34);
+    --tw-border: rgba(0, 0, 0, 0.045); --tw-border-hover: rgba(0, 0, 0, 0.1);
+    --tw-dropdown-bg: #f6f6f6; --tw-base: #f3f3f3; --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.14);
   }
 }
 

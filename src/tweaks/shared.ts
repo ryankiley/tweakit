@@ -101,11 +101,21 @@ const placeBelow = (trigger: any, pop: any, { width, fallbackH = 300, gap = 6, a
 // map; applyThemeVars sets them inline. Raw "--tw-*" keys pass straight through; the
 // aliases below cover the common levers. Anything unset falls back to the CSS default,
 // so no theme === the default monochrome look, and partial themes only move what they name.
+// Friendly name → token. The full themeable surface — every lever the look runs on,
+// so a theme can reach all of it by readable name (raw "--tw-*" keys also pass through).
 const THEME_ALIASES = {
-  accent: "--tw-accent", base: "--tw-base", surface: "--tw-surface", surfaceHover: "--tw-surface-hover",
-  surfaceActive: "--tw-surface-active", border: "--tw-border", text: "--tw-text-primary", label: "--tw-text-label",
-  dropdownBg: "--tw-dropdown-bg", shadow: "--tw-shadow-dropdown", font: "--tw-font-sans",
-  radius: "--tw-radius", density: "--tw-row-height", // numeric → px
+  // colour — backdrops
+  accent: "--tw-accent", base: "--tw-base", dropdownBg: "--tw-dropdown-bg",
+  surface: "--tw-surface", surfaceHover: "--tw-surface-hover", surfaceActive: "--tw-surface-active", surfaceSubtle: "--tw-surface-subtle",
+  border: "--tw-border", borderHover: "--tw-border-hover",
+  // colour — text tones
+  title: "--tw-text-root", section: "--tw-text-section", text: "--tw-text-primary", label: "--tw-text-label",
+  textMuted: "--tw-text-secondary", textFaint: "--tw-text-tertiary", focus: "--tw-text-focus",
+  success: "--tw-success",
+  // elevation
+  shadow: "--tw-shadow-dropdown", shadowPanel: "--tw-shadow-panel", shadowPanelLifted: "--tw-shadow-panel-lifted",
+  // type + shape
+  font: "--tw-font-sans", radius: "--tw-radius", density: "--tw-row-height", // numeric → px
 };
 const TW_PX_ALIASES = new Set(["radius", "density"]);
 const resolveTheme = (theme) => {

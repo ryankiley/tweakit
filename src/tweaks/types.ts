@@ -47,21 +47,51 @@ export type SchemaObject =
 /** A schema value — a shorthand, a verbose `{ type }` object, or a nested folder. */
 export type SchemaValue =
   | number                                          // bare number → slider (0…3×)
-  | boolean                                         // → toggle
+  | boolean                                         // → checkbox
   | string                                          // a label, or a colour string → colour picker
   | [number] | [number, number] | [number, number, number] | [number, number, number, number] // [value, min?, max?, step?] → slider
   | [[number, number], number, number] | [[number, number], number, number, number]           // [[lo,hi], min, max, step?] → interval
-  | Option[]                                        // list of options → select
+  | Option[]                                        // a list of options → list (dropdown)
   | (SchemaObject & ControlOptions)                 // verbose form (+ render/disabled/hint)
   | Schema;                                         // nested object → folder
 
 /** The object you hand to `tweaks(name, schema, opts?)`. */
 export interface Schema { [key: string]: SchemaValue; }
 
+/** A theme — token overrides applied over the default monochrome look. Every key is
+ *  optional, so a partial theme only moves what it names; unset tokens keep their default.
+ *  Use the friendly names here, or any raw `--tw-*` custom property. Apply at build via
+ *  `tweaks(name, schema, { theme })`, or live via `panel.setTheme(theme)`. The kit's whole
+ *  appearance runs on these custom properties — this is the public theming surface. */
+export interface Theme {
+  /** Brand accent — slider fills, focus rings, active highlights (default: neutral, no accent). */
+  accent?: string;
+  /** Panel background, reused for recessed wells. */
+  base?: string;
+  /** Popover / dropdown background. */
+  dropdownBg?: string;
+  /** Control surface and its hover / active / subtle steps. */
+  surface?: string; surfaceHover?: string; surfaceActive?: string; surfaceSubtle?: string;
+  /** Hairline border and its hover step. */
+  border?: string; borderHover?: string;
+  /** Text tones — panel title, section heading, primary value text, control label, and the muted / faint / focus tones. */
+  title?: string; section?: string; text?: string; label?: string; textMuted?: string; textFaint?: string; focus?: string;
+  /** Copy-confirmation accent. */
+  success?: string;
+  /** Popover shadow, the panel's container elevation, and its lifted (floating / dragging) variant. */
+  shadow?: string; shadowPanel?: string; shadowPanelLifted?: string;
+  /** Font stack. */
+  font?: string;
+  /** Control corner radius and row height — a bare number is treated as px. */
+  radius?: number | string; density?: number | string;
+  /** Escape hatch — any raw token, e.g. `"--tw-accent": "#6c8cff"`. */
+  [token: string]: string | number | undefined;
+}
+
 /** Panel options (third arg to `tweaks()`). */
 export interface TweaksOptions {
-  /** Friendly theme map (or raw `--tw-*` keys); `null` = default monochrome. */
-  theme?: Record<string, string | number> | null;
+  /** Theme overrides (friendly names or raw `--tw-*`); `null` / omitted = default monochrome. */
+  theme?: Theme | null;
   /** Persist values to localStorage + enable presets — a key, or `true` to key by name. */
   persist?: string | boolean;
   /** Add a filter/search field to the toolbar. */
@@ -101,7 +131,7 @@ export interface Panel {
   /** Reset every control to its default (or run `opts.onReset`). */
   reset(): void;
   /** Re-theme the panel live; `null` reverts to the default. */
-  setTheme(theme?: TweaksOptions["theme"]): void;
+  setTheme(theme?: Theme | null): void;
   /** Save the current values as a named preset (needs `opts.persist`). */
   savePreset(name: string): boolean;
   /** Load a named preset. */

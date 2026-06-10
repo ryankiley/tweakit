@@ -15,4 +15,4 @@ import "./controls/point.js";
 import "./controls/plot.js";
 
 export { tweaks, enhance } from "./core.js";
-export type { Schema, SchemaValue, SchemaObject, ControlOptions, Option, GradientStop, Get, TweaksOptions, Params, Panel, Control } from "./types.js";
+export type { Schema, SchemaValue, SchemaObject, ControlOptions, Option, GradientStop, Get, TweaksOptions, Theme, Params, Panel, Control } from "./types.js";
