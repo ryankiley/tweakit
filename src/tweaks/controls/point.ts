@@ -46,7 +46,12 @@ function createPoint(meta, onChange) {
       out[cx.key] = flds[0].get(); out[cy.key] = flds[1].get();
       positionPad(); onChange({ ...out });
     };
-    dragGesture(padHost, { onDown: padSet, onMove: padSet });
+    // .is-grabbing scales the thumb on press (CSS, spring) — the pad's echo of the slider lift.
+    dragGesture(padHost, {
+      onDown: (e) => { padHost.classList.add("is-grabbing"); padSet(e); },
+      onMove: padSet,
+      onEnd: () => padHost.classList.remove("is-grabbing"),
+    });
   }
   positionPad();
   return { el: root, set: (v) => { if (v) comps.forEach((c, k) => { if (v[c.key] != null) { flds[k].set(v[c.key]); out[c.key] = flds[k].get(); } }); positionPad(); }, get: () => ({ ...out }) };

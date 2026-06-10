@@ -11,12 +11,13 @@ Spun out of a personal design system, where it's the kit behind every playground
 ## Use
 
 ```js
-import { tweaks } from "tweakability";        // the readable single file (everything inline)
-// …or the code-split entry, which loads heavy controls on first use:
+import { tweaks } from "tweakability";        // one minified, self-contained file (everything inline)
+// …or the code-split entry — leanest on the wire, loads heavy controls on first use:
 import { tweaks } from "tweakability/core";
 
 const panel = tweaks("Card", {
   blur: [24, 0, 100, 1],          // [value, min, max, step] → slider
+  gain: { type: "knob", value: 0.6, min: 0, max: 1, step: 0.01 }, // → rotary dial
   visible: true,                   // → toggle
   blend: ["normal", "multiply"],   // → dropdown
   tint: "#7C5CFF",                 // → wide-gamut colour picker
@@ -25,6 +26,13 @@ const panel = tweaks("Card", {
 document.body.append(panel.el);
 panel.on((values) => { /* values.blur, values.tint, … */ });
 ```
+
+Drag the panel by its header to reposition it — an inline panel lifts into a floating
+layer on the first drag and parks against the nearest edge on release (opt out with
+`{ draggable: false }`; `{ floating: true }` starts it floated). Size on the wire: the
+code-split entry is ~12 KB gzip for a basic panel — the colour engine and each heavier
+control (the knob is ~1.4 KB) load only when first used; the single file is ~30 KB gzip
+with everything inlined.
 
 Add the styles too: `tweakability/css` (i.e. `dist/tweaks.css`).
 
@@ -39,9 +47,10 @@ npm install
 npm run build      # → dist/
 ```
 
-`dist/` contains the minified split chunks (`tweaks/`), the readable single file
+`dist/` contains the minified split chunks (`tweaks/`), the minified single file
 (`tweaks.js`), the panel CSS (`tweaks.css`), the OKLCH engine (`wide-gamut.js`), and
-the demo (`index.html`). `npm run serve` builds and serves it on :4330.
+the demo (`index.html`). Both builds come from the one readable source tree in `src/`.
+`npm run serve` builds and serves it on :4330.
 
 ## Layout
 

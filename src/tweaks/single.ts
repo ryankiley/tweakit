@@ -13,5 +13,6 @@ import "./controls/spring.js";
 import "./controls/bezier.js";
 import "./controls/point.js";
 import "./controls/plot.js";
+import "./controls/knob.js";
 
 export { tweaks, enhance } from "./core.js";

@@ -183,15 +183,22 @@ function createPickerBody(meta, onChange) {
     refresh();
   };
 
+  // Grab feedback: the surface flags .is-grabbing for its run so the thumb scales up
+  // (CSS, spring-eased) the moment you press — the picker's echo of the slider handle's lift.
+  const grabbable = (surface, set) => dragGesture(surface, {
+    onDown: (e) => { surface.classList.add("is-grabbing"); set(e); },
+    onMove: set,
+    onEnd: () => surface.classList.remove("is-grabbing"),
+  });
   const areaXY = (e) => boxFrac(e, area);
   const setArea = (e) => { const [fx, fy] = areaXY(e); L = 1 - fy; C = fx * (chromaCurve ? sampleCurve(chromaCurve, L) : 0.4); positionThumbs(); refresh(); emit(); };
-  dragGesture(area, { onDown: setArea, onMove: setArea });
+  grabbable(area, setArea);
   const hueAt = (e) => boxFrac(e, hueBar)[0] * 360;
   const setHue = (e) => { H = hueAt(e); sync(true); emit(); };
-  dragGesture(hueBar, { onDown: setHue, onMove: setHue });
+  grabbable(hueBar, setHue);
   const alphaAt = (e) => boxFrac(e, alphaBar)[0];
   const setAlpha = (e) => { A = alphaAt(e); positionThumbs(); refresh(); emit(); };
-  dragGesture(alphaBar, { onDown: setAlpha, onMove: setAlpha });
+  grabbable(alphaBar, setAlpha);
 
   modeSel.addEventListener("change", () => { mode = modeSel.value; renderChannels(); renderArea(); emit(); }); // renderArea self-guards when the body is offscreen
 

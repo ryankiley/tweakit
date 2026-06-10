@@ -33,11 +33,13 @@ await esbuild.build({
   legalComments: "none", define: { TW_SPLIT: "true" },
 });
 
-// 2) single self-contained file → dist/tweaks.js (everything inlined, synchronous)
+// 2) single self-contained file → dist/tweaks.js (every control inlined, synchronous —
+// the drop-in that needs no bundler). Minified: it's the default `tweakability` import,
+// so it ships small; the readable reference is the src/ tree it's built from.
 await esbuild.build({
   entryPoints: [p("src/tweaks/single.ts")],
   outfile: p("dist/tweaks.js"),
-  bundle: true, splitting: false, format: "esm", minify: false, target: "es2020",
+  bundle: true, splitting: false, format: "esm", minify: true, target: "es2020",
   legalComments: "none", define: { TW_SPLIT: "false" },
 });
 
