@@ -66,8 +66,11 @@ export interface TweaksOptions {
   persist?: string | boolean;
   /** Add a filter/search field to the toolbar. */
   filter?: boolean;
-  /** Make the panel fixed + draggable (`true`, or a start position). */
+  /** Start the panel already floated (fixed-positioned): `true` → top-left, or an explicit `{x,y}`. */
   floating?: boolean | { x: number; y: number };
+  /** Drag the header to reposition the panel — on by default. An inline panel lifts into a
+   *  floating layer on first drag; set `false` to pin it in place. */
+  draggable?: boolean;
   /** Set `false` for a bare panel (no copy/reset/presets toolbar). */
   toolbar?: boolean;
   /** Enable debounced undo/redo (⌘Z / ⇧⌘Z while the panel is hovered/focused). */

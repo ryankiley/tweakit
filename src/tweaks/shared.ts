@@ -179,6 +179,19 @@ const fuzzyMatch = (text, q) => {
   return Math.min(...prev) <= (q.length < 6 ? 1 : 2);
 };
 
+// Liquid sliding-pill stretch — shared by the segmented control + tabs. As the pill
+// travels to a new segment, a one-shot scaleX overshoot makes its leading edge stretch
+// ahead and settle back (transform-origin pinned to the trailing edge so it reads
+// directional), giving the same organic finesse the slider's glide has. Uses the Web
+// Animations API (native, zero-dep, replayable); honours reduced-motion. dir>0 = moving
+// right (origin left), dir<0 = moving left (origin right).
+const REDUCE_MOTION = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false } as any;
+const stretchPill = (pill, dir) => {
+  if (REDUCE_MOTION.matches || typeof pill.animate !== "function") return;
+  pill.style.transformOrigin = dir > 0 ? "left center" : "right center";
+  pill.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(1.18)" }, { transform: "scaleX(1)" }], { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+};
+
 // Reflect a single-select value onto a radio group's buttons: data-active (paint),
 // aria-checked (semantics), and a roving tabindex so Tab lands on the selected one
 // and arrow keys move within the group. Shared by the segmented control + radio grid.
@@ -267,6 +280,6 @@ export {
   optValue, optLabel, el, svgEl, cssVar, accentColor, stopPointerLeak, onReady,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover,
   resolveTheme, applyThemeVars, fuzzyMatch, setRadioActive, radioButton,
-  attachScrub, numField, ICON_GRIP,
+  attachScrub, numField, stretchPill, ICON_GRIP,
 };
 

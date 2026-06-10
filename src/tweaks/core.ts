@@ -15,7 +15,7 @@
 import {
   titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultMax,
   optValue, optLabel, el, popover, stopPointerLeak, applyThemeVars, resolveTheme, onReady,
-  wireHoverClass, fuzzyMatch, setRadioActive, radioButton, attachScrub, ICON_GRIP,
+  wireHoverClass, fuzzyMatch, setRadioActive, radioButton, attachScrub, stretchPill, ICON_GRIP,
   registerControl, getControl,
 } from "./shared.js";
 import type { Schema, TweaksOptions, Panel, Params } from "./types.js";
@@ -379,12 +379,17 @@ function createSegmented(options, value, onChange, ariaLabel) {
   const pill = el("div", "tw-seg-pill");
   seg.append(pill);
   const btns = options.map((o) => { const b = radioButton("tw-seg-btn", o, (v) => set(v)); seg.append(b); return b; }); // lazy `set` — it's declared below
-  const measure = () => {
+  const measure = (animate?) => {
     const active = seg.querySelector('[data-active="true"]');
     if (!active) return;
-    pill.style.left = active.offsetLeft + "px"; pill.style.width = active.offsetWidth + "px"; // fill the active segment; the 2px flex gap + 2px container padding frame it (same as tabs)
+    const left = active.offsetLeft, width = active.offsetWidth, prev = parseFloat(pill.style.left);
+    pill.style.left = left + "px"; pill.style.width = width + "px"; // fill the active segment; the 2px flex gap + 2px container padding frame it (same as tabs)
+    // Liquid pill: as it slides between segments, a transient scaleX overshoot makes the
+    // leading edge stretch ahead then pull in — the kind of finesse the slider's glide has.
+    // Origin is the trailing edge so the stretch reads directional. Reduced-motion skips it.
+    if (animate && Number.isFinite(prev) && prev !== left) stretchPill(pill, left > prev ? 1 : -1);
   };
-  const reflect = () => { setRadioActive(btns, value); measure(); };
+  const reflect = () => { setRadioActive(btns, value); measure(true); };
   const set = (v, fire = true) => { value = v; reflect(); if (fire) onChange(v); };
   seg.addEventListener("keydown", (e) => {
     const i = btns.findIndex((b) => b.dataset.value === String(value)); if (i < 0) return;
@@ -887,44 +892,71 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   loadPreset = (nm) => { const all = listPresets(); if (all[nm]) { applySnapshot(all[nm]); return true; } return false; };
   deletePreset = (nm) => { if (!presetsKey) return; const all = listPresets(); delete all[nm]; writeStore(presetsKey, all); };
 
-  // ── Floating mode (opts.floating) ──────────────────────────────────────────
-  // A fixed, draggable panel. Drag the header to move it; a click on the title
-  // (no drag past the threshold) still collapses. `true` → top-left default;
-  // `{ x, y }` → an explicit start. Position persists to "<key>:pos" when
-  // persistence is on, so a dragged panel returns where the user left it.
-  if (opts.floating) {
-    panel.dataset.mode = "floating";
+  // ── Repositioning — drag the header to move the panel ───────────────────────
+  // Every panel is draggable by its header (opt out with opts.draggable:false). An
+  // inline panel lifts into a fixed, floating layer on the first drag — popping out of
+  // document flow at the exact spot it sat, so it doesn't jump — then tracks the pointer.
+  // opts.floating starts it already floated (`true` → top-left, or an explicit {x,y}). A
+  // plain click on the title (no drag past the threshold) still collapses. On release the
+  // panel eases the rest of the way to a viewport edge when dropped near one (a gentle
+  // magnetism), and the position persists to "<key>:pos" when persistence is on — so a
+  // moved panel returns where the user left it.
+  const draggable = opts.draggable !== false;
+  if (draggable || opts.floating) {
+    if (draggable) panel.dataset.draggable = "true"; // CSS grab cursor on the header — the affordance
     const posKey = persistKey ? `${persistKey}:pos` : null;
     const saved = posKey ? readStore(posKey) : null;
+    const startFloated = !!opts.floating || !!saved;
     const start = saved || (typeof opts.floating === "object" ? opts.floating : null) || { x: 16, y: 16 };
     let px = +start.x || 16, py = +start.y || 16;
     const apply = () => { panel.style.left = px + "px"; panel.style.top = py + "px"; };
-    apply();
+    if (startFloated) { panel.dataset.mode = "floating"; apply(); }
+    // Lift an inline panel into the floating layer at its current on-screen rect, so a
+    // drag pops it out of flow in place rather than snapping to a corner.
+    const lift = () => { if (panel.dataset.mode === "floating") return; const r = panel.getBoundingClientRect(); px = r.left; py = r.top; panel.dataset.mode = "floating"; apply(); };
+
+    const MARGIN = 8, SNAP = 28; // px: viewport inset, and the drop distance within which the panel parks against an edge
+    const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - panel.offsetHeight - MARGIN) });
     let dragId = null, sx = 0, sy = 0, ox = 0, oy = 0;
     header.addEventListener("pointerdown", (e) => {
       // Let the toolbar buttons and any inputs work; drag from anywhere else on the header.
       if (e.button !== 0 || e.target.closest(".tw-toolbar, input, textarea, select")) return;
-      dragId = e.pointerId; sx = e.clientX; sy = e.clientY; ox = px; oy = py; dragMoved = false;
-      try { header.setPointerCapture(dragId); } catch {}
-      panel.classList.add("is-dragging");
+      dragId = e.pointerId; sx = e.clientX; sy = e.clientY; dragMoved = false;
+      panel.style.transition = ""; // clear any leftover snap transition so the grab is 1:1
     });
     header.addEventListener("pointermove", (e) => {
       if (e.pointerId !== dragId) return;
       const dx = e.clientX - sx, dy = e.clientY - sy;
-      if (!dragMoved && Math.abs(dx) + Math.abs(dy) < 4) return; // a few px of slop before it counts as a drag, not a click
-      dragMoved = true;
-      const maxX = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
-      const maxY = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
-      px = clamp(ox + dx, 8, maxX); py = clamp(oy + dy, 8, maxY); apply();
+      if (!dragMoved) {
+        if (Math.abs(dx) + Math.abs(dy) < 4) return; // a few px of slop before it counts as a drag, not a click
+        dragMoved = true; lift(); ox = px; oy = py; // capture the (possibly just-lifted) origin once the drag truly starts
+        try { header.setPointerCapture(dragId); } catch {}
+        panel.classList.add("is-dragging");
+      }
+      const { maxX, maxY } = bounds();
+      px = clamp(ox + dx, MARGIN, maxX); py = clamp(oy + dy, MARGIN, maxY); apply();
     });
     const endDrag = (e) => {
       if (e.pointerId !== dragId) return;
       try { header.releasePointerCapture(dragId); } catch {}
-      dragId = null; panel.classList.remove("is-dragging");
-      if (dragMoved && posKey) writeStore(posKey, { x: px, y: py });
+      dragId = null;
+      if (dragMoved) {
+        // Edge magnetism: a drop near a side eases the rest of the way to the margin, so the
+        // panel parks cleanly against the edge instead of hovering a few px off it.
+        const { maxX, maxY } = bounds();
+        if (px <= MARGIN + SNAP) px = MARGIN; else if (px >= maxX - SNAP) px = maxX;
+        if (py <= MARGIN + SNAP) py = MARGIN; else if (py >= maxY - SNAP) py = maxY;
+        panel.style.transition = "left 0.32s var(--tw-ease-spring), top 0.32s var(--tw-ease-spring)";
+        apply();
+        setTimeout(() => { panel.style.transition = ""; }, 340);
+        if (posKey) writeStore(posKey, { x: px, y: py });
+      }
+      panel.classList.remove("is-dragging");
     };
     header.addEventListener("pointerup", endDrag);
     header.addEventListener("pointercancel", endDrag);
+    // Keep a floated panel inside the viewport as the window resizes.
+    window.addEventListener("resize", () => { if (panel.dataset.mode === "floating") { const { maxX, maxY } = bounds(); px = clamp(px, MARGIN, maxX); py = clamp(py, MARGIN, maxY); apply(); } });
   }
 
   if (presetsBtn) {

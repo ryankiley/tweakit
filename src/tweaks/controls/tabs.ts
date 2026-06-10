@@ -1,6 +1,6 @@
 // ── Tabs — group controls into pages. Lazy; build() recurses its page bodies
 // after the module has loaded (ensured before the panel assembles).
-import { el, onReady, registerControl } from "../shared.js";
+import { el, onReady, stretchPill, registerControl } from "../shared.js";
 
 // ── Tabs — group controls into pages; a pill slides to the active tab (Tweakpane's
 // addTab / leva pages). Each page body is a .tw-controls that build() fills. ──
@@ -19,11 +19,16 @@ function createTabs(meta) {
     bar.append(btn); return btn;
   });
   root.append(bar, pagesWrap);
-  const measure = () => { const a = bar.querySelector('[data-active="true"]'); if (a) { pill.style.left = a.offsetLeft + "px"; pill.style.width = a.offsetWidth + "px"; } };
+  const measure = (animate?) => {
+    const a = bar.querySelector('[data-active="true"]'); if (!a) return;
+    const left = a.offsetLeft, prev = parseFloat(pill.style.left);
+    pill.style.left = left + "px"; pill.style.width = a.offsetWidth + "px";
+    if (animate && Number.isFinite(prev) && prev !== left) stretchPill(pill, left > prev ? 1 : -1); // liquid stretch as the pill crosses to the new tab
+  };
   function activate(i) {
     tabs.forEach((b, k) => { b.dataset.active = String(k === i); b.setAttribute("aria-selected", String(k === i)); b.tabIndex = k === i ? 0 : -1; });
     bodies.forEach((b, k) => (b.dataset.active = String(k === i)));
-    measure();
+    measure(true);
   }
   bar.addEventListener("keydown", (e) => {
     const i = tabs.findIndex((b) => b.dataset.active === "true"); if (i < 0) return;
