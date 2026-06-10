@@ -903,7 +903,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // moved panel returns where the user left it.
   const draggable = opts.draggable !== false;
   if (draggable || opts.floating) {
-    if (draggable) panel.dataset.draggable = "true"; // CSS grab cursor on the header — the affordance
+    if (draggable) {
+      panel.dataset.draggable = "true"; // CSS grab cursor on the header — the affordance
+      // A top-centre grabber pill — the visual cue to match the cursor. Decorative
+      // (pointer-events:none, so the press still lands on the header), it reveals on
+      // header hover and brightens mid-drag the way the slider handle does.
+      const grabber = el("span", "tw-grabber"); grabber.setAttribute("aria-hidden", "true");
+      header.prepend(grabber);
+    }
     const posKey = persistKey ? `${persistKey}:pos` : null;
     const saved = posKey ? readStore(posKey) : null;
     const startFloated = !!opts.floating || !!saved;
@@ -922,6 +929,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       // Let the toolbar buttons and any inputs work; drag from anywhere else on the header.
       if (e.button !== 0 || e.target.closest(".tw-toolbar, input, textarea, select")) return;
       dragId = e.pointerId; sx = e.clientX; sy = e.clientY; dragMoved = false;
+      panel.classList.add("is-grabbing"); // press feedback: brighten the grabber the instant it's grabbed, before any move — matters on touch, where there's no hover to reveal it first
       panel.style.transition = ""; // clear any leftover snap transition so the grab is 1:1
     });
     header.addEventListener("pointermove", (e) => {
@@ -951,7 +959,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         setTimeout(() => { panel.style.transition = ""; }, 340);
         if (posKey) writeStore(posKey, { x: px, y: py });
       }
-      panel.classList.remove("is-dragging");
+      panel.classList.remove("is-dragging", "is-grabbing");
     };
     header.addEventListener("pointerup", endDrag);
     header.addEventListener("pointercancel", endDrag);
