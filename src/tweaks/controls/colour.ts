@@ -118,6 +118,9 @@ function createPickerBody(meta, onChange) {
     }
     paintedHue = H;
   };
+  // Hue-strip lightness — the strip raster and the hue-thumb fill both use it, so the
+  // filled ring matches the strip column behind it seamlessly.
+  const STRIP_L = 0.7;
   let hueW = 0;
   const renderHue = () => {
     const r = hueBar.getBoundingClientRect(); const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height)); if (w < 2) return;
@@ -126,7 +129,7 @@ function createPickerBody(meta, onChange) {
     // Full-vibrancy hue: each column rides the sRGB chroma ceiling for its hue at a
     // fixed lightness, so every hue shows at its most saturated displayable form
     // (the wide-gamut plugin's look) rather than a flat, washed-out low chroma.
-    const Lh = 0.7;
+    const Lh = STRIP_L;
     for (let x = 0; x < w; x++) {
       const hue = (x / (w - 1)) * 360;
       const rgb = convert([Lh, chromaCeil(oklchGamutProbe(hue, "srgb"), Lh), hue], "oklch", "srgb");
@@ -146,12 +149,16 @@ function createPickerBody(meta, onChange) {
     areaThumb.style.left = at(ceil > 0 ? C / ceil : 0); areaThumb.style.top = at(1 - L);
     hueThumb.style.left = inside(H / 360, 16); alphaThumb.style.left = inside(A, 16);
     alphaGrad.style.background = `linear-gradient(to right, oklch(${L} ${C} ${H} / 0), oklch(${L} ${C} ${H}))`;
-    // Filled rings, not see-through: the area ring carries the picked colour; the alpha
-    // ring carries that colour at the current opacity composited over the panel surface
-    // — an opaque tone (no checker pattern inside the ring), so it dims as opacity drops
-    // without the busy chequerboard. (The hue ring still shows the strip hue through it.)
+    // Filled rings, not see-through: each ring carries its own colour, so a grabbed thumb
+    // (scaled up past its track's height) stays solid to its edge instead of revealing the
+    // dropdown bg in the slivers above/below the strip. Area ring → the picked colour;
+    // alpha ring → that colour at the current opacity over the panel surface (an opaque
+    // tone, no checker inside, so it dims as opacity drops); hue ring → the strip's
+    // full-vibrancy hue at this H, matched to the strip raster so the fill is seamless.
     areaThumb.style.background = `oklch(${L} ${C} ${H})`;
     alphaThumb.style.background = `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), var(--tw-dropdown-bg)`;
+    const hueRgb = convert([STRIP_L, chromaCeil(oklchGamutProbe(H, "srgb"), STRIP_L), H], "oklch", "srgb");
+    hueThumb.style.background = `rgb(${clamp(hueRgb[0] * 255, 0, 255) | 0} ${clamp(hueRgb[1] * 255, 0, 255) | 0} ${clamp(hueRgb[2] * 255, 0, 255) | 0})`;
   };
   const refresh = () => {
     gamut2.textContent = gamutLabel([L, C, H], mode); // gamut shows in the picker only

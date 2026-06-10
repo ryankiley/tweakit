@@ -75,20 +75,46 @@
 .tw-panel[data-mode="floating"] { position: fixed; z-index: 40; box-shadow: var(--tw-shadow-dropdown); transition: box-shadow 0.2s var(--tw-ease-out); }
 /* The header is the drag handle — a grab cursor advertises it whether the panel is
  * still inline (draggable) or already floated. touch-action:none so a touch-drag moves
- * the panel rather than scrolling the page. */
+ * the panel rather than scrolling the page. The negative-top margin (cancelled by an
+ * equal padding-top, so the title doesn't move) stretches the header's hit area up
+ * through the panel's 10px top padding to the very edge — so the grab cursor, the
+ * hover-reveal, and the drag-start all reach the top, rather than dropping out in the
+ * padding strip above the header. */
 .tw-panel[data-draggable="true"] > .tw-header,
 .tw-panel[data-draggable="true"] > .tw-header .tw-header-toggle,
 .tw-panel[data-mode="floating"] > .tw-header,
 .tw-panel[data-mode="floating"] > .tw-header .tw-header-toggle { cursor: grab; }
 .tw-panel[data-draggable="true"] > .tw-header,
-.tw-panel[data-mode="floating"] > .tw-header { touch-action: none; }
+.tw-panel[data-mode="floating"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
 /* Pickup: the panel lifts on a deeper shadow (eased in via the transition above). */
 .tw-panel.is-dragging { user-select: none; box-shadow: 0 18px 52px rgba(0, 0, 0, 0.55); z-index: 41; }
 .tw-panel.is-dragging > .tw-header,
 .tw-panel.is-dragging > .tw-header .tw-header-toggle { cursor: grabbing; }
 
+/* Drag grabber — a top-centre pill that signals the header is the drag surface. It
+ * appears the way the slider handle does: hidden at rest (the grab cursor carries the
+ * affordance until then), revealing on header hover — fading in and growing from a
+ * squished sliver — and brightening while the panel is dragged. Decorative
+ * (pointer-events:none) so the press lands on the header beneath it; only rendered on
+ * draggable panels. Sits 3px down from the (top-padding-extended) header edge, centred
+ * in the panel's top padding. */
+.tw-grabber {
+  position: absolute; top: 3px; left: 50%;
+  width: 28px; height: 4px; border-radius: 999px;
+  background: var(--tw-text-primary);
+  transform: translateX(-50%) scaleX(0.4); opacity: 0; pointer-events: none;
+  transition: opacity 0.15s, transform 0.2s var(--tw-ease-spring);
+}
+.tw-header:hover > .tw-grabber { opacity: 0.4; transform: translateX(-50%) scaleX(1); }
+/* Press (pointerdown, before/without a drag) brightens it immediately — so on touch,
+ * where there's no hover, the grab still registers visually. Drag rule comes after, so
+ * it wins (0.85) once both classes are present. */
+.tw-panel.is-grabbing > .tw-header > .tw-grabber { opacity: 0.7; transform: translateX(-50%) scaleX(1); }
+.tw-panel.is-dragging > .tw-header > .tw-grabber { opacity: 0.85; transform: translateX(-50%) scaleX(1); }
+
 /* ── Header (root folder title) ── */
 .tw-header {
+  position: relative; /* anchor for the top-centre .tw-grabber */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -222,8 +248,11 @@
 .tw-slider:hover .tw-slider-handle,
 .tw-slider.is-hover .tw-slider-handle,
 .tw-slider:focus-within .tw-slider-handle { opacity: 0.5; transform: translateY(-50%) scaleX(1); }
-.tw-slider.is-active .tw-slider-handle { opacity: 0.5; transform: translateY(-50%) scaleX(1); }
-.tw-slider.is-dragging .tw-slider-handle { opacity: 0.9; }
+/* Press or drag drives it to full weight — the handle turns dark the instant the track
+ * is pressed, not only once a drag begins. (The dodge rules below still win when it's
+ * sliding under the label/value text.) */
+.tw-slider.is-active .tw-slider-handle,
+.tw-slider.is-dragging .tw-slider-handle { opacity: 0.9; transform: translateY(-50%) scaleX(1); }
 /* Interval handles are focusable (the single slider's are decorative); a focused
  * handle must show itself, with an accent ring. */
 .tw-slider-handle:focus-visible { opacity: 0.9; transform: translateY(-50%) scaleX(1); outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }

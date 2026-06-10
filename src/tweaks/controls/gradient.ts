@@ -127,16 +127,31 @@ function createGradient(meta, onChange) {
   // one on its left. (Was the widest gap, which felt arbitrary — you couldn't tell where
   // the new stop would appear.) It samples the gradient there; drag it to taste. No
   // click-to-add on the bar: that fought with grabbing a stop to reposition it.
+  // Insert a stop at `pos`, coloured by sampling the gradient exactly there — so it lands
+  // invisibly on the existing ramp — and select it. Shared by the + button (a computed
+  // midpoint) and double-click on the bar (the clicked position).
+  const insertStopAt = (pos) => {
+    const s = { color: colorAt(pos), pos: clamp(pos, 0, 1) };
+    stops.push(s); paint(); select(s, true); reflectCount(); emit();
+    return s;
+  };
   const addStop = () => {
     const ss = sorted();
     let i = ss.indexOf(selStop); if (i < 0) i = 0;
     const at = i < ss.length - 1 ? (ss[i].pos + ss[i + 1].pos) / 2   // midway toward the next stop
              : i > 0             ? (ss[i - 1].pos + ss[i].pos) / 2   // selected is last → midway toward the previous
              : clamp(ss[i].pos + 0.1, 0, 1);                         // lone stop (floor is 2, so a safety net)
-    const s = { color: colorAt(at), pos: at };
-    stops.push(s); paint(); select(s, true); reflectCount(); emit();
+    insertStopAt(at);
   };
   addBtn.addEventListener("click", (e) => { e.stopPropagation(); addStop(); });
+  // Double-click the bar to drop a new stop right at the pointer, taking the gradient's
+  // exact tone there. Double-click (not single) so it never fights grabbing a stop to drag
+  // it; a double-click on a stop falls through to that stop's own handler, which removes it.
+  bar.addEventListener("dblclick", (e) => {
+    if ((e.target as Element).closest(".tw-gradient-stop")) return;
+    e.preventDefault();
+    insertStopAt(posFromX(e.clientX));
+  });
 
   // Delete / Backspace removes the selected stop (min 2). Ignored while typing in a field
   // (a channel input). Lives on the popover, where the stop handles + picker now sit.
