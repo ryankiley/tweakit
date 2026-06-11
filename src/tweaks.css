@@ -219,11 +219,15 @@
 .tw-toolbar-btn--swap.is-copied .tw-toolbar-btn__copy { opacity: 0; transform: scale(0.25); filter: blur(2px); }
 .tw-toolbar-btn--swap.is-copied .tw-toolbar-btn__check { opacity: 1; transform: none; filter: blur(0); }
 /* Reset: a small clockwise wind-up on hover, then it releases into a counter-clockwise
- * spin on click (the spin starts from the wound-up angle so it unwinds smoothly).
+ * spin on click. The spin's keyframes read --tw-wind, so it always lands exactly one
+ * full turn below the CURRENT resting angle — 22deg while hovered, 0 when not. (A fixed
+ * `to: -360deg` ended the spin at visual 0deg, so finishing while still hovered snapped
+ * the icon 0 → 22deg; the transition can't soften that, since the underlying value
+ * never changed.) No `from`: the spin picks up from wherever the wind-up transition is.
  * will-change keeps it on its compositor layer across hover/spin — same Safari fix. */
-.tw-toolbar-btn--reset svg { will-change: transform; transition: transform 0.34s cubic-bezier(0.34, 1.55, 0.5, 1); }
-.tw-toolbar-btn--reset:hover svg { transform: rotate(22deg); }
-@keyframes tw-reset-spin { from { transform: rotate(22deg); } to { transform: rotate(-360deg); } }
+.tw-toolbar-btn--reset svg { --tw-wind: 0deg; will-change: transform; transition: transform 0.34s cubic-bezier(0.34, 1.55, 0.5, 1); }
+.tw-toolbar-btn--reset:hover svg { --tw-wind: 22deg; transform: rotate(var(--tw-wind)); }
+@keyframes tw-reset-spin { to { transform: rotate(calc(var(--tw-wind) - 360deg)); } }
 .tw-toolbar-btn--reset.is-spinning svg { animation: tw-reset-spin 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 
 /* Focus rings drawn INSIDE the control — the controls stack is overflow:hidden
