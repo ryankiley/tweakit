@@ -82,7 +82,10 @@ function createGradient(meta, onChange) {
       h.dataset.sel = String(s === selStop); h.setAttribute("aria-label", "Colour stop");
       let offBar = false;
       dragGesture(h, {
-        onDown: (e) => { e.preventDefault(); e.stopPropagation(); select(s, false); offBar = false; },
+        // preventDefault suppresses click-to-focus on the button — focus explicitly so
+        // keyboard can take over after a grab. The focus also blurs a dirty channel
+        // field while the old stop is still selected, so its commit lands there.
+        onDown: (e) => { e.preventDefault(); e.stopPropagation(); h.focus(); select(s, false); offBar = false; },
         onMove: (e) => {
           s.pos = posFromX(e.clientX); h.style.left = s.pos * 100 + "%"; paint(); emit();
           // Drag a stop clear of the bar (past ~24px above/below) to remove it — the
@@ -94,12 +97,22 @@ function createGradient(meta, onChange) {
         onEnd: () => { if (offBar) removeStop(s); else h.dataset.removing = "false"; },
       });
       h.addEventListener("dblclick", (e) => { e.preventDefault(); removeStop(s); });
+      // Keyboard path for position: arrows nudge the focused stop by 0.01 (⇧ = 0.1),
+      // clamped — the same paint + emit a drag move does. Delete stays on the popover.
+      h.addEventListener("keydown", (e) => {
+        const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0; if (!d) return;
+        e.preventDefault();
+        s.pos = clamp(s.pos + d * (e.shiftKey ? 0.1 : 0.01), 0, 1);
+        h.style.left = s.pos * 100 + "%"; paint(); emit();
+      });
       rail.append(h);
     }
   };
   // During a drag we only flip the selected flag (no re-render), so the dragged
   // handle element stays live; full re-render happens on add / remove / external set.
-  const select = (s, rerender) => { selStop = s; body.set(s.color); rerender ? renderHandles() : reflectSel(); };
+  // body.set runs before selStop switches: re-pointing blurs a dirty channel field,
+  // and its commit must land on the stop the user was editing, not the new one.
+  const select = (s, rerender) => { if (s !== selStop) { body.set(s.color); selStop = s; } rerender ? renderHandles() : reflectSel(); };
 
   // Stop drag rides the shared dragGesture (pointer capture + automatic pointercancel
   // cleanup), wired per handle in renderHandles — so a touch-drag the browser interrupts
@@ -111,17 +124,22 @@ function createGradient(meta, onChange) {
   const colorAt = (pos) => {
     const ss = sorted(); let lo = ss[0], hi = ss[ss.length - 1];
     for (let k = 0; k < ss.length - 1; k++) if (pos >= ss[k].pos && pos <= ss[k + 1].pos) { lo = ss[k]; hi = ss[k + 1]; break; }
-    const t = hi.pos > lo.pos ? (pos - lo.pos) / (hi.pos - lo.pos) : 0;
+    const t = hi.pos > lo.pos ? clamp((pos - lo.pos) / (hi.pos - lo.pos), 0, 1) : 0; // clamped: a pos outside the outermost stops takes the nearest stop exactly, never extrapolates
     const a = parseColor(lo.color), b = parseColor(hi.color);
+    // CSS missing-hue handling for `in oklch`: a ~zero-chroma stop carries no hue of
+    // its own, so the other stop's hue holds across the segment (white→red stays red).
+    const ach = (c) => c[1] < 1e-4;
     let dh = b[2] - a[2]; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
-    const H = (((a[2] + dh * t) % 360) + 360) % 360; // normalise to [0,360) so the picker reads it cleanly
+    if (ach(a) || ach(b)) dh = 0;
+    const H = ((((ach(a) && !ach(b) ? b[2] : a[2]) + dh * t) % 360) + 360) % 360; // normalise to [0,360) so the picker reads it cleanly
     return oklchStr(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, H, a[3] + (b[3] - a[3]) * t);
   };
   const removeStop = (s) => {
     if (stops.length <= 2) return;
-    const i = stops.indexOf(s); stops.splice(i, 1);
-    if (selStop === s) selStop = stops[Math.max(0, i - 1)];
-    paint(); select(selStop, true); reflectCount(); emit();
+    const i = stops.indexOf(s); if (i < 0) return; // a stale reference (rebuilt via set) must not splice(-1)
+    stops.splice(i, 1);
+    const next = selStop === s ? stops[Math.max(0, i - 1)] : selStop;
+    paint(); select(next, true); reflectCount(); emit();
     handleFor(selStop)?.focus(); // keep focus on a handle so Delete can chain
   };
   // Add a stop next to the SELECTED one, so where it lands is predictable: midway toward
@@ -168,7 +186,25 @@ function createGradient(meta, onChange) {
   renderHandles(); paint(); reflectCount();
   return {
     el: root,
-    set: (v) => { stops = normalizeStops(v); selStop = stops[0]; renderHandles(); paint(); reflectCount(); body.set(selStop.color); },
+    set: (v) => {
+      const next = normalizeStops(v).sort((a, b) => a.pos - b.pos);
+      if (next.length === stops.length) {
+        // Same count — the common case: a host mirroring values back via on(). Update
+        // the existing stop objects + handles in place, paired in position order (the
+        // emitted value is sorted), so a live drag keeps its handle element and the
+        // picker stays pointed at the stop it was on, not reset to stops[0].
+        sorted().forEach((s, i) => {
+          s.color = next[i].color; s.pos = next[i].pos;
+          const h = handleFor(s); if (h) { h.style.left = s.pos * 100 + "%"; h.style.setProperty("--stop", s.color); }
+        });
+      } else {
+        const selPos = selStop.pos;
+        stops = next;
+        selStop = stops.reduce((b, s) => (Math.abs(s.pos - selPos) < Math.abs(b.pos - selPos) ? s : b), stops[0]); // re-select the nearest position, not index 0
+        renderHandles();
+      }
+      paint(); reflectCount(); body.set(selStop.color);
+    },
     get: () => value(),
   };
 }

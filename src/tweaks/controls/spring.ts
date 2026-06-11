@@ -57,8 +57,9 @@ function createSpring(meta, onChange) {
   // Once the panel is removed, the next time any of these fires draw() calls teardown(),
   // dropping every global listener so the control doesn't leak them (spring only redraws
   // on these events, so it can't self-clean on a rAF/interval tick the way fps/monitor do).
-  const teardown = () => { window.removeEventListener("resize", draw); mq.removeEventListener("change", draw); window.removeEventListener("tw-retheme", draw); };
+  const teardown = () => { window.removeEventListener("resize", draw); mq.removeEventListener("change", draw); window.removeEventListener("tw-retheme", draw); window.removeEventListener("tw-reflow", draw); };
   window.addEventListener("resize", draw);
+  window.addEventListener("tw-reflow", draw); // a tab page revealing this control re-measures it (it built at 0×0 while hidden)
   // The canvas reads theme tokens at draw time, so re-draw when the scheme flips
   // (SVG controls update via CSS, but a canvas keeps a stale colour otherwise).
   mq.addEventListener("change", draw);

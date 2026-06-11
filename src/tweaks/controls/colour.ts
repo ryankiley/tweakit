@@ -39,7 +39,7 @@ const COLOR_FN_SPACES = { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", 
 const parseAngle = (t) => { const m = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)(deg|grad|rad|turn)$/i.exec(t); if (!m) return num(parseFloat(t)); const n = parseFloat(m[1]); return m[2].toLowerCase() === "turn" ? n * 360 : m[2].toLowerCase() === "grad" ? n * 0.9 : m[2].toLowerCase() === "rad" ? (n * 180) / Math.PI : n; };
 function parseColor(str) {
   str = String(str == null ? "" : str).trim();
-  if (/^#?[0-9a-f]{3,8}$/i.test(str)) {
+  if (/^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(str)) { // 3/4/6/8 digits only (the hex field's gate) — a 5/7-digit string is junk, not a colour
     let hx = str.replace("#", ""), A = 1;
     if (hx.length === 4) { A = parseInt(hx[3] + hx[3], 16) / 255; hx = hx.slice(0, 3); }
     else if (hx.length === 8) { A = parseInt(hx.slice(6, 8), 16) / 255; hx = hx.slice(0, 6); }
@@ -56,12 +56,14 @@ function parseColor(str) {
     // a picker seed degrades, it doesn't reject).
     const ch = (t, pctScale = 1) => (!t || t === "none" ? 0 : num(parseFloat(t)) * (/%$/.test(t) ? pctScale : 1));
     const A = aRaw ? clamp(ch(aRaw, 0.01), 0, 1) : 1;
+    // L and chroma clamp at parse time, as CSS Color 4 does — picker state never holds
+    // a negative chroma or an out-of-range lightness.
     const c =
-      fn === "lab" ? [ch(toks[0]), ch(toks[1], 1.25), ch(toks[2], 1.25)]                       // L% is 0–100 as-is; a/b 100% ↔ ±125
-      : fn === "lch" ? [ch(toks[0]), ch(toks[1], 1.5), parseAngle(toks[2] || "0")]             // C 100% ↔ 150; H takes angle units
+      fn === "lab" ? [clamp(ch(toks[0]), 0, 100), ch(toks[1], 1.25), ch(toks[2], 1.25)]                          // L% is 0–100 as-is; a/b 100% ↔ ±125
+      : fn === "lch" ? [clamp(ch(toks[0]), 0, 100), Math.max(0, ch(toks[1], 1.5)), parseAngle(toks[2] || "0")]   // C 100% ↔ 150; H takes angle units
       : fn === "color" ? [ch(toks[0], 0.01), ch(toks[1], 0.01), ch(toks[2], 0.01)]
-      : fn === "oklab" ? [ch(toks[0], 0.01), ch(toks[1], 0.004), ch(toks[2], 0.004)]           // L% → 0–1; a/b 100% ↔ ±0.4
-      : [ch(toks[0], 0.01), ch(toks[1], 0.004), parseAngle(toks[2] || "0")];                   // oklch
+      : fn === "oklab" ? [clamp(ch(toks[0], 0.01), 0, 1), ch(toks[1], 0.004), ch(toks[2], 0.004)]                // L% → 0–1; a/b 100% ↔ ±0.4
+      : [clamp(ch(toks[0], 0.01), 0, 1), Math.max(0, ch(toks[1], 0.004)), parseAngle(toks[2] || "0")];           // oklch
     const k = space === "oklch" ? c : convert(c, space, "oklch");
     return [num(k[0]), num(k[1]), ((num(k[2]) % 360) + 360) % 360, A]; // hue normalised to [0,360) so a negative input can't strand the strip thumb
   }
@@ -98,6 +100,10 @@ function createPickerBody(meta, onChange) {
   const area = el("div", "tw-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "tw-wg-canvas"; const areaThumb = el("div", "tw-wg-thumb"); area.append(areaCanvas, areaThumb);
   const hueBar = el("div", "tw-wg-hue"); const hueCanvas = document.createElement("canvas"); hueCanvas.className = "tw-wg-hue-canvas"; const hueThumb = el("div", "tw-wg-hue-thumb"); hueBar.append(hueCanvas, hueThumb);
   const alphaBar = el("div", "tw-wg-alpha"); const alphaGrad = el("div", "tw-wg-alpha-grad"); const alphaThumb = el("div", "tw-wg-hue-thumb"); alphaBar.append(alphaGrad, alphaThumb);
+  // Keyboard-operable alpha strip (the interval handles' slider idiom): Tab to it, arrows
+  // nudge (⇧ = coarse ×10), Home/End snap to transparent/opaque.
+  alphaBar.tabIndex = 0; alphaBar.setAttribute("role", "slider"); alphaBar.setAttribute("aria-label", "Alpha");
+  alphaBar.setAttribute("aria-valuemin", "0"); alphaBar.setAttribute("aria-valuemax", "1");
   const modeRow = el("div", "tw-color-mode-row");
   const modeSel = el("select", "tw-color-mode");
   EDIT_MODES.forEach((m) => { const o = document.createElement("option"); o.value = m; o.textContent = MODE_LABELS[m]; modeSel.append(o); });
@@ -172,6 +178,7 @@ function createPickerBody(meta, onChange) {
     const inside = (frac, w) => { const f = clamp(frac, 0, 1); return `calc(${f * 100}% + ${(0.5 - f) * w}px)`; };
     areaThumb.style.left = at(ceil > 0 ? C / ceil : 0); areaThumb.style.top = at(1 - L);
     hueThumb.style.left = inside(H / 360, 16); alphaThumb.style.left = inside(A, 16);
+    alphaBar.setAttribute("aria-valuenow", String(+A.toFixed(2))); // drag + keyboard + external set all pass through here
     alphaGrad.style.background = `linear-gradient(to right, oklch(${L} ${C} ${H} / 0), oklch(${L} ${C} ${H}))`;
     // Filled rings, not see-through: each ring carries its own colour, so a grabbed thumb
     // (scaled up past its track's height) stays solid to its edge instead of revealing the
@@ -233,14 +240,33 @@ function createPickerBody(meta, onChange) {
   const alphaAt = (e) => boxFrac(e, alphaBar)[0];
   const setAlpha = (e) => { A = alphaAt(e); positionThumbs(); refresh(); emit(); };
   grabbable(alphaBar, setAlpha);
+  alphaBar.addEventListener("keydown", (e) => {
+    const d = e.shiftKey ? 0.1 : 0.01;
+    let nv = A;
+    switch (e.key) {
+      case "ArrowRight": case "ArrowUp": nv += d; break;
+      case "ArrowLeft": case "ArrowDown": nv -= d; break;
+      case "Home": nv = 0; break;
+      case "End": nv = 1; break;
+      default: return;
+    }
+    e.preventDefault(); A = clamp(nv, 0, 1); positionThumbs(); refresh(); emit();
+  });
 
-  modeSel.addEventListener("change", () => { mode = modeSel.value; renderChannels(); renderArea(); emit(); }); // renderArea self-guards when the body is offscreen
+  // A mode switch is formatting-only: re-render the fields/plane/thumbs and let the host
+  // repaint its trigger row (meta.onMode), but never emit — notifying would push a
+  // no-op change into undo and rewrite a gradient's stored stop strings. positionThumbs
+  // runs after renderArea because sRGB↔wide modes re-stretch the plane (the thumb's
+  // chroma fraction is stale against the new ceiling).
+  modeSel.addEventListener("change", () => { mode = modeSel.value; renderChannels(); renderArea(); positionThumbs(); meta.onMode && meta.onMode(); }); // renderArea self-guards when the body is offscreen
 
   renderChannels();
 
   return {
     el: root,
-    set: (v) => { [L, C, H, A] = parseColor(v); sync(true); }, // repaint the plane only if the hue moved (gradient stop-hopping at the same hue skips the raster); renderArea self-guards offscreen
+    // Blur a focused body input before re-pointing: its change handler commits typed-but-
+    // uncommitted text against the OLD state, so stop-hopping can't land stop A's text on stop B.
+    set: (v) => { const ae = document.activeElement as any; if (ae && root.contains(ae)) ae.blur(); [L, C, H, A] = parseColor(v); sync(true); }, // repaint the plane only if the hue moved (gradient stop-hopping at the same hue skips the raster); renderArea self-guards offscreen
     get: () => colorStr(),
     reflow,
     // The host paints its own trigger from these — the body carries no swatch/value of its own.
@@ -264,7 +290,7 @@ function createColor(meta, onChange) {
 
   const pop = el("div", "tw-color-pop");
   const paintTrigger = () => { swatch.style.background = body.swatchCss(); valueEl.textContent = body.valueText(); };
-  const body = createPickerBody({ value: meta.value }, (c) => { paintTrigger(); onChange(c); });
+  const body = createPickerBody({ value: meta.value, onMode: () => paintTrigger() }, (c) => { paintTrigger(); onChange(c); });
   pop.append(body.el);
   root.append(trigger, pop);
 

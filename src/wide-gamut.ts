@@ -23,8 +23,9 @@ const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 // ── transfer functions ──
 const srgbLin = (c) => { const a = Math.abs(c); return a <= 0.04045 ? c / 12.92 : Math.sign(c) * ((a + 0.055) / 1.055) ** 2.4; };
 const srgbGam = (c) => { const a = Math.abs(c); return a <= 0.0031308 ? c * 12.92 : Math.sign(c) * (1.055 * a ** (1 / 2.4) - 0.055); };
-const rec2020Lin = (c) => Math.sign(c) * Math.abs(c) ** 2.4;
-const rec2020Gam = (c) => Math.sign(c) * Math.abs(c) ** (1 / 2.4);
+const REC_A = 1.09929682680944, REC_B = 0.018053968510807; // BT.2020 piecewise OETF constants (CSS Color 4), not a pure 2.4 gamma
+const rec2020Lin = (c) => { const a = Math.abs(c); return a < REC_B * 4.5 ? c / 4.5 : Math.sign(c) * ((a + REC_A - 1) / REC_A) ** (1 / 0.45); };
+const rec2020Gam = (c) => { const a = Math.abs(c); return a < REC_B ? c * 4.5 : Math.sign(c) * (REC_A * a ** 0.45 - (REC_A - 1)); };
 const PRO_ET = 1 / 512;
 const prophotoLin = (c) => { const a = Math.abs(c); return a <= PRO_ET * 16 ? c / 16 : Math.sign(c) * a ** 1.8; };
 const prophotoGam = (c) => { const a = Math.abs(c); return a >= PRO_ET ? Math.sign(c) * a ** (1 / 1.8) : 16 * c; };

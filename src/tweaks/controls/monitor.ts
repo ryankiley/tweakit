@@ -10,7 +10,7 @@ function createFps(meta) {
   wrap.append(label, val, canvas);
   const ctx = canvas.getContext("2d");
   const N = 80, samples = new Array(N).fill(0), MAX = 120;
-  let i = 0, last = 0, raf = 0, w = 0, h = 0;
+  let i = 0, last = 0, raf = 0, w = 0, h = 0, wasConnected = false;
   const resize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
   const draw = () => {
     if (!w) return;
@@ -25,12 +25,20 @@ function createFps(meta) {
     ctx.stroke();
   };
   const tick = (now) => {
-    if (!canvas.isConnected) { window.removeEventListener("resize", resize); raf = 0; return; } // panel rebuilt → stop the loop + its resize listener
+    if (!canvas.isConnected) {
+      // "Never mounted yet" (a host builds the panel eagerly, appends panel.el later) is
+      // not "removed": idle cheaply until the first connected tick; only a real unmount
+      // stops the loop + its listeners for good.
+      if (wasConnected) { window.removeEventListener("resize", resize); window.removeEventListener("tw-reflow", resize); raf = 0; return; }
+      last = 0; raf = requestAnimationFrame(tick); return;
+    }
+    if (!wasConnected) { wasConnected = true; resize(); } // first connected tick → fit the canvas (it measured 0 detached)
     if (last) { const fps = 1000 / (now - last); samples[i] = fps; i = (i + 1) % N; val.textContent = Math.round(fps); draw(); }
     last = now; raf = requestAnimationFrame(tick);
   };
   requestAnimationFrame(() => { resize(); raf = requestAnimationFrame(tick); });
   window.addEventListener("resize", resize);
+  window.addEventListener("tw-reflow", resize); // a tab page revealing this control re-fits the canvas (it measured 0 while hidden)
   return { el: wrap, set: () => {}, get: () => undefined };
 }
 
@@ -50,10 +58,12 @@ function createMonitor(meta) {
   const val = el("span", "tw-fps-val"); val.textContent = "—";
   wrap.append(label, val);
 
-  let timer = 0, onResize = () => {};
+  let timer = 0, onResize = () => {}, wasConnected = false;
   const fmt = (v) => (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(meta.decimals ?? 2)) : String(v));
-  const stop = () => { if (timer) clearInterval(timer); timer = 0; window.removeEventListener("resize", onResize); };
-  const poll = (fn) => { timer = setInterval(() => { if (!wrap.isConnected) return stop(); let v; try { v = get(); } catch { return; } fn(v); }, interval); };
+  const stop = () => { if (timer) clearInterval(timer); timer = 0; window.removeEventListener("resize", onResize); window.removeEventListener("tw-reflow", onResize); };
+  // "Never mounted yet" (a host appends panel.el after building) idles the tick; only a
+  // panel that was mounted and then removed stops the poll for good.
+  const poll = (fn) => { timer = setInterval(() => { if (!wrap.isConnected) { if (wasConnected) stop(); return; } wasConnected = true; let v; try { v = get(); } catch { return; } fn(v); }, interval); };
 
   // String buffer (multiline) — the last `rows` values, newest at the bottom.
   if (!graph && meta.rows) {
@@ -101,6 +111,7 @@ function createMonitor(meta) {
   poll((v) => { if (typeof v !== "number") return; samples[idx] = v; idx = (idx + 1) % N; val.textContent = fmt(v); draw(); });
   requestAnimationFrame(() => { onResize(); draw(); });
   window.addEventListener("resize", onResize);
+  window.addEventListener("tw-reflow", onResize); // a tab page revealing this control re-fits the canvas (it measured 0 while hidden)
   return { el: wrap, set: () => {}, get: () => undefined };
 }
 

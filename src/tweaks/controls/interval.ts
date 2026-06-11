@@ -63,7 +63,7 @@ function createInterval(meta, onChange) {
   const setLo = (v) => { lo = clamp(Math.min(q(v), hi), min, max); render(); };
   const setHi = (v) => { hi = clamp(Math.max(q(v), lo), min, max); render(); };
 
-  let rect = null, scale = 1, active = null;
+  let rect = null, scale = 1, active = null, pid = null;
   // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px) —
   // same correction as the single slider, so a scaled panel still tracks the cursor 1:1.
   const valFromX = (x) => { const native = wrap.offsetWidth || rect.width; const p = clamp((x - rect.left) / scale / native, 0, 1); return clamp(min + p * (max - min), min, max); };
@@ -73,13 +73,16 @@ function createInterval(meta, onChange) {
     active === "lo" ? setLo(v) : setHi(v); emit();
   };
   track.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || rect) return; // primary button only; a second pointer can't hijack a live drag
     e.preventDefault(); try { e.target.setPointerCapture(e.pointerId); } catch {}
+    pid = e.pointerId;
     rect = wrap.getBoundingClientRect(); scale = rect.width / (wrap.offsetWidth || rect.width);
     track.classList.add("is-active", "is-dragging"); active = null;
     grab(e.clientX);
+    (active === "lo" ? hLo : hHi).focus(); // preventDefault suppressed click-to-focus — hand keyboard to the grabbed handle
   });
-  track.addEventListener("pointermove", (e) => { if (!rect) return; if (e.buttons === 0) { up(); return; } grab(e.clientX); });
-  const up = () => { rect = null; active = null; track.classList.remove("is-active", "is-dragging"); };
+  track.addEventListener("pointermove", (e) => { if (!rect || e.pointerId !== pid) return; if (e.buttons === 0) { up(); return; } grab(e.clientX); });
+  const up = (e?) => { if (e && e.pointerId !== pid) return; rect = null; active = null; pid = null; track.classList.remove("is-active", "is-dragging"); };
   track.addEventListener("pointerup", up); track.addEventListener("pointercancel", up);
   wireHoverClass(track, render); // re-render the value-dodge with the real track width on first hover
   // Harden the dodge against type metrics it can't predict: recompute once layout +
@@ -87,8 +90,9 @@ function createInterval(meta, onChange) {
   // widths it measures), and on any track-width change. The dodge already reads the
   // real offsetWidth, so it adapts to any font — this just keeps it in sync.
   onReady(render);
-  const onResize = () => { if (!track.isConnected) return window.removeEventListener("resize", onResize); render(); }; // panel removed → drop the listener (matches fps/bezier self-cleanup)
+  const onResize = () => { if (!track.isConnected) { window.removeEventListener("resize", onResize); window.removeEventListener("tw-reflow", onResize); return; } render(); }; // panel removed → drop the listeners (matches fps/bezier self-cleanup)
   window.addEventListener("resize", onResize);
+  window.addEventListener("tw-reflow", onResize); // a tab page revealing this control re-measures the value-dodge (it built at 0 width while hidden)
 
   const onKey = (which) => (e) => {
     const coarse = e.shiftKey ? 10 : 1;

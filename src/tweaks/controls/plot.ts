@@ -172,13 +172,14 @@ function createPlot(meta, onChange) {
   });
 
   onReady(draw);
-  const onResize = () => { if (!root.isConnected) return window.removeEventListener("resize", onResize); draw(); }; // panel removed → drop the listener (matches fps/bezier self-cleanup)
+  const onResize = () => { if (!root.isConnected) { window.removeEventListener("resize", onResize); window.removeEventListener("tw-reflow", onResize); return; } draw(); }; // panel removed → drop the listeners (matches fps/bezier self-cleanup)
   window.addEventListener("resize", onResize);
+  window.addEventListener("tw-reflow", onResize); // a tab page revealing this control re-measures it (it built at 0×0 while hidden)
 
   return {
     el: root,
     get: () => expr,
-    set: (v) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!meta.fn) compiled = compileExpr(expr) || compiled; draw(); },
+    set: (v) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!meta.fn) compiled = compileExpr(expr); draw(); }, // an invalid expression nulls compiled + flags is-invalid via draw — same contract as typing, never silently keeps plotting the old one
   };
 }
 

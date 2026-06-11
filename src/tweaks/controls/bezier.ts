@@ -30,8 +30,11 @@ function createBezier(meta, onChange) {
   // draw just the curve + handles from v (the fields update separately, so a
   // field edit doesn't recursively re-set itself)
   const drawGraph = () => {
-    if (!graph.isConnected) { window.removeEventListener("resize", drawGraph); return; } // panel removed → drop the resize listener (matches fps/monitor self-cleanup)
-    const r = graph.getBoundingClientRect(); W = r.width; H = r.height; if (W < 2) return;
+    if (!graph.isConnected) { window.removeEventListener("resize", drawGraph); window.removeEventListener("tw-reflow", drawGraph); return; } // panel removed → drop the listeners (matches fps/monitor self-cleanup)
+    // Layout px, not getBoundingClientRect (visual px): the handles are positioned with
+    // style.left in layout space, so under an ancestor CSS scale the rect-derived sizes
+    // sat them off the curve.
+    W = graph.offsetWidth; H = graph.offsetHeight; if (W < 2) return;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     const [x1, y1, x2, y2] = v;
     const ax = xPx(0), ay = yPx(0), bx = xPx(1), by = yPx(1), p1x = xPx(x1), p1y = yPx(y1), p2x = xPx(x2), p2y = yPx(y2);
@@ -51,12 +54,16 @@ function createBezier(meta, onChange) {
   const syncFields = () => flds.forEach((fld, k) => fld.set(v[SPECS[k].i]));
 
   const drag = (handle, idx) => {
-    let rect = null;
+    let rect = null, gw = 0, gh = 0, scale = 1;
     dragGesture(handle, {
-      onDown: (e) => { e.preventDefault(); rect = graph.getBoundingClientRect(); handle.classList.add("is-dragging"); },
+      // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px) —
+      // interval's valFromX correction. preventDefault suppresses click-to-focus on the
+      // button, so focus explicitly and keyboard can take over after a grab.
+      onDown: (e) => { e.preventDefault(); rect = graph.getBoundingClientRect(); gw = graph.offsetWidth || rect.width; gh = graph.offsetHeight || rect.height; scale = rect.width / gw; handle.classList.add("is-dragging"); handle.focus(); },
       onMove: (e) => {
-        const x = clamp((e.clientX - rect.left - PAD) / (rect.width - 2 * PAD), 0, 1);
-        const y = clamp(YMIN + ((rect.height - PAD) - (e.clientY - rect.top)) / (rect.height - 2 * PAD) * RANGE, YMIN, YMAX);
+        const gx = (e.clientX - rect.left) / scale, gy = (e.clientY - rect.top) / scale;
+        const x = clamp((gx - PAD) / (gw - 2 * PAD), 0, 1);
+        const y = clamp(YMIN + ((gh - PAD) - gy) / (gh - 2 * PAD) * RANGE, YMIN, YMAX);
         v[idx * 2] = +x.toFixed(2); v[idx * 2 + 1] = +y.toFixed(2); drawGraph(); syncFields(); onChange(v.slice());
       },
       onEnd: () => { rect = null; handle.classList.remove("is-dragging"); },
@@ -66,6 +73,7 @@ function createBezier(meta, onChange) {
 
   onReady(drawGraph);
   window.addEventListener("resize", drawGraph);
+  window.addEventListener("tw-reflow", drawGraph); // a tab page revealing this control re-measures it (it built at 0×0 while hidden)
   return { el: root, set: (nv) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = m.map((n, i) => clamp(n, SPECS[i].lo, SPECS[i].hi)); drawGraph(); syncFields(); } }, get: () => v.slice() }; // clamp each to its field range so get() agrees with the handles + fields
 }
 
