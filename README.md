@@ -64,8 +64,7 @@ the demo (`index.html`). Both builds come from the one readable source tree in `
 ## Credits
 
 Inspired by [Tweakpane](https://tweakpane.github.io) by [cocopon](https://github.com/cocopon)
-— Tweakability borrows its spirit and some of its control vocabulary, but it's a
-from-scratch, dependency-free take rather than a fork: no Tweakpane code is used or bundled.
+— a from-scratch take, not a fork; no Tweakpane code is bundled.
 
 No runtime dependencies. The toolbar and control icons are inline SVGs adapted from
 [Lucide](https://lucide.dev) (ISC) and, upstream, [Feather](https://feathericons.com)
