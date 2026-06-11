@@ -63,8 +63,7 @@ the demo (`index.html`). Both builds come from the one readable source tree in `
 
 ## Credits
 
-Inspired by [Tweakpane](https://tweakpane.github.io) by [cocopon](https://github.com/cocopon)
-— a from-scratch take, not a fork; no Tweakpane code is bundled.
+Inspired by [Tweakpane](https://tweakpane.github.io) by [cocopon](https://github.com/cocopon).
 
 No runtime dependencies. The toolbar and control icons are inline SVGs adapted from
 [Lucide](https://lucide.dev) (ISC) and, upstream, [Feather](https://feathericons.com)
