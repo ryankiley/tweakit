@@ -60,3 +60,15 @@ the demo (`index.html`). Both builds come from the one readable source tree in `
   pay for it).
 - `src/wide-gamut.ts` — the OKLCH / wide-gamut colour engine.
 - `src/tweaks.css` — the panel styling (runs entirely on `--tw-*` custom properties).
+
+## Credits
+
+No runtime dependencies. The toolbar and control icons are inline SVGs adapted from
+[Lucide](https://lucide.dev) (ISC) and, upstream, [Feather](https://feathericons.com)
+(MIT); the drag handle is original. Per-icon origins and the full license texts are in
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+
+## License
+
+[MIT](LICENSE) © Ryan Kiley. The bundled icons keep their original ISC/MIT licenses —
+see [Credits](#credits) and [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
