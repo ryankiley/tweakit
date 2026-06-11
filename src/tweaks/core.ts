@@ -254,13 +254,19 @@ function createSlider(meta, onChange) {
   let rect = null, scale = 1, downPos = null, isClick = true, snapTimer, fineAnchor = null;
   const GLIDE_FILL = "width 0.34s cubic-bezier(0.34,1.2,0.64,1)";
   const GLIDE_HANDLE = "left 0.34s cubic-bezier(0.34,1.2,0.64,1), opacity 0.15s, transform 0.2s cubic-bezier(0.22,1,0.36,1)";
-  // Discrete detent: a clean, quick settle to the next rule line (no bounce). While
-  // dragging, the active track lightly tension-pulls off its notch toward the cursor
-  // (capped at PULL px) and the handle rides that same filled edge — so the handle
-  // never leaves the active track — then it releases to the next line on the snap.
-  const DETENT = "cubic-bezier(0.22, 1, 0.36, 1)", PULL = 5, FINE_GAIN = 0.2;
-  const DETENT_FILL = `width 0.16s ${DETENT}`;
-  const DETENT_HANDLE = `left 0.16s ${DETENT}, opacity 0.15s, transform 0.2s cubic-bezier(0.22,1,0.36,1)`;
+  // Discrete detent — a spring resisting the snap. While dragging, the active track
+  // stretches off its notch toward the cursor on a compliance curve: near-1:1 at the
+  // notch (the edge feels connected to the finger), bending asymptotically toward
+  // ~45% of the notch gap as the cursor nears the midpoint (the spring loading up) —
+  // pull = A·tanh(offset/A), A scaled to the gap, not a fixed pixel cap (a 5px cap on
+  // a ~40px gap left most of the travel dead, then hopped: snapping, not springing).
+  // Crossing the midpoint re-anchors to the next notch with the tension mirrored, so
+  // the visible release is only the ungrabbed middle (~25% of the gap), eased by a
+  // slightly overshooting curve — the spring letting go. The handle rides the same
+  // stretched edge throughout, so it never leaves the active track.
+  const DETENT = "cubic-bezier(0.3, 1.3, 0.5, 1)", TENSION = 0.45, FINE_GAIN = 0.2;
+  const DETENT_FILL = `width 0.2s ${DETENT}`;
+  const DETENT_HANDLE = `left 0.2s ${DETENT}, opacity 0.15s, transform 0.2s cubic-bezier(0.22,1,0.36,1)`;
   const valFromX = (clientX) => {
     if (!rect) return value;
     const native = wrap.offsetWidth || rect.width;
@@ -315,10 +321,15 @@ function createSlider(meta, onChange) {
         fineAnchor = null;
         raw = valFromX(e.clientX);
       }
-      // Light tension: the active track pulls off its snapped notch toward the cursor,
-      // capped — computed before render so the fill + handle move together (the handle
-      // stays on the filled edge, never beyond it), releasing on the snap.
-      if (snap) pull = clamp(((raw - clamp(q(raw), min, max)) / ((max - min) || 1)) * (wrap.offsetWidth || 1), -PULL, PULL);
+      // Spring tension: the offset from the snapped notch (in px) through the tanh
+      // compliance curve — computed before render so the fill + handle move together
+      // (the handle stays on the filled edge, never beyond it), releasing on the snap.
+      if (snap) {
+        const trackW = wrap.offsetWidth || 1;
+        const offsetPx = ((raw - clamp(q(raw), min, max)) / ((max - min) || 1)) * trackW;
+        const A = Math.max(6, TENSION * (step / ((max - min) || 1)) * trackW); // asymptote ≈ 45% of the notch gap (floored for very fine steps)
+        pull = A * Math.tanh(offsetPx / A);
+      }
       set(raw);
     }
     if (e.clientX >= rect.left && e.clientX <= rect.right) { track.style.width = ""; track.style.transform = ""; }
