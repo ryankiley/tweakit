@@ -145,7 +145,7 @@ a { color: var(--site-accent); text-decoration: none; }
 }
 .ex-mount { flex: none; align-self: flex-start; } /* sizes to the panel's own 248px */
 .ex-live-solo { justify-content: center; }
-.ex-live-solo .ex-mount { align-self: auto; }
+.ex-live-solo .ex-mount { align-self: center; } /* row: vertical centre · column: horizontal centre */
 .ex-live-markup { display: block; }
 .ex-live-markup .ex-target { display: block; min-height: 0; padding: 0; }
 

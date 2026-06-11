@@ -26,69 +26,29 @@ export const intro = `
 
 export const examples = [
   {
-    id: "kitchen-sink",
+    id: "showcase",
     title: "Schema in, panel out",
-    prose: `<p>Everything on the left is driven by the panel on the right — and the
-      whole panel came from the one schema object below. Shorthands infer the control
-      (<code>[value, min, max, step]</code> → slider, <code>true</code> → checkbox, a hex
-      string → colour picker); the <code>{ type }</code> forms opt into the heavy controls.
-      Drag the panel by its header, scrub the sliders, open the gradient.</p>`,
-    target: `
-      <div class="hero-stage">
-        <div class="hero-blob"></div>
-        <div class="hero-card"><h3>Hello</h3><p>Drag, scrub, tweak.</p></div>
-      </div>`,
-    css: `
-      .hero-stage { position: relative; width: 100%; min-height: 300px; display: grid; place-items: center; overflow: hidden; border-radius: 10px; }
-      .hero-blob { position: absolute; inset: -25%; filter: blur(24px); }
-      .hero-card { position: relative; padding: 20px 26px; text-align: center; border-radius: 16px;
-                   background: rgba(18, 18, 18, 0.55); border: 1px solid rgba(255, 255, 255, 0.14); backdrop-filter: blur(8px); }
-      .hero-card h3 { margin: 0 0 2px; font-size: 18px; letter-spacing: -0.01em; color: #ededed; }
-      .hero-card p { margin: 0; font-size: 13px; color: #b9b9b9; }`,
-    run: ({ tweaks, mount, target }) => {
-      const blob = target.querySelector(".hero-blob");
-      const card = target.querySelector(".hero-card");
+    prose: `<p>The panel below is built from the one schema object under it — nothing
+      else. Shorthands infer the light controls (<code>[value, min, max, step]</code> →
+      slider, <code>[[lo, hi], …]</code> → interval, <code>true</code> → checkbox, a hex
+      string → the wide-gamut colour picker); the <code>{ type }</code> forms opt into the
+      heavy ones. Scrub the sliders, open the popovers, drag it around by the header.</p>`,
+    noCaption: true,
+    run: ({ tweaks, mount }) => {
       const panel = tweaks("Demo", {
-        blur: [24, 0, 100, 1],
-        scale: [1, 0.5, 2, 0.1],
-        label: "Hello",
-        visible: true,
-        blend: ["normal", "multiply", "screen", "overlay"],
+        intensity: [0.65, 0, 1, 0.01],
+        range: [[20, 80], 0, 100, 1],
+        quality: { type: "segmented", options: ["Low", "Med", "High"], value: "Med" },
         accent: "#7C5CFF",
-        ramp: { type: "gradient", value: { stops: [
-          { color: "oklch(0.72 0.19 25)", pos: 0 },
-          { color: "oklch(0.86 0.17 95)", pos: 0.5 },
-          { color: "oklch(0.72 0.16 280)", pos: 1 },
-        ] } },
+        origin: { type: "point", pad: true, components: [
+          { key: "x", label: "X", value: 0, min: -1, max: 1, step: 0.01 },
+          { key: "y", label: "Y", value: 0, min: -1, max: 1, step: 0.01 },
+        ] },
         motion: { type: "spring", stiffness: 220, damping: 18, mass: 1 },
+        live: true,
         fps: { type: "fpsgraph", label: "FPS" },
       });
       mount.append(panel.el);
-
-      let scale = 1, vel = 0, raf = 0;
-      const settle = () => {            // the spring's own physics animate the card
-        cancelAnimationFrame(raf);
-        const tick = () => {
-          const { stiffness, damping, mass } = panel.params.motion;
-          vel += ((-stiffness * (scale - panel.params.scale) - damping * vel) / mass) / 60;
-          scale += vel / 60;
-          card.style.transform = `scale(${scale})`;
-          if (Math.abs(vel) + Math.abs(scale - panel.params.scale) > 0.001) raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-      };
-      const apply = (p, changed) => {
-        const stops = p.ramp.stops.map((s) => `${s.color} ${s.pos * 100}%`).join(", ");
-        blob.style.background = `linear-gradient(120deg, ${stops})`;
-        blob.style.filter = `blur(${p.blur}px)`;
-        blob.style.mixBlendMode = p.blend;
-        card.querySelector("h3").textContent = p.label;
-        card.querySelector("h3").style.color = p.accent;
-        card.style.opacity = p.visible ? 1 : 0;
-        if (!changed || changed === "scale" || changed === "motion") settle();
-      };
-      panel.on(apply);
-      panel.ready.then(() => apply(panel.params));
     },
   },
   {
