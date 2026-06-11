@@ -1,0 +1,50 @@
+# Build the kit + docs site, deploy dist/ to GitHub Pages.
+#
+# The build job runs on every push (free CI signal that `npm run build` stays green).
+# The deploy job is SKIPPED while the repo is private — GitHub Pages needs a public
+# repo on the free plan — and starts deploying automatically on the first push after
+# the public flip. One-time step at the flip: Settings → Pages → Source: "GitHub
+# Actions". Custom domain later: drop a CNAME file into site/static/ and point DNS
+# at GitHub Pages (the site is relative-URL-only, so it works at a subpath or a
+# domain root unchanged).
+name: site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
