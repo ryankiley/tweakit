@@ -972,8 +972,21 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const apply = () => { panel.style.left = px + "px"; panel.style.top = py + "px"; };
     if (startFloated) { panel.dataset.mode = "floating"; apply(); }
     // Lift an inline panel into the floating layer at its current on-screen rect, so a
-    // drag pops it out of flow in place rather than snapping to a corner.
-    const lift = () => { if (panel.dataset.mode === "floating") return; const r = panel.getBoundingClientRect(); px = r.left; py = r.top; panel.dataset.mode = "floating"; apply(); };
+    // drag pops it out of flow in place rather than snapping to a corner. A same-size
+    // placeholder stays behind in the old slot — without it the host container reflows
+    // mid-drag (an emptied flex/grid cell collapses), which reads as a layout break.
+    const lift = () => {
+      if (panel.dataset.mode === "floating") return;
+      const r = panel.getBoundingClientRect();
+      px = r.left; py = r.top;
+      if (panel.parentNode) {
+        const slot = el("span", "tw-lift-slot");
+        slot.style.width = r.width + "px"; slot.style.height = r.height + "px";
+        slot.setAttribute("aria-hidden", "true");
+        panel.before(slot);
+      }
+      panel.dataset.mode = "floating"; apply();
+    };
 
     const MARGIN = 8, SNAP = 28; // px: viewport inset, and the drop distance within which the panel parks against an edge
     const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - panel.offsetHeight - MARGIN) });

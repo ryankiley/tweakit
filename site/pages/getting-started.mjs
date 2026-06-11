@@ -22,7 +22,7 @@ export const examples = [
     title: "Import a build",
     prose: `<p>Two entries, one API. The default import is a single self-contained file
       (~30 KB gzip) — every control inlined, fully synchronous. The <code>/core</code>
-      entry is code-split (~12 KB gzip): heavy controls (colour, gradient, spring,
+      entry is code-split (~12 KB gzip): heavy controls (color, gradient, spring,
       plot…) dynamic-import on first use. <a href="./imports.html">More on choosing →</a></p>`,
     code: `
       import { tweaks } from "tweakability";        // everything inlined, synchronous
@@ -49,13 +49,13 @@ export const examples = [
     css: `
       .gs-chip { padding: 26px 40px; border-radius: 18px; background: #7C5CFF; color: #fff;
                  font-weight: 600; font-size: 17px; letter-spacing: -0.01em;
-                 box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); }`,
+                 box-shadow: 0 12px 40px var(--demo-shadow); }`,
     run: ({ tweaks, mount, target }) => {
       const chip = target.querySelector(".gs-chip");
       const panel = tweaks("Chip", {
         radius: [18, 0, 60, 1],     // [value, min, max, step] → slider
         visible: true,              // → checkbox
-        tint: "#7C5CFF",            // → wide-gamut colour picker
+        tint: "#7C5CFF",            // → wide-gamut color picker
       });
       mount.append(panel.el);
 
@@ -74,8 +74,8 @@ export const examples = [
       and the key that changed. Move a slider and watch the log.</p>`,
     target: `<pre class="gs-log">— move a control —</pre>`,
     css: `
-      .gs-log { width: 100%; margin: 0; padding: 14px 16px; border-radius: 10px; background: #0e0e0e;
-                border: 1px solid #1f1f1f; font-size: 12px; line-height: 1.7; color: #b9b9b9;
+      .gs-log { width: 100%; margin: 0; padding: 14px 16px; border-radius: 10px; background: var(--demo-well);
+                border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.7; color: var(--demo-well-ink);
                 white-space: pre-wrap; word-break: break-all; align-self: stretch; }`,
     run: ({ tweaks, mount, target }) => {
       const log = target.querySelector(".gs-log");

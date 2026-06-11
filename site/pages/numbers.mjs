@@ -26,7 +26,7 @@ export const examples = [
                      radial-gradient(80px 60px at 70% 30%, #ffd98a, transparent 70%),
                      radial-gradient(120px 90px at 30% 75%, #7C5CFF, transparent 70%),
                      linear-gradient(160deg, #1f2a44, #3a2a52);
-                   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.45); }`,
+                   box-shadow: 0 14px 44px var(--demo-shadow); }`,
     run: ({ tweaks, mount, target }) => {
       const photo = target.querySelector(".num-photo");
       const panel = tweaks("Slider", {
@@ -53,7 +53,7 @@ export const examples = [
       .num-rotor { display: grid; place-items: center; width: 200px; height: 200px; }
       .num-rotor-card { display: grid; place-items: center; width: 120px; height: 120px; border-radius: 18px;
                         background: #7C5CFF; color: #fff; font-weight: 600; font-size: 18px;
-                        transform: rotate(12deg); box-shadow: 0 14px 44px rgba(0, 0, 0, 0.4); }`,
+                        transform: rotate(12deg); box-shadow: 0 14px 44px var(--demo-shadow); }`,
     run: ({ tweaks, mount, target }) => {
       const card = target.querySelector(".num-rotor-card");
       const panel = tweaks("Number", {
@@ -79,7 +79,7 @@ export const examples = [
     target: `<div class="num-bars"></div>`,
     css: `
       .num-bars { display: flex; align-items: flex-end; gap: 4px; width: 100%; height: 160px; padding: 0 6px; }
-      .num-bar { flex: 1; min-width: 3px; border-radius: 3px 3px 0 0; background: rgba(255, 255, 255, 0.12);
+      .num-bar { flex: 1; min-width: 3px; border-radius: 3px 3px 0 0; background: var(--demo-bar);
                  transition: background 0.15s; }
       .num-bar-hot { background: #7C5CFF; }`,
     run: ({ tweaks, mount, target }) => {
@@ -113,9 +113,9 @@ export const examples = [
     target: `<div class="num-field"><div class="num-dot"></div></div>`,
     css: `
       .num-field { position: relative; width: 220px; height: 220px; border-radius: 16px;
-                   background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
-                   background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-                                     linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+                   background: var(--demo-fill-soft); border: 1px solid var(--demo-line);
+                   background-image: linear-gradient(var(--demo-grid) 1px, transparent 1px),
+                                     linear-gradient(90deg, var(--demo-grid) 1px, transparent 1px);
                    background-size: 22px 22px; }
       .num-dot { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px;
                  border-radius: 50%; background: #7C5CFF; box-shadow: 0 0 24px #7C5CFF; }`,

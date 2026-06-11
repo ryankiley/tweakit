@@ -22,7 +22,7 @@ export const examples = [
     target: `<div class="spr-track"><div class="spr-ball"></div></div>`,
     css: `
       .spr-track { position: relative; width: 100%; height: 64px; border-radius: 14px;
-                   background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.07); }
+                   background: var(--demo-fill-soft); border: 1px solid var(--demo-line); }
       .spr-ball { position: absolute; top: 50%; left: 8px; width: 32px; height: 32px; margin-top: -16px;
                   border-radius: 50%; background: #7C5CFF; box-shadow: 0 0 26px rgba(124, 92, 255, 0.55); }`,
     run: ({ tweaks, mount, target }) => {
@@ -57,7 +57,7 @@ export const examples = [
     target: `<div class="bez-track"><div class="bez-dot"></div></div>`,
     css: `
       .bez-track { position: relative; width: 100%; height: 56px; border-radius: 14px;
-                   background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.07); }
+                   background: var(--demo-fill-soft); border: 1px solid var(--demo-line); }
       .bez-dot { position: absolute; top: 50%; width: 26px; height: 26px; margin-top: -13px; border-radius: 50%;
                  background: #ff8a5b; animation: bez-pingpong 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite alternate; }
       @keyframes bez-pingpong { from { left: 8px; } to { left: calc(100% - 34px); } }`,
@@ -88,8 +88,8 @@ export const examples = [
       to frame it.</p>`,
     target: `<code class="plt-readout">params.wave = "sin(x) * exp(-x / 6)"</code>`,
     css: `
-      .plt-readout { font-size: 12.5px; color: #9a9a9a; background: rgba(255, 255, 255, 0.05);
-                     border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 8px 14px;
+      .plt-readout { font-size: 12.5px; color: var(--demo-muted); background: var(--demo-fill);
+                     border: 1px solid var(--demo-line); border-radius: 8px; padding: 8px 14px;
                      max-width: 100%; overflow-wrap: anywhere; }`,
     run: ({ tweaks, mount, target }) => {
       const readout = target.querySelector(".plt-readout");

@@ -13,6 +13,30 @@ names, and everything else keeps the default monochrome look.</p>`;
 
 export const examples = [
   {
+    id: "scheme",
+    title: "Light & dark",
+    prose: `<p>The kit ships both looks. Dark is the default, and panels follow the OS
+      to light on their own (<code>prefers-color-scheme</code>) — like this whole site
+      does. To pin a subtree, set <code>data-tw-scheme="light"</code> or
+      <code>"dark"</code> on any ancestor: forcing beats the OS preference, and portaled
+      popovers carry the scheme with them. Flip the segmented control — the panel
+      themes itself, whatever your system is set to.</p>`,
+    run: ({ tweaks, mount }) => {
+      const panel = tweaks("Scheme", {
+        scheme: { type: "segmented", options: ["Auto", "Light", "Dark"], value: "Auto" },
+        glow: [24, 0, 80, 1],
+        tint: "#7C5CFF",
+        live: true,
+      });
+      mount.append(panel.el);
+
+      panel.on((p) => {
+        if (p.scheme === "Auto") delete mount.dataset.twScheme;
+        else mount.dataset.twScheme = p.scheme.toLowerCase();
+      });
+    },
+  },
+  {
     id: "construction",
     title: "Theme at construction",
     prose: `<p>Pass <code>{ theme }</code> as the third argument. Friendly names cover

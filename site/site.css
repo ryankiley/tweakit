@@ -3,20 +3,128 @@
  * ex- (examples), tok- (highlighter), topbar- (mobile bar) — never tw-*. */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
+  /* ── Dark (default) palette ── */
   --site-bg: #0f0f0f;
-  --site-panel: #141414;
   --site-border: #202020;
   --site-border-soft: #1a1a1a;
+  --site-border-hover: #2e2e2e;
   --site-text: #ededed;
   --site-muted: #9a9a9a;
   --site-faint: #6f6f6f;
-  --site-accent: #a08aff;
+  --site-fill-hover: rgba(255, 255, 255, 0.04);
+  --site-fill-active: rgba(255, 255, 255, 0.07);
+  --site-fill-whisper: rgba(255, 255, 255, 0.02);
+  --site-chip-bg: rgba(255, 255, 255, 0.06);
+  --site-chip-text: #dcdcdc;
+  --site-code-bg: #131313;
+  --site-code-border: #1e1e1e;
+  --site-code-fg: #b0b0b0;
+  --site-h1-a: #fafafa;
+  --site-h1-b: #b4b4b4;
+  --site-bloom: rgba(255, 255, 255, 0.045);
+  --site-stage-a: #161616;
+  --site-stage-b: #121212;
+  --site-stage-dot: rgba(255, 255, 255, 0.03);
+  --site-stage-edge: rgba(255, 255, 255, 0.035);
+  --site-pill-a: #171717;
+  --site-pill-b: #121212;
+  --site-pill-edge: rgba(255, 255, 255, 0.04);
+  --site-success: #86efac; /* the kit's --tw-success, per scheme */
+  --site-scrollbar: #2a2a2a;
+  --site-topbar-bg: rgba(15, 15, 15, 0.92);
+  --site-drawer-bg: #121212;
+  --site-drawer-shadow: rgba(0, 0, 0, 0.45);
+  --site-overlay: rgba(0, 0, 0, 0.4);
+  --site-shadow-ink: rgba(0, 0, 0, 0.35);
+  /* Highlighter ladder (monochrome — see the tok- block). */
+  --tok-cm: #6c6c6c;
+  --tok-pn: #787878;
+  --tok-mid: #c6c6c6;
+  --tok-fn: #d4d4d4;
+  --tok-lit: #e2e2e2;
+  --tok-hi: #f4f4f4;
+  /* Demo scaffolding — the neutral chrome inside example stages (readout chips,
+   * log wells, tiles, soft shadows). Example CSS consumes these so demos flip with
+   * the scheme; content colors (the violet, the photo, the coral ball) stay put. */
+  --demo-ink: #ededed;
+  --demo-muted: #9a9a9a;
+  --demo-faint: #6f6f6f;
+  --demo-fill: rgba(255, 255, 255, 0.05);
+  --demo-fill-soft: rgba(255, 255, 255, 0.035);
+  --demo-line: rgba(255, 255, 255, 0.08);
+  --demo-line-strong: rgba(255, 255, 255, 0.16);
+  --demo-grid: rgba(255, 255, 255, 0.04);
+  --demo-bar: rgba(255, 255, 255, 0.12);
+  --demo-well: #0e0e0e;
+  --demo-well-line: #1f1f1f;
+  --demo-well-ink: #b9b9b9;
+  --demo-shadow: rgba(0, 0, 0, 0.4);
+  --demo-contrast: #ffffff;
   --site-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   /* Motion vocabulary borrowed from the design system tweakability spun out of. */
   --site-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --site-dur-fast: 160ms;
   --site-dur-base: 250ms;
+}
+
+/* ── Light palette — neutral grays, no temperature; soft light per the kit
+ * ("the lights stay clearly light"). Same felt contrast as dark. ── */
+@media (prefers-color-scheme: light) {
+  :root {
+    --site-bg: #f1f1f1;
+    --site-border: #e0e0e0;
+    --site-border-soft: #e8e8e8;
+    --site-border-hover: #cccccc;
+    --site-text: #1b1b1b;
+    --site-muted: #565656;
+    --site-faint: #8a8a8a;
+    --site-fill-hover: rgba(0, 0, 0, 0.05);
+    --site-fill-active: rgba(0, 0, 0, 0.08);
+    --site-fill-whisper: rgba(0, 0, 0, 0.025);
+    --site-chip-bg: rgba(0, 0, 0, 0.05);
+    --site-chip-text: #303030;
+    --site-code-bg: #f9f9f9;
+    --site-code-border: #e4e4e4;
+    --site-code-fg: #4f4f4f;
+    --site-h1-a: #161616;
+    --site-h1-b: #5e5e5e;
+    --site-bloom: rgba(255, 255, 255, 0.55);
+    --site-stage-a: #fafafa;
+    --site-stage-b: #f4f4f4;
+    --site-stage-dot: rgba(0, 0, 0, 0.05);
+    --site-stage-edge: rgba(255, 255, 255, 0.8);
+    --site-pill-a: #fafafa;
+    --site-pill-b: #f2f2f2;
+    --site-pill-edge: rgba(255, 255, 255, 0.8);
+    --site-success: #15803d;
+    --site-scrollbar: #c9c9c9;
+    --site-topbar-bg: rgba(241, 241, 241, 0.92);
+    --site-drawer-bg: #f7f7f7;
+    --site-drawer-shadow: rgba(0, 0, 0, 0.18);
+    --site-overlay: rgba(0, 0, 0, 0.22);
+    --site-shadow-ink: rgba(0, 0, 0, 0.16);
+    --tok-cm: #9d9d9d;
+    --tok-pn: #8e8e8e;
+    --tok-mid: #555555;
+    --tok-fn: #454545;
+    --tok-lit: #2c2c2c;
+    --tok-hi: #111111;
+    --demo-ink: #1b1b1b;
+    --demo-muted: #5a5a5a;
+    --demo-faint: #8e8e8e;
+    --demo-fill: rgba(0, 0, 0, 0.045);
+    --demo-fill-soft: rgba(0, 0, 0, 0.03);
+    --demo-line: rgba(0, 0, 0, 0.1);
+    --demo-line-strong: rgba(0, 0, 0, 0.18);
+    --demo-grid: rgba(0, 0, 0, 0.05);
+    --demo-bar: rgba(0, 0, 0, 0.18);
+    --demo-well: #fbfbfb;
+    --demo-well-line: #e2e2e2;
+    --demo-well-ink: #4a4a4a;
+    --demo-shadow: rgba(0, 0, 0, 0.18);
+    --demo-contrast: #111111;
+  }
 }
 
 /* Inverted, high-contrast selection (the design system's house style). */
@@ -32,6 +140,11 @@ a:focus-visible, button:focus-visible {
 
 * { box-sizing: border-box; }
 
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
 body {
   margin: 0;
   background: var(--site-bg);
@@ -42,16 +155,24 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Prose links: a faded underline that fills in on hover (portfolio house style). */
-a { color: var(--site-accent); text-decoration: none; }
+/* Faint top-of-page light bloom — neutral white, no temperature. Painted as a
+ * negative-z child so it sits over the body background but under all content. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(110% 55% at 50% -12%, var(--site-bloom), transparent 62%);
+}
+
+/* Prose links: monochrome — same ink as the prose, a faded underline that fills in
+ * and brightens on hover (portfolio house style; no accent hue in the chrome). */
+a { color: inherit; text-decoration: none; }
 .doc a {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.15em;
   text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
-  transition: text-decoration-color var(--site-dur-base) var(--site-ease-out);
+  transition: text-decoration-color var(--site-dur-base) var(--site-ease-out), color var(--site-dur-base) var(--site-ease-out);
 }
-.doc a:hover { text-decoration-color: currentColor; }
+.doc a:hover { text-decoration-color: currentColor; color: var(--site-text); }
 .doc .doc-footnav a { text-decoration: none; }
 
 /* ── Layout ── */
@@ -61,6 +182,8 @@ a { color: var(--site-accent); text-decoration: none; }
   position: sticky; top: 0; align-self: flex-start;
   width: 230px; flex: none; height: 100vh; overflow-y: auto;
   padding: 26px 18px 40px;
+  border-right: 1px solid var(--site-border-soft);
+  scrollbar-width: thin; scrollbar-color: var(--site-scrollbar) transparent;
 }
 .sb-brand { margin: 2px 10px 22px; }
 .sb-brand a {
@@ -77,8 +200,8 @@ a { color: var(--site-accent); text-decoration: none; }
   color: var(--site-muted); font-size: 14px;
   transition: color var(--site-dur-fast) var(--site-ease-out), background var(--site-dur-fast) var(--site-ease-out);
 }
-.sb-link:hover { color: var(--site-text); background: rgba(255, 255, 255, 0.04); text-decoration: none; }
-.sb-link.sb-current { color: var(--site-text); background: rgba(255, 255, 255, 0.07); }
+.sb-link:hover { color: var(--site-text); background: var(--site-fill-hover); text-decoration: none; }
+.sb-link.sb-current { color: var(--site-text); background: var(--site-fill-active); font-weight: 500; }
 
 .doc {
   flex: 1; min-width: 0; max-width: 780px;
@@ -108,8 +231,8 @@ a { color: var(--site-accent); text-decoration: none; }
 .doc li { margin: 4px 0; text-wrap: pretty; }
 .doc code {
   font-family: var(--site-mono); font-size: 0.85em;
-  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--site-border-soft);
-  border-radius: 5px; padding: 1px 5px; color: #d8d4f0;
+  background: var(--site-chip-bg); border: 1px solid var(--site-border-soft);
+  border-radius: 5px; padding: 1px 5px; color: var(--site-chip-text);
 }
 .doc pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
 
@@ -120,21 +243,44 @@ a { color: var(--site-accent); text-decoration: none; }
 
 /* Hero (landing page) */
 .hero { margin: 8px 0 36px; }
-.hero h1 { font-size: clamp(2.1rem, 1.5rem + 2.4vw, 2.9rem); margin-bottom: 12px; line-height: 1.08; }
+.hero h1 {
+  font-size: clamp(2.1rem, 1.5rem + 2.4vw, 2.9rem); margin-bottom: 12px; line-height: 1.08;
+  /* Monochrome depth: white fading to gray down the glyphs — no color temperature. */
+  background: linear-gradient(180deg, var(--site-h1-a) 20%, var(--site-h1-b));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
 .hero p { max-width: 54ch; font-size: 16px; }
 .hero-meta { display: flex; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
 .hero-pill {
   font-size: 12.5px; color: var(--site-muted); border: 1px solid var(--site-border);
-  border-radius: 999px; padding: 4px 12px; background: var(--site-panel);
+  border-radius: 999px; padding: 4px 12px;
+  background: linear-gradient(180deg, var(--site-pill-a), var(--site-pill-b));
+  box-shadow: inset 0 1px 0 var(--site-pill-edge);
 }
 
 /* ── Examples ── */
 /* One stage per example: the bordered container holds BOTH the demo surface and the
  * panel, so the panel reads as living inside the scene it controls. */
-.ex { margin: 0 0 56px; }
+.ex { margin: 0 0 56px; scroll-margin-top: 24px; }
+
+/* Hover-revealed section permalink (site.js appends it to each anchored h2). */
+.h-anchor {
+  margin-left: 10px; color: var(--site-faint); font-weight: 440;
+  opacity: 0; transition: opacity var(--site-dur-fast) var(--site-ease-out), color var(--site-dur-fast) var(--site-ease-out);
+}
+.doc .h-anchor { text-decoration: none; }
+.ex h2:hover .h-anchor, .h-anchor:focus-visible { opacity: 1; }
+.h-anchor:hover { color: var(--site-text); }
+
+/* The stage: a faint dot grid over a soft vertical falloff — the design-canvas the
+ * panel floats on — capped with an inset top hairline. */
 .ex-live {
   display: flex; gap: 20px; align-items: stretch; margin: 18px 0; padding: 18px;
-  border-radius: 16px; background: var(--site-panel); border: 1px solid var(--site-border);
+  border-radius: 16px; border: 1px solid var(--site-border);
+  background:
+    radial-gradient(circle at 1px 1px, var(--site-stage-dot) 1px, transparent 0) 9px 9px / 20px 20px,
+    linear-gradient(180deg, var(--site-stage-a), var(--site-stage-b));
+  box-shadow: inset 0 1px 0 var(--site-stage-edge);
 }
 /* No overflow clip by default — shadows and glows should fade past the demo's bounds.
  * Demos that genuinely need a viewport crop opt in via their own example CSS. */
@@ -152,8 +298,8 @@ a { color: var(--site-accent); text-decoration: none; }
 .ex-codewrap { position: relative; margin: 14px 0; }
 .ex-code {
   margin: 0; padding: 15px 18px; overflow-x: auto;
-  background: #121319; border: 1px solid #1f2129; border-radius: 12px;
-  font-family: var(--site-mono); font-size: 12.5px; line-height: 1.65; color: #c8cad3;
+  background: var(--site-code-bg); border: 1px solid var(--site-code-border); border-radius: 12px;
+  font-family: var(--site-mono); font-size: 12.5px; line-height: 1.65; color: var(--site-code-fg);
   font-variant-numeric: tabular-nums;
 }
 
@@ -180,7 +326,7 @@ a { color: var(--site-accent); text-decoration: none; }
               filter var(--site-dur-base) var(--site-ease-out);
   will-change: opacity, transform, filter;
 }
-.ex-copy-check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: #9ece6a; }
+.ex-copy-check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: var(--site-success); } /* the kit's --tw-success, per scheme */
 .ex-copy.is-copied .ex-copy-copy { opacity: 0; transform: scale(0.25); filter: blur(2px); }
 .ex-copy.is-copied .ex-copy-check { opacity: 1; transform: none; filter: none; }
 .ex-copy::after {
@@ -189,7 +335,7 @@ a { color: var(--site-accent); text-decoration: none; }
   padding: 4px 8px; border-radius: 6px; white-space: nowrap;
   font-family: inherit; font-size: 12px; font-weight: 500; line-height: 1.3;
   background: var(--site-text); color: var(--site-bg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 12px var(--site-shadow-ink);
   opacity: 0; transform: translateY(4px) scale(0.96); transform-origin: top right;
   pointer-events: none;
   transition: opacity calc(var(--site-dur-base) * 0.6) ease-in, transform calc(var(--site-dur-base) * 0.6) ease-in;
@@ -203,38 +349,50 @@ a { color: var(--site-accent); text-decoration: none; }
 }
 .ex-note { font-size: 12.5px; color: var(--site-faint); margin-top: -6px; }
 
-/* ── Highlighter tokens — vivid, anchored on the kit's violet ── */
-.tok-cm { color: #6c7396; font-style: italic; }
-.tok-str { color: #9ece6a; }
-.tok-num { color: #ff9e64; }
-.tok-kw { color: #bb9af7; }
-.tok-fn { color: #7aa2f7; }
-.tok-prop { color: #7dcfff; }
-.tok-key { color: #73daca; }
-.tok-tag { color: #f7768e; }
-.tok-attr { color: #bb9af7; }
-.tok-pn { color: #8a8fa3; }
+/* ── Highlighter tokens — monochrome, like the kit: a lightness ladder, no hue.
+ * Structure recedes (comments/punctuation dark), names sit mid, literals step up,
+ * keywords/tags carry near-white. ── */
+.tok-cm { color: var(--tok-cm); font-style: italic; }
+.tok-str { color: var(--tok-lit); }
+.tok-num { color: var(--tok-lit); }
+.tok-kw { color: var(--tok-hi); }
+.tok-fn { color: var(--tok-fn); }
+.tok-prop { color: var(--tok-mid); }
+.tok-key { color: var(--tok-mid); }
+.tok-tag { color: var(--tok-hi); }
+.tok-attr { color: var(--tok-mid); }
+.tok-pn { color: var(--tok-pn); }
 
-/* ── Prev / next footer ── */
+/* ── Prev / next footer — bordered cards, arrows nudge on hover ── */
 .doc-footnav {
   display: flex; justify-content: space-between; gap: 14px;
   margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--site-border);
 }
 .doc-footnav a {
-  display: flex; flex-direction: column; gap: 2px; max-width: 46%;
+  display: flex; flex-direction: column; gap: 3px; flex: 1; max-width: 48%;
+  padding: 13px 17px; border: 1px solid var(--site-border); border-radius: 12px;
   color: var(--site-text); font-weight: 500; font-size: 14.5px;
+  transition: border-color var(--site-dur-fast) var(--site-ease-out), background var(--site-dur-fast) var(--site-ease-out);
 }
-.doc-footnav a:hover { text-decoration: none; color: var(--site-accent); }
+.doc-footnav a:hover { text-decoration: none; border-color: var(--site-border-hover); background: var(--site-fill-whisper); }
 .doc-footnav a span { font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--site-faint); }
 .doc-footnav .fn-next { text-align: right; margin-left: auto; }
+.fn-prev span::before, .fn-next span::after {
+  display: inline-block; transition: transform var(--site-dur-base) var(--site-ease-out);
+}
+.fn-prev span::before { content: "←"; margin-right: 6px; }
+.fn-next span::after { content: "→"; margin-left: 6px; }
+.fn-prev:hover span::before { transform: translateX(-3px); }
+.fn-next:hover span::after { transform: translateX(3px); }
 
 /* ── Mobile ── */
 .topbar { display: none; }
 @media (max-width: 800px) {
   .topbar {
     display: flex; align-items: center; gap: 12px;
-    position: sticky; top: 0; z-index: 50; padding: 10px 14px;
-    background: rgba(15, 15, 15, 0.92); backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 50;
+    padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top));
+    background: var(--site-topbar-bg); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--site-border);
   }
   .topbar-menu {
@@ -247,13 +405,23 @@ a { color: var(--site-accent); text-decoration: none; }
   .layout { display: block; }
   .sb {
     position: fixed; left: 0; top: 0; bottom: 0; z-index: 60;
-    height: 100dvh; width: 250px; background: #121212;
+    height: 100dvh; width: 250px; background: var(--site-drawer-bg);
     border-right: 1px solid var(--site-border);
+    overscroll-behavior: contain;
     transform: translateX(-102%); transition: transform 0.22s ease;
   }
-  body.nav-open .sb { transform: none; box-shadow: 24px 0 60px rgba(0, 0, 0, 0.45); }
+  body.nav-open .sb { transform: none; box-shadow: 24px 0 60px var(--site-drawer-shadow); }
+
+  /* Dim the page behind the open drawer (clicks pass through; the document
+   * listener in site.js closes it). */
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 55; pointer-events: none;
+    background: var(--site-overlay); opacity: 0; transition: opacity 0.22s ease;
+  }
+  body.nav-open::after { opacity: 1; }
 
   .doc { padding: 24px 18px 72px; }
+  .ex { scroll-margin-top: 68px; }
   .ex-live { flex-direction: column; }
   .ex-mount { align-self: center; }
 }

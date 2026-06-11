@@ -82,8 +82,8 @@ function renderPage(shell, pages, idx) {
   const content = (meta.hero ? "" : `<h1>${esc(meta.title)}</h1>`) + page.intro + blocks.join("\n");
 
   return shell
-    .replace("{{title}}", esc(title))
-    .replace("{{description}}", esc(meta.description || "Tweakability — a dependency-free, code-split, real-time parameter panel."))
+    .replaceAll("{{title}}", esc(title))
+    .replaceAll("{{description}}", esc(meta.description || "Tweakability — a dependency-free, code-split, real-time parameter panel."))
     .replace("{{styles}}", css ? `  <style>${css}</style>` : "")
     .replace("{{nav}}", renderNav(pages, meta.slug))
     .replace("{{content}}", content)
@@ -109,8 +109,8 @@ function renderFootnav(pages, idx) {
   const prev = pages[idx - 1], next = pages[idx + 1];
   if (!prev && !next) return "";
   return `<nav class="doc-footnav">` +
-    (prev ? `<a class="fn-prev" href="${href(prev.meta.slug)}"><span>Previous</span>${esc(prev.meta.title)}</a>` : "") +
-    (next ? `<a class="fn-next" href="${href(next.meta.slug)}"><span>Next</span>${esc(next.meta.title)}</a>` : "") +
+    (prev ? `<a class="fn-prev" href="${href(prev.meta.slug)}"><span>Previous</span>${esc(prev.meta.nav || prev.meta.title)}</a>` : "") +
+    (next ? `<a class="fn-next" href="${href(next.meta.slug)}"><span>Next</span>${esc(next.meta.nav || next.meta.title)}</a>` : "") +
     `</nav>`;
 }
 

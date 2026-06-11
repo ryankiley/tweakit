@@ -24,8 +24,8 @@ export const examples = [
     target: `<pre class="pa-log">— change something —</pre>`,
     css: `
       .pa-log { width: 100%; align-self: stretch; margin: 0; padding: 14px 16px; border-radius: 10px;
-                background: #0e0e0e; border: 1px solid #1f1f1f; font-size: 12px; line-height: 1.8;
-                color: #b9b9b9; white-space: pre-wrap; }`,
+                background: var(--demo-well); border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.8;
+                color: var(--demo-well-ink); white-space: pre-wrap; }`,
     run: ({ tweaks, mount, target }) => {
       const log = target.querySelector(".pa-log");
       const lines = [];
@@ -62,10 +62,10 @@ export const examples = [
       .pa-tile { width: 120px; height: 120px; border-radius: 18px; background: oklch(0.65 0.2 260);
                  transition: background 0.15s, transform 0.2s; }
       .pa-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-      .pa-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.14);
-                background: rgba(255, 255, 255, 0.06); color: #ededed; font: 600 12.5px/1.4 inherit;
+      .pa-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
+                background: var(--demo-fill); color: var(--demo-ink); font: 600 12.5px/1.4 inherit;
                 font-family: inherit; cursor: pointer; }
-      .pa-btn:hover { background: rgba(255, 255, 255, 0.11); }`,
+      .pa-btn:hover { background: var(--demo-bar); }`,
     run: ({ tweaks, mount, target }) => {
       const tile = target.querySelector(".pa-tile");
       const panel = tweaks("Remote", {
@@ -174,7 +174,7 @@ export const examples = [
     css: `
       .pa-presets-tile { width: 120px; height: 120px; border-radius: 18px; background: oklch(0.6 0.18 260);
                          transition: all 0.15s; }
-      .pa-presets-note { font-size: 12px; color: #6f6f6f; min-height: 1em; }`,
+      .pa-presets-note { font-size: 12px; color: var(--demo-faint); min-height: 1em; }`,
     run: ({ tweaks, mount, target }) => {
       const tile = target.querySelector(".pa-presets-tile");
       const note = target.querySelector(".pa-presets-note");

@@ -31,6 +31,16 @@
     wrap.append(btn);
   });
 
+  // Hover-revealed permalinks on anchored section headings.
+  document.querySelectorAll(".ex[id] > h2").forEach((h) => {
+    const a = document.createElement("a");
+    a.className = "h-anchor";
+    a.href = "#" + h.parentElement.id;
+    a.setAttribute("aria-label", "Link to this section");
+    a.textContent = "#";
+    h.append(a);
+  });
+
   const menu = document.querySelector(".topbar-menu");
   const setOpen = (open) => {
     document.body.classList.toggle("nav-open", open);

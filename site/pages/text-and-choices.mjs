@@ -19,9 +19,9 @@ export const examples = [
     target: `<div class="txt-card"><h3>Synthesizers</h3><p>Voltage in, music out.</p></div>`,
     css: `
       .txt-card { max-width: 260px; padding: 22px 26px; border-radius: 16px;
-                  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.09); }
-      .txt-card h3 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.01em; color: #ededed; }
-      .txt-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: #9a9a9a; }`,
+                  background: var(--demo-fill-soft); border: 1px solid var(--demo-line); }
+      .txt-card h3 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.01em; color: var(--demo-ink); }
+      .txt-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--demo-muted); }`,
     run: ({ tweaks, mount, target }) => {
       const card = target.querySelector(".txt-card");
       const panel = tweaks("Text", {
@@ -47,20 +47,20 @@ export const examples = [
     target: `<div class="chk-badge"><span class="chk-dot"></span>Live</div>`,
     css: `
       .chk-badge { display: flex; align-items: center; gap: 10px; padding: 14px 26px; border-radius: 999px;
-                   background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-                   color: #ededed; font-weight: 600; font-size: 15px; transition: filter 0.2s, opacity 0.2s; }
+                   background: var(--demo-fill); border: 1px solid var(--demo-line);
+                   color: var(--demo-ink); font-weight: 600; font-size: 15px; transition: filter 0.2s, opacity 0.2s; }
       .chk-dot { width: 10px; height: 10px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 12px #4ade80; }`,
     run: ({ tweaks, mount, target }) => {
       const badge = target.querySelector(".chk-badge");
       const panel = tweaks("Checkbox", {
         enabled: true,
-        colour: true,
+        color: true,
       });
       mount.append(panel.el);
 
       const apply = (p) => {
         badge.style.opacity = p.enabled ? 1 : 0.25;
-        badge.style.filter = p.colour ? "none" : "grayscale(1)";
+        badge.style.filter = p.color ? "none" : "grayscale(1)";
       };
       panel.on(apply);
       apply(panel.params);
@@ -101,9 +101,9 @@ export const examples = [
     target: `<div class="rg-frame"><div class="rg-chip"></div></div>`,
     css: `
       .rg-frame { display: grid; place-items: center center; width: 220px; height: 180px; padding: 14px;
-                  border-radius: 16px; border: 1px dashed rgba(255, 255, 255, 0.18); }
+                  border-radius: 16px; border: 1px dashed var(--demo-line-strong); }
       .rg-chip { width: 44px; height: 44px; border-radius: 12px; background: #7C5CFF;
-                 box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4); }`,
+                 box-shadow: 0 6px 22px var(--demo-shadow); }`,
     run: ({ tweaks, mount, target }) => {
       const frame = target.querySelector(".rg-frame");
       const panel = tweaks("Radio grid", {

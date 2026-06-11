@@ -55,14 +55,14 @@ export const examples = [
     target: `
       <svg class="tab-shape" viewBox="0 0 200 200" width="180" height="180" aria-hidden="true">
         <path d="M100 14 L186 100 L100 186 L14 100 Z" fill="#7C5CFF" fill-opacity="1"
-              stroke="#ffffff" stroke-width="2" stroke-dasharray="0" stroke-linejoin="round"/>
+              stroke="#888888" stroke-width="2" stroke-dasharray="0" stroke-linejoin="round"/>
       </svg>`,
     run: ({ tweaks, mount, target }) => {
       const shape = target.querySelector(".tab-shape path");
       const panel = tweaks("Tabs", {
         look: { type: "tabs", pages: {
           Fill: { color: "#7C5CFF", opacity: [1, 0, 1, 0.01] },
-          Stroke: { color: "#FFFFFF", width: [2, 0, 14, 1], dashed: false },
+          Stroke: { color: "#888888", width: [2, 0, 14, 1], dashed: false },
         } },
       });
       mount.append(panel.el);
@@ -75,7 +75,7 @@ export const examples = [
         shape.setAttribute("stroke-dasharray", p.look.stroke.dashed ? "10 8" : "0");
       };
       panel.on(apply);
-      panel.ready.then(() => apply(panel.params)); // tabs (and colour) load lazily
+      panel.ready.then(() => apply(panel.params)); // tabs (and color) load lazily
     },
   },
   {
@@ -87,7 +87,7 @@ export const examples = [
     target: `<div class="act-orbit"><div class="act-planet"></div></div>`,
     css: `
       .act-orbit { position: relative; width: 170px; height: 170px; border-radius: 50%;
-                   border: 1px dashed rgba(255, 255, 255, 0.16);
+                   border: 1px dashed var(--demo-line-strong);
                    animation: act-turn 6s linear infinite; }
       .act-planet { position: absolute; top: -11px; left: 50%; width: 22px; height: 22px; margin-left: -11px;
                     border-radius: 50%; background: #7C5CFF; box-shadow: 0 0 18px rgba(124, 92, 255, 0.7); }
