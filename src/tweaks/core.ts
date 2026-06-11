@@ -1185,8 +1185,8 @@ const dataMeta = (host) => {
     if (options) return { type: "radiogrid", key: "v", label, options, value: d.value ?? options[0], cols: d.cols != null ? +d.cols : undefined };
     return { type, key: "v", label, value: d.checked === "true" };
   }
-  if (type === "radiogrid") return { type, key: "v", label, options: (d.options || "").split(",").map((s) => s.trim()).filter(Boolean), value: d.value, cols: d.cols != null ? +d.cols : undefined };
-  if (type === "list") return { type, key: "v", label, options: (d.options || "").split(",").map((s) => s.trim()).filter(Boolean), value: d.value };
+  if (type === "radiogrid") { const options = (d.options || "").split(",").map((s) => s.trim()).filter(Boolean); return { type, key: "v", label, options, value: d.value ?? options[0], cols: d.cols != null ? +d.cols : undefined }; }
+  if (type === "list") { const options = (d.options || "").split(",").map((s) => s.trim()).filter(Boolean); return { type, key: "v", label, options, value: d.value ?? options[0] }; }
   if (type === "color") return { type, key: "v", label, value: d.value || "#7c5cff" };
   if (type === "button") return { type, key: "v", label, action: () => showToast(`${label} pressed`) };
   if (type === "buttongroup") return { type, key: "v", label, buttons: (d.buttons || "").split(",").map((s) => s.trim()).filter(Boolean).map((lab) => ({ label: lab, action: () => showToast(`${lab} pressed`) })) };
