@@ -97,13 +97,15 @@ export const examples = [
         <tr><td><code>accent</code></td><td>slider fills, focus rings, active highlights</td></tr>
         <tr><td><code>base</code></td><td>panel background, reused for recessed wells</td></tr>
         <tr><td><code>dropdownBg</code></td><td>popover / dropdown background</td></tr>
-        <tr><td><code>surface</code>, <code>surfaceHover</code>, <code>surfaceActive</code>, <code>surfaceSubtle</code></td><td>control surfaces and their interaction steps</td></tr>
+        <tr><td><code>surface</code>, <code>surfaceHover</code>, <code>surfaceActive</code></td><td>control surfaces and their interaction steps</td></tr>
         <tr><td><code>border</code>, <code>borderHover</code></td><td>hairline borders</td></tr>
         <tr><td><code>selection</code></td><td>text-selection wash</td></tr>
         <tr><td><code>title</code>, <code>section</code>, <code>text</code>, <code>label</code>, <code>textMuted</code>, <code>textFaint</code>, <code>focus</code></td><td>the text hierarchy</td></tr>
         <tr><td><code>success</code></td><td>copy-confirmation accent</td></tr>
+        <tr><td><code>danger</code></td><td>invalid-input accent</td></tr>
         <tr><td><code>shadow</code>, <code>shadowPanel</code>, <code>shadowPanelLifted</code></td><td>popover, panel and floating elevations</td></tr>
         <tr><td><code>font</code></td><td>font stack</td></tr>
+        <tr><td><code>fontMono</code></td><td>monospace font stack</td></tr>
         <tr><td><code>radius</code>, <code>density</code></td><td>corner radius and row height — numbers are px</td></tr>
       </table>`,
   },
