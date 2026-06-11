@@ -192,6 +192,7 @@
   width: 24px; height: 24px; padding: 0; flex-shrink: 0;
   background: var(--tw-surface); border: none; border-radius: calc(var(--tw-radius) - 2px);
   color: var(--tw-text-label); cursor: pointer;
+  will-change: transform; /* the :active scale below promotes/demotes a layer per press in WebKit — keep it standing (same Safari pixel-snap fix as the icons) */
   transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 .tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
@@ -200,15 +201,21 @@
 .tw-toolbar-btn svg { width: 14px; height: 14px; display: block; }
 /* Contextual icon swap on Copy — copy ⇄ check cross-fade (the site's copy-button
  * trick): both icons stacked, opacity+scale+blur transitioned together so a
- * mid-swap click reverses cleanly. */
+ * mid-swap click reverses cleanly.
+ * Safari: the animated icons hold a standing compositor layer (will-change) and the
+ * resting filter is blur(0), never none — WebKit promotes an element to its own layer
+ * when a transform/filter animation starts and demotes it when it ends, re-snapping
+ * the raster to device pixels; at a fractional button position (a dragged panel, flex
+ * subpixels) that demotion read as a ~1px icon shift after every copy/reset. */
 .tw-toolbar-btn__icons { position: relative; display: block; width: 14px; height: 14px; }
-.tw-toolbar-btn__icons svg { position: absolute; inset: 0; transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.tw-toolbar-btn__icons svg { position: absolute; inset: 0; will-change: transform, filter; filter: blur(0); transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
 .tw-toolbar-btn__check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: var(--tw-success); }
 .tw-toolbar-btn--swap.is-copied .tw-toolbar-btn__copy { opacity: 0; transform: scale(0.25); filter: blur(2px); }
-.tw-toolbar-btn--swap.is-copied .tw-toolbar-btn__check { opacity: 1; transform: none; filter: none; }
+.tw-toolbar-btn--swap.is-copied .tw-toolbar-btn__check { opacity: 1; transform: none; filter: blur(0); }
 /* Reset: a small clockwise wind-up on hover, then it releases into a counter-clockwise
- * spin on click (the spin starts from the wound-up angle so it unwinds smoothly). */
-.tw-toolbar-btn--reset svg { transition: transform 0.34s cubic-bezier(0.34, 1.55, 0.5, 1); }
+ * spin on click (the spin starts from the wound-up angle so it unwinds smoothly).
+ * will-change keeps it on its compositor layer across hover/spin — same Safari fix. */
+.tw-toolbar-btn--reset svg { will-change: transform; transition: transform 0.34s cubic-bezier(0.34, 1.55, 0.5, 1); }
 .tw-toolbar-btn--reset:hover svg { transform: rotate(22deg); }
 @keyframes tw-reset-spin { from { transform: rotate(22deg); } to { transform: rotate(-360deg); } }
 .tw-toolbar-btn--reset.is-spinning svg { animation: tw-reset-spin 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
