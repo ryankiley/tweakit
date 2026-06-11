@@ -35,8 +35,8 @@ on any ancestor pins it (full story on the docs site's theming page).
 code-split build, heavy controls fill in behind `panel.ready`. `enhance(root)` upgrades
 `[data-tw]` markup in place.
 
-**Size:** ~16 KB gzip code-split (the color engine and heavy controls load on demand),
-~30 KB with everything inlined.
+**Size:** ~17 KB gzip code-split (the core entry plus its shared chunk; the color engine
+and heavy controls load on demand), ~32 KB with everything inlined.
 
 ## Build
 

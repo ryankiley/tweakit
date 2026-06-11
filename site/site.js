@@ -46,11 +46,20 @@
     document.body.classList.toggle("nav-open", open);
     menu && menu.setAttribute("aria-expanded", String(open));
   };
-  menu && menu.addEventListener("click", (e) => {
-    e.stopPropagation();
+  menu && menu.addEventListener("click", () => {
     setOpen(!document.body.classList.contains("nav-open"));
   });
+  // The dim scrim is pointer-events:none, so a dismissal tap lands on whatever sits
+  // under it — intercept at capture phase: close the drawer AND swallow the click so
+  // the underlying element doesn't activate (a link would navigate mid-dismiss).
   document.addEventListener("click", (e) => {
-    if (document.body.classList.contains("nav-open") && !e.target.closest(".sb")) setOpen(false);
+    if (!document.body.classList.contains("nav-open")) return;
+    if (e.target.closest(".sb") || e.target.closest(".topbar-menu")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(false);
+  }, true);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.body.classList.contains("nav-open")) setOpen(false);
   });
 })();

@@ -37,7 +37,7 @@ const NAV = [
   { section: "Panel", slugs: ["panel-api", "theming", "markup", "imports"] },
 ];
 
-const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const href = (slug) => `./${slug}.html`;
 
 export async function buildSite({ outDir, esbuild }) {
@@ -78,19 +78,25 @@ function renderPage(shell, pages, idx) {
     return renderExample(ex, ids, captioned);
   });
 
+  for (const ex of page.examples) {
+    if (ex.css && /<\/style/i.test(ex.css)) throw new Error(`example "${ex.id || ex.title || "?"}": "</style" cannot appear in example CSS (it would close the page's <style> block)`);
+  }
   const css = page.examples.map((ex) => ex.css || "").filter(Boolean).join("\n");
   const content = (meta.hero ? "" : `<h1>${esc(meta.title)}</h1>`) + page.intro + blocks.join("\n");
 
-  // Function replacers throughout: with a string replacement, a `$&`/`$'` in page
-  // content would be silently interpreted as a replacement pattern and corrupt output.
-  return shell
-    .replaceAll("{{title}}", () => esc(title))
-    .replaceAll("{{description}}", () => esc(meta.description || "Tweakability — a dependency-free, code-split, real-time parameter panel."))
-    .replace("{{styles}}", () => (css ? `  <style>${css}</style>` : ""))
-    .replace("{{nav}}", () => renderNav(pages, meta.slug))
-    .replace("{{content}}", () => content)
-    .replace("{{footnav}}", () => renderFootnav(pages, idx))
-    .replace("{{script}}", () => renderScript(page));
+  // Single-pass substitution: the function replacement disarms `$`-sequences in the
+  // values, and substituted content is never rescanned — so "{{content}}" inside page
+  // copy stays literal instead of acting as a reserved word.
+  const values = {
+    title: esc(title),
+    description: esc(meta.description || "Tweakability — a dependency-free, code-split, real-time parameter panel."),
+    styles: css ? `  <style>${css}</style>` : "",
+    nav: renderNav(pages, meta.slug),
+    content,
+    footnav: renderFootnav(pages, idx),
+    script: renderScript(page),
+  };
+  return shell.replace(/\{\{(\w+)\}\}/g, (m, k) => (Object.hasOwn(values, k) ? values[k] : m));
 }
 
 function renderNav(pages, currentSlug) {
@@ -177,7 +183,9 @@ function renderScript(page) {
     js += `const wire = (id, fn) => { const ex = document.getElementById(id); fn({ tweaks, enhance, mount: ex.querySelector(".ex-mount"), target: ex.querySelector(".ex-target") }); };\n`;
     for (const ex of runs) {
       const src = ex.run.toString();
-      if (src.includes("</script")) throw new Error(`example "${ex.id}": "</script" cannot appear in run source`);
+      // "</script" closes the inline module; "<!--" flips the parser into the
+      // script-data-double-escape state — both corrupt the page, so refuse at build.
+      if (/<\/script|<!--/i.test(src)) throw new Error(`example "${ex.id}": "</script" and "<!--" cannot appear in run source`);
       js += `wire(${JSON.stringify(`ex-${ex.id}`)}, ${src});\n`;
     }
   }

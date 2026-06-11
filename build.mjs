@@ -53,13 +53,24 @@ await esbuild.build({
   const mediaDriven = [], forced = [];
   for (const m of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const sel = m[1].trim();
-    if (!sel.includes("data-tw-scheme") || !sel.includes(":where(")) continue;
+    if (!sel.includes("data-tw-scheme")) continue;
+    if (!sel.includes(":where(")) {
+      console.error(`✗ src/tweaks.css: scheme-conditional rule outside :where() — it would bypass the twin drift check. Keep every data-tw-scheme rule in the :where() form.\n  selector: ${sel.replace(/\s+/g, " ")}`);
+      process.exit(1);
+    }
     const rule = (sel.slice(0, sel.indexOf(":where(")) + " { " + m[2] + " }").replace(/\s+/g, " ").trim();
     (sel.includes('[data-tw-scheme="light"]') ? forced : mediaDriven).push(rule);
   }
+  // 3 pairs exist today; if both twins of a pair leave the :where() shape they vanish
+  // from the buckets and the diff passes vacuously — pin the floor so that can't happen.
+  const MIN_TWIN_PAIRS = 3;
+  if (mediaDriven.length < MIN_TWIN_PAIRS) {
+    console.error(`✗ src/tweaks.css: only ${mediaDriven.length} media-driven scheme rule(s) found (expected ≥ ${MIN_TWIN_PAIRS}) — a twin pair dropped out of the checked :where() system. If a pair was removed on purpose, lower MIN_TWIN_PAIRS in build.mjs.`);
+    process.exit(1);
+  }
   const at = mediaDriven.length !== forced.length ? Math.min(mediaDriven.length, forced.length)
     : mediaDriven.findIndex((r, i) => r !== forced[i]);
-  if (!mediaDriven.length || mediaDriven.length !== forced.length || at !== -1) {
+  if (mediaDriven.length !== forced.length || at !== -1) {
     console.error(`✗ src/tweaks.css: the light-theme twins have drifted (rule ${at + 1}).`);
     console.error("  media-driven: " + (mediaDriven[at] || "(missing)") + "\n  forced:       " + (forced[at] || "(missing)"));
     process.exit(1);
@@ -73,7 +84,8 @@ try {
   await run("node", ["node_modules/typescript/bin/tsc"], { cwd: ROOT });
   console.log("emitted .d.ts → dist/types/");
 } catch (e) {
-  console.warn("⚠ tsc reported type errors (declarations emitted where possible):", String(e.stdout || e.message || "").split("\n").slice(0, 4).join(" "));
+  console.error("✗ tsc failed — the declarations would be wrong or partial:\n" + String(e.stdout || e.message || "").trimEnd());
+  process.exit(1);
 }
 
 // 5) docs site → dist/*.html + site.css/site.js (GitHub Pages serves dist/). The

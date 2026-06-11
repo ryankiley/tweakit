@@ -63,8 +63,8 @@ export const examples = [
                  transition: background 0.15s, transform 0.2s; }
       .pa-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
       .pa-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
-                background: var(--demo-fill); color: var(--demo-ink); font: 600 12.5px/1.4 inherit;
-                font-family: inherit; cursor: pointer; }
+                background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
+                line-height: 1.4; font-family: inherit; cursor: pointer; }
       .pa-btn:hover { background: var(--demo-bar); }`,
     run: ({ tweaks, mount, target }) => {
       const tile = target.querySelector(".pa-tile");

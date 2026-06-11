@@ -8,6 +8,7 @@
   "author": "Ryan Kiley",
   "scripts": {
     "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs",
     "serve": "node build.mjs && python3 -m http.server 4330 --directory dist"
   },
   "types": "./dist/types/tweaks/single.d.ts",
