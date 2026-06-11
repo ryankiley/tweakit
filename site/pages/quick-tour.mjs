@@ -77,6 +77,7 @@ export const examples = [
       <a href="./panel-api.html">the panel API</a>). Hover the ⓘ beside “Opacity”.</p>`,
     target: `<div class="qt-tile"></div>`,
     css: `
+      #ex-verbose .ex-target { overflow: hidden; } /* zoom crops at the frame, like a viewport */
       .qt-tile { width: 160px; height: 160px; border-radius: 18px;
                  background: repeating-conic-gradient(#7C5CFF 0% 12.5%, #2b2440 12.5% 25%);
                  background-position: center; background-repeat: no-repeat; }`,

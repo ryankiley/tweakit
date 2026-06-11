@@ -21,6 +21,7 @@ export const examples = [
       arbitrarily deep.</p>`,
     target: `<div class="fld-card">Stacked</div>`,
     css: `
+      #ex-folder .ex-target { min-height: 300px; } /* headroom so big shadows fade, not clip */
       .fld-card { display: grid; place-items: center; width: 150px; height: 150px; border-radius: 20px;
                   background: #2a2a2e; color: #ededed; font-weight: 600;
                   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); }`,
