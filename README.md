@@ -62,7 +62,3 @@ and [dialkit](https://github.com/joshpuckett/dialkit) by [Josh Puckett](https://
 The toolbar and control icons are inline SVGs from [Lucide](https://lucide.dev) (ISC) and,
 upstream, [Feather](https://feathericons.com) (MIT) — per-icon origins and full license
 texts are in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
-
-## License
-
-[MIT](LICENSE) © Ryan Kiley. The bundled icons keep their original ISC/MIT licenses.
