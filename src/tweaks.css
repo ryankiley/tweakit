@@ -63,6 +63,12 @@
   --tw-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   font-family: var(--tw-font-sans);
+  /* Pin the line-height the design's vertical metrics were built against. Buttons use
+   * `font: inherit`, so a host page's global line-height (every real site sets one —
+   * the docs site's 1.6 inflated the toggle's 24px pill to ~29px, breaking the uniform
+   * 4px inset) would otherwise ride into every control. Portaled surfaces repeat this
+   * (they live outside the panel) — see the popover token block. */
+  line-height: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
@@ -523,6 +529,7 @@
  * position:fixed (a transform/filter, e.g. .prose's entrance transform) and the
  * panel's overflow. So they carry the panel's tokens themselves (light below). */
 .tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu {
+  line-height: normal; /* same pin as .tw-panel — these portal to <body>, so the host's global line-height would inflate their text metrics */
   --tw-surface: rgba(255, 255, 255, 0.04); --tw-surface-hover: rgba(255, 255, 255, 0.075);
   --tw-surface-active: rgba(255, 255, 255, 0.13);
   --tw-text-label: rgba(255, 255, 255, 0.64); --tw-text-primary: rgba(255, 255, 255, 0.92);
