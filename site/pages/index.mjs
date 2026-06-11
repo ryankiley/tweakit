@@ -19,7 +19,7 @@ export const intro = `
   <div class="hero-meta">
     <span class="hero-pill">Zero dependencies</span>
     <span class="hero-pill">No framework</span>
-    <span class="hero-pill">~12 KB gzip code-split</span>
+    <span class="hero-pill">~16 KB gzip code-split</span>
     <span class="hero-pill">TypeScript types included</span>
   </div>
 </div>`;
@@ -29,10 +29,11 @@ export const examples = [
     id: "showcase",
     title: "Schema in, panel out",
     prose: `<p>The panel below is built from the one schema object under it — nothing
-      else. Shorthands infer the light controls (<code>[value, min, max, step]</code> →
-      slider, <code>[[lo, hi], …]</code> → interval, <code>true</code> → checkbox, a hex
-      string → the wide-gamut color picker); the <code>{ type }</code> forms opt into the
-      heavy ones. Scrub the sliders, open the popovers, drag it around by the header.</p>`,
+      else. Shorthands infer controls from a value's shape (<code>[value, min, max,
+      step]</code> → slider, <code>[[lo, hi], …]</code> → interval, <code>true</code> →
+      checkbox, a hex string → the wide-gamut color picker); the <code>{ type }</code>
+      forms opt into everything the shorthands can't say. Scrub the sliders, open the
+      popovers, drag it around by the header.</p>`,
     noCaption: true,
     run: ({ tweaks, mount }) => {
       const panel = tweaks("Demo", {

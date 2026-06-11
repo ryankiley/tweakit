@@ -13,7 +13,7 @@ export const intro = `
 <table>
   <tr><th>Entry</th><th>Size</th><th>Loading</th></tr>
   <tr><td><code>tweakability</code></td><td>~30 KB gzip</td><td>one self-contained file; every control inlined, fully synchronous</td></tr>
-  <tr><td><code>tweakability/core</code></td><td>~12 KB gzip</td><td>code-split; color engine and heavy controls dynamic-import on first use</td></tr>
+  <tr><td><code>tweakability/core</code></td><td>~16 KB gzip</td><td>code-split; color engine and heavy controls dynamic-import on first use</td></tr>
 </table>
 <p>Pick the monolith for drop-in simplicity (it's also the no-bundler choice — copy
 <code>dist/tweaks.js</code> anywhere). Pick <code>/core</code> when panels are part of a
@@ -25,10 +25,11 @@ export const examples = [
     id: "ready",
     title: "panel.ready",
     prose: `<p><code>tweaks()</code> returns synchronously on both builds — the panel
-      element, params and methods are live at once. On the split build, controls whose
-      modules aren't loaded yet render as placeholder rows and hydrate behind
-      <code>panel.ready</code>; on the monolith, <code>ready</code> resolves immediately.
-      This page runs the split build — the stamp shows the real load.</p>`,
+      element, params and methods are live at once. On the split build, a panel whose
+      schema needs lazy modules builds all of its controls when <code>panel.ready</code>
+      resolves (until then the shell is an empty frame); on the monolith,
+      <code>ready</code> resolves immediately. This page runs the split build — the
+      stamp shows the real load.</p>`,
     target: `<code class="im-stamp">…</code>`,
     css: `
       .im-stamp { font-size: 13px; color: var(--demo-muted); background: var(--demo-fill);
@@ -40,7 +41,7 @@ export const examples = [
         motion: { type: "spring", stiffness: 220, damping: 18, mass: 1 }, // lazy here
         speed: [1, 0, 3, 0.1],                                            // built-in
       });
-      mount.append(panel.el);   // usable immediately
+      mount.append(panel.el);   // the shell mounts now; controls build at ready
 
       panel.ready.then(() => {
         stamp.textContent = `panel.ready resolved in ${Math.round(performance.now() - t0)} ms`;

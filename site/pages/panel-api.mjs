@@ -10,8 +10,8 @@ export const meta = {
 export const intro = `
 <p><code>tweaks()</code> returns synchronously — <code>panel.el</code> to mount,
 <code>panel.params</code> for live values, and the methods on this page. On the
-code-split build, heavy controls hydrate behind <code>panel.ready</code>; everything
-else works immediately.</p>`;
+code-split build, a panel that needs lazy modules builds its controls behind
+<code>panel.ready</code>; the element, params and methods work immediately.</p>`;
 
 export const examples = [
   {
@@ -93,7 +93,7 @@ export const examples = [
     title: "render, disabled & hint",
     prose: `<p>Any object-form control can carry a <code>render</code> predicate
       (show/hide on sibling values), a <code>disabled</code> flag or predicate
-      (grey out + lock), and a <code>hint</code> tooltip behind an ⓘ marker.
+      (gray out + lock), and a <code>hint</code> tooltip behind an ⓘ marker.
       Flip “Glow” and watch the other two rows.</p>`,
     target: `<div class="pa-chip">Glow me</div>`,
     css: `
@@ -107,7 +107,7 @@ export const examples = [
                  render: (get) => get("glow"),          // hidden until glow is on
                  hint: "Only rendered while glow is on" },
         strength: { type: "slider", value: 36, min: 0, max: 90,
-                    disabled: (get) => !get("glow") },  // greyed out instead
+                    disabled: (get) => !get("glow") },  // grayed out instead
       });
       mount.append(panel.el);
 
@@ -159,7 +159,7 @@ export const examples = [
     id: "presets",
     title: "Persistence & presets",
     prose: `<p><code>{ persist: "key" }</code> saves values to localStorage (reload this
-      page — the panel comes back as you left it) and unlocks presets: a bookmark menu
+      page — the panel comes back as you left it) and unlocks presets: a presets menu
       appears in the toolbar, and <code>savePreset</code> / <code>loadPreset</code> /
       <code>deletePreset</code> / <code>presets()</code> drive the same store from code.</p>`,
     target: `
@@ -231,12 +231,12 @@ export const examples = [
         <tr><th>Option</th><th>Does</th></tr>
         <tr><td><code>theme</code></td><td>token overrides — see <a href="./theming.html">Theming</a></td></tr>
         <tr><td><code>persist</code></td><td>localStorage key (or <code>true</code> to key by panel name); enables presets</td></tr>
-        <tr><td><code>filter</code></td><td>adds a fuzzy search field to the toolbar</td></tr>
+        <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title)</td></tr>
         <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
         <tr><td><code>draggable</code></td><td>header dragging — on by default, <code>false</code> pins</td></tr>
         <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>
         <tr><td><code>undo</code></td><td>debounced undo/redo history</td></tr>
-        <tr><td><code>onReset</code></td><td>replace the default reset behaviour</td></tr>
+        <tr><td><code>onReset</code></td><td>replace the default reset behavior</td></tr>
         <tr><td><code>onEditStart</code> / <code>onEditEnd</code></td><td>bracket a continuous drag — pause expensive work mid-scrub</td></tr>
       </table>`,
   },

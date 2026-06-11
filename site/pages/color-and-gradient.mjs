@@ -17,7 +17,7 @@ export const examples = [
   {
     id: "color",
     title: "Color",
-    prose: `<p>Any color string is recognised as a shorthand — hex in, but the picker
+    prose: `<p>Any hex or CSS color-function string is recognized as a shorthand — hex in, but the picker
       works in OKLCH and can emit <code>oklch()</code>, hex, <code>rgb()</code> or
       <code>hsl()</code> (switch the format inside the picker). P3-only colors survive
       instead of clipping. The param is always a CSS-ready string.</p>`,
@@ -52,8 +52,8 @@ export const examples = [
   {
     id: "gradient",
     title: "Gradient",
-    prose: `<p>A Figma-style stop editor: drag stops along the bar, click to add, select
-      a stop to recolor it with the full picker. The value is
+    prose: `<p>A Figma-style stop editor: drag stops along the bar, double-click the bar
+      (or the + button) to add, select a stop to recolor it with the full picker. The value is
       <code>{ stops: [{ color, pos }] }</code> — ready to template into any CSS gradient.
       Stops can be authored in <code>oklch()</code> for wide-gamut ramps.</p>`,
     target: `<div class="grad-swatch"></div>`,

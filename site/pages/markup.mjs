@@ -28,7 +28,7 @@ export const examples = [
         <div class="tw-controls">
           <div data-tw="slider" data-label="Blur" data-value="12" data-min="0" data-max="40"></div>
           <div data-tw="checkbox" data-label="Visible" data-checked="true"></div>
-          <div data-tw="list" data-label="Blend" data-options="normal, multiply, screen"></div>
+          <div data-tw="list" data-label="Blend" data-options="normal, multiply, screen" data-value="normal"></div>
         </div>
       </div>`,
   },
@@ -60,7 +60,7 @@ export const examples = [
         <div data-tw="folder" data-label="Inline anywhere">
           <div data-tw="slider" data-label="Speed" data-value="1.5" data-min="0" data-max="3" data-step="0.1"
                data-hint="Just a div in the page"></div>
-          <div data-tw="radiogrid" data-label="Size" data-options="S, M, L, XL" data-cols="4" data-value="M"></div>
+          <div data-tw="radiogrid" data-label="Size" data-options="S, M, L, XL" data-cols="2" data-value="M"></div>
         </div>
       </div>`,
   },

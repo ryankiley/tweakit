@@ -3,7 +3,7 @@
 export const meta = {
   slug: "structure",
   title: "Structure",
-  description: "Organising a panel: folders, tabs, buttons, button groups and separators — live.",
+  description: "Organizing a panel: folders, tabs, buttons, button groups and separators — live.",
 };
 
 export const intro = `
@@ -18,7 +18,7 @@ export const examples = [
     prose: `<p>Any nested plain object becomes a collapsible folder, and its children
       land on <code>params</code> as a nested object — here the whole
       <code>shadow</code> folder composes one <code>box-shadow</code>. Folders nest
-      arbitrarily deep.</p>`,
+      as deep as you'd ever want.</p>`,
     target: `<div class="fld-card">Stacked</div>`,
     css: `
       #ex-folder .ex-target { min-height: 300px; } /* headroom so big shadows fade, not clip */

@@ -110,10 +110,10 @@ export const examples = [
   {
     id: "raw",
     title: "The raw escape hatch",
-    prose: `<p>Anything not covered by a friendly name passes straight through as a
-      custom property — and because the whole kit renders from <code>--tw-*</code>
-      variables, plain page CSS works too: set them on any ancestor and every panel
-      inside inherits.</p>`,
+    prose: `<p>Any raw <code>--tw-*</code> key passes straight through as a custom
+      property (unknown bare names are ignored) — and because the whole kit renders
+      from <code>--tw-*</code> variables, plain page CSS works too: set them on any
+      ancestor and every panel inside inherits.</p>`,
     code: `
       tweaks("Raw", schema, { theme: {
         accent: "#39d353",

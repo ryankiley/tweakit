@@ -81,14 +81,16 @@ function renderPage(shell, pages, idx) {
   const css = page.examples.map((ex) => ex.css || "").filter(Boolean).join("\n");
   const content = (meta.hero ? "" : `<h1>${esc(meta.title)}</h1>`) + page.intro + blocks.join("\n");
 
+  // Function replacers throughout: with a string replacement, a `$&`/`$'` in page
+  // content would be silently interpreted as a replacement pattern and corrupt output.
   return shell
-    .replaceAll("{{title}}", esc(title))
-    .replaceAll("{{description}}", esc(meta.description || "Tweakability — a dependency-free, code-split, real-time parameter panel."))
-    .replace("{{styles}}", css ? `  <style>${css}</style>` : "")
-    .replace("{{nav}}", renderNav(pages, meta.slug))
-    .replace("{{content}}", content)
-    .replace("{{footnav}}", renderFootnav(pages, idx))
-    .replace("{{script}}", renderScript(page));
+    .replaceAll("{{title}}", () => esc(title))
+    .replaceAll("{{description}}", () => esc(meta.description || "Tweakability — a dependency-free, code-split, real-time parameter panel."))
+    .replace("{{styles}}", () => (css ? `  <style>${css}</style>` : ""))
+    .replace("{{nav}}", () => renderNav(pages, meta.slug))
+    .replace("{{content}}", () => content)
+    .replace("{{footnav}}", () => renderFootnav(pages, idx))
+    .replace("{{script}}", () => renderScript(page));
 }
 
 function renderNav(pages, currentSlug) {

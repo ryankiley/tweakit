@@ -8,8 +8,8 @@ export const meta = {
 
 export const intro = `
 <p>Monitors flow the other way: instead of editing a value, they watch one. Hand them
-a <code>get</code> function and they poll it — as a text readout, or a scrolling graph
-with <code>graph: true</code>.</p>`;
+a <code>get</code> function and they poll it — numbers draw a scrolling graph by
+default; <code>graph: false</code> keeps a plain text readout.</p>`;
 
 export const examples = [
   {
@@ -22,8 +22,8 @@ export const examples = [
     run: ({ tweaks, mount }) => {
       const signal = () => Math.sin(Date.now() / 600) * 50 + (Math.random() - 0.5) * 12;
       const panel = tweaks("Monitor", {
-        wave: { type: "monitor", get: signal, graph: true, min: -70, max: 70 },
-        value: { type: "monitor", get: signal, decimals: 1, interval: 250 },
+        wave: { type: "monitor", get: signal, min: -70, max: 70 },
+        value: { type: "monitor", get: signal, graph: false, decimals: 1, interval: 250 },
       });
       mount.append(panel.el);
     },

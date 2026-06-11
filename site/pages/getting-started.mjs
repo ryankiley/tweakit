@@ -22,7 +22,7 @@ export const examples = [
     title: "Import a build",
     prose: `<p>Two entries, one API. The default import is a single self-contained file
       (~30 KB gzip) — every control inlined, fully synchronous. The <code>/core</code>
-      entry is code-split (~12 KB gzip): heavy controls (color, gradient, spring,
+      entry is code-split (~16 KB gzip): heavy controls (color, gradient, spring,
       plot…) dynamic-import on first use. <a href="./imports.html">More on choosing →</a></p>`,
     code: `
       import { tweaks } from "tweakability";        // everything inlined, synchronous

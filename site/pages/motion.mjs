@@ -15,7 +15,7 @@ export const examples = [
   {
     id: "spring",
     title: "Spring",
-    prose: `<p><code>{ type: "spring" }</code> opens a stiffness / damping / mass tuner
+    prose: `<p><code>{ type: "spring" }</code> is a stiffness / damping / mass tuner
       with a live settle-curve preview. The param is the plain
       <code>{ stiffness, damping, mass }</code> object — here it drives a tiny integrator.
       Soften the damping, then send the ball.</p>`,
@@ -50,8 +50,8 @@ export const examples = [
   {
     id: "cubicbezier",
     title: "Cubic bézier",
-    prose: `<p>A CSS easing editor — drag the two handles, or pick a preset inside the
-      popover. The param is the four-number array, ready for
+    prose: `<p>A CSS easing editor — drag the two handles, or type into the
+      X1/Y1/X2/Y2 fields. The param is the four-number array, ready for
       <code>cubic-bezier(…)</code> anywhere CSS takes a timing function. The dot below
       ping-pongs on an infinite animation; the curve is applied live.</p>`,
     target: `<div class="bez-track"><div class="bez-dot"></div></div>`,
@@ -81,7 +81,7 @@ export const examples = [
     id: "plot",
     title: "Plot",
     prose: `<p>An expression grapher with a safe evaluator — no <code>eval</code>, just a
-      small parser over <code>x</code>, the usual maths functions and constants. The
+      small parser over <code>x</code>, the usual math functions and constants. The
       param is the expression string itself; type into the field to regraph. Pass
       <code>fn</code> instead to graph one of your own functions (read-only), and
       <code>xMin</code>/<code>xMax</code>/<code>yMin</code>/<code>yMax</code>/<code>samples</code>
