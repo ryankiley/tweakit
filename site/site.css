@@ -294,6 +294,7 @@ a { color: inherit; text-decoration: none; }
 .ex-live-solo .ex-mount { align-self: center; } /* row: vertical centre · column: horizontal centre */
 .ex-live-markup { display: block; }
 .ex-live-markup .ex-target { display: block; min-height: 0; padding: 0; }
+.ex-live-markup .ex-target > div { margin-inline: auto; } /* the block stage has no flex centring — centre the fixed-width example roots */
 
 .ex-codewrap { position: relative; margin: 14px 0; }
 .ex-code {
