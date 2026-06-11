@@ -173,12 +173,15 @@
 
 /* Hint marker (ⓘ) — a control's `hint` shows here beside its label; hover/focus
  * reveals the text in the portaled .tw-tip bubble. Pointer-events:auto overrides
- * the slider label's pointer-events:none so the marker stays interactive there. */
+ * the slider label's pointer-events:none so the marker stays interactive there.
+ * The bubble lives on <body>, outside the panel's token scope, so every var it
+ * reads needs its own fallback — including the font, or the host page's family
+ * bleeds in. */
 .tw-hint { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 4px; padding: 0; vertical-align: -2px; flex: none; background: none; border: none; color: var(--tw-text-tertiary); cursor: help; pointer-events: auto; transition: color 0.15s, transform 0.18s var(--tw-ease-spring); }
 .tw-hint:hover, .tw-hint:focus-visible { color: var(--tw-text-secondary); transform: scale(1.2); }
 .tw-hint:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; border-radius: 999px; }
 .tw-hint svg { width: 13px; height: 13px; display: block; }
-.tw-tip { position: fixed; z-index: 60; max-width: 220px; padding: 6px 9px; font-family: var(--tw-font-sans); font-size: 12px; line-height: 1.4; color: var(--tw-text-primary, rgba(255, 255, 255, 0.92)); background: var(--tw-dropdown-bg, #292929); border: 1px solid var(--tw-border, rgba(255, 255, 255, 0.05)); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown, 0 12px 32px -8px rgba(0, 0, 0, 0.6)); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
+.tw-tip { position: fixed; z-index: 60; max-width: 220px; padding: 6px 9px; font-family: var(--tw-font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif); font-size: 12px; line-height: 1.4; color: var(--tw-text-primary, rgba(255, 255, 255, 0.92)); background: var(--tw-dropdown-bg, #292929); border: 1px solid var(--tw-border, rgba(255, 255, 255, 0.05)); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown, 0 12px 32px -8px rgba(0, 0, 0, 0.6)); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
 .tw-tip.is-open { opacity: 1; transform: none; }
 
 /* Collapse — grid-rows 1fr→0fr animates the body height, dependency-free */
