@@ -29,7 +29,7 @@ export const examples = [
         caption: "Shorthands",     // string → text input
         show: true,                // boolean → checkbox
         blend: ["normal", "screen", "overlay", "multiply"], // array → list
-        glow: "#7C5CFF",           // colour string → wide-gamut picker
+        glow: "#7C5CFF",           // color string → wide-gamut picker
       });
       mount.append(panel.el);
 
@@ -44,7 +44,7 @@ export const examples = [
         card.querySelector("span").textContent = p.caption;
       };
       panel.on(apply);
-      panel.ready.then(() => apply(panel.params)); // colour is lazy on the split build
+      panel.ready.then(() => apply(panel.params)); // color is lazy on the split build
     },
   },
   {
@@ -57,7 +57,7 @@ export const examples = [
         <tr><td><code>[[20, 80], 0, 100]</code></td><td>interval (dual-handle range)</td><td><code>[lo, hi]</code></td></tr>
         <tr><td><code>true</code></td><td>checkbox</td><td>boolean</td></tr>
         <tr><td><code>"Hello"</code></td><td>text input</td><td>string</td></tr>
-        <tr><td><code>"#7C5CFF"</code></td><td>wide-gamut colour picker</td><td>colour string</td></tr>
+        <tr><td><code>"#7C5CFF"</code></td><td>wide-gamut color picker</td><td>color string</td></tr>
         <tr><td><code>["a", "b"]</code></td><td>dropdown list</td><td>string</td></tr>
         <tr><td><code>{ action: fn }</code></td><td>button</td><td>—</td></tr>
         <tr><td><code>{ x: 0, y: 10 }</code></td><td>folder (collapsible group)</td><td>nested object</td></tr>

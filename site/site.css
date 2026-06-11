@@ -11,7 +11,6 @@
   --site-text: #ededed;
   --site-muted: #9a9a9a;
   --site-faint: #6f6f6f;
-  --site-accent: #a08aff;
   --site-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   /* Motion vocabulary borrowed from the design system tweakability spun out of. */
   --site-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -54,16 +53,17 @@ body::before {
   background: radial-gradient(110% 55% at 50% -12%, rgba(255, 255, 255, 0.045), transparent 62%);
 }
 
-/* Prose links: a faded underline that fills in on hover (portfolio house style). */
-a { color: var(--site-accent); text-decoration: none; }
+/* Prose links: monochrome — same ink as the prose, a faded underline that fills in
+ * and brightens on hover (portfolio house style; no accent hue in the chrome). */
+a { color: inherit; text-decoration: none; }
 .doc a {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.15em;
   text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
-  transition: text-decoration-color var(--site-dur-base) var(--site-ease-out);
+  transition: text-decoration-color var(--site-dur-base) var(--site-ease-out), color var(--site-dur-base) var(--site-ease-out);
 }
-.doc a:hover { text-decoration-color: currentColor; }
+.doc a:hover { text-decoration-color: currentColor; color: var(--site-text); }
 .doc .doc-footnav a { text-decoration: none; }
 
 /* ── Layout ── */
@@ -123,7 +123,7 @@ a { color: var(--site-accent); text-decoration: none; }
 .doc code {
   font-family: var(--site-mono); font-size: 0.85em;
   background: rgba(255, 255, 255, 0.06); border: 1px solid var(--site-border-soft);
-  border-radius: 5px; padding: 1px 5px; color: #d8d4f0;
+  border-radius: 5px; padding: 1px 5px; color: #dcdcdc;
 }
 .doc pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
 
@@ -136,7 +136,7 @@ a { color: var(--site-accent); text-decoration: none; }
 .hero { margin: 8px 0 36px; }
 .hero h1 {
   font-size: clamp(2.1rem, 1.5rem + 2.4vw, 2.9rem); margin-bottom: 12px; line-height: 1.08;
-  /* Monochrome depth: white fading to gray down the glyphs — no colour temperature. */
+  /* Monochrome depth: white fading to gray down the glyphs — no color temperature. */
   background: linear-gradient(180deg, #fafafa 20%, #b4b4b4);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
@@ -161,7 +161,7 @@ a { color: var(--site-accent); text-decoration: none; }
 }
 .doc .h-anchor { text-decoration: none; }
 .ex h2:hover .h-anchor, .h-anchor:focus-visible { opacity: 1; }
-.h-anchor:hover { color: var(--site-accent); }
+.h-anchor:hover { color: var(--site-text); }
 
 /* The stage: a faint dot grid over a soft vertical falloff — the design-canvas the
  * panel floats on — capped with an inset top hairline. */
@@ -189,8 +189,8 @@ a { color: var(--site-accent); text-decoration: none; }
 .ex-codewrap { position: relative; margin: 14px 0; }
 .ex-code {
   margin: 0; padding: 15px 18px; overflow-x: auto;
-  background: #121319; border: 1px solid #1f2129; border-radius: 12px;
-  font-family: var(--site-mono); font-size: 12.5px; line-height: 1.65; color: #c8cad3;
+  background: #131313; border: 1px solid #1e1e1e; border-radius: 12px;
+  font-family: var(--site-mono); font-size: 12.5px; line-height: 1.65; color: #b0b0b0;
   font-variant-numeric: tabular-nums;
 }
 
@@ -217,7 +217,7 @@ a { color: var(--site-accent); text-decoration: none; }
               filter var(--site-dur-base) var(--site-ease-out);
   will-change: opacity, transform, filter;
 }
-.ex-copy-check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: #9ece6a; }
+.ex-copy-check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: #86efac; } /* the kit's --tw-success */
 .ex-copy.is-copied .ex-copy-copy { opacity: 0; transform: scale(0.25); filter: blur(2px); }
 .ex-copy.is-copied .ex-copy-check { opacity: 1; transform: none; filter: none; }
 .ex-copy::after {
@@ -240,17 +240,19 @@ a { color: var(--site-accent); text-decoration: none; }
 }
 .ex-note { font-size: 12.5px; color: var(--site-faint); margin-top: -6px; }
 
-/* ── Highlighter tokens — vivid, anchored on the kit's violet ── */
-.tok-cm { color: #6c7396; font-style: italic; }
-.tok-str { color: #9ece6a; }
-.tok-num { color: #ff9e64; }
-.tok-kw { color: #bb9af7; }
-.tok-fn { color: #7aa2f7; }
-.tok-prop { color: #7dcfff; }
-.tok-key { color: #73daca; }
-.tok-tag { color: #f7768e; }
-.tok-attr { color: #bb9af7; }
-.tok-pn { color: #8a8fa3; }
+/* ── Highlighter tokens — monochrome, like the kit: a lightness ladder, no hue.
+ * Structure recedes (comments/punctuation dark), names sit mid, literals step up,
+ * keywords/tags carry near-white. ── */
+.tok-cm { color: #6c6c6c; font-style: italic; }
+.tok-str { color: #e2e2e2; }
+.tok-num { color: #e2e2e2; }
+.tok-kw { color: #f4f4f4; }
+.tok-fn { color: #d4d4d4; }
+.tok-prop { color: #c6c6c6; }
+.tok-key { color: #c6c6c6; }
+.tok-tag { color: #f4f4f4; }
+.tok-attr { color: #c6c6c6; }
+.tok-pn { color: #787878; }
 
 /* ── Prev / next footer — bordered cards, arrows nudge on hover ── */
 .doc-footnav {

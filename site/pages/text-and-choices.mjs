@@ -54,13 +54,13 @@ export const examples = [
       const badge = target.querySelector(".chk-badge");
       const panel = tweaks("Checkbox", {
         enabled: true,
-        colour: true,
+        color: true,
       });
       mount.append(panel.el);
 
       const apply = (p) => {
         badge.style.opacity = p.enabled ? 1 : 0.25;
-        badge.style.filter = p.colour ? "none" : "grayscale(1)";
+        badge.style.filter = p.color ? "none" : "grayscale(1)";
       };
       panel.on(apply);
       apply(panel.params);

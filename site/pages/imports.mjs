@@ -13,11 +13,11 @@ export const intro = `
 <table>
   <tr><th>Entry</th><th>Size</th><th>Loading</th></tr>
   <tr><td><code>tweakability</code></td><td>~30 KB gzip</td><td>one self-contained file; every control inlined, fully synchronous</td></tr>
-  <tr><td><code>tweakability/core</code></td><td>~12 KB gzip</td><td>code-split; colour engine and heavy controls dynamic-import on first use</td></tr>
+  <tr><td><code>tweakability/core</code></td><td>~12 KB gzip</td><td>code-split; color engine and heavy controls dynamic-import on first use</td></tr>
 </table>
 <p>Pick the monolith for drop-in simplicity (it's also the no-bundler choice — copy
 <code>dist/tweaks.js</code> anywhere). Pick <code>/core</code> when panels are part of a
-real app and you'd rather not ship the colour engine to users who never open a
+real app and you'd rather not ship the color engine to users who never open a
 picker.</p>`;
 
 export const examples = [
@@ -53,7 +53,7 @@ export const examples = [
       time any panel (or <code>[data-tw]</code> host) uses them — once loaded, they're
       synchronous for the rest of the session:</p>
       <ul>
-        <li><strong>colour engine</strong> — <code>color</code>, and <code>gradient</code> (which builds on it)</li>
+        <li><strong>color engine</strong> — <code>color</code>, and <code>gradient</code> (which builds on it)</li>
         <li><strong>one module each</strong> — <code>interval</code>, <code>spring</code>, <code>cubicbezier</code>,
           <code>point</code>, <code>plot</code>, <code>image</code>, <code>tabs</code></li>
         <li><strong>monitors</strong> — <code>monitor</code> and <code>fpsgraph</code> share a module</li>

@@ -13,7 +13,7 @@ export const intro = `
   <h1>Tweakability</h1>
   <p>A dependency-free, code-split, real-time <strong>parameter panel</strong>.
   Hand it a plain schema and it builds a live control for every value —
-  sliders, toggles, dropdowns, a wide-gamut OKLCH colour picker, gradient and
+  sliders, toggles, dropdowns, a wide-gamut OKLCH color picker, gradient and
   cubic-bézier editors, a spring tuner, an expression grapher, monitors, a 2D
   point pad, and more. No framework, no runtime dependencies.</p>
   <div class="hero-meta">
@@ -31,7 +31,7 @@ export const examples = [
     prose: `<p>The panel below is built from the one schema object under it — nothing
       else. Shorthands infer the light controls (<code>[value, min, max, step]</code> →
       slider, <code>[[lo, hi], …]</code> → interval, <code>true</code> → checkbox, a hex
-      string → the wide-gamut colour picker); the <code>{ type }</code> forms opt into the
+      string → the wide-gamut color picker); the <code>{ type }</code> forms opt into the
       heavy ones. Scrub the sliders, open the popovers, drag it around by the header.</p>`,
     noCaption: true,
     run: ({ tweaks, mount }) => {
@@ -58,7 +58,7 @@ export const examples = [
       <li><a href="./quick-tour.html">Quick tour</a> — the schema shorthands in two minutes.</li>
       <li>Every control, live: <a href="./numbers.html">numbers</a>,
         <a href="./text-and-choices.html">text &amp; choices</a>,
-        <a href="./color-and-gradient.html">colour &amp; gradient</a>,
+        <a href="./color-and-gradient.html">color &amp; gradient</a>,
         <a href="./motion.html">motion &amp; curves</a>,
         <a href="./monitors.html">monitors</a>,
         <a href="./structure.html">structure</a>.</li>

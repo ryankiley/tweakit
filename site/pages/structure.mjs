@@ -75,7 +75,7 @@ export const examples = [
         shape.setAttribute("stroke-dasharray", p.look.stroke.dashed ? "10 8" : "0");
       };
       panel.on(apply);
-      panel.ready.then(() => apply(panel.params)); // tabs (and colour) load lazily
+      panel.ready.then(() => apply(panel.params)); // tabs (and color) load lazily
     },
   },
   {

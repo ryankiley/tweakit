@@ -1,5 +1,5 @@
 /* Tiny build-time syntax highlighter — JS + HTML modes, zero dependencies.
- * Scope is deliberately small: it colours the code WE author for the docs site.
+ * Scope is deliberately small: it colors the code WE author for the docs site.
  * No regex literals, no nested template literals — keep the examples plain.
  * Emits <span class="tok-*"> wrappers; token text is HTML-escaped on output. */
 
@@ -55,7 +55,7 @@ function tag(t) {
   const m = t.match(/^(<\/?)([a-zA-Z][\w-]*)([\s\S]*?)(\/?>)$/);
   if (!m) return esc(t);
   const [, open, name, rest, close] = m;
-  // Escape the attribute region first (it can carry & in values), then colour
+  // Escape the attribute region first (it can carry & in values), then color
   // name="value" pairs — escaping leaves no < or >, so the attr regex stays valid.
   const attrs = esc(rest).replace(/([\w-]+)(=)(&quot;.*?&quot;|'[^']*')?/g, (s, an, eq, av) =>
     `<span class="tok-attr">${an}</span>${eq}${av ? `<span class="tok-str">${av}</span>` : ""}`);
