@@ -77,6 +77,11 @@ function metaFor(key, value, depth = 0) {
 }
 // True for an object-form schema value (the verbose `{ type, … }` shapes).
 const isObj = (v) => v && typeof v === "object";
+// Did a value actually change? Identity for primitives; structural (JSON) for the
+// object-valued controls (spring/point/gradient/bezier), whose get() returns a fresh
+// object each call. Gates notify() so a same-value set()/emit can't echo — an on()
+// listener mirroring values back into the panel recursed to stack exhaustion without it.
+const valueChanged = (a, b) => a !== b && !(isObj(a) && isObj(b) && JSON.stringify(a) === JSON.stringify(b));
 
 // ── Verbose `{ type: "…" }` forms — one handler per control type. Adding a control
 // means one entry here (plus its constructor in the registry). A handler returns a
@@ -828,7 +833,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         continue;
       }
       if (VALUELESS.has(m.type)) { const ctrl = createControl(m, () => {}); if (ctrl) { if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); registerCond(ctrl.el, m); container.append(ctrl.el); } continue; }
-      const ctrl = createControl(m, (v) => { target[m.key] = v; params._last = m.key; notify(); });
+      const ctrl = createControl(m, (v) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; params._last = m.key; notify(); }); // same-value emits (a discrete drag inside one detent, a re-entrant echo) don't notify
       if (!ctrl) continue;
       // A value set() through the API before assemble ran (the lazy-load window on the
       // split build) wins over the schema default — apply it to the control rather than
@@ -1088,9 +1093,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     set(key, v) {
       const e = entries.find((x) => x.target === params && x.key === key);
+      const prev = params[key];
       if (e) { e.set(v); params[key] = e.get(); }
       else if (subTrees.has(params[key])) return console.warn(`[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead`); // overwriting the subtree would silently orphan every child value
       else params[key] = v;
+      if (!valueChanged(prev, params[key])) return; // a no-change set doesn't notify — the guard that keeps a store-sync listener from echoing forever
       params._last = key; notify(); // stamp the changed key, so on((p, last)) sees programmatic sets the same as control edits
     },
     reset() { resetBtn.click(); },

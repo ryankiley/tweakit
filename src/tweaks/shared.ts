@@ -148,7 +148,9 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
   let open = false;
   stopPointerLeak(pop); // on <body>, outside the panel's own pointer-stop
   const place = () => placeBelow(trigger, pop, { width: opts.width, fallbackH: opts.fallbackH, gap: opts.gap, align: opts.align });
-  const reflow = () => { if (open) { place(); opts.onReflow && opts.onReflow(); } };
+  // A reflow against a detached trigger would place off its zero-rect (the pop jumps to
+  // the viewport corner) — if the host has unmounted the panel, close instead.
+  const reflow = () => { if (open) { if (!root.isConnected) return close(); place(); opts.onReflow && opts.onReflow(); } };
   const onOutside = (e) => { if (!root.contains(e.target) && !pop.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === "Escape" && open) { close(); trigger.focus(); } };
   const openPop = () => {
@@ -159,6 +161,11 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     applyThemeVars(pop, root.closest(".tw-panel")?._twTheme); // carry the host panel's theme onto the portaled popover
     place();
     requestAnimationFrame(() => { pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed)
+    // Unmount watchdog: a host that removes the panel while this is open (an SPA route
+    // change) would otherwise strand the portaled pop on screen — visible and interactive
+    // over whatever renders next — until something else was pressed. One rAF per frame,
+    // only while the (globally single) popover is open.
+    requestAnimationFrame(function watch() { if (!open) return; if (!root.isConnected) return close(); requestAnimationFrame(watch); });
     // Capture phase, so a press anywhere else in the panel closes too — the panel's own
     // stopPointerLeak would otherwise swallow the event before it bubbles to document.
     setTimeout(() => document.addEventListener("pointerdown", onOutside, true), 0); // skip the opening click
