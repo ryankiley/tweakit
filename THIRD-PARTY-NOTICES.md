@@ -24,9 +24,10 @@ here under the original licenses reproduced below.
 - Lucide — <https://lucide.dev> — © Lucide Icons and Contributors (ISC)
 - Feather — <https://feathericons.com> — © 2013–present Cole Bemis (MIT)
 
-The verbatim Lucide `LICENSE` follows; it bundles both the ISC notice (for Lucide
-originals such as `rotate-ccw`) and the MIT notice (for the Feather-derived icons,
-which it enumerates), so it covers every icon listed above.
+The verbatim Lucide `LICENSE` follows; it bundles the ISC notice (for Lucide originals
+such as `rotate-ccw`) and the Feather MIT notice (© Cole Bemis). That MIT notice covers
+every Feather-derived icon above — including `copy` and `layers`, which come straight
+from Feather rather than via Lucide's enumerated list.
 
 ---
 
