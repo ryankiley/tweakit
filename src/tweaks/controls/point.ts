@@ -1,25 +1,22 @@
 // ── Point — 2D/3D/4D vector. Lazy.
-import { el, svgEl, numField, dragGesture, boxFrac, clamp, stepPrecision, popover, registerControl } from "../shared.js";
+import { el, svgEl, numField, dragGesture, boxFrac, clamp, stepPrecision, popover, triggerRow, registerControl } from "../shared.js";
 
 // ── Point — a compact trigger row (label + value readout + a mini pad preview) that
 // opens the 2D pad over the component number fields in a portaled popover, the way the
 // colour control opens its picker (Tweakpane's point2d/3d/4d). The pad drives the first
-// two components; the rest are field-only. Opt out of the pad with `pad: false`. ──
+// two components; the rest are field-only. Opt out of the pad with `pad: false`.
+// The component fields hold the values — everything else (readout, pad thumb, the
+// emitted map) reads off them, so there's one source of truth. ──
 function createPoint(meta, onChange) {
   const comps = meta.components; // [{ key, label, value, step, min, max }]
-  const out = {};
-  const root = el("div", "tw-point");
 
   // ── Trigger row — label + value + a mini pad preview (the colour swatch's analog). ──
-  const trigger = el("button", "tw-point-trigger"); trigger.type = "button"; trigger.setAttribute("aria-expanded", "false");
-  const labelEl = el("span", "tw-point-label"); labelEl.textContent = meta.label || "Point";
-  const right = el("span", "tw-point-right");
-  const valueEl = el("span", "tw-point-value");
-  const preview = el("div", "tw-point-preview");
+  const { root, trigger, right } = triggerRow("tw-point", meta.label || "Point");
+  const valueEl = el("span", "tw-trigger-value");
+  const preview = el("div", "tw-trigger-chip tw-point-preview");
   const previewDot = el("div", "tw-point-preview-dot");
   preview.append(previewDot);
   right.append(valueEl, preview);
-  trigger.append(labelEl, right);
 
   // ── Popover — the 2D pad over the component fields. Carries the colour popover's
   // class so it inherits its shell, tokens, and short-viewport scroll. ──
@@ -47,18 +44,19 @@ function createPoint(meta, onChange) {
   const fields = el("div", "tw-fields");
   body.append(fields);
   const sync = () => { positionPad(); paintValue(); };
+  const emit = () => onChange(read());
   const flds = comps.map((c) => {
-    const fld = numField({ label: c.label, value: c.value ?? 0, step: c.step ?? 1, min: c.min, max: c.max }, (val) => { out[c.key] = val; sync(); onChange({ ...out }); });
-    out[c.key] = fld.get(); // mirror the field's sanitized value, not the raw c.value (which may be non-finite)
+    const fld = numField({ label: c.label, value: c.value ?? 0, step: c.step ?? 1, min: c.min, max: c.max }, () => { sync(); emit(); });
     fields.append(fld.el); return fld;
   });
+  const read = () => Object.fromEntries(comps.map((c, k) => [c.key, flds[k].get()])); // the emitted map, straight off the fields
 
   // Value readout for the row — the components joined, trimmed; the preview dot shows
   // the first two on a square (right = +X, up = +Y by default; set invertY for screen-space).
   // Match each component's number field: format to the step's decimal precision, so a
   // value reads "−1.00, −0.46" (steady columns), not "−1, −0.46" (trailing zeros trimmed).
   const fmt = (v, step) => (+v).toFixed(stepPrecision(step ?? 1));
-  const paintValue = () => { valueEl.textContent = comps.map((c) => fmt(out[c.key], c.step)).join(", "); };
+  const paintValue = () => { valueEl.textContent = comps.map((c, k) => fmt(flds[k].get(), c.step)).join(", "); };
   let positionPad = () => { previewDot.style.left = "50%"; previewDot.style.top = "50%"; };
 
   if (hasPad) {
@@ -68,7 +66,7 @@ function createPoint(meta, onChange) {
     const DOT = 5;
     const inset = (f) => `calc(${(f * 100).toFixed(2)}% + ${((0.5 - f) * DOT).toFixed(2)}px)`;
     positionPad = () => {
-      const fx = frac(out[cx.key], minX, maxX), fyv = frac(out[cy.key], minY, maxY);
+      const fx = frac(flds[0].get(), minX, maxX), fyv = frac(flds[1].get(), minY, maxY);
       const tyFrac = meta.invertY ? fyv : 1 - fyv;
       const tx = fx * 100, ty = tyFrac * 100;
       padThumb.style.left = tx + "%"; padThumb.style.top = ty + "%";
@@ -79,8 +77,7 @@ function createPoint(meta, onChange) {
     const padSet = (e) => {
       const [fx, fy] = boxFrac(e, padHost); const yFrac = meta.invertY ? fy : 1 - fy;
       flds[0].set(minX + fx * (maxX - minX)); flds[1].set(minY + yFrac * (maxY - minY));
-      out[cx.key] = flds[0].get(); out[cy.key] = flds[1].get();
-      sync(); onChange({ ...out });
+      sync(); emit();
     };
     // .is-grabbing scales the thumb on press (CSS, spring) — the pad's echo of the slider lift.
     dragGesture(padHost, {
@@ -90,14 +87,14 @@ function createPoint(meta, onChange) {
     });
   }
 
-  root.append(trigger, pop);
+  root.append(pop);
   popover(root, trigger, pop, { width: 216, fallbackH: 240, gap: 6, onOpen: sync });
   sync();
 
   return {
     el: root,
-    set: (v) => { if (v) comps.forEach((c, k) => { if (v[c.key] != null) { flds[k].set(v[c.key]); out[c.key] = flds[k].get(); } }); sync(); },
-    get: () => ({ ...out }),
+    set: (v) => { if (v) comps.forEach((c, k) => { if (v[c.key] != null) flds[k].set(v[c.key]); }); sync(); },
+    get: read,
   };
 }
 

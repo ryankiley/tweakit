@@ -90,3 +90,20 @@ test("destroy() inerts the API and removes the panel", () => {
   p.set("a", 5); // must be a silent no-op
   assert.equal(p.params.a, 1);
 });
+
+test("text-field focus is quiet after a pointer press, ringed after a key press", () => {
+  const p = tweaks("F", { note: "hello" });
+  document.body.append(p.el);
+  const input = p.el.querySelector(".tw-text");
+  // mouse path: a pointer press marks the next focus quiet (no keyboard ring)
+  document.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  input.focus();
+  assert.ok(input.classList.contains("tw-focus-quiet"));
+  input.blur();
+  assert.ok(!input.classList.contains("tw-focus-quiet")); // cleared on blur
+  // keyboard path: any key restores the ring for the next focus
+  document.dispatchEvent(new Event("keydown", { bubbles: true }));
+  input.focus();
+  assert.ok(!input.classList.contains("tw-focus-quiet"));
+  p.destroy();
+});

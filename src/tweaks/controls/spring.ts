@@ -1,5 +1,5 @@
 // ── Spring config — stiffness/damping/mass + settle-curve preview. Lazy.
-import { el, numField, onReady, cssVar, accentColor, clamp, registerControl } from "../shared.js";
+import { el, numField, onReady, onLive, cssVar, accentColor, clamp, dragGesture, registerControl } from "../shared.js";
 
 // ── Spring config — stiffness / damping / mass + a live settle-curve preview.
 // Closed-form step response of a damped harmonic oscillator (under/critical/over). ──
@@ -32,7 +32,6 @@ function createSpring(meta, onChange) {
   root.append(viz, fields);
   const ctx = canvas.getContext("2d");
   const draw = () => {
-    if (!canvas.isConnected) return teardown(); // panel removed → drop the global listeners (the disconnected-check counterpart to createFps/createMonitor's self-cleanup)
     const r = viz.getBoundingClientRect(); const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height)); if (w < 2) return;
     const dpr = window.devicePixelRatio || 1; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -57,7 +56,7 @@ function createSpring(meta, onChange) {
   // pointer tracks the curve's peak). The fields stay the precise / keyboard path; this is
   // the direct-manipulation companion (the bezier/point pattern). Mass keeps to its field.
   const ST_MIN = 1, ST_MAX = 500, DA_MIN = 1, DA_MAX = 40;
-  let vizRect: any = null, dragId: any = null;
+  let vizRect: any = null;
   const fromPointer = (e) => {
     if (!vizRect) return;
     const px = clamp((e.clientX - vizRect.left) / vizRect.width, 0, 1);
@@ -67,31 +66,19 @@ function createSpring(meta, onChange) {
     flds["stiffness"].set(s.stiffness); flds["damping"].set(s.damping);
     draw(); emit();
   };
-  viz.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    vizRect = viz.getBoundingClientRect(); dragId = e.pointerId;
-    try { viz.setPointerCapture(e.pointerId); } catch {}
-    viz.classList.add("is-dragging");
-    fromPointer(e);
+  // The shared drag gesture: pointer capture, single-pointer guard, and every end
+  // path (up / cancel / lost capture / buttons released off-element) in one place.
+  dragGesture(viz, {
+    onDown: (e) => { e.preventDefault(); vizRect = viz.getBoundingClientRect(); viz.classList.add("is-dragging"); fromPointer(e); },
+    onMove: fromPointer,
+    onEnd: () => { vizRect = null; viz.classList.remove("is-dragging"); },
   });
-  viz.addEventListener("pointermove", (e) => { if (e.pointerId === dragId) fromPointer(e); });
-  const endDrag = (e?) => { if (e && dragId !== null && e.pointerId !== dragId) return; dragId = null; vizRect = null; viz.classList.remove("is-dragging"); };
-  viz.addEventListener("pointerup", endDrag);
-  viz.addEventListener("pointercancel", endDrag);
-  viz.addEventListener("lostpointercapture", endDrag); // implicit capture loss ends the drag like a release
   onReady(draw);
-  const mq = matchMedia("(prefers-color-scheme: dark)");
-  // Once the panel is removed, the next time any of these fires draw() calls teardown(),
-  // dropping every global listener so the control doesn't leak them (spring only redraws
-  // on these events, so it can't self-clean on a rAF/interval tick the way fps/monitor do).
-  const teardown = () => { window.removeEventListener("resize", draw); mq.removeEventListener("change", draw); window.removeEventListener("tw-retheme", draw); window.removeEventListener("tw-reflow", draw); };
-  window.addEventListener("resize", draw);
-  window.addEventListener("tw-reflow", draw); // a tab page revealing this control re-measures it (it built at 0×0 while hidden)
-  // The canvas reads theme tokens at draw time, so re-draw when the scheme flips
-  // (SVG controls update via CSS, but a canvas keeps a stale colour otherwise).
-  mq.addEventListener("change", draw);
-  window.addEventListener("tw-retheme", draw); // redraw the canvas curve when the host re-themes (e.g. an accent change)
+  // The canvas reads theme tokens at draw time, so redraw on resize, on a tab page
+  // revealing this control (tw-reflow — it built at 0×0 while hidden), when the OS
+  // scheme flips, and when the host re-themes (SVG controls update via CSS, but a
+  // canvas keeps a stale colour otherwise). Self-cleans once the panel is gone.
+  onLive(canvas, [[window, "resize"], [window, "tw-reflow"], [matchMedia("(prefers-color-scheme: dark)"), "change"], [window, "tw-retheme"]], draw);
   return { el: root, set: (v) => { s = clampS({ ...s, ...(v || {}) }); Object.keys(flds).forEach((k) => flds[k].set(s[k])); draw(); }, get: () => ({ ...s }) };
 }
 

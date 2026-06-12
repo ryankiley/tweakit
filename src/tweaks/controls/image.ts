@@ -1,18 +1,17 @@
 // ── Image — drop-zone / file-pick → data URL. Lazy.
-import { el, registerControl } from "../shared.js";
+import { el, btn, txt, registerControl } from "../shared.js";
 
 // ── Image — a drop-zone / file-pick that returns a data URL, with a thumbnail
 // (leva's image input). Drag an image on, or click to choose. ──
 function createImage(meta, onChange) {
   let value = meta.value || "";
   const row = el("div", "tw-row tw-image-row");
-  const label = el("span", "tw-row-label"); label.textContent = meta.label;
-  const drop = el("button", "tw-image-drop"); drop.type = "button"; drop.setAttribute("aria-label", `${meta.label}: choose an image`);
+  const drop = btn("tw-image-drop"); drop.setAttribute("aria-label", `${meta.label}: choose an image`);
   const thumb = el("span", "tw-image-thumb");
   const text = el("span", "tw-image-text");
   drop.append(thumb, text);
   const input = el("input", "tw-image-input"); input.type = "file"; input.accept = "image/*";
-  row.append(label, drop, input);
+  row.append(txt("span", "tw-row-label", meta.label), drop, input);
   const render = () => {
     drop.dataset.set = value ? "true" : "false";
     thumb.style.backgroundImage = value ? `url("${value}")` : "";

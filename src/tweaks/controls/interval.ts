@@ -1,5 +1,5 @@
 // ── Interval / range slider — dual-handle [lo,hi]. Lazy.
-import { el, clamp, roundToStep, stepPrecision, inferStep, wireHoverClass, onReady, registerControl } from "../shared.js";
+import { el, txt, clamp, roundToStep, stepPrecision, inferStep, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
 
 // ── Interval / range slider — a dual-handle slider bound to [lo, hi] inside
 // [min, max] (Tweakpane-essentials' Interval; leva's `interval`). Reuses the
@@ -29,7 +29,7 @@ function createInterval(meta, onChange) {
   const track = el("div", "tw-slider tw-interval");
   const fill = el("div", "tw-slider-fill");
   const hLo = el("div", "tw-slider-handle"), hHi = el("div", "tw-slider-handle");
-  const labelEl = el("span", "tw-slider-label"); labelEl.textContent = label;
+  const labelEl = txt("span", "tw-slider-label", label);
   const valueEl = el("span", "tw-slider-value");
   track.append(fill, hLo, hHi, labelEl, valueEl);
   wrap.append(track);
@@ -92,9 +92,7 @@ function createInterval(meta, onChange) {
   // widths it measures), and on any track-width change. The dodge already reads the
   // real offsetWidth, so it adapts to any font — this just keeps it in sync.
   onReady(render);
-  const onResize = () => { if (!track.isConnected) { window.removeEventListener("resize", onResize); window.removeEventListener("tw-reflow", onResize); return; } render(); }; // panel removed → drop the listeners (matches fps/bezier self-cleanup)
-  window.addEventListener("resize", onResize);
-  window.addEventListener("tw-reflow", onResize); // a tab page revealing this control re-measures the value-dodge (it built at 0 width while hidden)
+  onLive(track, [[window, "resize"], [window, "tw-reflow"]], render); // tw-reflow: a tab page revealing this control re-measures the value-dodge (it built at 0 width while hidden); self-cleans once the panel is gone
 
   const onKey = (which) => (e) => {
     const coarse = e.shiftKey ? 10 : 1;

@@ -36,7 +36,7 @@ code-split build, heavy controls fill in behind `panel.ready`. `enhance(root)` u
 `[data-tw]` markup in place.
 
 **Size:** ~17 KB gzip code-split (the core entry plus its shared chunk; the color engine
-and heavy controls load on demand), ~32 KB with everything inlined.
+and heavy controls load on demand), ~31 KB with everything inlined.
 
 **Browser support:** evergreen browsers (roughly 2023+). The kit targets ES2020 and its
 styling leans on OKLCH CSS; the color picker upgrades to a Display-P3 canvas where the

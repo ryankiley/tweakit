@@ -1,6 +1,6 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, clamp, dragGesture, boxFrac, numField, popover, registerControl } from "../shared.js";
+import { el, txt, clamp, dragGesture, boxFrac, numField, popover, triggerRow, quietFocus, registerControl } from "../shared.js";
 import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, convert, num } from "../../wide-gamut.js";
 
 // ── Colour — one module: a row that opens a dropdown OKLCH picker. Ported from
@@ -105,10 +105,10 @@ function createPickerBody(meta, onChange) {
   alphaBar.tabIndex = 0; alphaBar.setAttribute("role", "slider"); alphaBar.setAttribute("aria-label", "Alpha");
   alphaBar.setAttribute("aria-valuemin", "0"); alphaBar.setAttribute("aria-valuemax", "1");
   const modeRow = el("div", "tw-color-mode-row");
-  const modeSel = el("select", "tw-color-mode");
+  const modeSel = el("select", "tw-color-mode"); modeSel.setAttribute("aria-label", "Color mode");
   EDIT_MODES.forEach((m) => { const o = document.createElement("option"); o.value = m; o.textContent = MODE_LABELS[m]; modeSel.append(o); });
   modeSel.value = mode;
-  const gamut2 = el("span", "tw-color-gamut tw-color-gamut--pop");
+  const gamut2 = el("span", "tw-color-gamut");
   modeRow.append(modeSel, gamut2);
   const channels = el("div", "tw-color-channels");
   root.append(area, hueBar, alphaBar, modeRow, channels);
@@ -206,11 +206,11 @@ function createPickerBody(meta, onChange) {
     channels.replaceChildren(); chanFields = [];
     if (mode === "hex") {
       channels.classList.add("tw-color-channels--hex");
-      const wrap = el("div", "tw-color-chan"); const lab = el("span", "tw-color-chan-label"); lab.textContent = "HEX";
-      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false;
+      const wrap = el("div", "tw-color-chan");
+      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp);
       inp.addEventListener("change", () => { const v = inp.value.trim(); if (/^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) { [L, C, H, A] = parseColor(v); sync(true); emit(); } });
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
-      wrap.append(lab, inp); channels.append(wrap);
+      wrap.append(txt("span", "tw-color-chan-label", "HEX"), inp); channels.append(wrap);
     } else {
       // Numeric channels use the same point-style field as Point/Spring — so the
       // grab handle + grab guide work for dragging colour values too.
@@ -279,20 +279,16 @@ function createPickerBody(meta, onChange) {
 // in a portaled popover. A thin wrapper: the body does the editing, this paints the
 // row and drives open/close through the shared popover() shell. ──
 function createColor(meta, onChange) {
-  const root = el("div", "tw-color");
-  const trigger = el("button", "tw-color-trigger"); trigger.type = "button"; trigger.setAttribute("aria-expanded", "false");
-  const labelEl = el("span", "tw-color-label"); labelEl.textContent = meta.label || "Colour";
-  const right = el("span", "tw-color-right");
-  const swatch = el("span", "tw-color-swatch");
-  const valueEl = el("span", "tw-color-value");
+  const { root, trigger, right } = triggerRow("tw-color", meta.label || "Colour");
+  const swatch = el("span", "tw-trigger-chip tw-color-swatch");
+  const valueEl = el("span", "tw-trigger-value");
   right.append(swatch, valueEl);
-  trigger.append(labelEl, right);
 
   const pop = el("div", "tw-color-pop");
   const paintTrigger = () => { swatch.style.background = body.swatchCss(); valueEl.textContent = body.valueText(); };
   const body = createPickerBody({ value: meta.value, onMode: () => paintTrigger() }, (c) => { paintTrigger(); onChange(c); });
   pop.append(body.el);
-  root.append(trigger, pop);
+  root.append(pop);
 
   // The popover portals `pop` to <body> on open — escaping the panel's overflow and
   // any transformed/filtered ancestor — and reflows the body once it's at real size.

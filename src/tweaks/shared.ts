@@ -48,6 +48,12 @@ const svgNS = "http://www.w3.org/2000/svg";
 // fully typed; internal DOM typing is intentionally loose (tighten incrementally).
 const el = (tag: string, cls?: string, html?: string): any => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
 const svgEl = (tag: string, cls?: string): any => { const n = document.createElementNS(svgNS, tag); if (cls) n.setAttribute("class", cls); return n; };
+// The two element shapes the kit builds everywhere: a non-submitting button (every
+// <button> here is type="button" — inside a host's <form>, the default "submit" would
+// post the page), and a text-bearing node (textContent, never innerHTML — labels are
+// host data).
+const btn = (cls: string, html?: string): any => { const b = el("button", cls, html); b.type = "button"; return b; };
+const txt = (tag: string, cls: string, text: any): any => { const n = el(tag, cls); n.textContent = text; return n; };
 // A resolved custom property off a node; accentColor picks the panel accent and
 // falls back to the primary text colour then white (canvas strokes need a literal).
 const cssVar = (node, name) => getComputedStyle(node).getPropertyValue(name).trim();
@@ -58,11 +64,38 @@ const stopPointerLeak = (node) => ["pointerdown", "pointermove", "pointerup"].fo
 // Run fn next frame (after layout) and again once web fonts load — canvas/SVG
 // controls measure their box, and font swaps change metrics.
 const onReady = (fn) => { requestAnimationFrame(fn); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fn); };
+// Listen on global targets (window / document / a media query) for a DOM-bound owner:
+// the first event arriving after the owner has left the document drops the whole
+// listener set — the kit-wide self-cleaning idiom (sliders re-rendering their dodge on
+// resize, canvases re-fitting, the floating panel's viewport clamp). Returns the
+// release fn for owners that also tear down eagerly (panel.destroy()).
+const onLive = (owner: any, targets: Array<[any, string]>, fn: (e?: any) => void) => {
+  const h = (e) => { if (!owner.isConnected) return off(); fn(e); };
+  const off = () => targets.forEach(([t, ev]) => t.removeEventListener(ev, h));
+  targets.forEach(([t, ev]) => t.addEventListener(ev, h));
+  return off;
+};
 // Toggle .is-hover while the pointer is over a node; onEnter runs on entry (the slider
 // + interval re-render their value-dodge with the real track width on first hover).
 const wireHoverClass = (el, onEnter) => {
   el.addEventListener("pointerenter", () => { el.classList.add("is-hover"); onEnter && onEnter(); });
   el.addEventListener("pointerleave", () => el.classList.remove("is-hover"));
+};
+// ── Quiet mouse focus — :focus-visible always matches a focused text field, however
+// focus arrived (the spec treats text entry as "keyboard imminent"), so a plain click
+// into one drew the heavy keyboard ring. The text-field counterpart of the sliders'
+// focus({ focusVisible: false }): one document-level modality note (a pointer press
+// quiets the next focus, any key restores the ring — so Tab always rings, and the
+// note arriving mid-edit doesn't re-ring a field being typed in). The pair of
+// capture listeners installs once per page, shared by every panel. ──
+let pointerModality = false;
+if (typeof document !== "undefined") {
+  document.addEventListener("pointerdown", () => { pointerModality = true; }, true);
+  document.addEventListener("keydown", () => { pointerModality = false; }, true);
+}
+const quietFocus = (input) => {
+  input.addEventListener("focus", () => input.classList.toggle("tw-focus-quiet", pointerModality));
+  input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
 };
 // Press-drag on a node: onDown fires on pointerdown (pointer captured), onMove on
 // each move; it ends on pointerup/cancel or when the button releases off the node
@@ -150,6 +183,19 @@ const applyThemeVars = (node, vars) => {
   node._twAppliedVars = vars ? Object.keys(vars) : null;
   if (vars) for (const k in vars) node.style.setProperty(k, vars[k]);
 };
+// Carry a forced scheme onto a node that portals to <body> (popover, tip, toast, a
+// lifted panel) — the [data-tw-scheme] scope that styles the anchor's subtree can't
+// reach a portal via the cascade. Copy the WINNING scheme, not the nearest pin:
+// pins resolve flat (a light pin anywhere outranks dark — see the scheme-resolution
+// comment in tweaks.css), so nearest-wins under light>dark nesting would put a dark
+// portal on a light panel.
+const carryScheme = (portal, anchor) => {
+  const s = anchor?.closest('[data-tw-scheme="light"]') ? "light" : anchor?.closest('[data-tw-scheme="dark"]') ? "dark" : null;
+  if (s) portal.setAttribute("data-tw-scheme", s); else portal.removeAttribute("data-tw-scheme");
+};
+// …and the anchor panel's live theme with it (resolved at carry time — setTheme()
+// swaps the panel's _twTheme object, so a build-time capture would pin stale vars).
+const carrySkin = (portal, anchor) => { applyThemeVars(portal, anchor?.closest(".tw-panel")?._twTheme); carryScheme(portal, anchor); };
 
 // ── Popover — the one portal-to-<body> shell behind every transient surface: the
 // colour picker, the gradient editor, the select dropdown, and the presets menu.
@@ -179,14 +225,7 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     activePopoverClose = close;
     open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
     document.body.appendChild(pop);
-    applyThemeVars(pop, root.closest(".tw-panel")?._twTheme); // carry the host panel's theme onto the portaled popover
-    // Carry the forced scheme too — the portal escapes the subtree, so the
-    // [data-tw-scheme] scope that styles the panel can't reach it via the cascade.
-    // Copy the WINNING scheme, not the nearest: pins resolve flat (a light pin
-    // anywhere outranks dark — see the scheme-resolution comment in tweaks.css), so
-    // nearest-wins under light>dark nesting would put a dark popover on a light panel.
-    const scheme = root.closest('[data-tw-scheme="light"]') ? "light" : root.closest('[data-tw-scheme="dark"]') ? "dark" : null;
-    if (scheme) pop.setAttribute("data-tw-scheme", scheme); else pop.removeAttribute("data-tw-scheme");
+    carrySkin(pop, root); // the host panel's theme + winning scheme, neither of which the cascade can deliver to <body>
     place();
     requestAnimationFrame(() => { pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed)
     // Unmount watchdog: a host that removes the panel while this is open (an SPA route
@@ -254,28 +293,54 @@ const setRadioActive = (btns, value) => btns.forEach((b) => { const on = b.datas
 // role + value + click identically; only the class and container differ. onPick(value).
 // _twVal carries the option's real value — dataset stringifies, so a keyboard pick
 // reading dataset.value turned a numeric option into a string (type flipped by input method).
-const radioButton = (cls, o, onPick) => { const b = el("button", cls); b.type = "button"; b.setAttribute("role", "radio"); b.textContent = optLabel(o); b.dataset.value = optValue(o); b._twVal = optValue(o); b.addEventListener("click", () => onPick(b._twVal)); return b; };
+const radioButton = (cls, o, onPick) => { const b = btn(cls); b.setAttribute("role", "radio"); b.textContent = optLabel(o); b.dataset.value = optValue(o); b._twVal = optValue(o); b.addEventListener("click", () => onPick(b._twVal)); return b; };
+// Arrow-key navigation over a one-dimensional or gridded group → the next index, or −1
+// when the key isn't the group's to handle. The three radio-ish groups share it:
+// cols > 0 jumps ↑/↓ by a row, clamped at the edges (the radio grid); cols 0 treats
+// ↑/↓ as ←/→ (the segmented pill); cols < 0 leaves ↑/↓ to the page (the tab bar —
+// a horizontal tablist shouldn't capture vertical scroll keys). ←/→ wrap; Home/End end.
+const navIndex = (key, i, n, cols = 0) => {
+  switch (key) {
+    case "ArrowRight": return (i + 1) % n;
+    case "ArrowLeft": return (i - 1 + n) % n;
+    case "ArrowDown": return cols < 0 ? -1 : cols ? (i + cols < n ? i + cols : i) : (i + 1) % n;
+    case "ArrowUp": return cols < 0 ? -1 : cols ? (i - cols >= 0 ? i - cols : i) : (i - 1 + n) % n;
+    case "Home": return 0;
+    case "End": return n - 1;
+  }
+  return -1;
+};
+// The modal-trigger row shared by the colour, gradient, and point controls: a
+// full-width row button — label left, a preview cluster (`right`) the caller fills —
+// that opens the control's popover. The caller appends its pop and wires popover().
+const triggerRow = (cls: string, label: string) => {
+  const root = el("div", cls);
+  const trigger = btn("tw-trigger"); trigger.setAttribute("aria-expanded", "false");
+  const right = el("span", "tw-trigger-right");
+  trigger.append(txt("span", "tw-trigger-label", label), right);
+  root.append(trigger);
+  return { root, trigger, right };
+};
 
 // Tweakpane-style grab guide — a dotted line from the grab point to the cursor
 // plus a floating value bubble, portaled to <body> for the duration of a drag.
 // Shared by createNumber and the numField helper (Spring / Point / Bezier).
 function makeGrabGuide() {
-  let g = null;
+  let g = null, y = 0, x0 = 0, bx = 0;
   return {
-    show(x, y, bubbleX) {
+    show(x, atY, bubbleX) {
       g = el("div", "tw-grab-guide tw-portal");
       g.innerHTML = `<span class="tw-grab-line"></span><span class="tw-grab-dot"></span><span class="tw-grab-arrow"></span><span class="tw-grab-bubble"></span>`;
-      g._y = y; g._x0 = x; g._bx = bubbleX ?? x; // bubble anchors over the field centre, not the cursor
+      y = atY; x0 = x; bx = bubbleX ?? x; // bubble anchors over the field centre, not the cursor
       g.children[1].style.cssText = `left:${x}px;top:${y}px`;
       document.body.appendChild(g);
     },
     move(x, text) {
       if (!g) return;
-      const lo = Math.min(g._x0, x), dir = x >= g._x0 ? 1 : -1;
-      g.children[0].style.cssText = `left:${lo}px;top:${g._y}px;width:${Math.abs(x - g._x0)}px`;
-      g.children[2].style.cssText = `left:${x}px;top:${g._y}px;transform:translate(-50%,-50%) scaleX(${dir})`; // arrowhead at the cursor, pointing in the drag direction
+      g.children[0].style.cssText = `left:${Math.min(x0, x)}px;top:${y}px;width:${Math.abs(x - x0)}px`;
+      g.children[2].style.cssText = `left:${x}px;top:${y}px;transform:translate(-50%,-50%) scaleX(${x >= x0 ? 1 : -1})`; // arrowhead at the cursor, pointing in the drag direction
       // bubble holds its place centred over the field, so the readout doesn't slide away with the cursor
-      g.children[3].style.cssText = `left:${g._bx}px;top:${g._y - 16}px`; g.children[3].textContent = text;
+      g.children[3].style.cssText = `left:${bx}px;top:${y - 16}px`; g.children[3].textContent = text;
     },
     hide() { if (g) { g.remove(); g = null; } },
   };
@@ -295,36 +360,47 @@ function attachScrub(grab, wrap, step, read, apply, text) {
   grab.addEventListener("lostpointercapture", end); // capture lost mid-scrub (the popover hosting the field closing) must still hide the full-screen guide — the singleton ref is overwritten on the next show, which would orphan the node
 }
 
-// ── A labelled numeric field: an uppercase label over a boxed input with a
-// Tweakpane grab handle (drag to scrub). The shared building block for the
-// Spring, Point, and Cubic-bezier value editors. ──
+// ── The labelled numeric field — ONE numeric engine for the kit: a sanitized step,
+// min-anchored round-to-step, optional `soft` (typed/scripted values may exceed the
+// clamp), a text input committing on change/Enter, and the grab handle (drag to
+// scrub). Two chromes off the same engine: the boxed field (uppercase caption over
+// the input — Spring, Point, Cubic-bezier, the colour channels) and, with
+// `spec.row`, the labelled row that IS the Number control. ──
 function numField(spec, onChange) {
   // A 0/negative/non-finite step breaks round-to-step (NaN out of Infinity, inverted
   // scrub + keyboard from a negative — reachable via a point component's user-supplied
   // step); a non-finite seed shows literal "NaN". Default both to sane values.
-  const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1, min = spec.min, max = spec.max, decimals = stepPrecision(step);
+  const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1, decimals = stepPrecision(step);
+  let min = +spec.min, max = +spec.max; // non-finite (absent/garbage) → unbounded
+  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
   const fit = (val) => {
-    let n = roundToStep(val, 0, step);
-    if (Number.isFinite(min)) n = Math.max(min, n);
-    if (Number.isFinite(max)) n = Math.min(max, n);
+    let n = roundToStep(val, Number.isFinite(min) ? min : 0, step); // min-anchored, like the slider — the value grid starts at the floor
+    if (!spec.soft) {
+      if (Number.isFinite(min)) n = Math.max(min, n);
+      if (Number.isFinite(max)) n = Math.min(max, n);
+    }
     return n;
   };
   let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
-  const f = el("div", "tw-field");
-  const l = el("span", "tw-field-label"); l.textContent = spec.label;
+  const root = el("div", spec.row ? "tw-row" : "tw-field");
   const wrap = el("div", "tw-num-wrap");
   const grab = el("span", "tw-num-grab", ICON_GRIP); grab.setAttribute("aria-hidden", "true"); grab.title = "Drag to adjust";
-  const inp = el("input", "tw-num"); inp.type = "text"; inp.inputMode = "decimal"; inp.value = value.toFixed(decimals);
-  wrap.append(grab, inp); f.append(l, wrap);
+  const inp = el("input", "tw-num"); inp.type = "text"; inp.inputMode = "decimal"; inp.setAttribute("aria-label", spec.label); inp.value = value.toFixed(decimals);
+  quietFocus(inp); // click-to-edit stays ringless; Tab rings
+  wrap.append(grab, inp); root.append(txt("span", spec.row ? "tw-row-label" : "tw-field-label", spec.label), wrap);
   const set = (val, fire = true) => { val = +val; if (!Number.isFinite(val)) return; value = fit(val); inp.value = value.toFixed(decimals); if (fire && onChange) onChange(value); };
   inp.addEventListener("change", () => { const p = parseFloat(inp.value); set(isNaN(p) ? value : p); });
   inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
   attachScrub(grab, wrap, step, () => value, set, () => inp.value);
-  return { el: f, set: (val) => set(val, false), get: () => value };
+  return { el: root, set: (val) => set(val, false), get: () => value };
 }
 
 // ICON_GRIP — original 2-bar drag handle, not from an icon set (Lucide's grip is dots).
 const ICON_GRIP = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 4v8M10 4v8"/></svg>`;
+
+// The handle a display/action control returns — buttons, separators, monitors, the
+// FPS graph. No value: the panel build skips entry/reset/persist wiring for them.
+const blade = (el) => ({ el, set: () => {}, get: () => undefined });
 
 // ── Control registry — control type → constructor. Core controls register on
 // load; a lazy control registers when its module is dynamically imported. build()
@@ -335,9 +411,9 @@ export const getControl = (type) => REGISTRY[type];
 
 export {
   titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultRange,
-  optValue, optLabel, el, svgEl, cssVar, accentColor, stopPointerLeak, onReady,
+  optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
-  resolveTheme, applyThemeVars, fuzzyMatch, setRadioActive, radioButton,
-  attachScrub, numField, stretchPill, ICON_GRIP, REDUCE_MOTION,
+  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setRadioActive, radioButton, navIndex, triggerRow,
+  numField, blade, quietFocus, stretchPill, REDUCE_MOTION,
 };
 

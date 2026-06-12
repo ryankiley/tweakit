@@ -1,5 +1,5 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
-import { el, svgEl, numField, dragGesture, clamp, onReady, registerControl } from "../shared.js";
+import { el, btn, svgEl, numField, dragGesture, clamp, onReady, onLive, registerControl } from "../shared.js";
 
 // ── Cubic bezier — an interactive curve editor (Tweakpane's plugin-essentials
 // CubicBezier): two draggable control points over a unit box, value [x1,y1,x2,y2]
@@ -17,8 +17,8 @@ function createBezier(meta, onChange) {
   const diag = svgEl("line", "tw-bezier-diag"), line1 = svgEl("line", "tw-bezier-ctl"), line2 = svgEl("line", "tw-bezier-ctl");
   const curve = svgEl("path", "tw-bezier-curve");
   svg.append(unitBot, unitTop, diag, line1, line2, curve);
-  const h1 = el("button", "tw-bezier-handle"); h1.type = "button"; h1.setAttribute("aria-label", "Control point 1");
-  const h2 = el("button", "tw-bezier-handle"); h2.type = "button"; h2.setAttribute("aria-label", "Control point 2");
+  const h1 = btn("tw-bezier-handle"); h1.setAttribute("aria-label", "Control point 1");
+  const h2 = btn("tw-bezier-handle"); h2.setAttribute("aria-label", "Control point 2");
   graph.append(svg, h1, h2);
   const fields = el("div", "tw-fields tw-bezier-fields");
   root.append(graph, fields);
@@ -30,7 +30,6 @@ function createBezier(meta, onChange) {
   // draw just the curve + handles from v (the fields update separately, so a
   // field edit doesn't recursively re-set itself)
   const drawGraph = () => {
-    if (!graph.isConnected) { window.removeEventListener("resize", drawGraph); window.removeEventListener("tw-reflow", drawGraph); return; } // panel removed → drop the listeners (matches fps/monitor self-cleanup)
     // Layout px, not getBoundingClientRect (visual px): the handles are positioned with
     // style.left in layout space, so under an ancestor CSS scale the rect-derived sizes
     // sat them off the curve.
@@ -72,8 +71,7 @@ function createBezier(meta, onChange) {
   drag(h1, 0); drag(h2, 1);
 
   onReady(drawGraph);
-  window.addEventListener("resize", drawGraph);
-  window.addEventListener("tw-reflow", drawGraph); // a tab page revealing this control re-measures it (it built at 0×0 while hidden)
+  onLive(root, [[window, "resize"], [window, "tw-reflow"]], drawGraph); // tw-reflow: a tab page revealing this control re-measures it (it built at 0×0 while hidden); self-cleans once the panel is gone
   return { el: root, set: (nv) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = m.map((n, i) => clamp(n, SPECS[i].lo, SPECS[i].hi)); drawGraph(); syncFields(); } }, get: () => v.slice() }; // clamp each to its field range so get() agrees with the handles + fields
 }
 

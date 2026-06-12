@@ -1,5 +1,5 @@
 // ── Plot — graph y=f(x) with a safe expression evaluator (compileExpr). Lazy.
-import { el, svgEl, clamp, onReady, registerControl } from "../shared.js";
+import { el, txt, svgEl, clamp, onReady, onLive, registerControl } from "../shared.js";
 
 // ── A tiny, safe expression evaluator for the plot control. ──────────────────
 // Compiles "sin(x)/x" → a closure (x) => number. It is a hand-rolled
@@ -118,7 +118,7 @@ function createPlot(meta, onChange) {
   let compiled = typeof meta.fn === "function" ? meta.fn : compileExpr(expr);
 
   const root = el("div", "tw-plot");
-  if (meta.label) { const lbl = el("div", "tw-plot-label"); lbl.textContent = meta.label; root.append(lbl); }
+  if (meta.label) root.append(txt("div", "tw-plot-label", meta.label));
   const graph = el("div", "tw-plot-graph");
   const svg = svgEl("svg", "tw-plot-svg"); svg.setAttribute("preserveAspectRatio", "none");
   const axisX = svgEl("line", "tw-plot-axis"), axisY = svgEl("line", "tw-plot-axis"), curve = svgEl("path", "tw-plot-curve");
@@ -172,9 +172,7 @@ function createPlot(meta, onChange) {
   });
 
   onReady(draw);
-  const onResize = () => { if (!root.isConnected) { window.removeEventListener("resize", onResize); window.removeEventListener("tw-reflow", onResize); return; } draw(); }; // panel removed → drop the listeners (matches fps/bezier self-cleanup)
-  window.addEventListener("resize", onResize);
-  window.addEventListener("tw-reflow", onResize); // a tab page revealing this control re-measures it (it built at 0×0 while hidden)
+  onLive(root, [[window, "resize"], [window, "tw-reflow"]], draw); // tw-reflow: a tab page revealing this control re-measures it (it built at 0×0 while hidden); self-cleans once the panel is gone
 
   return {
     el: root,

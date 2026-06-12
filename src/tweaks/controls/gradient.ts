@@ -1,6 +1,6 @@
 // ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the colour
 // module (reuses its picker body, parseColor, and oklchStr).
-import { el, dragGesture, clamp, popover, registerControl } from "../shared.js";
+import { el, btn, dragGesture, clamp, popover, triggerRow, registerControl } from "../shared.js";
 import { createPickerBody, parseColor, oklchStr, CHECKER } from "./colour.js";
 
 // ICON_PLUS — adapted from Lucide/Feather `plus` (MIT). See ../../../THIRD-PARTY-NOTICES.md.
@@ -33,16 +33,12 @@ function createGradient(meta, onChange) {
   let stops = normalizeStops(meta.value);
   let selStop = stops[0];
 
-  // ── Trigger row — a gradient preview + stop count that opens the editor (mirrors
-  // the colour control's swatch-trigger row). ──
-  const root = el("div", "tw-gradient");
-  const trigger = el("button", "tw-gradient-trigger"); trigger.type = "button"; trigger.setAttribute("aria-expanded", "false");
-  const labelEl = el("span", "tw-gradient-label"); labelEl.textContent = meta.label || "Gradient";
-  const right = el("span", "tw-gradient-right");
+  // ── Trigger row — a gradient preview + stop count that opens the editor (the
+  // shared modal-trigger row the colour control uses). ──
+  const { root, trigger, right } = triggerRow("tw-gradient", meta.label || "Gradient");
   const countEl = el("span", "tw-gradient-count");
-  const preview = el("span", "tw-gradient-preview");
+  const preview = el("span", "tw-trigger-chip tw-gradient-preview");
   right.append(countEl, preview);
-  trigger.append(labelEl, right);
 
   // ── Editor popover — the stop bar (+ add) over the reused picker body. Carries the
   // colour popover's class so it inherits its tokens, shell, and short-viewport scroll. ──
@@ -52,7 +48,7 @@ function createGradient(meta, onChange) {
   const grad = el("div", "tw-gradient-grad");
   const rail = el("div", "tw-gradient-rail");
   bar.append(grad, rail);
-  const addBtn = el("button", "tw-gradient-add", ICON_PLUS); addBtn.type = "button"; addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a colour stop after the selected one");
+  const addBtn = btn("tw-gradient-add", ICON_PLUS); addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a colour stop after the selected one");
   barRow.append(bar, addBtn);
 
   const sorted = () => [...stops].sort((a, b) => a.pos - b.pos);
@@ -71,13 +67,13 @@ function createGradient(meta, onChange) {
     paint(); emit();
   });
   pop.append(barRow, body.el);
-  root.append(trigger, pop);
+  root.append(pop);
 
   const reflectSel = () => { for (const h of rail.children) h.dataset.sel = String(h._stop === selStop); };
   const renderHandles = () => {
     rail.replaceChildren();
     for (const s of stops) {
-      const h = el("button", "tw-gradient-stop"); h.type = "button"; h._stop = s;
+      const h = btn("tw-gradient-stop"); h._stop = s;
       h.style.left = s.pos * 100 + "%"; h.style.setProperty("--stop", s.color);
       h.dataset.sel = String(s === selStop); h.setAttribute("aria-label", "Colour stop");
       let offBar = false;

@@ -14,8 +14,8 @@
 
 import {
   titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultRange,
-  optValue, optLabel, el, popover, placeBelow, closeActivePopover, stopPointerLeak, applyThemeVars, resolveTheme, onReady,
-  wireHoverClass, fuzzyMatch, setRadioActive, radioButton, attachScrub, stretchPill, ICON_GRIP, REDUCE_MOTION,
+  optValue, optLabel, el, btn, txt, popover, placeBelow, closeActivePopover, stopPointerLeak, applyThemeVars, resolveTheme, carryScheme, carrySkin, onReady, onLive,
+  wireHoverClass, fuzzyMatch, setRadioActive, radioButton, navIndex, numField, blade, quietFocus, stretchPill, REDUCE_MOTION,
   registerControl, getControl,
 } from "./shared.js";
 import type { Schema, TweaksOptions, Panel, Params } from "./types.js";
@@ -78,6 +78,9 @@ function metaFor(key, value, depth = 0) {
 }
 // True for an object-form schema value (the verbose `{ type, … }` shapes).
 const isObj = (v) => v && typeof v === "object";
+// Own-key lookup for objects used as maps — a stray key like "toString" must miss,
+// not hit Object.prototype (the dispatch tables + params bags below).
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 // Did a value actually change? Identity for primitives; structural (JSON) for the
 // object-valued controls (spring/point/gradient/bezier), whose get() returns a fresh
 // object each call. Gates notify() so a same-value set()/emit can't echo — an on()
@@ -136,7 +139,7 @@ const TYPED_META: Record<string, (v: any, key: string, label: string, depth?: nu
 function baseMetaFor(key, value, depth = 0) {
   if (depth > 64) return null; // a pathologically deep schema degrades to skipped controls instead of a RangeError out of tweaks()
   const label = titleCase(key);
-  if (isObj(value) && !Array.isArray(value) && Object.prototype.hasOwnProperty.call(TYPED_META, value.type)) { // hasOwnProperty, so a stray type like "toString" can't hit Object.prototype
+  if (isObj(value) && !Array.isArray(value) && hasOwn(TYPED_META, value.type)) { // own key only, so a stray type like "toString" can't hit Object.prototype
     // A handler that THROWS on a malformed shape (a null components entry, pages: { A: null })
     // degrades to skipping that control — not a TypeError out of tweaks() that drops the whole
     // panel. (A falsy return still falls through to shorthand inference, as documented above.)
@@ -203,7 +206,7 @@ function createSlider(meta, onChange) {
   const hashes = el("div", "tw-slider-hashmarks");
   const fill = el("div", "tw-slider-fill");
   const handle = el("div", "tw-slider-handle");
-  const labelEl = el("span", "tw-slider-label"); labelEl.textContent = label;
+  const labelEl = txt("span", "tw-slider-label", label);
   const valueEl = el("span", "tw-slider-value");
   track.append(hashes, fill, handle, labelEl, valueEl);
   wrap.append(track);
@@ -366,8 +369,7 @@ function createSlider(meta, onChange) {
   // widths it measures), and on any track-width change. The dodge already reads the
   // real offsetWidth, so it adapts to any font — this just keeps it in sync.
   onReady(render);
-  const onResize = () => { if (!track.isConnected) return window.removeEventListener("resize", onResize); render(); }; // panel removed → drop the listener (matches fps/bezier self-cleanup)
-  window.addEventListener("resize", onResize);
+  onLive(track, [[window, "resize"]], render); // self-cleans once the panel leaves the DOM
   track.addEventListener("keydown", (e) => {
     const coarse = e.shiftKey ? 10 : 1, page = (max - min) / 10 || step * 10;
     let nv = value;
@@ -428,29 +430,21 @@ function createSegmented(options, value, onChange, ariaLabel) {
   const set = (v, fire = true) => { value = v; reflect(); if (fire) onChange(v); };
   seg.addEventListener("keydown", (e) => {
     const i = btns.findIndex((b) => b.dataset.value === String(value)); if (i < 0) return;
-    let n = i;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") n = (i + 1) % btns.length;
-    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") n = (i - 1 + btns.length) % btns.length;
-    else if (e.key === "Home") n = 0;
-    else if (e.key === "End") n = btns.length - 1;
-    else return;
-    e.preventDefault(); set(btns[n]._twVal); btns[n].focus(); // _twVal, not dataset.value — the keyboard pick must emit the option's real (possibly non-string) value
+    const j = navIndex(e.key, i, btns.length); if (j < 0) return;
+    e.preventDefault(); set(btns[j]._twVal); btns[j].focus(); // _twVal, not dataset.value — the keyboard pick must emit the option's real (possibly non-string) value
   });
   reflect();
-  requestAnimationFrame(() => { measure(); seg.classList.add("is-ready"); });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+  onReady(() => { measure(); seg.classList.add("is-ready"); }); // measure once laid out, again when fonts land (re-adding is-ready is a no-op)
   return { el: seg, set: (v) => set(v, false), get: () => value };
 }
 
 function createToggle(meta, onChange) {
   const row = el("div", "tw-row");
-  const label = el("span", "tw-row-label"); label.textContent = meta.label;
-  // A boolean, shown as a two-segment Off/On pill that slides. Picking one of a
-  // *list* of options is the radio grid's job now, not an inline segmented row.
-  let checked = !!meta.value;
-  const seg = createSegmented([{ value: "off", label: "Off" }, { value: "on", label: "On" }], checked ? "on" : "off", (v) => { checked = v === "on"; onChange(checked); }, meta.label);
-  row.append(label, seg.el);
-  return { el: row, set: (v) => { checked = !!v; seg.set(v ? "on" : "off"); }, get: () => checked };
+  // A boolean, shown as a two-segment Off/On pill that slides — the segmented control
+  // IS the state (one source of truth); this just maps boolean ↔ "on"/"off" at the rim.
+  const seg = createSegmented([{ value: "off", label: "Off" }, { value: "on", label: "On" }], meta.value ? "on" : "off", (v) => onChange(v === "on"), meta.label);
+  row.append(txt("span", "tw-row-label", meta.label), seg.el);
+  return { el: row, set: (v) => seg.set(v ? "on" : "off"), get: () => seg.get() === "on" };
 }
 
 // ── Radio grid — a segmented control wrapped into a 2- or 3-column grid, for a
@@ -460,7 +454,6 @@ function createRadiogrid(meta, onChange) {
   const options = meta.options || [];
   const cols = Math.min(3, Math.max(2, meta.cols || (options.length <= 3 ? options.length : options.length === 4 ? 2 : 3)));
   const row = el("div", "tw-radiogrid");
-  const label = el("span", "tw-radiogrid-label"); label.textContent = meta.label;
   const grid = el("div", "tw-radiogrid-grid"); grid.style.setProperty("--tw-rg-cols", cols);
   grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
   let value = meta.value ?? optValue(options[0]);
@@ -471,20 +464,11 @@ function createRadiogrid(meta, onChange) {
   // the column count, clamped at the edges); Home/End to the ends.
   grid.addEventListener("keydown", (e) => {
     const i = btns.findIndex((b) => b.dataset.value === String(value)); if (i < 0) return;
-    const n = btns.length; let j = i;
-    switch (e.key) {
-      case "ArrowRight": j = (i + 1) % n; break;
-      case "ArrowLeft": j = (i - 1 + n) % n; break;
-      case "ArrowDown": j = i + cols < n ? i + cols : i; break;
-      case "ArrowUp": j = i - cols >= 0 ? i - cols : i; break;
-      case "Home": j = 0; break;
-      case "End": j = n - 1; break;
-      default: return;
-    }
+    const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
     e.preventDefault(); if (j !== i) { set(btns[j]._twVal); btns[j].focus(); } // _twVal, not dataset.value — same reason as the segmented control
   });
   reflect();
-  row.append(label, grid);
+  row.append(txt("span", "tw-radiogrid-label", meta.label), grid);
   return { el: row, set: (v) => set(v, false), get: () => value };
 }
 
@@ -494,16 +478,15 @@ function createSelect(meta, onChange) {
   let value = meta.value;
   const opts = meta.options.map((o) => ({ value: optValue(o), label: optLabel(o) }));
   const root = el("div", "tw-select");
-  const trigger = el("button", "tw-select-trigger"); trigger.type = "button"; trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
-  const labelEl = el("span", "tw-select-label"); labelEl.textContent = meta.label;
+  const trigger = btn("tw-select-trigger"); trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
   const right = el("span", "tw-select-right");
   const valEl = el("span", "tw-select-value");
   right.append(valEl);
   right.insertAdjacentHTML("beforeend", CHEVRON);
-  trigger.append(labelEl, right);
+  trigger.append(txt("span", "tw-select-label", meta.label), right);
   const dropdown = el("div", "tw-select-dropdown"); dropdown.setAttribute("role", "listbox");
   const optButtons = opts.map((o) => {
-    const b = el("button", "tw-select-option"); b.type = "button"; b.setAttribute("role", "option"); b.textContent = o.label; b.dataset.value = o.value;
+    const b = btn("tw-select-option"); b.setAttribute("role", "option"); b.textContent = o.label; b.dataset.value = o.value;
     b.addEventListener("click", () => { set(o.value); pop.close(); });
     dropdown.append(b); return b;
   });
@@ -541,31 +524,29 @@ function createSelect(meta, onChange) {
 }
 
 function createButton(meta) {
-  const b = el("button", "tw-button"); b.type = "button"; b.textContent = meta.label;
+  const b = txt("button", "tw-button", meta.label); b.type = "button";
   b.addEventListener("click", () => meta.action && meta.action());
-  return { el: b, set: () => {}, get: () => undefined };
+  return blade(b);
 }
 
 // ── Button group — a row of compact actions under one label (leva's buttonGroup),
 // the action sibling to the radio grid. `buttons` is { label: fn } or [{label, action}]. ──
 function createButtonGroup(meta) {
   const row = el("div", "tw-row tw-buttongroup");
-  if (meta.label) { const label = el("span", "tw-row-label"); label.textContent = meta.label; row.append(label); }
+  if (meta.label) row.append(txt("span", "tw-row-label", meta.label));
   const group = el("div", "tw-buttongroup-btns");
   const list = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label, b.action]) : Object.entries(meta.buttons || {});
   for (const [lab, fn] of list) {
-    const b = el("button", "tw-buttongroup-btn"); b.type = "button"; b.textContent = lab;
+    const b = txt("button", "tw-buttongroup-btn", lab); b.type = "button";
     b.addEventListener("click", () => typeof fn === "function" && fn());
     group.append(b);
   }
   row.append(group);
-  return { el: row, set: () => {}, get: () => undefined };
+  return blade(row);
 }
 
 // ── Separator — a thin divider to break a long panel into sections. ──
-function createSeparator() {
-  return { el: el("div", "tw-separator"), set: () => {}, get: () => undefined };
-}
+const createSeparator = () => blade(el("div", "tw-separator"));
 
 // ── String — a labelled text input (ported from TextControl.tsx) ──
 function createString(meta, onChange) {
@@ -574,48 +555,26 @@ function createString(meta, onChange) {
   // grows to fit and aligns its label to the top instead of centring.
   const multi = meta.rows > 0;
   const row = el("div", multi ? "tw-row tw-row-multiline" : "tw-row");
-  const label = el("span", "tw-row-label"); label.textContent = meta.label;
   const input = el(multi ? "textarea" : "input", multi ? "tw-text tw-textarea" : "tw-text");
   if (multi) input.rows = meta.rows; else input.type = "text";
   input.value = value;
+  quietFocus(input); // click-to-type stays ringless; Tab rings
   if (meta.placeholder) input.placeholder = meta.placeholder;
   input.addEventListener("input", () => { value = input.value; onChange(value); });
-  row.append(label, input);
+  row.append(txt("span", "tw-row-label", meta.label), input);
   return { el: row, set: (v) => { value = v == null ? "" : String(v); input.value = value; }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
 }
 
-// ── Number — a typeable field with a Tweakpane-style grab handle (drag to scrub) ──
-function createNumber(meta, onChange) {
-  let min = +meta.min, max = +meta.max; // non-finite (absent/garbage) → unbounded, matching fit()'s isFinite guards
-  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { const t = min; min = max; max = t; }
-  const step = Number.isFinite(+meta.step) && +meta.step > 0 ? +meta.step : 1; // a 0/negative/NaN step deadened the scrub + keyboard; an Infinity step (data-step="Infinity" coerces to it) rounded every value to NaN
-  const fit = (v) => {
-    let n = roundToStep(v, Number.isFinite(min) ? min : 0, step);
-    if (!meta.soft) { if (Number.isFinite(min)) n = Math.max(min, n); if (Number.isFinite(max)) n = Math.min(max, n); }
-    return n;
-  };
-  let value = fit(Number.isFinite(+meta.value) ? +meta.value : 0); // non-finite seed → 0, matching the set() guard
-  const row = el("div", "tw-row");
-  const label = el("span", "tw-row-label"); label.textContent = meta.label;
-  const wrap = el("div", "tw-num-wrap");
-  const grab = el("span", "tw-num-grab", ICON_GRIP); grab.setAttribute("aria-hidden", "true"); grab.title = "Drag to adjust";
-  const input = el("input", "tw-num"); input.type = "text"; input.inputMode = "decimal"; input.value = value;
-  wrap.append(grab, input); row.append(label, wrap);
-  const set = (v, fire = true) => { v = +v; if (!Number.isFinite(v)) return; value = fit(v); input.value = value; if (fire) onChange(value); };
-  input.addEventListener("change", () => { const p = parseFloat(input.value); set(isNaN(p) ? value : p); });
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
-  // grab handle: drag horizontally to scrub (1px ≈ one step), with the shared
-  // Tweakpane-style grab guide (dotted line to the cursor + value bubble).
-  attachScrub(grab, wrap, step, () => value, set, () => input.value);
-  return { el: row, set: (v) => set(v, false), get: () => value };
-}
+// ── Number — the shared numField engine in its row chrome: a typeable field with a
+// Tweakpane-style grab handle (drag to scrub), min-anchored rounding, soft support. ──
+const createNumber = (meta, onChange) => numField({ ...meta, row: true }, onChange);
 
 // ── Folder — a collapsible titled group (Tweakpane folders). Returns its inner
 // container as `body` so the caller fills it; collapse reuses the grid-rows trick. ──
 function createFolder(meta) {
   const root = el("div", "tw-folder");
-  const header = el("button", "tw-folder-header"); header.type = "button"; header.setAttribute("aria-expanded", "true");
-  header.append(Object.assign(el("span", "tw-folder-title"), { textContent: meta.label }));
+  const header = btn("tw-folder-header"); header.setAttribute("aria-expanded", "true");
+  header.append(txt("span", "tw-folder-title", meta.label));
   header.insertAdjacentHTML("beforeend", ICON_CHEVRON); // chevron trails the title
   const body = el("div", "tw-folder-body");
   const inner = el("div", "tw-controls"); body.append(inner);
@@ -657,11 +616,12 @@ const ICON_CHEVRON = `<svg class="tw-chevron" viewBox="0 0 24 24" fill="none" st
 const ICON_PRESETS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>`;
 const ICON_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
 const ICON_INFO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`;
-// Toolbar buttons shared by the live panel and the markup showcase: the copy⇄check
-// swap button and the reset button, plus their one-shot animations (the copied flash,
-// the reset spin — each stashes its timer on the button as `_t`).
-const makeCopyBtn = () => { const b = el("button", "tw-toolbar-btn tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`); b.type = "button"; b.title = "Copy values"; b.setAttribute("aria-label", "Copy values"); return b; };
-const makeResetBtn = () => { const b = el("button", "tw-toolbar-btn tw-toolbar-btn--reset", ICON_RESET); b.type = "button"; b.title = "Reset"; b.setAttribute("aria-label", "Reset"); return b; };
+// Toolbar buttons shared by the live panel and the markup showcase: one factory
+// (icon button + matching title/aria-label), plus the copy/reset one-shot animations
+// (the copied flash, the reset spin — each stashes its timer on the button as `_t`).
+const toolbarBtn = (cls, icon, label) => { const b = btn("tw-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
+const makeCopyBtn = () => toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values");
+const makeResetBtn = () => toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset");
 const flashCopied = (btn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
 // Reset spin — an accumulated rotation on --tw-spin, driven by the transform transition
 // (no keyframes): transitions retarget mid-flight, so a second click mid-spin continues
@@ -707,9 +667,7 @@ let toastEl = null, toastTimer = 0;
 function showToast(msg, anchor?) {
   if (!toastEl) { toastEl = el("div", "tw-toast tw-portal"); toastEl.setAttribute("role", "status"); document.body.appendChild(toastEl); }
   toastEl.textContent = msg;
-  applyThemeVars(toastEl, anchor?.closest(".tw-panel")?._twTheme);
-  const scheme = anchor && (anchor.closest('[data-tw-scheme="light"]') ? "light" : anchor.closest('[data-tw-scheme="dark"]') ? "dark" : null);
-  if (scheme) toastEl.setAttribute("data-tw-scheme", scheme); else toastEl.removeAttribute("data-tw-scheme");
+  carrySkin(toastEl, anchor); // the anchor panel's theme + winning scheme, tip-style
   toastEl.classList.add("is-open");
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("is-open"), 1600);
 }
@@ -719,17 +677,11 @@ function showToast(msg, anchor?) {
 let hintTip = null, hintTimer = 0, hintAnchor = null;
 const onHintKey = (e) => { if (e.key === "Escape") hideHintNow(); }; // bound only while the tip is open — WCAG 1.4.13, the hover content is dismissable
 const hideHintNow = () => { clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
-function showHint(anchor, text, themeVars) {
+function showHint(anchor, text) {
   if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); document.body.appendChild(hintTip); }
   clearTimeout(hintTimer);
   hintTip.textContent = text;
-  applyThemeVars(hintTip, themeVars);
-  // Carry the scheme scope, popover()-style — the tip portals to <body>, so a
-  // [data-tw-scheme] scope that styles the panel can't reach it via the cascade.
-  // Like popover(), copy the winning scheme, not the nearest (light pin outranks
-  // dark — see the scheme-resolution comment in tweaks.css).
-  const scheme = anchor.closest('[data-tw-scheme="light"]') ? "light" : anchor.closest('[data-tw-scheme="dark"]') ? "dark" : null;
-  if (scheme) hintTip.setAttribute("data-tw-scheme", scheme); else hintTip.removeAttribute("data-tw-scheme");
+  carrySkin(hintTip, anchor); // theme + winning scheme, resolved at show time (setTheme may have run since build)
   const wasOpen = hintTip.classList.contains("is-open");
   hintTip.style.visibility = "hidden"; hintTip.classList.add("is-open");
   // Shared placement: centre on the anchor, prefer above (the tooltip convention),
@@ -748,9 +700,9 @@ function hideHint() { if (hintTip) hintTimer = setTimeout(() => { hintTip.classL
 // text in the tooltip on hover/focus — discoverable and keyboard-reachable, unlike
 // the old native `title`. Shared by the panel build (registerCond) and enhance().
 function addHintMarker(node: any, hint: string) {
-  const label = node.querySelector(".tw-slider-label, .tw-row-label, .tw-select-label, .tw-color-label, .tw-gradient-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label") || node;
-  const mark = el("button", "tw-hint", ICON_INFO); mark.type = "button"; mark.setAttribute("aria-label", hint);
-  const show = () => showHint(mark, hint, mark.closest(".tw-panel")?._twTheme); // theme resolved at show time — setTheme() swaps the panel's _twTheme object, so a build-time capture would pin the old vars forever
+  const label = node.querySelector(".tw-slider-label, .tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label") || node;
+  const mark = btn("tw-hint", ICON_INFO); mark.setAttribute("aria-label", hint);
+  const show = () => showHint(mark, hint);
   mark.addEventListener("pointerenter", show);
   mark.addEventListener("pointerleave", hideHint);
   mark.addEventListener("focus", show);
@@ -819,9 +771,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const header = el("div", "tw-header");
   // Tapping the title collapses the body (Tweakpane-style); the toolbar sits
   // beside it and never triggers a collapse. No chevron — the title is the toggle.
-  const titleBtn = el("button", "tw-header-toggle");
-  titleBtn.type = "button"; titleBtn.setAttribute("aria-expanded", "true");
-  titleBtn.append(Object.assign(el("span", "tw-title"), { textContent: name }));
+  const titleBtn = btn("tw-header-toggle");
+  titleBtn.setAttribute("aria-expanded", "true");
+  titleBtn.append(txt("span", "tw-title", name));
   const toolbar = el("div", "tw-toolbar");
   // Copy uses the site's contextual icon swap — copy ⇄ check cross-fade (both
   // icons stacked, opacity+scale+blur transitioned), not an innerHTML cut.
@@ -830,18 +782,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn = null;
   if (persistKey) {
-    presetsBtn = el("button", "tw-toolbar-btn", ICON_PRESETS); presetsBtn.type = "button"; presetsBtn.title = "Presets";
-    presetsBtn.setAttribute("aria-label", "Presets"); presetsBtn.setAttribute("aria-haspopup", "menu"); presetsBtn.setAttribute("aria-expanded", "false");
+    presetsBtn = toolbarBtn("", ICON_PRESETS, "Presets");
+    presetsBtn.setAttribute("aria-haspopup", "menu"); presetsBtn.setAttribute("aria-expanded", "false");
     toolbar.append(presetsBtn);
   }
   // Filter (opts.filter): a search button swaps the title for an input; typing hides
   // controls whose label doesn't match (folders stay if their title or a child does).
   const filterOn = !!opts.filter;
-  const searchBtn = filterOn ? el("button", "tw-toolbar-btn", ICON_SEARCH) : null;
+  const searchBtn = filterOn ? toolbarBtn("", ICON_SEARCH, "Filter controls") : null;
   const searchInput = filterOn ? el("input", "tw-search") : null;
   if (filterOn) {
-    searchBtn.type = "button"; searchBtn.title = "Filter"; searchBtn.setAttribute("aria-label", "Filter controls");
     searchInput.type = "text"; searchInput.placeholder = "Filter…"; searchInput.spellcheck = false; searchInput.setAttribute("aria-label", "Filter controls");
+    quietFocus(searchInput);
     toolbar.append(searchBtn);
   }
   toolbar.append(copyBtn, resetBtn);
@@ -897,27 +849,27 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const resetEntry = (e) => { e.set(e.def); e.target[e.key] = e.get(); params._last = e.key; notify(); };
   const wireReset = (root, entry) => {
     const t = root.querySelector(".tw-slider-value")
-      || root.querySelector(".tw-row-label, .tw-select-label, .tw-color-label, .tw-gradient-label, .tw-radiogrid-label, .tw-field-label")
+      || root.querySelector(".tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label")
       || root;
     t.classList.add("tw-resettable"); t.title = "Double-click or hold to reset";
     // Coarse pointers get a press-and-hold reset — the desktop double-click fights
     // double-tap-zoom on touch. The held class fills a charging cue; releasing or moving
     // off before it completes cancels. On the slider value (which also taps-to-edit), a
     // completed hold drops is-editable and swallows the trailing tap so it resets cleanly.
-    let holdT = 0, hx = 0, hy = 0;
+    let holdT = 0, hx = 0, hy = 0, held = false;
     const cancelHold = () => { if (holdT) { clearTimeout(holdT); holdT = 0; t.classList.remove("tw-reset-holding"); } };
     t.addEventListener("pointerdown", (e) => {
-      e.stopPropagation(); t._twHeld = false; // a press on the readout shouldn't jump the slider on the way to a reset
+      e.stopPropagation(); held = false; // a press on the readout shouldn't jump the slider on the way to a reset
       if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
       hx = e.clientX; hy = e.clientY; t.classList.add("tw-reset-holding");
-      holdT = setTimeout(() => { holdT = 0; t.classList.remove("tw-reset-holding", "is-editable"); t._twHeld = true; resetEntry(entry); }, 500);
+      holdT = setTimeout(() => { holdT = 0; t.classList.remove("tw-reset-holding", "is-editable"); held = true; resetEntry(entry); }, 500);
     });
     t.addEventListener("pointermove", (e) => { if (holdT && Math.abs(e.clientX - hx) + Math.abs(e.clientY - hy) > 8) cancelHold(); });
     t.addEventListener("pointerup", cancelHold);
     t.addEventListener("pointercancel", cancelHold);
     t.addEventListener("pointerleave", cancelHold);
-    t.addEventListener("contextmenu", (e) => { if (t._twHeld) e.preventDefault(); }); // a long-press mustn't raise the text callout
-    t.addEventListener("click", (e) => { if (t._twHeld) { e.preventDefault(); e.stopImmediatePropagation(); t._twHeld = false; } }, true); // a completed hold-reset swallows the trailing tap-to-edit
+    t.addEventListener("contextmenu", (e) => { if (held) e.preventDefault(); }); // a long-press mustn't raise the text callout
+    t.addEventListener("click", (e) => { if (held) { e.preventDefault(); e.stopImmediatePropagation(); held = false; } }, true); // a completed hold-reset swallows the trailing tap-to-edit
     t.addEventListener("dblclick", (e) => { e.preventDefault(); e.stopPropagation(); resetEntry(entry); });
   };
 
@@ -958,7 +910,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       // window on the split build) wins over the schema default — apply it to the
       // control rather than clobbering it back with ctrl.get(). (API set() calls from
       // that window queue in preSets and replay after the build instead.)
-      if (Object.prototype.hasOwnProperty.call(target, m.key)) ctrl.set(target[m.key]);
+      if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
       target[m.key] = ctrl.get();
       const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, def: m.value, path: [...basePath, m.key] };
       entries.push(entry); wireReset(ctrl.el, entry); registerCond(ctrl.el, m);
@@ -978,7 +930,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   // Apply the conditionals now and on every change (a sibling's value can flip them).
   if (conditionals.length) {
-    const getVal = (k) => { const e = entries.find((x) => x.key === k); return e ? e.target[e.key] : params[k]; };
+    const byKey = new Map(); for (const e of entries) if (!byKey.has(e.key)) byKey.set(e.key, e); // first wins, like the find() it replaces
+    const getVal = (k) => { const e = byKey.get(k); return e ? e.target[e.key] : params[k]; };
     const applyConditionals = () => {
       for (const { node, m } of conditionals) {
         // A throwing render/disabled predicate degrades to "leave the node as-is"
@@ -1072,9 +1025,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       // Portal to <body>: left in its slot, any transformed/filter/contain ancestor would
       // become the fixed panel's containing block (the bug class the popovers already
       // solved by portaling). The inline --tw-* theme vars ride along on the node; the
-      // scheme scope doesn't — copy the WINNING scheme, not the nearest (popover()'s idiom).
-      const scheme = panel.closest('[data-tw-scheme="light"]') ? "light" : panel.closest('[data-tw-scheme="dark"]') ? "dark" : null;
-      if (scheme) panel.setAttribute("data-tw-scheme", scheme); else panel.removeAttribute("data-tw-scheme");
+      // scheme scope doesn't — carry the winning scheme, popover()'s idiom.
+      carryScheme(panel, panel);
       document.body.appendChild(panel);
       panel.dataset.mode = "floating"; apply();
     };
@@ -1128,34 +1080,28 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     header.addEventListener("pointerup", endDrag);
     header.addEventListener("pointercancel", endDrag);
     header.addEventListener("lostpointercapture", endDrag); // implicit capture loss mid-drag ends it like a release
-    // Keep a floated panel inside the viewport as the window resizes. Self-cleans on
-    // the first resize after the panel leaves the DOM (this listener leaked per
-    // draggable panel, holding the panel alive — the slider's resize pattern).
-    const onWinResize = () => {
-      if (!panel.isConnected) return window.removeEventListener("resize", onWinResize);
-      if (panel.dataset.mode === "floating") { clampPos(); apply(); }
-    };
-    window.addEventListener("resize", onWinResize);
-    cleanups.push(() => window.removeEventListener("resize", onWinResize));
+    // Keep a floated panel inside the viewport as the window resizes — self-cleaning
+    // (it used to leak per draggable panel), and released eagerly by destroy().
+    cleanups.push(onLive(panel, [[window, "resize"]], () => { if (panel.dataset.mode === "floating") { clampPos(); apply(); } }));
   }
 
   if (presetsBtn) {
     const menu = el("div", "tw-presets-menu");
     const saveRow = el("div", "tw-presets-save");
-    const input = el("input", "tw-presets-input"); input.type = "text"; input.placeholder = "Preset name…"; input.spellcheck = false; input.setAttribute("aria-label", "New preset name");
-    const saveBtn = el("button", "tw-presets-savebtn"); saveBtn.type = "button"; saveBtn.textContent = "Save";
+    const input = el("input", "tw-presets-input"); input.type = "text"; input.placeholder = "Preset name…"; input.spellcheck = false; input.setAttribute("aria-label", "New preset name"); quietFocus(input);
+    const saveBtn = txt("button", "tw-presets-savebtn", "Save"); saveBtn.type = "button";
     saveRow.append(input, saveBtn);
     const list = el("div", "tw-presets-list");
     menu.append(saveRow, list);
     const renderList = () => {
       const all = listPresets(), names = Object.keys(all);
       list.replaceChildren();
-      if (!names.length) { const empty = el("div", "tw-presets-empty"); empty.textContent = "No presets yet"; list.append(empty); return; }
+      if (!names.length) return list.append(txt("div", "tw-presets-empty", "No presets yet"));
       for (const nm of names) {
         const row = el("div", "tw-presets-row");
-        const load = el("button", "tw-presets-load"); load.type = "button"; load.textContent = nm;
+        const load = txt("button", "tw-presets-load", nm); load.type = "button";
         load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); showToast(`Loaded “${nm}”`, panel); });
-        const del = el("button", "tw-presets-del", ICON_X); del.type = "button"; del.setAttribute("aria-label", `Delete preset ${nm}`);
+        const del = btn("tw-presets-del", ICON_X); del.setAttribute("aria-label", `Delete preset ${nm}`);
         del.addEventListener("click", (e) => { e.stopPropagation(); deletePreset(nm); renderList(); });
         row.append(load, del); list.append(row);
       }
@@ -1227,18 +1173,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
     redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
     const focused = () => panel.matches(":hover") || panel.contains(document.activeElement);
-    // Self-clean like the slider's resize listener: the first keydown after the panel
-    // leaves the DOM drops the listener (it held the whole panel + history alive
-    // forever — a permanent leak per undo panel).
-    const onUndoKey = (e) => {
-      if (!panel.isConnected) return document.removeEventListener("keydown", onUndoKey);
+    // Self-cleaning (the listener used to hold the whole panel + history alive forever),
+    // and released eagerly by destroy().
+    cleanups.push(onLive(panel, [[document, "keydown"]], (e) => {
       if (!focused() || !(e.metaKey || e.ctrlKey)) return;
       const k = e.key.toLowerCase();
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
-    };
-    document.addEventListener("keydown", onUndoKey);
-    cleanups.push(() => document.removeEventListener("keydown", onUndoKey));
+    }));
   }
   assembled = true;
   // Replay set() calls queued during the lazy window — after the persisted-session
@@ -1317,40 +1259,48 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 }
 
 // ── Markup-driven enhancement (the showcase: minimal [data-tw] hosts → live control) ──
-const dataMeta = (host) => {
-  const d = host.dataset, type = d.tw, label = d.label || titleCase(d.key || type);
-  if (type === "slider") return { type, key: "v", label, value: +(d.value ?? 0), min: +(d.min ?? 0), max: +(d.max ?? 100), step: +(d.step || inferStep(+(d.min ?? 0), +(d.max ?? 100))), soft: d.soft === "true" || d.soft === "" };
-  if (type === "checkbox") {
-    // A list of options is a single-select → radio grid; a bare checkbox is boolean.
-    const options = d.options ? d.options.split(",").map((s) => s.trim()).filter(Boolean) : null;
-    if (options) return { type: "radiogrid", key: "v", label, options, value: d.value ?? options[0], cols: d.cols != null ? +d.cols : undefined };
-    return { type, key: "v", label, value: d.checked === "true" };
-  }
-  if (type === "radiogrid") { const options = (d.options || "").split(",").map((s) => s.trim()).filter(Boolean); return { type, key: "v", label, options, value: d.value ?? options[0], cols: d.cols != null ? +d.cols : undefined }; }
-  if (type === "list") { const options = (d.options || "").split(",").map((s) => s.trim()).filter(Boolean); return { type, key: "v", label, options, value: d.value ?? options[0] }; }
-  if (type === "color") return { type, key: "v", label, value: d.value || "#7c5cff" };
-  if (type === "button") return { type, key: "v", label, action: () => showToast(`${label} pressed`, host) };
-  if (type === "buttongroup") return { type, key: "v", label, buttons: (d.buttons || "").split(",").map((s) => s.trim()).filter(Boolean).map((lab) => ({ label: lab, action: () => showToast(`${lab} pressed`, host) })) };
-  if (type === "separator") return { type, key: "v", label };
-  if (type === "number") return { type, key: "v", label, value: +(d.value ?? 0), min: d.min != null ? +d.min : undefined, max: d.max != null ? +d.max : undefined, step: +(d.step || 1) };
-  if (type === "text") return { type, key: "v", label, value: d.value ?? "", placeholder: d.placeholder, rows: d.rows != null ? +d.rows : undefined };
-  if (type === "image") return { type, key: "v", label, value: d.value || "" };
-  if (type === "fpsgraph") return { type, key: "v", label: d.label || "FPS" };
-  if (type === "interval") { const mn = +(d.min ?? 0), mx = +(d.max ?? 1); return { type, key: "v", label, value: (d.value || (mn + "," + mx)).split(",").map(Number), min: mn, max: mx, step: +(d.step || inferStep(mn, mx)) }; }
-  if (type === "spring") return { type, key: "v", label, value: { stiffness: +(d.stiffness ?? 300), damping: +(d.damping ?? 26), mass: +(d.mass ?? 1) } };
-  if (type === "cubicbezier") return { type, key: "v", label, value: (d.value || "0.25,0.1,0.25,1").split(",").map(Number) };
-  if (type === "point") {
-    const labels = (d.components || "X,Y").split(",").map((s) => s.trim()).filter(Boolean);
+// Each [data-tw] type parses its dataset into the same verbose schema value the
+// TYPED_META table (and shorthand inference) consume, then rides metaFor — ONE meta
+// derivation for both entry points. The markup branch used to re-derive every meta by
+// hand, and markup-only defaults drifted (a list with no data-value rendered a blank
+// readout while the schema path defaulted to the first option).
+const DATA_VALUE: Record<string, (d: any, host: any, label: string) => any> = {
+  slider: (d) => ({ value: num(d.value), min: num(d.min) ?? 0, max: num(d.max) ?? 100, step: num(d.step), soft: flag(d.soft) }),
+  // A list of options is a single-select → radio grid; a bare checkbox is boolean.
+  checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
+  radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
+  list: (d) => ({ options: splitList(d.options), value: d.value }),
+  color: (d) => ({ value: d.value || "#7c5cff" }),
+  button: (d, host, label) => ({ action: () => showToast(`${label} pressed`, host) }),
+  buttongroup: (d, host) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab, action: () => showToast(`${lab} pressed`, host) })) }),
+  separator: () => ({}),
+  number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step) }),
+  text: (d) => ({ value: d.value ?? "", placeholder: d.placeholder, rows: num(d.rows) }),
+  image: (d) => ({ value: d.value }),
+  fpsgraph: (d) => ({ label: d.label || "FPS" }),
+  interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
+  spring: (d) => ({ stiffness: num(d.stiffness), damping: num(d.damping), mass: num(d.mass) }),
+  cubicbezier: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined }),
+  point: (d) => {
     const vals = (d.value || "").split(",").map((s) => parseFloat(s));
-    const step = d.step != null ? +d.step : 1, min = d.min != null ? +d.min : undefined, max = d.max != null ? +d.max : undefined;
-    const components = labels.map((lab, i) => ({ key: lab.toLowerCase(), label: lab, value: isNaN(vals[i]) ? 0 : vals[i], step, min, max }));
-    return { type, key: "v", label, pad: d.pad === "true" || d.pad === "", invertY: d.invertY === "true", components, value: Object.fromEntries(components.map((c) => [c.key, c.value])) }; // `value` = default map so a static-panel reset restores the point
-  }
-  if (type === "plot") {
-    const expr = d.expr ?? "sin(x)";
-    return { type, key: "v", label, value: expr, expr, fn: null, xMin: d.xmin != null ? +d.xmin : -10, xMax: d.xmax != null ? +d.xmax : 10, yMin: d.ymin != null ? +d.ymin : undefined, yMax: d.ymax != null ? +d.ymax : undefined, samples: d.samples != null ? +d.samples : undefined, editable: d.editable !== "false" };
-  }
-  return null;
+    return {
+      components: splitList(d.components || "X,Y").map((lab, i) => ({ key: lab.toLowerCase(), label: lab, value: isNaN(vals[i]) ? 0 : vals[i], step: num(d.step) ?? 1, min: num(d.min), max: num(d.max) })),
+      pad: flag(d.pad), invertY: d.invertY === "true",
+    };
+  },
+  plot: (d) => ({ expr: d.expr, xMin: num(d.xmin), xMax: num(d.xmax), yMin: num(d.ymin), yMax: num(d.ymax), samples: num(d.samples), editable: d.editable !== "false" }),
+};
+const num = (s) => (s == null ? undefined : +s); // absent attribute → undefined, so the schema default applies
+const flag = (s) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
+const splitList = (s) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
+const dataMeta = (host) => {
+  const d = host.dataset, type = d.tw;
+  if (!hasOwn(DATA_VALUE, type)) return null;
+  const label = d.label || titleCase(d.key || type);
+  const v = DATA_VALUE[type](d, host, label);
+  const meta = metaFor("v", { type, ...v }); // v spreads after `type`, so a parser that re-routes (checkbox + options → radiogrid) wins
+  if (meta) meta.label = v.label || label; // metaFor derived "V" from the key — the dataset's label (or the type's default) is the real one
+  return meta;
 };
 export async function enhance(root: Document | Element = document): Promise<void> {
   // Static showcase panels collapse like the real one: wrap the controls in a
@@ -1362,12 +1312,12 @@ export async function enhance(root: Document | Element = document): Promise<void
     if (!header || !controls) return;
     panel.setAttribute("data-tw-panel-bound", "");
     const body = el("div", "tw-body"); panel.insertBefore(body, controls); body.append(controls);
-    let btn: any = header.querySelector(".tw-header-toggle");
+    let toggle: any = header.querySelector(".tw-header-toggle");
     const title = header.querySelector(".tw-title");
-    if (!btn && title) { btn = el("button", "tw-header-toggle"); btn.type = "button"; title.replaceWith(btn); btn.append(title); }
-    if (!btn) return;
-    btn.setAttribute("aria-expanded", "true");
-    btn.addEventListener("click", () => { const c = panel.classList.toggle("is-collapsed"); btn.setAttribute("aria-expanded", c ? "false" : "true"); });
+    if (!toggle && title) { toggle = btn("tw-header-toggle"); title.replaceWith(toggle); toggle.append(title); }
+    if (!toggle) return;
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.addEventListener("click", () => { const c = panel.classList.toggle("is-collapsed"); toggle.setAttribute("aria-expanded", c ? "false" : "true"); });
     // Copy + reset are part of the component, so the static samples carry them too —
     // the same toolbar tweaks() builds, operating over this panel's own [data-tw]
     // controls (gathered lazily at click time; they're created in the pass below).

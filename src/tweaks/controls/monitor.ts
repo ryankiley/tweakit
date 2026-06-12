@@ -1,13 +1,12 @@
 // ── Monitor + FPS graph — live sparkline / readout. Lazy; registers both types.
-import { el, fitCanvas, accentColor, clamp, registerControl } from "../shared.js";
+import { el, txt, fitCanvas, accentColor, clamp, blade, registerControl } from "../shared.js";
 
 // ── FPS graph — a live monitor blade (Tweakpane's FpsGraph), zero deps ──
 function createFps(meta) {
   const wrap = el("div", "tw-fps");
-  const label = el("span", "tw-fps-label"); label.textContent = meta.label || "FPS";
-  const val = el("span", "tw-fps-val"); val.textContent = "—";
+  const val = txt("span", "tw-fps-val", "—");
   const canvas = document.createElement("canvas"); canvas.className = "tw-fps-canvas";
-  wrap.append(label, val, canvas);
+  wrap.append(txt("span", "tw-fps-label", meta.label || "FPS"), val, canvas);
   const ctx = canvas.getContext("2d");
   const N = 80, samples = new Array(N).fill(0), MAX = 120;
   let i = 0, last = 0, raf = 0, w = 0, h = 0, wasConnected = false;
@@ -39,7 +38,7 @@ function createFps(meta) {
   requestAnimationFrame(() => { resize(); raf = requestAnimationFrame(tick); });
   window.addEventListener("resize", resize);
   window.addEventListener("tw-reflow", resize); // a tab page revealing this control re-fits the canvas (it measured 0 while hidden)
-  return { el: wrap, set: () => {}, get: () => undefined };
+  return blade(wrap);
 }
 
 // ── Monitor — poll any getter on an interval and show it: a number as a sparkline
@@ -54,9 +53,8 @@ function createMonitor(meta) {
   const graph = meta.view === "graph" || (isNum && meta.graph !== false && meta.view !== "text" && meta.rows == null);
 
   const wrap = el("div", "tw-fps tw-monitor");
-  const label = el("span", "tw-fps-label"); label.textContent = meta.label || "Monitor";
-  const val = el("span", "tw-fps-val"); val.textContent = "—";
-  wrap.append(label, val);
+  const val = txt("span", "tw-fps-val", "—");
+  wrap.append(txt("span", "tw-fps-label", meta.label || "Monitor"), val);
 
   let timer = 0, onResize = () => {}, wasConnected = false;
   const fmt = (v) => (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(meta.decimals ?? 2)) : String(v));
@@ -72,10 +70,10 @@ function createMonitor(meta) {
     wrap.append(buf);
     const lines = [];
     poll((v) => { lines.push(fmt(v)); while (lines.length > meta.rows) lines.shift(); buf.textContent = lines.join("\n"); });
-    return { el: wrap, set: () => {}, get: () => undefined };
+    return blade(wrap);
   }
   // Plain readout — just the latest value, refreshed on the interval.
-  if (!graph) { poll((v) => { val.textContent = fmt(v); }); return { el: wrap, set: () => {}, get: () => undefined }; }
+  if (!graph) { poll((v) => { val.textContent = fmt(v); }); return blade(wrap); }
 
   // Sparkline (numbers).
   const canvas = document.createElement("canvas"); canvas.className = "tw-fps-canvas";
@@ -112,7 +110,7 @@ function createMonitor(meta) {
   requestAnimationFrame(() => { onResize(); draw(); });
   window.addEventListener("resize", onResize);
   window.addEventListener("tw-reflow", onResize); // a tab page revealing this control re-fits the canvas (it measured 0 while hidden)
-  return { el: wrap, set: () => {}, get: () => undefined };
+  return blade(wrap);
 }
 
 registerControl("fpsgraph", createFps);
