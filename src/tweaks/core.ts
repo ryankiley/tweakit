@@ -669,16 +669,34 @@ const flashCopied = (btn) => { btn.classList.add("is-copied"); clearTimeout(btn.
 // rest ("interruptible beats staged"). is-spinning lengthens the transition for the
 // spin's run; once settled, the counter renormalises to 0 with the transition suppressed
 // — −n·360° is the same angle, so nothing visibly moves and the counter can't grow forever.
+// "Settled" is the transform's own transitionend, not a fixed timer: the same transform
+// carries the hover wind-up, so any mid-spin retarget (hover engaging or dropping,
+// another click) restarts the transition clock, and a timer tuned to one spin's length
+// would fire mid-flight and snap the icon to rest. At transitionend the angle is exactly
+// −n·360° + wind, so zeroing is invisible however the spin was steered. Two guards: an
+// end arriving <250ms after the click is a stale wind settle dispatched late (a real
+// spin runs ≥500ms from the last click), and the timeout is only a fallback for when no
+// transition runs at all (reduced motion, hidden panel) — it re-arms while one is still
+// live rather than cutting it short.
 const spinReset = (btn) => {
   const svg = btn.querySelector("svg");
+  if (!btn._spinSettle) {
+    btn._spinSettle = () => {
+      clearTimeout(btn._t);
+      btn.classList.remove("is-spinning");
+      svg.style.transition = "none"; svg.style.setProperty("--tw-spin", "0deg");
+      void svg.offsetWidth; svg.style.transition = "";
+    };
+    svg.addEventListener("transitionend", (e) => {
+      if (e.propertyName === "transform" && btn.classList.contains("is-spinning") && performance.now() - btn._spinT > 250) btn._spinSettle();
+    });
+  }
+  btn._spinT = performance.now();
   svg.style.setProperty("--tw-spin", `${(parseFloat(svg.style.getPropertyValue("--tw-spin")) || 0) - 360}deg`);
   btn.classList.add("is-spinning");
   clearTimeout(btn._t);
-  btn._t = setTimeout(() => {
-    btn.classList.remove("is-spinning");
-    svg.style.transition = "none"; svg.style.setProperty("--tw-spin", "0deg");
-    void svg.offsetWidth; svg.style.transition = "";
-  }, 520);
+  const fallback = () => { if (svg.getAnimations && svg.getAnimations().length) btn._t = setTimeout(fallback, 250); else btn._spinSettle(); };
+  btn._t = setTimeout(fallback, 600);
 };
 
 // Toast — the kit's own feedback pill (copy / preset confirmations), portaled to

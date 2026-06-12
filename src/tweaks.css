@@ -221,7 +221,7 @@
  * the top/bottom padding around the title is even (the panel pads 12 all round). */
 .tw-panel.is-collapsed .tw-header { margin-bottom: 0; padding-bottom: 0; border-color: transparent; }
 .tw-toolbar-btn {
-  display: flex; align-items: center; justify-content: center;
+  position: relative; display: flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; padding: 0; flex-shrink: 0;
   background: var(--tw-surface); border: none; border-radius: calc(var(--tw-radius) - 2px);
   color: var(--tw-text-label); cursor: pointer;
@@ -229,7 +229,13 @@
   transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 .tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
-/* Press dips deep + quick; release springs back through --pop so the button feels physical. */
+/* Press dips deep + quick; release springs back through --pop so the button feels physical.
+ * The dip shrinks the box ~1.7px per side, so a cursor parked near the edge would lose
+ * :hover for the press's duration — on the reset button that drops the wind-up mid-spin
+ * and the motion stutters. ::after keeps the at-rest footprint hot through the dip
+ * ((24+4)·0.86 ≈ 24.1 ≥ 24): hover holds anywhere the cursor was over the resting button.
+ * inset −2px stays within the toolbar's 4px gap, so neighbouring halos meet, not overlap. */
+.tw-toolbar-btn::after { content: ""; position: absolute; inset: -2px; }
 .tw-toolbar-btn:active { transform: scale(0.86); transition: transform 0.08s ease-out; }
 .tw-toolbar-btn svg { width: 14px; height: 14px; display: block; }
 /* Contextual icon swap on Copy — copy ⇄ check cross-fade (the site's copy-button
