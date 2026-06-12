@@ -14,7 +14,7 @@
 
 import {
   titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultRange,
-  optValue, optLabel, el, popover, closeActivePopover, stopPointerLeak, applyThemeVars, resolveTheme, onReady,
+  optValue, optLabel, el, popover, placeBelow, closeActivePopover, stopPointerLeak, applyThemeVars, resolveTheme, onReady,
   wireHoverClass, fuzzyMatch, setRadioActive, radioButton, attachScrub, stretchPill, ICON_GRIP, REDUCE_MOTION,
   registerControl, getControl,
 } from "./shared.js";
@@ -714,10 +714,11 @@ function showHint(anchor, text, themeVars) {
   if (scheme) hintTip.setAttribute("data-tw-scheme", scheme); else hintTip.removeAttribute("data-tw-scheme");
   const wasOpen = hintTip.classList.contains("is-open");
   hintTip.style.visibility = "hidden"; hintTip.classList.add("is-open");
-  const r = anchor.getBoundingClientRect(), w = hintTip.offsetWidth, h = hintTip.offsetHeight;
-  const left = clamp(r.left + r.width / 2 - w / 2, 8, window.innerWidth - w - 8);
-  const top = r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8;
-  hintTip.style.left = left + "px"; hintTip.style.top = top + "px"; hintTip.style.visibility = "";
+  // Shared placement: centre on the anchor, prefer above (the tooltip convention),
+  // flip to the side with more room, clamp into the viewport — the same algorithm
+  // every modal uses, so the tip is no longer the one surface with its own path.
+  placeBelow(anchor, hintTip, { align: "center", prefer: "above", gap: 8 });
+  hintTip.style.visibility = "";
   document.addEventListener("keydown", onHintKey);
   hintAnchor = anchor;
   // Unmount watchdog (popover()'s pattern): a host removing the panel mid-hover would

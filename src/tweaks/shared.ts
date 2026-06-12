@@ -93,14 +93,21 @@ const fitCanvas = (canvas, ctx, maxDpr = Infinity) => {
 // clamped into the viewport. width:"match" sizes it to the trigger; a number is the
 // fallback width to use before layout; align:"end" lines up the right edges instead
 // (the presets menu, which hangs off a toolbar button near the panel's right edge).
-const placeBelow = (trigger: any, pop: any, { width, fallbackH = 300, gap = 6, align = "start" }: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end" } = {}) => {
+export const placeBelow = (trigger: any, pop: any, { width, fallbackH = 300, gap = 6, align = "start", prefer = "below" }: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end" | "center"; prefer?: "above" | "below" } = {}) => {
   const r = trigger.getBoundingClientRect();
   if (width === "match") pop.style.width = r.width + "px";
   const w = width === "match" ? r.width : (pop.offsetWidth || width || 0);
-  pop.style.left = Math.max(8, Math.min(align === "end" ? r.right - w : r.left, window.innerWidth - w - 8)) + "px";
-  const h = pop.offsetHeight || fallbackH, below = window.innerHeight - r.bottom;
-  const top = below < h + 12 && r.top > h + 12 ? r.top - h - gap : r.bottom + gap;
-  pop.style.top = clamp(top, gap, window.innerHeight - h - gap) + "px"; // clamp Y into the viewport too (only X was) so a tall picker can't open off a short screen
+  const x = align === "end" ? r.right - w : align === "center" ? r.left + r.width / 2 - w / 2 : r.left;
+  pop.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + "px";
+  const h = pop.offsetHeight || fallbackH;
+  const below = window.innerHeight - r.bottom, above = r.top, need = h + 12;
+  // Open on the preferred side if it fits; else the opposite side if THAT fits; else
+  // whichever side has more room — so a surface too tall for either side overflows the
+  // least, instead of always falling to the preferred side. (prefer="above" = tooltips.)
+  const fitsBelow = below >= need, fitsAbove = above >= need;
+  const goAbove = prefer === "above" ? (fitsAbove || (!fitsBelow && above >= below)) : (!fitsBelow && (fitsAbove || above > below));
+  const top = goAbove ? r.top - h - gap : r.bottom + gap;
+  pop.style.top = clamp(top, gap, window.innerHeight - h - gap) + "px"; // clamp Y into the viewport so a tall surface can't open off a short screen
 };
 
 // ── Theming — the panel runs entirely on --tw-* custom properties, so a theme is
