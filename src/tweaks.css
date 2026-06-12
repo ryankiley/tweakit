@@ -767,7 +767,8 @@
 
 /* ── Spring config — settle-curve preview + stiffness/damping/mass ── */
 .tw-spring { display: flex; flex-direction: column; gap: 8px; background: var(--tw-surface); border-radius: var(--tw-radius); padding: 8px; }
-.tw-spring-viz { width: 100%; height: 56px; border-radius: calc(var(--tw-radius) - 2px); background: var(--tw-base); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); }
+.tw-spring-viz { width: 100%; height: 56px; border-radius: calc(var(--tw-radius) - 2px); background: var(--tw-base); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); cursor: crosshair; touch-action: none; }
+.tw-spring-viz.is-dragging { box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
 .tw-spring-canvas { width: 100%; height: 100%; display: block; }
 /* Labelled numeric fields — shared by Spring, Point, and the Cubic-bezier values */
 .tw-fields { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }

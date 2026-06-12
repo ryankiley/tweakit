@@ -1,5 +1,5 @@
 // ── Spring config — stiffness/damping/mass + settle-curve preview. Lazy.
-import { el, numField, onReady, cssVar, accentColor, registerControl } from "../shared.js";
+import { el, numField, onReady, cssVar, accentColor, clamp, registerControl } from "../shared.js";
 
 // ── Spring config — stiffness / damping / mass + a live settle-curve preview.
 // Closed-form step response of a damped harmonic oscillator (under/critical/over). ──
@@ -52,6 +52,34 @@ function createSpring(meta, onChange) {
     flds[key] = numField({ label: lab, value: s[key], step, min: step }, (v) => { s[key] = v; draw(); emit(); });
     fields.append(flds[key].el);
   });
+  // Draggable preview — drag anywhere in the curve area to tune by feel: horizontal sets
+  // stiffness, vertical sets damping (drag up = less damping = more overshoot, so the
+  // pointer tracks the curve's peak). The fields stay the precise / keyboard path; this is
+  // the direct-manipulation companion (the bezier/point pattern). Mass keeps to its field.
+  const ST_MIN = 1, ST_MAX = 500, DA_MIN = 1, DA_MAX = 40;
+  let vizRect: any = null, dragId: any = null;
+  const fromPointer = (e) => {
+    if (!vizRect) return;
+    const px = clamp((e.clientX - vizRect.left) / vizRect.width, 0, 1);
+    const py = clamp((e.clientY - vizRect.top) / vizRect.height, 0, 1);
+    s.stiffness = Math.round(ST_MIN + px * (ST_MAX - ST_MIN));
+    s.damping = Math.round((DA_MIN + py * (DA_MAX - DA_MIN)) * 10) / 10; // top = low damping
+    flds["stiffness"].set(s.stiffness); flds["damping"].set(s.damping);
+    draw(); emit();
+  };
+  viz.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    vizRect = viz.getBoundingClientRect(); dragId = e.pointerId;
+    try { viz.setPointerCapture(e.pointerId); } catch {}
+    viz.classList.add("is-dragging");
+    fromPointer(e);
+  });
+  viz.addEventListener("pointermove", (e) => { if (e.pointerId === dragId) fromPointer(e); });
+  const endDrag = (e?) => { if (e && dragId !== null && e.pointerId !== dragId) return; dragId = null; vizRect = null; viz.classList.remove("is-dragging"); };
+  viz.addEventListener("pointerup", endDrag);
+  viz.addEventListener("pointercancel", endDrag);
+  viz.addEventListener("lostpointercapture", endDrag); // implicit capture loss ends the drag like a release
   onReady(draw);
   const mq = matchMedia("(prefers-color-scheme: dark)");
   // Once the panel is removed, the next time any of these fires draw() calls teardown(),
