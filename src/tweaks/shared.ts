@@ -292,9 +292,10 @@ function attachScrub(grab, wrap, step, read, apply, text) {
 // Tweakpane grab handle (drag to scrub). The shared building block for the
 // Spring, Point, and Cubic-bezier value editors. ──
 function numField(spec, onChange) {
-  // A 0 or non-finite step divides the round-to-step to NaN; a non-finite seed shows
-  // literal "NaN". set() already guards both — match it at construction.
-  const step = Number.isFinite(+spec.step) && +spec.step !== 0 ? +spec.step : 1, min = spec.min, max = spec.max, decimals = stepPrecision(step);
+  // A 0/negative/non-finite step breaks round-to-step (NaN out of Infinity, inverted
+  // scrub + keyboard from a negative — reachable via a point component's user-supplied
+  // step); a non-finite seed shows literal "NaN". Default both to sane values.
+  const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1, min = spec.min, max = spec.max, decimals = stepPrecision(step);
   const fit = (val) => {
     let n = roundToStep(val, 0, step);
     if (Number.isFinite(min)) n = Math.max(min, n);

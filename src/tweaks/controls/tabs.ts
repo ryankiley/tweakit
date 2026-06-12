@@ -44,6 +44,8 @@ function createTabs(meta) {
     let n = i;
     if (e.key === "ArrowRight") n = (i + 1) % tabs.length;
     else if (e.key === "ArrowLeft") n = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") n = 0; // Home/End jump to the ends — the ARIA tabs pattern, matching the segmented/radiogrid groups
+    else if (e.key === "End") n = tabs.length - 1;
     else return;
     e.preventDefault(); activate(n); tabs[n].focus();
   });

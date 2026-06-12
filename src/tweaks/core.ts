@@ -137,7 +137,12 @@ function baseMetaFor(key, value, depth = 0) {
   if (depth > 64) return null; // a pathologically deep schema degrades to skipped controls instead of a RangeError out of tweaks()
   const label = titleCase(key);
   if (isObj(value) && !Array.isArray(value) && Object.prototype.hasOwnProperty.call(TYPED_META, value.type)) { // hasOwnProperty, so a stray type like "toString" can't hit Object.prototype
-    const meta = TYPED_META[value.type](value, key, label, depth);
+    // A handler that THROWS on a malformed shape (a null components entry, pages: { A: null })
+    // degrades to skipping that control — not a TypeError out of tweaks() that drops the whole
+    // panel. (A falsy return still falls through to shorthand inference, as documented above.)
+    let meta;
+    try { meta = TYPED_META[value.type](value, key, label, depth); }
+    catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
     if (meta) return meta;
   }
   // ── Shorthand inference ──
@@ -188,7 +193,9 @@ function createSlider(meta, onChange) {
   if (!Number.isFinite(max)) max = min + 100;
   if (max < min) { const t = min; min = max; max = t; }
   if (!(step > 0) || step > max - min) step = inferStep(min, max);
-  let value = clamp(Number.isFinite(+meta.value) ? +meta.value : min, min, max), pull = 0; // non-finite seed → min, so a NaN value / garbage data-value can't reach the readout or param; pull = the discrete detent's tension offset (read by render(), called below at construction)
+  const snap = (max - min) / step <= 6; // snap + show rule lines only for a handful of stops; past ~6, snapping at every step felt notchy ("too many places"), so those run continuous
+  const seed = Number.isFinite(+meta.value) ? +meta.value : min; // non-finite seed → min, so a NaN value / garbage data-value can't reach the readout or param
+  let value = meta.soft && !snap ? seed : clamp(seed, min, max), pull = 0; // a soft slider keeps an out-of-range default — the seed is a scripted value, so it follows set()'s soft rule (only the snap slider always clamps, also like set()); pull = the discrete detent's tension offset (read by render(), called below at construction)
   const decimals = stepPrecision(step);
 
   const wrap = el("div", "tw-slider-wrap");
@@ -212,10 +219,8 @@ function createSlider(meta, onChange) {
 
   // Rule lines (hashmarks) live only on the discrete slider — one per step. The
   // continuous slider has none.
-  const discrete = (max - min) / step;
-  const snap = discrete <= 6; // snap + show rule lines only for a handful of stops; past ~6, snapping at every step felt notchy ("too many places"), so those run continuous
   const q = (v) => roundToStep(v, min, step);
-  const marks = snap ? Array.from({ length: Math.max(0, Math.round(discrete) - 1) }, (_, i) => ((i + 1) * step) / (max - min) * 100) : [];
+  const marks = snap ? Array.from({ length: Math.max(0, Math.round((max - min) / step) - 1) }, (_, i) => ((i + 1) * step) / (max - min) * 100) : [];
   for (const pct of marks) { const m = el("div", "tw-slider-hashmark"); m.style.left = pct + "%"; hashes.append(m); }
 
   // value stays continuous for smooth sliders; fill/handle track it directly,
@@ -576,14 +581,14 @@ function createString(meta, onChange) {
   if (meta.placeholder) input.placeholder = meta.placeholder;
   input.addEventListener("input", () => { value = input.value; onChange(value); });
   row.append(label, input);
-  return { el: row, set: (v) => { value = v; input.value = v; }, get: () => value };
+  return { el: row, set: (v) => { value = v == null ? "" : String(v); input.value = value; }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
 }
 
 // ── Number — a typeable field with a Tweakpane-style grab handle (drag to scrub) ──
 function createNumber(meta, onChange) {
   let min = +meta.min, max = +meta.max; // non-finite (absent/garbage) → unbounded, matching fit()'s isFinite guards
   if (Number.isFinite(min) && Number.isFinite(max) && max < min) { const t = min; min = max; max = t; }
-  const step = +meta.step > 0 ? +meta.step : 1; // a 0/negative/NaN step deadened the scrub + keyboard
+  const step = Number.isFinite(+meta.step) && +meta.step > 0 ? +meta.step : 1; // a 0/negative/NaN step deadened the scrub + keyboard; an Infinity step (data-step="Infinity" coerces to it) rounded every value to NaN
   const fit = (v) => {
     let n = roundToStep(v, Number.isFinite(min) ? min : 0, step);
     if (!meta.soft) { if (Number.isFinite(min)) n = Math.max(min, n); if (Number.isFinite(max)) n = Math.min(max, n); }
@@ -770,6 +775,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const listeners = new Set<(p?: any, last?: any) => void>();
   const cleanups: Array<() => void> = []; // every global attachment (document/window listeners, pending timers) registers its release here for destroy()
   let destroyed = false; // flipped by destroy(): assemble() bails, the mutating API methods go silent
+  let assembled = false; // flipped at the end of assemble() — set() queues until the controls exist
+  const preSets: Array<[string, any]> = []; // set() calls from the lazy window, replayed once assemble() has built the controls — a dotted/nested set before then used to warn-and-drop, and a bare nested key minted a top-level orphan while the control kept its default
   let liftSlot = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
   let persist = () => {}; // reassigned below when opts.persist is set (debounced localStorage save)
   // Assigned by assemble() below. Declared here so the API returned synchronously can
@@ -928,9 +935,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (VALUELESS.has(m.type)) { const ctrl = createControl(m, () => {}); if (ctrl) { if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); registerCond(ctrl.el, m); container.append(ctrl.el); } continue; }
       const ctrl = createControl(m, (v) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; params._last = m.key; notify(); }); // same-value emits (a discrete drag inside one detent, a re-entrant echo) don't notify
       if (!ctrl) continue;
-      // A value set() through the API before assemble ran (the lazy-load window on the
-      // split build) wins over the schema default — apply it to the control rather than
-      // clobbering it back with ctrl.get().
+      // A value a host parked on params directly before assemble ran (the lazy-load
+      // window on the split build) wins over the schema default — apply it to the
+      // control rather than clobbering it back with ctrl.get(). (API set() calls from
+      // that window queue in preSets and replay after the build instead.)
       if (Object.prototype.hasOwnProperty.call(target, m.key)) ctrl.set(target[m.key]);
       target[m.key] = ctrl.get();
       const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, def: m.value, path: [...basePath, m.key] };
@@ -1213,6 +1221,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     document.addEventListener("keydown", onUndoKey);
     cleanups.push(() => document.removeEventListener("keydown", onUndoKey));
   }
+  assembled = true;
+  // Replay set() calls queued during the lazy window — after the persisted-session
+  // restore above, so an explicit host set() wins over a stored value the way it wins
+  // over the schema default. Each replays through api.set, so paths resolve against
+  // the real entries and listeners hear the changes.
+  for (const [k, v] of preSets.splice(0)) api.set(k, v);
   for (const b of [copyBtn, resetBtn, presetsBtn, searchBtn]) if (b) b.disabled = false; // the toolbar's handlers are live now
   }; // end assemble
 
@@ -1226,6 +1240,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (destroyed) return;
       const parts = String(key).split(".");
       if (parts.some((p) => p === "__proto__" || p === "constructor" || p === "prototype")) return console.warn(`[tweaks] set("${key}") ignored — reserved key`); // params is an object-as-map; never write through to the prototype
+      if (!assembled) return void preSets.push([String(key), v]); // the lazy window (split build, before ready): the controls don't exist yet, so queue and let assemble() replay — resolving against the real entries instead of warning a nested path away or orphaning a bare key on params
       let e;
       if (parts.length > 1) {
         // Dotted path ("folder.child", "tabs.page.child") — walk the folder/tabs

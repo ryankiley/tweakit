@@ -20,8 +20,9 @@ function createInterval(meta, onChange) {
   const q = (v) => roundToStep(v, min, step);
   // Missing/non-finite tuple entries fall back to the bounds (the .set path already
   // guards this — match it at construction so e.g. value:[5] gives [5, max], not [5, NaN]).
-  const v0 = +meta.value[0], v1 = +meta.value[1];
-  let lo = clamp(q(Number.isFinite(v0) ? v0 : min), min, max), hi = clamp(q(Number.isFinite(v1) ? v1 : max), min, max);
+  // t0/t1 already read the tuple null-safely above — reuse them rather than re-reading
+  // meta.value[0] unguarded (a missing tuple threw here, dropping the whole control).
+  let lo = clamp(q(Number.isFinite(t0) ? t0 : min), min, max), hi = clamp(q(Number.isFinite(t1) ? t1 : max), min, max);
   if (lo > hi) { const t = lo; lo = hi; hi = t; }
 
   const wrap = el("div", "tw-slider-wrap");
@@ -84,6 +85,7 @@ function createInterval(meta, onChange) {
   track.addEventListener("pointermove", (e) => { if (!rect || e.pointerId !== pid) return; if (e.buttons === 0) { up(); return; } grab(e.clientX); });
   const up = (e?) => { if (e && e.pointerId !== pid) return; rect = null; active = null; pid = null; track.classList.remove("is-active", "is-dragging"); };
   track.addEventListener("pointerup", up); track.addEventListener("pointercancel", up);
+  track.addEventListener("lostpointercapture", up); // implicit capture loss ends the drag like a release — a stranded `rect` blocked every future pointerdown on this control (the slider/dragGesture self-heal, mirrored)
   wireHoverClass(track, render); // re-render the value-dodge with the real track width on first hover
   // Harden the dodge against type metrics it can't predict: recompute once layout +
   // fonts settle (a web-font swap or a custom --tw-font-sans shifts the label/value
