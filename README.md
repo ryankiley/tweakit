@@ -38,11 +38,16 @@ code-split build, heavy controls fill in behind `panel.ready`. `enhance(root)` u
 **Size:** ~17 KB gzip code-split (the core entry plus its shared chunk; the color engine
 and heavy controls load on demand), ~32 KB with everything inlined.
 
-## Build
+**Browser support:** evergreen browsers (roughly 2023+). The kit targets ES2020 and its
+styling leans on OKLCH CSS; the color picker upgrades to a Display-P3 canvas where the
+browser supports one and falls back to sRGB elsewhere (feature-detected, no config).
+
+## Build & test
 
 ```
 npm install
 npm run build      # → dist/
+npm test           # build, then the test suite (Node's runner + jsdom)
 ```
 
 `dist/` holds the split chunks, the single file, the CSS, the type declarations, and the
@@ -60,6 +65,10 @@ the one source tree in `src/` + `site/`. `npm run serve` builds and serves it on
 - `site/` — the docs/examples site: `pages/*.mjs` (one module per page; each example's
   code is executed *and* displayed from the same source, so snippets can't drift) and
   `build-site.mjs` (the zero-dependency generator that assembles them into `dist/`).
+- `test/` — the suite `npm test` runs (Node's built-in runner): pure-maths checks
+  bundled straight from `src/` (the wide-gamut engine, the plot expression parser) and
+  jsdom behaviour tests against both built bundles (degrade contracts, `set()`/`on()`/
+  `reset()` round-trips, the code-split lazy window).
 
 ## Credits
 
