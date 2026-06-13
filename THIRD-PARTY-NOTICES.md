@@ -10,7 +10,6 @@ here under the original licenses reproduced below.
 | Icon constant | Origin | License |
 | --- | --- | --- |
 | `ICON_CHECK` | Lucide `check` (← Feather) | MIT |
-| `ICON_MINUS` | Lucide `minus` (← Feather) | MIT |
 | `ICON_CHEVRON` | Lucide `chevron-down` (← Feather) | MIT |
 | `ICON_INFO` | Lucide `info` (← Feather) | MIT |
 | `ICON_X` | Lucide `x` (← Feather), two paths merged | MIT |

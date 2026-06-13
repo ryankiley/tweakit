@@ -300,6 +300,6 @@ const oklchStr = (L, C, H, A) => A < 0.999
   ? `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)} / ${+A.toFixed(3)})`
   : `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)})`;
 
-export { createColor, createPickerBody, parseColor, oklchStr, CHECKER };
+export { createPickerBody, parseColor, oklchStr, CHECKER };
 registerControl("color", createColor);
 

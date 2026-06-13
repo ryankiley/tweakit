@@ -463,6 +463,6 @@ export {
   optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setRadioActive, radioButton, navIndex, triggerRow,
-  numField, blade, quietFocus, stretchPill, measurePill, grabSurface, REDUCE_MOTION,
+  numField, blade, quietFocus, measurePill, grabSurface, REDUCE_MOTION,
 };
 
