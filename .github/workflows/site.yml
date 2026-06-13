@@ -1,0 +1,57 @@
+# Build the kit + docs site, run the tests, deploy dist/ to GitHub Pages.
+#
+# The build job runs on pushes to main AND on pull requests (so a PR carries a
+# build + test signal before merge). The deploy job runs only for main pushes,
+# and is SKIPPED while the repo is private — GitHub Pages needs a public repo on
+# the free plan — and starts deploying automatically on the first push after the
+# public flip. One-time step at the flip: Settings → Pages → Source: "GitHub
+# Actions". Custom domain later: drop a CNAME file into site/static/ and point
+# DNS at GitHub Pages (the site is relative-URL-only, so it works at a subpath
+# or a domain root unchanged).
+name: site
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize per ref: main pushes still queue their deploys one at a time (the old
+# "pages" group, keyed to main's ref), while PR runs get their own lanes instead
+# of queueing behind a deploy.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node --test "test/*.test.mjs" # the suite runs against the dist the step above just built (`npm test` would rebuild); node expands the quoted glob itself, so only *.test.mjs files run (not the _helpers)
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: ${{ github.event_name != 'pull_request' && !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

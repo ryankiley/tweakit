@@ -1,0 +1,483 @@
+/* Tweakability docs shell. Dark monochrome to match the kit (values lifted from the
+ * demo + tweaks.css register). Class prefixes: sb- (sidebar), doc- (content),
+ * ex- (examples), tok- (highlighter), topbar- (mobile bar) — never tw-*. */
+
+:root {
+  color-scheme: light dark;
+  /* ── Dark (default) palette ── */
+  --site-bg: #0f0f0f;
+  --site-border: #202020;
+  --site-border-soft: #1a1a1a;
+  --site-border-hover: #2e2e2e;
+  --site-text: #ededed;
+  --site-muted: #9a9a9a;
+  --site-faint: #6f6f6f;
+  --site-fill-hover: rgba(255, 255, 255, 0.04);
+  --site-fill-active: rgba(255, 255, 255, 0.07);
+  --site-fill-whisper: rgba(255, 255, 255, 0.02);
+  --site-chip-bg: rgba(255, 255, 255, 0.06);
+  --site-chip-text: #dcdcdc;
+  --site-code-bg: #131313;
+  --site-code-border: #1e1e1e;
+  --site-code-fg: #b0b0b0;
+  --site-h1-a: #fafafa;
+  --site-h1-b: #b4b4b4;
+  --site-bloom: rgba(255, 255, 255, 0.045);
+  --site-stage-a: #161616;
+  --site-stage-b: #121212;
+  --site-stage-dot: rgba(255, 255, 255, 0.03);
+  --site-stage-edge: rgba(255, 255, 255, 0.035);
+  --site-pill-a: #171717;
+  --site-pill-b: #121212;
+  --site-pill-edge: rgba(255, 255, 255, 0.04);
+  --site-success: #86efac; /* the kit's --tw-success, per scheme */
+  --site-scrollbar: #2a2a2a;
+  --site-topbar-bg: rgba(15, 15, 15, 0.92);
+  --site-drawer-bg: #121212;
+  --site-drawer-shadow: rgba(0, 0, 0, 0.45);
+  --site-overlay: rgba(0, 0, 0, 0.4);
+  --site-shadow-ink: rgba(0, 0, 0, 0.35);
+  /* Highlighter palette (vivid, Tokyo Night-style — see the tok- block). Colour is
+   * sanctioned in code blocks as content; the chrome around them stays monochrome. */
+  --tok-cm: #6c7396;
+  --tok-pn: #8a8fa3;
+  --tok-str: #9ece6a;
+  --tok-num: #ff9e64;
+  --tok-kw: #bb9af7;
+  --tok-fn: #7aa2f7;
+  --tok-prop: #7dcfff;
+  --tok-key: #73daca;
+  --tok-tag: #f7768e;
+  --tok-attr: #bb9af7;
+  /* Demo scaffolding — the neutral chrome inside example stages (readout chips,
+   * log wells, tiles, soft shadows). Example CSS consumes these so demos flip with
+   * the scheme; content colors (the violet, the photo, the coral ball) stay put. */
+  --demo-ink: #ededed;
+  --demo-muted: #9a9a9a;
+  --demo-faint: #6f6f6f;
+  --demo-fill: rgba(255, 255, 255, 0.05);
+  --demo-fill-soft: rgba(255, 255, 255, 0.035);
+  --demo-line: rgba(255, 255, 255, 0.08);
+  --demo-line-strong: rgba(255, 255, 255, 0.16);
+  --demo-grid: rgba(255, 255, 255, 0.04);
+  --demo-bar: rgba(255, 255, 255, 0.12);
+  --demo-well: #0e0e0e;
+  --demo-well-line: #1f1f1f;
+  --demo-well-ink: #b9b9b9;
+  --demo-shadow: rgba(0, 0, 0, 0.4);
+  --demo-contrast: #ffffff;
+  --site-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  /* Motion vocabulary borrowed from the design system tweakability spun out of. */
+  --site-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --site-ease-in: cubic-bezier(0.32, 0, 0.67, 0);
+  --site-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --site-dur-fast: 160ms;
+  --site-dur-base: 250ms;
+  --site-dur-slow: 420ms;
+  --site-dur-slower: 800ms;
+}
+
+/* ── Light palette — neutral grays, no temperature; soft light per the kit
+ * ("the lights stay clearly light"). Same felt contrast as dark. ── */
+@media (prefers-color-scheme: light) {
+  :root {
+    --site-bg: #f1f1f1;
+    --site-border: #e0e0e0;
+    --site-border-soft: #e8e8e8;
+    --site-border-hover: #cccccc;
+    --site-text: #1b1b1b;
+    --site-muted: #565656;
+    --site-faint: #8a8a8a;
+    --site-fill-hover: rgba(0, 0, 0, 0.05);
+    --site-fill-active: rgba(0, 0, 0, 0.08);
+    --site-fill-whisper: rgba(0, 0, 0, 0.025);
+    --site-chip-bg: rgba(0, 0, 0, 0.05);
+    --site-chip-text: #303030;
+    --site-code-bg: #f9f9f9;
+    --site-code-border: #e4e4e4;
+    --site-code-fg: #4f4f4f;
+    --site-h1-a: #161616;
+    --site-h1-b: #5e5e5e;
+    --site-bloom: rgba(255, 255, 255, 0.55);
+    --site-stage-a: #fafafa;
+    --site-stage-b: #f4f4f4;
+    --site-stage-dot: rgba(0, 0, 0, 0.05);
+    --site-stage-edge: rgba(255, 255, 255, 0.8);
+    --site-pill-a: #fafafa;
+    --site-pill-b: #f2f2f2;
+    --site-pill-edge: rgba(255, 255, 255, 0.8);
+    --site-success: #15803d;
+    --site-scrollbar: #c9c9c9;
+    --site-topbar-bg: rgba(241, 241, 241, 0.92);
+    --site-drawer-bg: #f7f7f7;
+    --site-drawer-shadow: rgba(0, 0, 0, 0.18);
+    --site-overlay: rgba(0, 0, 0, 0.22);
+    --site-shadow-ink: rgba(0, 0, 0, 0.16);
+    /* Tokyo Night's "day" counterparts — same hues, sunk for contrast on the light well. */
+    --tok-cm: #848cb5;
+    --tok-pn: #8d92ad;
+    --tok-str: #587539;
+    --tok-num: #b15c00;
+    --tok-kw: #7847bd;
+    --tok-fn: #2e7de9;
+    --tok-prop: #007197;
+    --tok-key: #118c74;
+    --tok-tag: #f52a65;
+    --tok-attr: #7847bd;
+    --demo-ink: #1b1b1b;
+    --demo-muted: #5a5a5a;
+    --demo-faint: #8e8e8e;
+    --demo-fill: rgba(0, 0, 0, 0.045);
+    --demo-fill-soft: rgba(0, 0, 0, 0.03);
+    --demo-line: rgba(0, 0, 0, 0.1);
+    --demo-line-strong: rgba(0, 0, 0, 0.18);
+    --demo-grid: rgba(0, 0, 0, 0.05);
+    --demo-bar: rgba(0, 0, 0, 0.18);
+    --demo-well: #fbfbfb;
+    --demo-well-line: #e2e2e2;
+    --demo-well-ink: #4a4a4a;
+    --demo-shadow: rgba(0, 0, 0, 0.18);
+    --demo-contrast: #111111;
+  }
+}
+
+/* Inverted, high-contrast selection (the design system's house style). */
+::selection { background: var(--site-text); color: var(--site-bg); }
+
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--site-text);
+  outline-offset: 2px;
+}
+
+/* Cross-document page fade (progressive enhancement; the rail stays put). */
+@view-transition { navigation: auto; }
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+body {
+  margin: 0;
+  background: var(--site-bg);
+  color: var(--site-text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Faint top-of-page light bloom — neutral white, no temperature. Painted as a
+ * negative-z child so it sits over the body background but under all content. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(110% 55% at 50% -12%, var(--site-bloom), transparent 62%);
+}
+
+/* Prose links: monochrome — same ink as the prose, a faded underline that fills in
+ * and brightens on hover (portfolio house style; no accent hue in the chrome). */
+a { color: inherit; text-decoration: none; }
+.doc a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  transition: text-decoration-color var(--site-dur-base) var(--site-ease-out), color var(--site-dur-base) var(--site-ease-out);
+}
+.doc a:hover { text-decoration-color: currentColor; color: var(--site-text); }
+.doc .doc-footnav a { text-decoration: none; }
+
+/* ── Layout ── */
+/* The sidebar is pinned to the left of the viewport; the reading column centres in the
+ * FULL viewport (.doc margin-inline: auto), shifting right only — via the max() padding —
+ * on viewports too narrow for the centred column to clear the fixed sidebar. Perfectly
+ * centred at ≥1280px; below that it eases rightward, no breakpoint jump. */
+.layout { min-height: 100vh; padding-left: max(0px, calc(1280px - 100vw)); }
+
+.sb {
+  position: fixed; left: 0; top: 0;
+  width: 230px; height: 100vh; overflow-y: auto;
+  padding: 26px 18px 40px;
+  scrollbar-width: thin; scrollbar-color: var(--site-scrollbar) transparent;
+}
+.sb-brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 10px 22px; }
+.sb-brand a {
+  color: var(--site-text); font-size: 17px; font-weight: 600; letter-spacing: -0.02em;
+}
+.sb-brand a:hover { text-decoration: none; }
+.sb-brand .sb-gh { display: inline-flex; align-items: center; color: var(--site-muted); transition: color var(--site-dur-fast) var(--site-ease-out); }
+.sb-brand .sb-gh:hover { color: var(--site-text); }
+.sb-brand .sb-gh svg { display: block; width: 18px; height: 18px; }
+.sb-group { margin-bottom: 20px; }
+.sb-section {
+  margin: 0 10px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--site-faint);
+}
+.sb-link {
+  display: block; padding: 5px 10px; border-radius: 8px;
+  color: var(--site-muted); font-size: 14px;
+  transition: color var(--site-dur-fast) var(--site-ease-out), background var(--site-dur-fast) var(--site-ease-out);
+}
+.sb-link:hover { color: var(--site-text); background: var(--site-fill-hover); text-decoration: none; }
+.sb-link.sb-current { color: var(--site-text); background: var(--site-fill-active); font-weight: 500; }
+
+.doc {
+  min-width: 0; max-width: 780px; margin-inline: auto;
+  padding: 44px 44px 96px;
+}
+
+/* Page-to-page transition (matched to design-system / the portfolio's page fade): the
+ * reading column leaves by fading out + dropping 1rem, then the next page fades up into
+ * place; the sidebar + top bar stay put. Cross-document View Transitions on same-origin
+ * navigations — degrades to a plain load where the browser doesn't support them. */
+@view-transition { navigation: auto; }
+.doc { view-transition-name: page; }
+@keyframes page-leave { to { opacity: 0; transform: translateY(1rem); } }
+@keyframes page-enter { from { opacity: 0; transform: translateY(1rem); } }
+::view-transition-old(page) { animation: page-leave var(--site-dur-slow) var(--site-ease-in) both; }
+/* out-in: hold the new page out until the old has left (slow + base), then fade it up. */
+::view-transition-new(page) { animation: page-enter var(--site-dur-slower) cubic-bezier(0, 0, 0.2, 1) calc(var(--site-dur-slow) + var(--site-dur-base)) both; }
+/* Defer the group morph into the dead gap so a scrolled page doesn't slide across. */
+::view-transition-group(page) { animation-delay: var(--site-dur-slow); animation-duration: var(--site-dur-base); animation-timing-function: var(--site-ease-in-out); animation-fill-mode: both; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; } /* nav + top bar stay */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(page), ::view-transition-new(page) { animation-duration: 1ms; animation-delay: 0ms; }
+  ::view-transition-group(page) { animation-delay: 0ms; animation-duration: 1ms; }
+}
+
+/* First load (and browsers without cross-document VT) keep the staggered rise. A real VT
+ * navigation adds .vt-nav (the pagereveal script in the head), suppressing the rise so the
+ * whole-page transition above reads instead — otherwise the VT snapshots a mid-stagger page. */
+@keyframes site-rise { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.vt-nav) .doc > * { animation: site-rise var(--site-dur-slow) var(--site-ease-out) both; }
+  .doc > :nth-child(2) { animation-delay: 60ms; }
+  .doc > :nth-child(3) { animation-delay: 110ms; }
+  .doc > :nth-child(n + 4) { animation-delay: 150ms; }
+}
+
+/* ── Typography ── */
+/* Heading craft from the design system: fluid clamp() sizing, balanced wrapping,
+ * variable-font weights a notch under bold (440/560 — SF Pro and Sans Flex both
+ * interpolate; static fallbacks snap to the nearest face). */
+.doc h1 { margin: 0 0 14px; font-size: clamp(1.7rem, 1.3rem + 1.6vw, 2.1rem); font-weight: 440; letter-spacing: -0.02em; line-height: 1.1; text-wrap: balance; }
+.doc h2 { margin: 52px 0 10px; font-size: 1.3rem; font-weight: 560; letter-spacing: -0.015em; text-wrap: balance; }
+.doc h3 { margin: 32px 0 8px; font-size: 1.05rem; font-weight: 560; }
+.doc p { margin: 0 0 14px; color: var(--site-muted); text-wrap: pretty; }
+.doc p strong, .doc li strong { color: var(--site-text); font-weight: 600; }
+.doc ul, .doc ol { margin: 0 0 14px; padding-left: 22px; color: var(--site-muted); }
+.doc li { margin: 4px 0; text-wrap: pretty; }
+.doc code {
+  font-family: var(--site-mono); font-size: 0.85em;
+  background: var(--site-chip-bg); border: 1px solid var(--site-border-soft);
+  border-radius: 5px; padding: 1px 5px; color: var(--site-chip-text);
+}
+.doc pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
+
+.doc table { border-collapse: collapse; width: 100%; margin: 18px 0 22px; font-size: 13.5px; }
+.doc th { text-align: left; font-weight: 600; color: var(--site-text); padding: 7px 12px 7px 0; border-bottom: 1px solid var(--site-border); }
+.doc td { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--site-border-soft); color: var(--site-muted); vertical-align: top; }
+.doc td:first-child { white-space: nowrap; }
+
+/* Hero (landing page) */
+.hero { margin: 8px 0 36px; }
+.hero h1 {
+  font-size: clamp(2.1rem, 1.5rem + 2.4vw, 2.9rem); margin-bottom: 12px; line-height: 1.08;
+  /* Monochrome depth: white fading to gray down the glyphs — no color temperature. */
+  background: linear-gradient(180deg, var(--site-h1-a) 20%, var(--site-h1-b));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hero p { max-width: 54ch; font-size: 16px; }
+.hero-meta { display: flex; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+.hero-pill {
+  font-size: 12.5px; color: var(--site-muted); border: 1px solid var(--site-border);
+  border-radius: 999px; padding: 4px 12px;
+  background: linear-gradient(180deg, var(--site-pill-a), var(--site-pill-b));
+  box-shadow: inset 0 1px 0 var(--site-pill-edge);
+}
+
+/* ── Examples ── */
+/* One stage per example: the bordered container holds BOTH the demo surface and the
+ * panel, so the panel reads as living inside the scene it controls. */
+.ex { margin: 0 0 56px; scroll-margin-top: 24px; }
+
+/* Hover-revealed section permalink (site.js appends it to each anchored h2). */
+.h-anchor {
+  margin-left: 10px; color: var(--site-faint); font-weight: 440;
+  opacity: 0; transition: opacity var(--site-dur-fast) var(--site-ease-out), color var(--site-dur-fast) var(--site-ease-out);
+}
+.doc .h-anchor { text-decoration: none; }
+.ex h2:hover .h-anchor, .h-anchor:focus-visible { opacity: 1; }
+.h-anchor:hover { color: var(--site-text); }
+
+/* The stage: a faint dot grid over a soft vertical falloff — the design-canvas the
+ * panel floats on — capped with an inset top hairline. */
+.ex-live {
+  display: flex; gap: 20px; align-items: stretch; margin: 18px 0; padding: 18px;
+  border-radius: 12px; border: 1px solid var(--site-border); /* same radius as the code block below it */
+  background:
+    radial-gradient(circle at 1px 1px, var(--site-stage-dot) 1px, transparent 0) 9px 9px / 20px 20px,
+    linear-gradient(180deg, var(--site-stage-a), var(--site-stage-b));
+  box-shadow: inset 0 1px 0 var(--site-stage-edge);
+}
+/* No overflow clip by default — shadows and glows should fade past the demo's bounds.
+ * Demos that genuinely need a viewport crop opt in via their own example CSS. */
+.ex-target {
+  flex: 1; min-width: 0; min-height: 220px; position: relative;
+  display: flex; align-items: center; justify-content: center; padding: 8px;
+  border-radius: 10px;
+}
+.ex-mount { flex: none; align-self: flex-start; } /* sizes to the panel's own 248px */
+.ex-live-solo { justify-content: center; }
+.ex-live-solo .ex-mount { align-self: center; } /* row: vertical centre · column: horizontal centre */
+.ex-live-markup { display: block; }
+.ex-live-markup .ex-target { display: block; min-height: 0; padding: 0; }
+.ex-live-markup .ex-target > div { margin-inline: auto; } /* the block stage has no flex centring — centre the fixed-width example roots */
+
+.ex-codewrap { position: relative; margin: 14px 0; }
+.ex-code {
+  margin: 0; padding: 15px 18px; overflow-x: auto;
+  background: var(--site-code-bg); border: 1px solid var(--site-code-border); border-radius: 12px;
+  font-family: var(--site-mono); font-size: 12.5px; line-height: 1.65; color: var(--site-code-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Copy button — the kit's copy ⇄ check icon swap (opacity + scale + blur cross-fade),
+ * revealed on hover. Tuned per the design system: a borderless ink button (no box to
+ * pixel-snap), block-level icons promoted to their own compositor layer (will-change)
+ * so the blur/scale swap renders steady, and an inverted-ink tooltip with a quick
+ * ease-in hide / soft ease-out show. */
+.ex-copy {
+  position: absolute; top: 6px; right: 6px; z-index: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 8px; border: none; background: transparent; border-radius: 8px;
+  color: var(--site-muted); cursor: pointer; opacity: 0;
+  transition: opacity var(--site-dur-base) var(--site-ease-out), color var(--site-dur-fast) var(--site-ease-out),
+              background var(--site-dur-fast) var(--site-ease-out), box-shadow var(--site-dur-fast) var(--site-ease-out);
+}
+.ex-codewrap:hover .ex-copy, .ex-copy:focus-visible { opacity: 1; }
+/* Filled chip on hover / focus / just-copied — an opaque lift over the code surface
+ * (the kit's hover overlay composited onto --site-code-bg), so the glyph reads as a
+ * button instead of running into the code text behind it (design-system's .icon-btn
+ * hover-fill, adapted to sit over a code block). */
+.ex-copy:hover, .ex-copy:focus-visible, .ex-copy.is-copied {
+  color: var(--site-text);
+  background: linear-gradient(var(--site-fill-active), var(--site-fill-active)), var(--site-code-bg);
+  box-shadow: inset 0 0 0 1px var(--site-border-soft);
+}
+.ex-copy.is-copied { opacity: 1; }
+.ex-copy-icons { position: relative; display: block; width: 15px; height: 15px; }
+.ex-copy-icons svg {
+  position: absolute; inset: 0; display: block; width: 15px; height: 15px;
+  transition: opacity var(--site-dur-base) var(--site-ease-out),
+              transform var(--site-dur-base) var(--site-ease-out),
+              filter var(--site-dur-base) var(--site-ease-out);
+  will-change: opacity, transform, filter;
+}
+.ex-copy-check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: var(--site-success); } /* the kit's --tw-success, per scheme */
+.ex-copy.is-copied .ex-copy-copy { opacity: 0; transform: scale(0.25); filter: blur(2px); }
+.ex-copy.is-copied .ex-copy-check { opacity: 1; transform: none; filter: none; }
+.ex-copy::after {
+  content: attr(aria-label);
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 2;
+  padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+  font-family: inherit; font-size: 12px; font-weight: 500; line-height: 1.3;
+  background: var(--site-text); color: var(--site-bg);
+  box-shadow: 0 4px 12px var(--site-shadow-ink);
+  opacity: 0; transform: translateY(4px) scale(0.96); transform-origin: top right;
+  pointer-events: none;
+  transition: opacity calc(var(--site-dur-base) * 0.6) ease-in, transform calc(var(--site-dur-base) * 0.6) ease-in;
+}
+.ex-copy:hover::after, .ex-copy:focus-visible::after {
+  opacity: 1; transform: none;
+  transition: opacity var(--site-dur-base) var(--site-ease-out), transform var(--site-dur-base) var(--site-ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ex-copy::after { transition: opacity var(--site-dur-fast) ease; transform: none; }
+}
+.ex-note { font-size: 12.5px; color: var(--site-faint); margin-top: -6px; }
+
+/* ── Highlighter tokens — vivid, anchored on the kit's violet: violet keywords/attrs,
+ * blue calls, green strings, orange numbers, teal keys; comments/punctuation recede
+ * into a cool gray. Per-scheme values live on :root. ── */
+.tok-cm { color: var(--tok-cm); font-style: italic; }
+.tok-str { color: var(--tok-str); }
+.tok-num { color: var(--tok-num); }
+.tok-kw { color: var(--tok-kw); }
+.tok-fn { color: var(--tok-fn); }
+.tok-prop { color: var(--tok-prop); }
+.tok-key { color: var(--tok-key); }
+.tok-tag { color: var(--tok-tag); }
+.tok-attr { color: var(--tok-attr); }
+.tok-pn { color: var(--tok-pn); }
+
+/* ── Prev / next footer — bordered cards, arrows nudge on hover ── */
+.doc-footnav {
+  display: flex; justify-content: space-between; gap: 14px;
+  margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--site-border);
+}
+.doc-footnav a {
+  display: flex; flex-direction: column; gap: 3px; flex: 1; max-width: 48%;
+  padding: 13px 17px; border: 1px solid var(--site-border); border-radius: 12px;
+  color: var(--site-text); font-weight: 500; font-size: 14.5px;
+  transition: border-color var(--site-dur-fast) var(--site-ease-out), background var(--site-dur-fast) var(--site-ease-out);
+}
+.doc-footnav a:hover { text-decoration: none; border-color: var(--site-border-hover); background: var(--site-fill-whisper); }
+.doc-footnav a span { font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--site-faint); }
+.doc-footnav .fn-next { text-align: right; margin-left: auto; }
+.fn-prev span::before, .fn-next span::after {
+  display: inline-block; transition: transform var(--site-dur-base) var(--site-ease-out);
+}
+.fn-prev span::before { content: "←"; margin-right: 6px; }
+.fn-next span::after { content: "→"; margin-left: 6px; }
+.fn-prev:hover span::before { transform: translateX(-3px); }
+.fn-next:hover span::after { transform: translateX(3px); }
+
+/* ── Mobile ── */
+.topbar { display: none; }
+/* Drawer below 1000px: the centred column can't both clear the fixed sidebar and stay
+ * wide enough until ~1000px, so the sidebar collapses to a drawer below it (design-system's
+ * model) instead of cramming the content. */
+@media (max-width: 1000px) {
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 50;
+    padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top));
+    background: var(--site-topbar-bg); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--site-border);
+  }
+  .topbar-menu {
+    display: grid; place-items: center; width: 34px; height: 34px;
+    color: var(--site-text); background: none; border: 1px solid var(--site-border);
+    border-radius: 8px; cursor: pointer;
+  }
+  .topbar-brand { color: var(--site-text); font-weight: 600; letter-spacing: -0.02em; font-size: 16px; }
+  .topbar-gh { margin-left: auto; display: inline-flex; align-items: center; color: var(--site-muted); }
+  .topbar-gh:hover { color: var(--site-text); }
+  .topbar-gh svg { display: block; width: 20px; height: 20px; }
+
+  .layout { display: block; padding-left: 0; } /* sidebar is a drawer on mobile — no reserved column */
+  .sb {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 60;
+    height: 100dvh; width: 250px; background: var(--site-drawer-bg);
+    border-right: 1px solid var(--site-border);
+    overscroll-behavior: contain;
+    transform: translateX(-102%); transition: transform 0.22s ease;
+  }
+  body.nav-open .sb { transform: none; box-shadow: 24px 0 60px var(--site-drawer-shadow); }
+
+  /* Dim the page behind the open drawer (clicks pass through; the document
+   * listener in site.js closes it). */
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 55; pointer-events: none;
+    background: var(--site-overlay); opacity: 0; transition: opacity 0.22s ease;
+  }
+  body.nav-open::after { opacity: 1; }
+
+  .doc { padding: 24px 18px 72px; }
+  .ex { scroll-margin-top: 68px; }
+  .ex-live { flex-direction: column; }
+  .ex-mount { align-self: center; }
+}

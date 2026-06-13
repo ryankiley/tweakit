@@ -1,0 +1,57 @@
+{
+  "name": "tweakability",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A dependency-free, code-split real-time parameter panel — sliders, toggles, a wide-gamut OKLCH colour picker, curve editors and more, from a plain schema.",
+  "license": "MIT",
+  "author": "Ryan Kiley",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryankiley/tweakability.git"
+  },
+  "homepage": "https://ryankiley.github.io/tweakability/",
+  "bugs": "https://github.com/ryankiley/tweakability/issues",
+  "keywords": [
+    "gui",
+    "panel",
+    "controls",
+    "parameters",
+    "debug",
+    "tweakpane",
+    "dat.gui",
+    "leva",
+    "oklch",
+    "color-picker",
+    "wide-gamut"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs && node --test \"test/*.test.mjs\"",
+    "prepublishOnly": "node build.mjs && node --test \"test/*.test.mjs\"",
+    "serve": "node build.mjs && python3 -m http.server 4330 --directory dist"
+  },
+  "types": "./dist/types/tweaks/single.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/tweaks/single.d.ts",
+      "import": "./dist/tweaks.js"
+    },
+    "./core": {
+      "types": "./dist/types/tweaks/core.d.ts",
+      "import": "./dist/tweaks/core.js"
+    },
+    "./css": "./dist/tweaks.css"
+  },
+  "files": [
+    "dist/tweaks",
+    "dist/tweaks.js",
+    "dist/tweaks.css",
+    "dist/types",
+    "THIRD-PARTY-NOTICES.md"
+  ],
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^6.0.3"
+  }
+}
