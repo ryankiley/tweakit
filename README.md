@@ -1,11 +1,19 @@
 # Tweakit
 
+[![npm](https://img.shields.io/npm/v/tweakit)](https://www.npmjs.com/package/tweakit)
+
 A dependency-free, code-split, real-time **parameter panel**. Hand it a plain schema and
 it builds a live control for each value — sliders, toggles, dropdowns, a wide-gamut OKLCH
 color picker, gradient and cubic-bézier editors, a spring tuner, monitors, a 2D point pad,
 and more.
 
 **[Docs & live examples →](https://ryankiley.github.io/tweakit/)**
+
+## Install
+
+```
+npm install tweakit
+```
 
 ## Use
 
