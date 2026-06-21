@@ -1,6 +1,6 @@
 {
   "name": "tweakit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "A dependency-free, code-split real-time parameter panel — sliders, toggles, a wide-gamut OKLCH colour picker, curve editors and more, from a plain schema.",
   "license": "MIT",

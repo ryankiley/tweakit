@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-06-20
 
 ### Added
 - The spring control gains a **Time** mode alongside Physics. Physics keeps the
