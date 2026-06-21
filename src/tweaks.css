@@ -763,15 +763,16 @@
 .tw-grab-arrow { position: fixed; width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 7px solid var(--tw-text-label); }
 
 /* ── Folder — collapsible titled group ── */
-/* A hairline above each group disambiguates sections — the folder header reads as a
- * section heading sitting under its own rule. Spacing is balanced so the title has equal
- * room above and below: border + 5px above ≈ the 6px header-to-content gap when open, or
- * the 6px inter-folder gap when collapsed (the body collapses to exactly the header — see
- * below). The leading group skips the rule — it's under the panel header's divider (or a
- * parent folder's) already. */
-.tw-folder { display: flex; flex-direction: column; padding-top: 5px; border-top: 1px solid var(--tw-border); }
-.tw-controls > .tw-folder:first-child { padding-top: 0; border-top: none; }
-.tw-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; padding: 3px 2px; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
+/* Each group is a section framed by hairlines, its title centred in a full row-height
+ * header — the same row rhythm as the controls, so the heading sits in the stack rather
+ * than as a cramped label. Consecutive folders share one rule (the second drops its top
+ * border and tucks up over the gap). The first group (under the panel header's own divider,
+ * or a parent folder's) and the last (against the panel padding) drop their outer rule. */
+.tw-folder { display: flex; flex-direction: column; border-top: 1px solid var(--tw-border); border-bottom: 1px solid var(--tw-border); }
+.tw-folder + .tw-folder { border-top: none; margin-top: -6px; } /* cancel the 6px stack gap so the two rules merge into one shared divider */
+.tw-controls > .tw-folder:first-child { border-top: none; }
+.tw-folder:last-child { border-bottom: none; }
+.tw-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: var(--tw-row-height); padding: 0 2px; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
 .tw-folder-title { font-size: 12px; font-weight: 600; color: var(--tw-text-section); letter-spacing: -0.01em; transition: color 0.15s; }
 /* The whole header reacts on hover — title + chevron brighten together, so the group reads as one toggle. */
 .tw-folder-header:hover .tw-folder-title { color: var(--tw-text-primary); }
@@ -786,10 +787,12 @@
  * opacity together, so the children dissolve rather than just unrolling. */
 /* y-clip only (see .tw-body > .tw-controls) so a slider inside a folder can still
  * rubber-band past its end without the folder's collapse-clip cutting it off. */
-.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; padding-top: 6px; opacity: 1; transition: opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
-/* Collapse the header-to-content padding too, so a collapsed group is exactly its header —
- * the title then sits centred between its rule and the next, matching the open state. */
-.tw-folder.is-collapsed .tw-folder-body > .tw-controls { opacity: 0; padding-top: 0; }
+/* The row-height header already gives the top separation; the body just needs a little
+ * room below its last control before the closing rule. */
+.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; padding-bottom: 8px; opacity: 1; transition: opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+/* Collapse that padding too, so a collapsed group is exactly its header — the title sits
+ * centred in its row between the two rules, matching the open state. */
+.tw-folder.is-collapsed .tw-folder-body > .tw-controls { opacity: 0; padding-bottom: 0; }
 
 /* ── Spring config — settle-curve preview + stiffness/damping/mass ── */
 .tw-spring { display: flex; flex-direction: column; gap: 8px; background: var(--tw-surface); border-radius: var(--tw-radius); padding: 8px; }
