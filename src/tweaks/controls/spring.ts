@@ -1,6 +1,6 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/
 // bounce) mode, over one settle-curve preview. Lazy. ──
-import { el, numField, onReady, onLive, cssVar, accentColor, clamp, dragGesture, createSegmented, registerControl } from "../shared.js";
+import { el, txt, numField, onReady, onLive, cssVar, accentColor, clamp, dragGesture, createSegmented, registerControl } from "../shared.js";
 
 // Closed-form step response of a damped harmonic oscillator (under/critical/over). ──
 function springCurve(k, d, m, N = 64) {
@@ -62,7 +62,7 @@ function createSpring(meta, onChange) {
     const s = resolved();
     // Sample ~one point per device pixel so fast oscillations stay smooth, not angular.
     const pts = springCurve(s.stiffness, s.damping, s.mass, Math.max(160, Math.round(w * dpr)));
-    const peak = Math.max(1.05, ...pts), pad = 6;
+    const peak = Math.max(1.05, ...pts), pad = 8; // matches the bezier editor's PAD (bezier.ts) — the two curve previews inset their plot identically
     const X = (i) => pad + (i / (pts.length - 1)) * (w - 2 * pad);
     const Y = (v) => h - pad - (v / peak) * (h - 2 * pad);
     ctx.strokeStyle = cssVar(root, "--tw-surface-active") || "rgba(255,255,255,0.1)"; ctx.lineWidth = 1;
@@ -89,7 +89,11 @@ function createSpring(meta, onChange) {
   const showMode = () => { timeFields.style.display = mode === "time" ? "" : "none"; physFields.style.display = mode === "physics" ? "" : "none"; };
   const switchMode = (m) => { if ((m !== "time" && m !== "physics") || m === mode) return; mode = m; showMode(); draw(); emit(); };
   const modeToggle = createSegmented([{ value: "time", label: "Time" }, { value: "physics", label: "Physics" }], mode, switchMode, "Spring mode");
-  root.append(viz, modeToggle.el, physFields, timeFields);
+  // The mode switch reuses the panel's row idiom (label left, segmented pill right) — the
+  // same shape as the Off/On toggle and enum selectors — rather than a bespoke full-width pill.
+  const modeRow = el("div", "tw-row");
+  modeRow.append(txt("span", "tw-row-label", "Mode"), modeToggle.el);
+  root.append(viz, modeRow, physFields, timeFields);
 
   // Draggable preview — drag anywhere in the curve area to tune by feel. PHYSICS: horizontal
   // sets stiffness, vertical sets damping (up = less damping = more overshoot, tracking the

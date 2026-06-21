@@ -210,13 +210,13 @@
 .tw-hint:hover, .tw-hint:focus-visible { color: var(--tw-text-secondary); transform: scale(1.2); }
 .tw-hint:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; border-radius: 999px; }
 .tw-hint svg { width: 13px; height: 13px; display: block; }
-.tw-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 6px 9px; font-size: 12px; line-height: 1.4; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
+.tw-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 8px 12px; font-size: 12px; line-height: 1.4; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
 .tw-tip.is-open { opacity: 1; transform: none; }
 /* Toast — the kit's own feedback pill (copy / preset confirmations), portaled to
  * <body> like the tip and sharing its bubble vocabulary: same surface, hairline and
  * shadow tokens (from the shared portal block, which the light twins flip with the
  * other portaled surfaces). Bottom-centre, pointer-transparent, auto-hidden by the JS. */
-.tw-toast { position: fixed; left: 50%; bottom: 24px; z-index: 100000; max-width: min(320px, calc(100vw - 32px)); padding: 7px 14px; font-size: 12px; font-weight: 500; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 999px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translate(-50%, 6px); transition: opacity 0.16s, transform 0.22s var(--tw-ease-spring); }
+.tw-toast { position: fixed; left: 50%; bottom: 24px; z-index: 100000; max-width: min(320px, calc(100vw - 32px)); padding: 8px 16px; font-size: 12px; font-weight: 500; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 999px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translate(-50%, 6px); transition: opacity 0.16s, transform 0.22s var(--tw-ease-spring); }
 .tw-toast.is-open { opacity: 1; transform: translate(-50%, 0); }
 
 /* Collapse — grid-rows 1fr→0fr animates the body height, dependency-free */
@@ -292,7 +292,7 @@
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
   outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px;
 }
-.tw-toolbar-btn:focus-visible, .tw-image-drop:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; }
+.tw-toolbar-btn:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; }
 .tw-gradient-stop:focus-visible, .tw-gradient-add:focus-visible, .tw-bezier-handle:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
 
 /* ── Controls stack ── */
@@ -726,20 +726,20 @@
   -webkit-mask: var(--tw-grip) right bottom / contain no-repeat; mask: var(--tw-grip) right bottom / contain no-repeat;
 }
 
-/* ── Image — a drop-zone with a thumbnail ── */
+/* ── Image — a drop-zone reusing the trigger row: the whole row is the click target
+ * (opens the file dialog) and the drop zone; the thumbnail rides the shared
+ * .tw-trigger-chip (like the color swatch), so there's no inner pill. ── */
+.tw-image { position: relative; }
 .tw-image-input { display: none; }
-.tw-image-drop { display: flex; align-items: center; gap: 7px; min-width: 0; height: 24px; padding: 0 9px 0 4px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface-active); border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-spring); }
-.tw-image-drop:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
-.tw-image-drop:active { transform: scale(0.97); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
-/* Drop affordance is the whole row: a dashed outline + lift appears only while a file
- * is dragged over it (JS toggles [data-over]) — no resting border on the chip. */
-.tw-image-row[data-over="true"] { outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; background: var(--tw-surface-hover); }
-/* While a file's overhead, the chip swells slightly — the row reads as an active target. */
-.tw-image-row[data-over="true"] .tw-image-drop { transform: scale(1.04); background: var(--tw-surface-hover); color: var(--tw-text-primary); }
-.tw-image-thumb { width: 18px; height: 18px; flex-shrink: 0; border-radius: calc(var(--tw-radius) - 4px); background: var(--tw-base) center / cover no-repeat; box-shadow: inset 0 0 0 1px var(--tw-border); transition: transform 0.2s var(--tw-ease-spring); }
-.tw-image-drop:hover .tw-image-thumb { transform: scale(1.08); }
-.tw-image-drop[data-set="false"] .tw-image-thumb { background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 6px 6px; }
-.tw-image-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-image-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The thumbnail chip: trigger-chip gives the 18px height, radius, border + hover pop;
+ * this adds the square width and the image (or checkerboard when unset) fill. */
+.tw-image-thumb { width: 18px; background: var(--tw-base) center / cover no-repeat; }
+.tw-image-thumb[data-set="false"] { background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 6px 6px; }
+/* Drop affordance is the whole row: a dashed outline + a thumb swell appear only while
+ * a file is dragged over it (JS toggles [data-over] on the trigger). */
+.tw-image .tw-trigger[data-over="true"] { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
+.tw-image .tw-trigger[data-over="true"] .tw-image-thumb { transform: scale(1.14); }
 
 /* ── FPS graph (monitor blade) ── */
 .tw-fps {
@@ -819,16 +819,17 @@
  * than deforming them — a clean dissolve, the way an animated auto-height would clip. */
 .tw-folder-body > .tw-controls > * { flex-shrink: 0; }
 
-/* ── Spring config — settle-curve preview + stiffness/damping/mass ── */
-.tw-spring { display: flex; flex-direction: column; gap: 8px; background: var(--tw-surface); border-radius: var(--tw-radius); padding: 8px; }
-.tw-spring-viz { width: 100%; height: 56px; border-radius: calc(var(--tw-radius) - 2px); background: var(--tw-base); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); cursor: crosshair; touch-action: none; }
-.tw-spring-viz.is-dragging { box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
+/* ── Spring config — settle-curve preview + stiffness/damping/mass. Lightweight
+ * containment (cf. Cubic bezier): no outer card — the preview is the only surface,
+ * with the mode toggle + fields sitting bare beneath it. ── */
+.tw-spring { display: flex; flex-direction: column; gap: 6px; }
+.tw-spring-viz { width: 100%; height: 96px; border-radius: var(--tw-radius); background: var(--tw-surface); overflow: hidden; cursor: crosshair; touch-action: none; transition: background 0.15s; }
+.tw-spring-viz:hover { background: var(--tw-surface-hover); }
+/* The resting surface carries no border (cf. bezier), so the grab cue is a subtle inset ring. */
+.tw-spring-viz.is-dragging { background: var(--tw-surface-hover); box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
 .tw-spring-canvas { width: 100%; height: 100%; display: block; }
-/* Spring mode toggle (Time | Physics) — full-width, the two buttons sharing the row
- * equally. The base seg hugs its labels (for the Off/On row toggle), so widen it here and
- * let the pill measure the resulting button geometry. */
-.tw-spring > .tw-seg { width: 100%; }
-.tw-spring > .tw-seg .tw-seg-btn { flex: 1 1 0; min-width: 0; }
+/* The mode switch (Time | Physics) rides the shared row idiom — a .tw-row with a label
+ * left and the segmented pill right (cf. the Off/On toggle), so no bespoke sizing here. */
 /* Labelled numeric fields — shared by Spring, Point, and the Cubic-bezier values */
 .tw-fields { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
 /* ── Point — a trigger row (label + value + a mini pad preview) that opens the 2D pad
@@ -852,7 +853,7 @@
 .tw-pad-axis-y { top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); }
 .tw-pad-thumb { position: absolute; width: 14px; height: 14px; border-radius: 999px; background: var(--tw-accent, var(--tw-text-primary)); border: 2px solid var(--tw-base); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 1px 3px rgba(0, 0, 0, 0.3); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
 .tw-pad.is-grabbing .tw-pad-thumb { transform: translate(-50%, -50%) scale(1.28); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 3px 9px rgba(0, 0, 0, 0.4); }
-.tw-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tw-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .tw-field-label { font-size: 10px; font-weight: 600; letter-spacing: 0.02em; color: var(--tw-text-tertiary); text-transform: uppercase; }
 .tw-field .tw-num-wrap { background: var(--tw-base); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 3px 4px; gap: 2px; transition: border-color 0.15s; }
 /* Focused field lifts its border — the same cue the plot field + colour channels give, now on Spring / Point / Bezier / colour-channel fields too. */
@@ -862,7 +863,7 @@
 
 /* ── Cubic bezier — interactive curve editor (plugin-essentials CubicBezier) ── */
 .tw-bezier { display: flex; flex-direction: column; gap: 6px; }
-.tw-bezier-graph { position: relative; width: 100%; height: 140px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; touch-action: none; }
+.tw-bezier-graph { position: relative; width: 100%; height: 96px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; touch-action: none; }
 .tw-bezier-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .tw-bezier-guide { stroke: var(--tw-border); stroke-width: 1; }
 .tw-bezier-diag { stroke: var(--tw-surface-active); stroke-width: 1; stroke-dasharray: 2 3; }
@@ -877,7 +878,7 @@
 }
 .tw-bezier-handle:hover { transform: translate(-50%, -50%) scale(1.2); }
 .tw-bezier-handle.is-dragging { cursor: grabbing; transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 3px 9px rgba(0, 0, 0, 0.45); }
-.tw-bezier-fields { gap: 5px; }
+.tw-bezier-fields { gap: 4px; }
 
 /* Plot — a function graph with an editable, safely-parsed expression. */
 .tw-plot { display: flex; flex-direction: column; gap: 6px; }
