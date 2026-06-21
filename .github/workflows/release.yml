@@ -4,9 +4,11 @@
 # → Actions) — an npm Automation token for the first publish, or a Granular
 # Access token scoped to the `tweakit` package once it exists.
 #
-# Release flow: bump the version in package.json + package-lock.json, commit,
-# then `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag must match the
-# package.json version or the run fails before publishing.
+# Release flow: bump the version in package.json + package-lock.json, commit, then
+# publish a GitHub Release for vX.Y.Z (its notes are the changelog). Publishing the
+# Release creates the matching tag, which triggers this workflow. The tag must match the
+# package.json version or the run fails before publishing. (A bare `git tag vX.Y.Z &&
+# git push origin vX.Y.Z` still works if you don't want a GitHub Release.)
 name: release
 
 on:
