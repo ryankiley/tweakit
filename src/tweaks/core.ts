@@ -587,7 +587,10 @@ function createFolder(meta) {
   const body = el("div", "tw-folder-body");
   const inner = el("div", "tw-controls"); body.append(inner);
   root.append(header, body);
-  const setCollapsed = (c) => { root.classList.toggle("is-collapsed", c); header.setAttribute("aria-expanded", c ? "false" : "true"); };
+  // inert on the collapsed body takes its (still-mounted, clip-faded) controls out of the
+  // tab order + a11y tree — otherwise a keyboard/SR user lands on invisible zero-height rows
+  // that aria-expanded="false" claims are hidden. Synchronous, so it's correct under reduced-motion.
+  const setCollapsed = (c) => { root.classList.toggle("is-collapsed", c); header.setAttribute("aria-expanded", c ? "false" : "true"); body.inert = c; };
   header.addEventListener("click", () => setCollapsed(!root.classList.contains("is-collapsed")));
   // setCollapsed lets the panel read + restore the open/closed state (toJSON/fromJSON).
   return { el: root, body: inner, setCollapsed };
@@ -846,6 +849,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (dragMoved) { dragMoved = false; return; }
     const collapsed = panel.classList.toggle("is-collapsed");
     titleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    body.inert = collapsed; // same a11y reason as the folder: a collapsed panel's controls leave the tab order + a11y tree
     // A bottom-parked floating panel grows past the viewport when it expands — re-clamp
     // once the 0.25s body collapse has settled and the height is real.
     if (panel.dataset.mode === "floating") setTimeout(() => { if (panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } }, 270);
@@ -1413,7 +1417,7 @@ export async function enhance(root: Document | Element = document): Promise<void
     if (!toggle && title) { toggle = btn("tw-header-toggle"); title.replaceWith(toggle); toggle.append(title); }
     if (!toggle) return;
     toggle.setAttribute("aria-expanded", "true");
-    toggle.addEventListener("click", () => { const c = panel.classList.toggle("is-collapsed"); toggle.setAttribute("aria-expanded", c ? "false" : "true"); });
+    toggle.addEventListener("click", () => { const c = panel.classList.toggle("is-collapsed"); toggle.setAttribute("aria-expanded", c ? "false" : "true"); body.inert = c; });
     // Copy + reset are part of the component, so the static samples carry them too —
     // the same toolbar tweaks() builds, operating over this panel's own [data-tw]
     // controls (gathered lazily at click time; they're created in the pass below).

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Folders collapse and expand with a smoother fade — the controls fade and clip away
+  together instead of squashing and stretching, and the caret turns in step with them.
+
+### Fixed
+- A collapsed folder (or a collapsed panel) no longer leaves its hidden controls in the
+  keyboard tab order and accessibility tree.
+- Removed extra empty space at the bottom of a panel whose last item is a folder.
+
 ## 0.2.0 — 2026-06-20
 
 ### Added

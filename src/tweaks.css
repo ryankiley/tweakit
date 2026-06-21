@@ -72,6 +72,12 @@
   --tw-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
   --tw-ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
   --tw-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* --fold is a folder's open/shut settle: a normalised spring position-curve (the kit's
+   * own spring tuner at visualDuration 0.35s, bounce 0.1) sampled into linear(). Unlike the
+   * three eases above — all front-loaded ease-outs — a spring starts from rest, so the curve
+   * is a soft S: the children dissolve gradually in lockstep with the height instead of
+   * blinking off in the first 60ms. Pairs with a 0.35s duration to let the full settle land. */
+  --tw-ease-fold: linear(0, 0.077, 0.237, 0.411, 0.570, 0.699, 0.797, 0.869, 0.918, 0.952, 0.973, 0.986, 0.994, 0.998, 1);
 
   font-family: var(--tw-font-sans);
   /* Pin the line-height the design's vertical metrics were built against. Buttons use
@@ -779,20 +785,37 @@
 .tw-folder-header:hover .tw-chevron { color: var(--tw-text-primary); }
 /* Same optical pull as the select chevron: its 15px box carries 3.75px of side-bearing,
  * so the glyph's visible edge lands at the title's 2px inset rather than ~5.75px in. */
-.tw-folder-header .tw-chevron { color: var(--tw-text-section); margin-right: -3.75px; }
-.tw-folder.is-collapsed .tw-folder-header .tw-chevron { transform: rotate(-90deg); }
-.tw-folder-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+/* The folder caret rides the body's own 0.35s --fold clock (not the shared 0.2s chevron
+ * transition), so it rotates in lockstep with the fade instead of snapping ~0.15s ahead. */
+.tw-folder-header .tw-chevron { color: var(--tw-text-section); margin-right: -3.75px; transition: transform 0.35s var(--tw-ease-fold), color 0.15s; }
+/* Collapsed caret flips to point up (open is the resting down-chevron) — an up/down toggle. */
+.tw-folder.is-collapsed .tw-folder-header .tw-chevron { transform: rotate(180deg); }
+/* contain: layout isolates the fold's per-frame track re-sizing (the subtree stays mounted +
+ * clipped, so it lays out every frame for 0.35s) from the rest of the panel. */
+.tw-folder-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s var(--tw-ease-fold); contain: layout; }
 .tw-folder.is-collapsed .tw-folder-body { grid-template-rows: 0fr; }
-/* Fade the nested controls as the folder collapses — animating height AND
- * opacity together, so the children dissolve rather than just unrolling. */
+/* Fade the nested controls as the folder collapses — height AND opacity share the
+ * same spring settle (--fold) over the same 0.35s, so the children dissolve in
+ * lockstep with the unrolling rather than blinking off ahead of it. */
 /* y-clip only (see .tw-body > .tw-controls) so a slider inside a folder can still
  * rubber-band past its end without the folder's collapse-clip cutting it off. */
 /* The row-height header already gives the top separation; the body just needs a little
  * room below its last control before the closing rule. */
-.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; padding-bottom: 8px; opacity: 1; transition: opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; padding-bottom: 8px; opacity: 1; transition: opacity 0.35s var(--tw-ease-fold), padding-bottom 0.35s var(--tw-ease-fold); }
 /* Collapse that padding too, so a collapsed group is exactly its header — the title sits
  * centred in its row between the two rules, matching the open state. */
 .tw-folder.is-collapsed .tw-folder-body > .tw-controls { opacity: 0; padding-bottom: 0; }
+/* That 8px only exists to clear the folder's bottom hairline. The last folder drops the
+ * hairline (border-bottom:none above), so the padding is redundant there — it would stack
+ * on the panel's own bottom padding as dead space. Drop it so a panel ending in a folder
+ * closes like one ending in a plain control (panel padding only). */
+.tw-folder:last-child .tw-folder-body > .tw-controls { padding-bottom: 0; }
+/* Hold each control at full height while the body collapses. The grid track constrains
+ * .tw-controls, and as a flex column it would otherwise shrink its rows to fit — they'd
+ * squash on collapse and stretch on open. flex-shrink:0 keeps every row at its natural
+ * size so the overflow-y:clip wipes them away top-down (and the opacity fades them) rather
+ * than deforming them — a clean dissolve, the way an animated auto-height would clip. */
+.tw-folder-body > .tw-controls > * { flex-shrink: 0; }
 
 /* ── Spring config — settle-curve preview + stiffness/damping/mass ── */
 .tw-spring { display: flex; flex-direction: column; gap: 8px; background: var(--tw-surface); border-radius: var(--tw-radius); padding: 8px; }
