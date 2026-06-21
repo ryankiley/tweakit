@@ -764,11 +764,13 @@
 
 /* ── Folder — collapsible titled group ── */
 /* A hairline above each group disambiguates sections — the folder header reads as a
- * section heading sitting under its own rule. The leading group in a container skips it:
- * the line separates one section from the previous, so the first (right under the panel
- * header's divider, or a parent folder's) needs none. */
-.tw-folder { display: flex; flex-direction: column; margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--tw-border); }
-.tw-controls > .tw-folder:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+ * section heading sitting under its own rule. Spacing is balanced so the title has equal
+ * room above and below: border + 5px above ≈ the 6px header-to-content gap when open, or
+ * the 6px inter-folder gap when collapsed (the body collapses to exactly the header — see
+ * below). The leading group skips the rule — it's under the panel header's divider (or a
+ * parent folder's) already. */
+.tw-folder { display: flex; flex-direction: column; padding-top: 5px; border-top: 1px solid var(--tw-border); }
+.tw-controls > .tw-folder:first-child { padding-top: 0; border-top: none; }
 .tw-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; padding: 3px 2px; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
 .tw-folder-title { font-size: 12px; font-weight: 600; color: var(--tw-text-section); letter-spacing: -0.01em; transition: color 0.15s; }
 /* The whole header reacts on hover — title + chevron brighten together, so the group reads as one toggle. */
@@ -785,7 +787,9 @@
 /* y-clip only (see .tw-body > .tw-controls) so a slider inside a folder can still
  * rubber-band past its end without the folder's collapse-clip cutting it off. */
 .tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; padding-top: 6px; opacity: 1; transition: opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
-.tw-folder.is-collapsed .tw-folder-body > .tw-controls { opacity: 0; }
+/* Collapse the header-to-content padding too, so a collapsed group is exactly its header —
+ * the title then sits centred between its rule and the next, matching the open state. */
+.tw-folder.is-collapsed .tw-folder-body > .tw-controls { opacity: 0; padding-top: 0; }
 
 /* ── Spring config — settle-curve preview + stiffness/damping/mass ── */
 .tw-spring { display: flex; flex-direction: column; gap: 8px; background: var(--tw-surface); border-radius: var(--tw-radius); padding: 8px; }
