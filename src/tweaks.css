@@ -43,11 +43,11 @@
   --tw-radius: 8px;
   --tw-row-height: 32px;
   --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
-  /* Container elevation — on dark, the readable cues are the 1px rim-light and the lit
-   * top edge (they separate the panel from the page where a black shadow can't), backed
-   * by a layered soft pool. -lifted deepens it while floating / being dragged. */
-  --tw-shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.5), 0 16px 32px -8px rgba(0, 0, 0, 0.6), 0 32px 64px -16px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.09);
-  --tw-shadow-panel-lifted: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 6px 16px -3px rgba(0, 0, 0, 0.6), 0 36px 80px -18px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  /* Container elevation — a faint 1px rim-light separates the panel from the page (a black
+   * shadow alone can't on dark), backed by a soft, subdued pool (no lit top edge).
+   * -lifted deepens it a touch while floating / being dragged. */
+  --tw-shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 28px -8px rgba(0, 0, 0, 0.5), 0 18px 48px -16px rgba(0, 0, 0, 0.38);
+  --tw-shadow-panel-lifted: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px -8px rgba(0, 0, 0, 0.55), 0 28px 64px -16px rgba(0, 0, 0, 0.45);
   /* Success accent — the copy-confirmation check. Self-contained (no host --green-*
    * or color-scheme reliance); flips in the light-mode block below like every other
    * --tw-* colour, so the kit confirms in green wherever it's lifted. */

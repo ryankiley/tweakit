@@ -5,6 +5,8 @@
 ### Changed
 - Folders collapse and expand with a smoother fade — the controls fade and clip away
   together instead of squashing and stretching, and the caret turns in step with them.
+- The panel's drop shadow is softer and more subdued, and no longer draws a lit
+  highlight along its top edge.
 
 ### Fixed
 - A collapsed folder (or a collapsed panel) no longer leaves its hidden controls in the
