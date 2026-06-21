@@ -1,28 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Changed
-- Folders collapse and expand with a smoother fade — the controls fade and clip away
-  together instead of squashing and stretching, and the caret turns in step with them.
-- The panel's drop shadow is softer and more subdued, and no longer draws a lit
-  highlight along its top edge.
-- The **spring** control sheds its outer container — the settle-curve preview is now the
-  only surface (matching the cubic-bézier editor), and the Time | Physics switch sits in a
-  standard labelled row (label left, segmented pill right) rather than a full-width bar.
-- The **spring** and **cubic-bézier** curve previews share one height now (96px): the spring
-  preview is taller, so its overshoot reads more clearly; the bézier graph is a touch shorter.
-- The **image** control is a single full-width row — the whole row is the click target
-  (opens the file dialog) and the drop zone, with the thumbnail riding the shared preview
-  chip like the color swatch. The inner button/pill is gone.
-- Spacing tidy: assorted control paddings and gaps, plus the tooltip and toast, snap onto
-  the 4 / 8px grid.
-
-### Fixed
-- A collapsed folder (or a collapsed panel) no longer leaves its hidden controls in the
-  keyboard tab order and accessibility tree.
-- Removed extra empty space at the bottom of a panel whose last item is a folder.
-
 ## 0.2.0 — 2026-06-20
 
 ### Added
@@ -52,12 +29,29 @@
   reads as a section under its own rule — clearer separation in panels that mix top-level
   controls with grouped sections. The leading group in a container skips the rule (it has
   the panel header's divider, or its parent folder's, above it already).
+- Folders collapse and expand with a smoother fade — the controls fade and clip away
+  together instead of squashing and stretching, and the caret turns in step with them.
+- The panel's drop shadow is softer and more subdued, and no longer draws a lit
+  highlight along its top edge.
+- The **spring** control sheds its outer container — the settle-curve preview is now the
+  only surface (matching the cubic-bézier editor), and the Time | Physics switch sits in a
+  standard labelled row (label left, segmented pill right) rather than a full-width bar.
+- The **spring** and **cubic-bézier** curve previews share one height now (96px): the spring
+  preview is taller, so its overshoot reads more clearly; the bézier graph is a touch shorter.
+- The **image** control is a single full-width row — the whole row is the click target
+  (opens the file dialog) and the drop zone, with the thumbnail riding the shared preview
+  chip like the color swatch. The inner button/pill is gone.
+- Spacing tidy: assorted control paddings and gaps, plus the tooltip and toast, snap onto
+  the 4 / 8px grid.
 
 ### Fixed
 - A segmented control (the Off/On toggle, the spring's new mode switch) built inside a
   non-default tab page measured its active pill while the page was `display:none`, leaving
   the pill stranded at the left edge (0×0) until the next edit or resize. It now re-measures
   on the tab-reveal `tw-reflow` event, the same hook the canvas controls already used.
+- A collapsed folder (or a collapsed panel) no longer leaves its hidden controls in the
+  keyboard tab order and accessibility tree.
+- Removed extra empty space at the bottom of a panel whose last item is a folder.
 
 ## 0.1.0 — 2026-06-13
 
