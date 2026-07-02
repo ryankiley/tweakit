@@ -43,4 +43,4 @@ const ensureForMetas = (metas) => {
   return pend.length ? Promise.all(pend) : null;
 };
 
-export { ensureForMetas };
+export { ensureForMetas, LAZY_IMPORT }; // LAZY_IMPORT is exported for the registry sync test only

@@ -5,6 +5,7 @@
  * test/registry.test.mjs cross-checks the tables so they can't drift apart. */
 import { titleCase, isColorStr, inferStep, defaultRange, optValue } from "./shared.js";
 import { showToast } from "./feedback.js";
+import type { SchemaObject } from "./types.js";
 
 // Parse one schema entry → a control meta. Returns null for unknown shapes.
 // Per-control options (render / disabled / hint) ride on any object-form value; the
@@ -37,7 +38,11 @@ const valueChanged = (a, b) => a !== b && !(isObj(a) && isObj(b) && JSON.stringi
 // The explicit slider/number/checkbox forms exist so shorthand controls can carry
 // options (render / disabled / hint / step) the array/boolean shorthands can't.
 const radiogridMeta = (v, key, label) => Array.isArray(v.options) && { type: "radiogrid", key, label, options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
-const TYPED_META: Record<string, (v: any, key: string, label: string, depth?: number) => any> = {
+// Typed against the public SchemaObject union, so tsc itself flags a control type
+// added to types.ts but missing here (or a stray key with no public form). "button"
+// is the one exception — it has no handler because the `{ action }` shorthand
+// inference below already covers the verbose form.
+const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: string, label: string, depth?: number) => any> = {
   slider: (v, key, label) => { const mn = v.min ?? 0, mx = v.max ?? 1; return { type: "slider", key, label, value: v.value ?? mn, min: mn, max: mx, step: v.step ?? inferStep(mn, mx), soft: v.soft }; },
   number: (v, key, label) => ({ type: "number", key, label, value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
   checkbox: (v, key, label) => ({ type: "checkbox", key, label, value: !!v.value }),
@@ -144,7 +149,9 @@ const VALUELESS = new Set(["button", "fpsgraph", "monitor", "buttongroup", "sepa
 // derivation for both entry points. The markup branch used to re-derive every meta by
 // hand, and markup-only defaults drifted (a list with no data-value rendered a blank
 // readout while the schema path defaulted to the first option).
-const DATA_VALUE: Record<string, (d: any, host: any, label: string) => any> = {
+// Partial over the same public union: every markup type must be a real control type
+// (tsc flags a typo'd key), but not every control needs a markup form.
+const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: any, host: any, label: string) => any>> = {
   slider: (d) => ({ value: num(d.value), min: num(d.min) ?? 0, max: num(d.max) ?? 100, step: num(d.step), soft: flag(d.soft) }),
   // A list of options is a single-select → radio grid; a bare checkbox is boolean.
   checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
