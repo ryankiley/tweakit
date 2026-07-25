@@ -3,25 +3,21 @@
  * wrapper every builder calls. Statically imported by the entry, unlike the lazy
  * siblings in this directory, so basic panels build synchronously. */
 import {
-  el, btn, txt, clamp, stepPrecision, roundToStep, inferStep, optValue, optLabel,
+  el, btn, txt, clamp, stepPrecision, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel,
   popover, radioButton, setRadioActive, navIndex, createSegmented, numField, blade,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl,
+  EASE_SPRING, EASE_GLIDE,
 } from "../shared.js";
-import { ICON_CHEVRON } from "../icons.js";
+import { ICON_CHEVRON, chevronIcon } from "../icons.js";
 
 // ── Slider control ──
 const CLICK_THRESHOLD = 3, DEAD_ZONE = 32, MAX_CURSOR_RANGE = 200, MAX_STRETCH = 8;
 function createSlider(meta, onChange) {
   const label = meta.label;
-  // Normalise the range before anything reads it: non-finite bounds get defaults, an
-  // inverted pair swaps (a backwards schema/markup used to clamp the value to the wrong
-  // end), and a degenerate step re-infers — every slider source (schema shorthand,
-  // verbose form, [data-tw] markup) funnels through here.
-  let min = +meta.min, max = +meta.max, step = +meta.step;
-  if (!Number.isFinite(min)) min = 0;
-  if (!Number.isFinite(max)) max = min + 100;
-  if (max < min) { const t = min; min = max; max = t; }
-  if (!(step > 0) || step > max - min) step = inferStep(min, max);
+  // Normalise the range before anything reads it (normalizeRange, shared with the
+  // interval) — every slider source (schema shorthand, verbose form, [data-tw]
+  // markup) funnels through it.
+  const { min, max, step } = normalizeRange(meta.min, meta.max, meta.step);
   const snap = (max - min) / step <= 6; // snap + show rule lines only for a handful of stops; past ~6, snapping at every step felt notchy ("too many places"), so those run continuous
   const seed = Number.isFinite(+meta.value) ? +meta.value : min; // non-finite seed → min, so a NaN value / garbage data-value can't reach the readout or param
   let value = meta.soft && !snap ? seed : clamp(seed, min, max), pull = 0; // a soft slider keeps an out-of-range default — the seed is a scripted value, so it follows set()'s soft rule (only the snap slider always clamps, also like set()); pull = the discrete detent's tension offset (read by render(), called below at construction)
@@ -72,26 +68,19 @@ function createSlider(meta, onChange) {
     // dims right as it reaches the number, not a fixed fraction early.
     const trackW = wrap.offsetWidth;
     if (trackW) {
-      // Dodge tracks the handle's *actual* span: the hairline sits at pct%−9 (3px wide),
-      // so comparing that span against the label/value text edges fixes the early-dim.
-      const hOff = 9, hw = 3;
-      let hx = Math.max(5, (pct / 100) * trackW + pull - hOff);
-      const M = 0; // pure overlap on both edges: dim the handle only while it truly covers the label/value and re-show it the instant it clears. (The old 6px value-side buffer dimmed the OG handle a few px early AND kept it dimmed past the readout at the max — so the handle vanished on the trailing edge.)
-      const labelLeft = labelEl.offsetLeft, labelRight = labelLeft + labelEl.offsetWidth;  // leading label's span — read live, so it tracks the CSS left + font width and can't drift
-      const valueLeft = valueEl.offsetLeft, valueRight = valueLeft + valueEl.offsetWidth;  // trailing value's span — read live, same reason
-      // The title: dodge only while the handle actually overlaps it, so the handle
-      // reappears the instant it clears — no fixed buffer to sit behind (which reads
-      // as a lag past a short title like "Y"). The value keeps that near-miss buffer for the OG only.
-      const overLabel = hx < labelRight && hx + hw > labelLeft;
-      const overValue = hx < valueRight + M && hx + hw > valueLeft - M;
-      track.classList.toggle("is-dodge", overLabel || overValue);
+      // Dodge tracks the handle's *actual* span: the hairline renders at pct%−9px
+      // (3px wide), tested for pure overlap against the live-measured label/value
+      // spans (overlapsText, shared with the interval) — the handle dims only while
+      // it truly covers the text and re-shows the instant it clears.
+      const hx = Math.max(5, (pct / 100) * trackW + pull - 9);
+      track.classList.toggle("is-dodge", overlapsText(labelEl, valueEl, hx, 3));
     }
   };
   render();
 
   let rect = null, scale = 1, downPos = null, isClick = true, snapTimer, fineAnchor = null, downId = null;
-  const GLIDE_FILL = "width 0.34s cubic-bezier(0.34,1.2,0.64,1)";
-  const GLIDE_HANDLE = "left 0.34s cubic-bezier(0.34,1.2,0.64,1), opacity 0.15s, transform 0.2s cubic-bezier(0.22,1,0.36,1)";
+  const GLIDE_FILL = `width 0.34s ${EASE_GLIDE}`;
+  const GLIDE_HANDLE = `left 0.34s ${EASE_GLIDE}, opacity 0.15s, transform 0.2s ${EASE_SPRING}`;
   // Discrete detent — an eager spring-commit (the "snap sooner" model picked in the slider
   // lab). The value COMMITS at 30% of the gap — sooner than a midpoint snap — and the handle
   // SPRINGS to the committed notch: magnetised to the step, it resists the pull, then breaks
@@ -206,7 +195,7 @@ function createSlider(meta, onChange) {
       snapTimer = setTimeout(() => { fill.style.transition = ""; handle.style.transition = ""; }, 360);
       track.classList.remove("is-active", "is-dragging");
     }
-    track.style.transition = "width 0.35s cubic-bezier(0.22,1,0.36,1), transform 0.35s cubic-bezier(0.22,1,0.36,1)";
+    track.style.transition = `width 0.35s ${EASE_SPRING}, transform 0.35s ${EASE_SPRING}`;
     track.style.width = ""; track.style.transform = "";
     setTimeout(() => { track.style.transition = ""; }, 360);
     downPos = null; fineAnchor = null; downId = null;
@@ -224,17 +213,8 @@ function createSlider(meta, onChange) {
   onLive(track, [[window, "resize"]], render); // self-cleans once the panel leaves the DOM
   track.addEventListener("keydown", (e) => {
     if (snap) { springStop(); pull = 0; } // keyboard steps are instant — cancel any in-flight settle + its offset
-    const coarse = e.shiftKey ? 10 : 1, page = (max - min) / 10 || step * 10;
-    let nv = value;
-    switch (e.key) {
-      case "ArrowRight": case "ArrowUp": nv = value + step * coarse; break;
-      case "ArrowLeft": case "ArrowDown": nv = value - step * coarse; break;
-      case "PageUp": nv = value + page; break;
-      case "PageDown": nv = value - page; break;
-      case "Home": nv = min; break;
-      case "End": nv = max; break;
-      default: return;
-    }
+    const nv = rangeStep(e, value, step, min, max, (max - min) / 10 || step * 10); // the shared range keyboard model (arrows/⇧/Page/Home/End)
+    if (nv == null) return;
     e.preventDefault();
     set(clamp(nv, min, max));
   });
@@ -297,7 +277,7 @@ function createRadiogrid(meta, onChange) {
 }
 
 // ── Select ──
-const CHEVRON = `<svg class="tw-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+const CHEVRON = chevronIcon("tw-select-chevron"); // the shared chevron shape, in the select's own class
 function createSelect(meta, onChange) {
   let value = meta.value;
   const opts = meta.options.map((o) => ({ value: optValue(o), label: optLabel(o) }));

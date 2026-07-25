@@ -1,6 +1,6 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, grabSurface, boxFrac, numField, popover, triggerRow, quietFocus, registerControl } from "../shared.js";
+import { el, txt, clamp, rangeStep, grabSurface, boxFrac, numField, popover, triggerRow, quietFocus, registerControl } from "../shared.js";
 import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 
 // ── Colour — one module: a row that opens a dropdown OKLCH picker. Ported from
@@ -245,15 +245,8 @@ function createPickerBody(meta, onChange) {
   const setAlpha = (e) => { A = alphaAt(e); positionThumbs(); refresh(); emit(); };
   grabSurface(alphaBar, setAlpha);
   alphaBar.addEventListener("keydown", (e) => {
-    const d = e.shiftKey ? 0.1 : 0.01;
-    let nv = A;
-    switch (e.key) {
-      case "ArrowRight": case "ArrowUp": nv += d; break;
-      case "ArrowLeft": case "ArrowDown": nv -= d; break;
-      case "Home": nv = 0; break;
-      case "End": nv = 1; break;
-      default: return;
-    }
+    const nv = rangeStep(e, A, 0.01, 0, 1); // the shared range keyboard model (arrows/⇧ coarse/Home/End)
+    if (nv == null) return;
     e.preventDefault(); A = clamp(nv, 0, 1); positionThumbs(); refresh(); emit();
   });
 

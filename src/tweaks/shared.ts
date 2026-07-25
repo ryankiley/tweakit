@@ -32,6 +32,46 @@ const inferStep = (min, max) => {
   if (range <= 100) return 1;
   return 10;
 };
+// Normalise a slider-style range before anything reads it: non-finite bounds take
+// the defaults (max defaults to min+100 when no explicit fallback is given), an
+// inverted pair swaps (a backwards schema/markup used to clamp the value to the
+// wrong end), and a degenerate step re-infers. Every range source — schema
+// shorthand, verbose form, [data-tw] markup — funnels through here; the slider
+// and the interval share it.
+const normalizeRange = (rawMin, rawMax, rawStep, defMin = 0, defMax = null) => {
+  let min = +rawMin, max = +rawMax, step = +rawStep;
+  if (!Number.isFinite(min)) min = defMin;
+  if (!Number.isFinite(max)) max = defMax != null ? defMax : min + 100;
+  if (max < min) { const t = min; min = max; max = t; }
+  if (!(step > 0) || step > max - min) step = inferStep(min, max);
+  return { min, max, step };
+};
+// One keyboard model for every 1-D range surface (the slider track, the interval
+// handles, the colour picker's alpha strip): arrows step (⇧ = ×10 coarse), Home/End
+// snap to the given ends, PageUp/Down jump by `page` when the surface supports it.
+// Returns the next value, or null when the key isn't the range's to handle — the
+// caller preventDefaults and clamps/commits on non-null.
+const rangeStep = (e, cur, step, lo, hi, page = null) => {
+  const coarse = e.shiftKey ? 10 : 1;
+  switch (e.key) {
+    case "ArrowRight": case "ArrowUp": return cur + step * coarse;
+    case "ArrowLeft": case "ArrowDown": return cur - step * coarse;
+    case "PageUp": return page != null ? cur + page : null;
+    case "PageDown": return page != null ? cur - page : null;
+    case "Home": return lo;
+    case "End": return hi;
+  }
+  return null;
+};
+// The label/value dodge shared by the slider + interval: does a handle's pixel span
+// [hx, hx+hw] overlap the leading label or the trailing value text? Spans are read
+// live (offsetLeft/offsetWidth) so they track the CSS and any font swap; `m` is the
+// optional near-miss buffer on the value side.
+const overlapsText = (labelEl, valueEl, hx, hw, m = 0) => {
+  const ll = labelEl.offsetLeft, lr = ll + labelEl.offsetWidth;
+  const vl = valueEl.offsetLeft, vr = vl + valueEl.offsetWidth;
+  return (hx < lr && hx + hw > ll) || (hx < vr + m && hx + hw > vl - m);
+};
 // Default range for a numeric entry with no explicit bounds: 0–1 keeps a 0–1 range,
 // a positive spans 0–3× (100 as a last resort), and a negative mirrors that below
 // zero (−1–0 / 3×–0) — a negative default used to produce max −3×|v| with min 0, an
@@ -326,10 +366,16 @@ const fuzzyMatch = (text, q) => {
 // Animations API (native, zero-dep, replayable); honours reduced-motion. dir>0 = moving
 // right (origin left), dir<0 = moving left (origin right).
 const REDUCE_MOTION = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false } as any;
+// ── Motion tokens — the easings the kit's JS-driven glides share. EASE_SPRING is
+// the JS-side literal of the CSS token --tw-ease-spring (tweaks.css) — WAAPI and
+// inline transitions on nodes that may sit outside a .tw-panel can't read the
+// custom property, so the value lives here once instead of inline per call site.
+const EASE_SPRING = "cubic-bezier(0.22, 1, 0.36, 1)";
+const EASE_GLIDE = "cubic-bezier(0.34, 1.2, 0.64, 1)"; // press glide with a light overshoot (the slider's tap-to-value)
 const stretchPill = (pill, dir) => {
   if (REDUCE_MOTION.matches || typeof pill.animate !== "function") return;
   pill.style.transformOrigin = dir > 0 ? "left center" : "right center";
-  pill.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(1.18)" }, { transform: "scaleX(1)" }], { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+  pill.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(1.18)" }, { transform: "scaleX(1)" }], { duration: 300, easing: EASE_SPRING });
 };
 // Slide a pill to the active child of `container` — the segmented control + tabs share
 // this. Batch the three box reads before either write (so a measure can't force an extra
@@ -499,9 +545,10 @@ export const getControl = (type) => REGISTRY[type];
 
 export {
   titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultRange,
+  normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
-  numField, blade, quietFocus, measurePill, grabSurface, REDUCE_MOTION,
+  numField, blade, quietFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE,
 };
 
