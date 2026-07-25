@@ -9,11 +9,11 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export async function bundle(entry) {
+export async function bundle(entry, define = {}) {
   const r = await build({
     entryPoints: [path.join(ROOT, entry)],
     bundle: true, format: "esm", write: false, target: "es2022",
-    define: { TW_SPLIT: "false" }, logLevel: "silent",
+    define: { TW_SPLIT: "false", ...define }, logLevel: "silent",
   });
   return import("data:text/javascript;base64," + Buffer.from(r.outputFiles[0].text).toString("base64"));
 }

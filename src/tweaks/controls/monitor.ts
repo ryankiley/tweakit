@@ -1,6 +1,24 @@
 // ── Monitor + FPS graph — live sparkline / readout. Lazy; registers both types.
 import { el, txt, fitCanvas, accentColor, clamp, blade, registerControl } from "../shared.js";
 
+// Stroke a ring buffer of samples across the canvas — the FPS graph and the numeric
+// monitor share the pen; each maps a sample to a 0-1 fraction its own way. NaN = no
+// sample yet: the pen lifts, so a sparse buffer draws segments, not a false zero line.
+const strokeSeries = (ctx, node, w, h, samples, start, frac) => {
+  const N = samples.length;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = accentColor(node);
+  ctx.lineWidth = 1.5; ctx.lineJoin = "round"; ctx.beginPath();
+  let pen = false;
+  for (let k = 0; k < N; k++) {
+    const s = samples[(start + k) % N];
+    if (Number.isNaN(s)) continue;
+    const x = (k / (N - 1)) * w, y = h - clamp(frac(s), 0, 1) * h;
+    pen ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), pen = true);
+  }
+  ctx.stroke();
+};
+
 // ── FPS graph — a live monitor blade, zero deps ──
 function createFps(meta) {
   const wrap = el("div", "tw-fps");
@@ -16,18 +34,7 @@ function createFps(meta) {
   // before it ever connected — which the "never mounted yet" branch below deliberately
   // idles through, so it can never self-stop — doesn't leave the loop spinning forever.
   const stop = () => { stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; window.removeEventListener("resize", resize); window.removeEventListener("tw-reflow", resize); };
-  const draw = () => {
-    if (!w) return;
-    ctx.clearRect(0, 0, w, h);
-    ctx.strokeStyle = accentColor(wrap);
-    ctx.lineWidth = 1.5; ctx.lineJoin = "round"; ctx.beginPath();
-    for (let k = 0; k < N; k++) {
-      const s = samples[(i + k) % N];
-      const x = (k / (N - 1)) * w, y = h - Math.min(s / MAX, 1) * h;
-      k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    }
-    ctx.stroke();
-  };
+  const draw = () => { if (w) strokeSeries(ctx, wrap, w, h, samples, i, (s) => s / MAX); };
   const tick = (now) => {
     if (!canvas.isConnected) {
       // "Never mounted yet" (a host builds the panel eagerly, appends panel.el later) is
@@ -104,17 +111,7 @@ function createMonitor(meta) {
       if (lo == null) lo = mn - pad; if (hi == null) hi = mx + pad;
     }
     const span = (hi - lo) || 1;
-    ctx.clearRect(0, 0, w, h);
-    ctx.strokeStyle = accentColor(wrap);
-    ctx.lineWidth = 1.5; ctx.lineJoin = "round"; ctx.beginPath();
-    let started = false;
-    for (let k = 0; k < N; k++) {
-      const s = samples[(idx + k) % N];
-      if (Number.isNaN(s)) continue;
-      const x = (k / (N - 1)) * w, y = h - clamp((s - lo) / span, 0, 1) * h;
-      started ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), started = true);
-    }
-    ctx.stroke();
+    strokeSeries(ctx, wrap, w, h, samples, idx, (s) => (s - lo) / span);
   };
   poll((v) => { if (typeof v !== "number") return; samples[idx] = v; idx = (idx + 1) % N; val.textContent = fmt(v); draw(); });
   requestAnimationFrame(() => { onResize(); draw(); });
