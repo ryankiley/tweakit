@@ -31,7 +31,12 @@ const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 
 // colours back in their own notation, and an rgb-shaped parse of that echo mangled them
 // (the "3" in "display-p3" read as a channel + alpha 0; lab() channels read as 0–255;
 // a `deg` unit or negative hue fell off the old regex onto the same path).
-const COLOR_FN_SPACES = { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" };
+// Null-prototype: the space name comes straight out of the parsed string, so an inherited
+// key had to miss. `color(constructor …)` / `color(__proto__ …)` resolved to a member of
+// Object.prototype — truthy, so it sailed past the `if (!space)` guard below and rode into
+// convert(), whose space switch matched nothing and handed `undefined` to the XYZ maths:
+// a TypeError thrown straight out of panel.set() / fromJSON() / a persisted restore.
+const COLOR_FN_SPACES = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" });
 const parseAngle = (t) => { const m = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)(deg|grad|rad|turn)$/i.exec(t); if (!m) return num(parseFloat(t)); const n = parseFloat(m[1]); return m[2].toLowerCase() === "turn" ? n * 360 : m[2].toLowerCase() === "grad" ? n * 0.9 : m[2].toLowerCase() === "rad" ? (n * 180) / Math.PI : n; };
 function parseColor(str) {
   str = String(str == null ? "" : str).trim();

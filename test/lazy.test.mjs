@@ -43,6 +43,23 @@ test("during the lazy window, setMany() replays as ONE batch — a single notify
   assert.equal(lastKey, "b"); // _last reflects the final applied key
 });
 
+test("reset() during the lazy window replays, in order with the sets around it", async () => {
+  // Regression: reset() forwarded to the toolbar button, and the toolbar is disabled until
+  // assemble() — .click() is a no-op on a disabled control, so every reset() made in the
+  // lazy window vanished silently while set()/setMany()/fromJSON() all queued.
+  const p = tweaks("Reset", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+  p.set("x", 7);
+  p.reset();      // queued after the set → must win
+  await p.ready;
+  assert.equal(p.params.x, 1, "the queued reset replayed after the set it followed");
+
+  const q = tweaks("Reset2", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+  q.reset();
+  q.set("x", 7);  // queued after the reset → must win
+  await q.ready;
+  assert.equal(q.params.x, 7, "call order is preserved both ways");
+});
+
 test("ready resolves with the api on the warmed-up synchronous path too", async () => {
   const p = tweaks("Warm", { r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 } });
   const api = await p.ready;

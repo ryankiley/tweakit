@@ -8,14 +8,18 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // A colour-valued string: hex, or any CSS colour function (oklch/rgb/hsl/…). Used
 // to route a schema string to the colour control (a plain label stays a string).
 const isColorStr = (v) => typeof v === "string" && (/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v.trim()) || /^(oklch|oklab|rgba?|hsla?|hwb|lab|lch|color)\(/i.test(v.trim()));
+// Capped at 100 — the ceiling toFixed() accepts. A sub-1e-100 step (finite, positive, so
+// it clears every step guard) otherwise produced a digit count that threw RangeError out
+// of roundToStep, which degraded the whole control to "skipped" at construction.
+const MAX_FIXED = 100;
 const stepPrecision = (step) => {
   const t = String(step);
   // Scientific notation (e.g. 1e-7 → 7): String(1e-7) === "1e-7" has no ".", so a plain
   // index-of would wrongly report 0 decimals and round fine steps to whole numbers.
   const e = /e-(\d+)$/i.exec(t);
-  if (e) return Number(e[1]) + (t.split("e")[0].split(".")[1] || "").length;
+  if (e) return Math.min(MAX_FIXED, Number(e[1]) + (t.split("e")[0].split(".")[1] || "").length);
   const i = t.indexOf(".");
-  return i === -1 ? 0 : t.length - i - 1;
+  return i === -1 ? 0 : Math.min(MAX_FIXED, t.length - i - 1);
 };
 const roundToStep = (v, min, step) => {
   if (!(step > 0)) return v;
@@ -160,7 +164,10 @@ export const placeBelow = (trigger: any, pop: any, { width, fallbackH = 300, gap
 // so no theme === the default monochrome look, and partial themes only move what they name.
 // Friendly name → token. The full themeable surface — every lever the look runs on,
 // so a theme can reach all of it by readable name (raw "--tw-*" keys also pass through).
-const THEME_ALIASES = {
+// Null-prototype, like every other lookup table the kit indexes with caller data (the
+// plot whitelist, the presets bag): a theme key of "constructor" / "toString" must MISS,
+// not resolve to an inherited member and mint a garbage custom-property name.
+const THEME_ALIASES = Object.assign(Object.create(null), {
   // colour — backdrops
   accent: "--tw-accent", onAccent: "--tw-on-accent", base: "--tw-base", dropdownBg: "--tw-dropdown-bg",
   surface: "--tw-surface", surfaceHover: "--tw-surface-hover", surfaceActive: "--tw-surface-active",
@@ -173,7 +180,7 @@ const THEME_ALIASES = {
   shadow: "--tw-shadow-dropdown", shadowPanel: "--tw-shadow-panel", shadowPanelLifted: "--tw-shadow-panel-lifted",
   // type + shape
   font: "--tw-font-sans", fontMono: "--tw-font-mono", radius: "--tw-radius", density: "--tw-row-height", // numeric → px
-};
+});
 const TW_PX_ALIASES = new Set(["radius", "density"]);
 // On-accent text (the active segment pill / radio cell sits a label on the accent). Pick
 // black or white by the accent's WCAG relative luminance, whichever contrasts more — so a
@@ -477,7 +484,11 @@ const ICON_GRIP = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" st
 
 // The handle a display/action control returns — buttons, separators, monitors, the
 // FPS graph. No value: the panel build skips entry/reset/persist wiring for them.
-const blade = (el) => ({ el, set: () => {}, get: () => undefined });
+// `destroy` is optional and only the live ones supply it (the monitor's poll, the FPS
+// rAF loop): build() forwards it into the panel's cleanups, so panel.destroy() stops a
+// control's own loops even when the panel never connected — the case those loops
+// deliberately idle through, and so could never self-stop on unmount.
+const blade = (el, destroy?: () => void) => ({ el, set: () => {}, get: () => undefined, destroy });
 
 // ── Control registry — control type → constructor. Core controls register on
 // load; a lazy control registers when its module is dynamically imported. build()
