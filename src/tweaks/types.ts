@@ -203,4 +203,7 @@ export interface Control {
   el: HTMLElement;
   set(value: unknown): void;
   get(): unknown;
+  /** Release any loop the control owns (the monitor's poll, the FPS graph's rAF). Only
+   *  the live controls supply it; the panel calls it from `destroy()`. */
+  destroy?(): void;
 }

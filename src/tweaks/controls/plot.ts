@@ -129,7 +129,7 @@ function createPlot(meta, onChange) {
     const field = el("div", "tw-plot-field");
     input = el("input", "tw-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
     input.autocapitalize = "off"; input.autocomplete = "off"; input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`);
-    field.append(el("span", "tw-plot-fx", "y ="), input); root.append(field);
+    field.append(txt("span", "tw-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML, and no label in the kit goes through that door
   }
 
   const PAD = 6;

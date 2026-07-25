@@ -7,7 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks, enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
 
 test("a malformed verbose value degrades to a skipped control, not a thrown build", () => {
   const p = tweaks("T", {
@@ -100,6 +100,102 @@ test("monitor: a negative `rows` doesn't spin the buffer trim into an infinite l
   const buf = p.el.querySelector(".tw-monitor-buffer");
   assert.ok(buf, "buffer rendered");
   assert.ok(buf.textContent.split("\n").length <= 2, "buffer stayed bounded under a negative rows");
+  p.destroy();
+});
+
+test("destroy() releases a monitor's poll even on a panel that never mounted", async () => {
+  // Regression: the poll deliberately idles through the "built but not appended yet"
+  // window, so it never saw an unmount to stop on — a panel destroyed before it ever
+  // connected left the interval running for the life of the page. The control now hands
+  // its teardown to the panel, so destroy() reaches it.
+  const p = tweaks("MD", { m: { type: "monitor", get: () => 42, interval: 30, view: "text" } });
+  p.destroy();                                  // never mounted
+  document.body.append(p.el);                   // re-attach the dead node: a live poll would find it connected and tick
+  await new Promise((r) => setTimeout(r, 150)); // several intervals at the 30ms floor
+  assert.equal(p.el.querySelector(".tw-fps-val").textContent, "—", "the poll was released, so it never wrote a value");
+  p.el.remove();
+});
+
+test("a hostile colour string is skipped, not thrown, and the rest of a restore still lands", () => {
+  // Regression, two halves: `color(constructor …)` resolved its space off Object.prototype
+  // — truthy, so it slipped past the unknown-space guard and reached the conversion maths
+  // as a non-space, throwing a TypeError out of set(); and applySnapshot ran its entries
+  // unguarded, so that one throw abandoned every later value AND the notify with it.
+  const p = tweaks("CX", { a: [1, 0, 10, 1], c: { type: "color", value: "#ff0000" }, z: [1, 0, 10, 1] });
+  p.set("c", "color(constructor 1 0 0)");       // must not throw…
+  p.set("c", "color(__proto__ 1 0 0)");         // …nor this: an unknown color() space
+  const neutral = p.params.c;                   // degrades to the picker's neutral default, like any other unsupported space
+  assert.match(String(neutral), /^oklch\(/, "an unrecognised space degrades to a real colour");
+
+  let calls = 0;
+  p.on(() => calls++);
+  p.fromJSON({ values: { a: 5, c: "color(constructor 1 0 0)", z: 9 } });
+  assert.equal(p.params.a, 5);
+  assert.equal(p.params.z, 9, "a bad value mid-restore doesn't abandon the entries after it");
+  assert.equal(calls, 1, "the restore still notified exactly once");
+});
+
+test("a slider survives a step too fine for toFixed", () => {
+  // Regression: stepPrecision(1e-101) → 101 decimals, past toFixed's 100-digit ceiling —
+  // a RangeError at construction that degraded the whole control to "skipped".
+  const p = tweaks("Fine", { x: { type: "slider", value: 0.5, min: 0, max: 1, step: 1e-101 } });
+  assert.ok("x" in p.params, "control built");
+  p.set("x", 0.25);
+  assert.equal(p.params.x, 0.25);
+});
+
+test("markup mode echoes an object-valued control as its components, not [object Object]", async () => {
+  // Regression: enhance() assigned ctrl.get() straight onto data-value, so the controls
+  // whose value is an object (point, spring) wrote the default toString — and data-value
+  // is the very attribute the markup parsers read a point back out of.
+  const holder = document.createElement("div");
+  holder.innerHTML = `<div data-tw="point" data-label="Offset" data-components="X,Y" data-value="3,4" data-step="1"></div>`;
+  document.body.append(holder);
+  await enhance(holder);
+  const host = holder.querySelector('[data-tw="point"]');
+  host._tw.ctrl.set({ x: 7, y: 9 });
+  host._tw.ctrl.el.querySelector(".tw-num").dispatchEvent(new Event("change", { bubbles: true })); // nudge a field so the control emits
+  assert.ok(!/object Object/.test(host.dataset.value), `data-value stayed parseable, got "${host.dataset.value}"`);
+  assert.match(host.dataset.value, /^[\d.,-]+$/, "components, comma-joined — the form the point parser reads");
+  holder.remove();
+});
+
+test("markup mode's copy keys by data-key and suffixes duplicates", async () => {
+  // Regression: the copy keyed every control by its LABEL, so two same-labelled hosts
+  // collided and the later one silently overwrote the earlier in the copied JSON.
+  const holder = document.createElement("div");
+  holder.innerHTML = `<div class="tw-panel" data-mode="inline"><div class="tw-header"><span class="tw-title">P</span></div><div class="tw-controls">
+    <div data-tw="slider" data-label="Size" data-value="1" data-min="0" data-max="10"></div>
+    <div data-tw="slider" data-label="Size" data-value="2" data-min="0" data-max="10"></div>
+    <div data-tw="slider" data-key="depth" data-label="Size" data-value="3" data-min="0" data-max="10"></div>
+  </div></div>`;
+  document.body.append(holder);
+  await enhance(holder);
+  assert.deepEqual([...holder.querySelectorAll("[data-tw]")].map((h) => h._tw.key), ["Size", "Size", "depth"], "data-key wins over the label when present");
+
+  // Drive the real copy button and read what it actually put on the clipboard.
+  let copied = null;
+  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
+  try {
+    holder.querySelector(".tw-toolbar-btn--swap").click();
+    await new Promise((r) => setTimeout(r, 0)); // the click handler awaits the write
+  } finally {
+    if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip);
+    else delete globalThis.navigator.clipboard;
+  }
+  const vals = JSON.parse(copied);
+  assert.deepEqual(Object.keys(vals), ["Size", "Size-2", "depth"], "all three controls survive the copy");
+  assert.deepEqual(Object.values(vals), [1, 2, 3], "each keeps its own value");
+  holder.remove();
+});
+
+test("opts.filter without a toolbar is refused, not built invisibly", () => {
+  // Regression: the search button lives in the toolbar, so toolbar:false left the filter
+  // input mounted in the header with nothing able to reveal it.
+  const p = tweaks("FT", { a: [1, 0, 10, 1] }, { filter: true, toolbar: false });
+  document.body.append(p.el);
+  assert.equal(p.el.querySelector(".tw-search"), null);
   p.destroy();
 });
 
@@ -213,6 +309,53 @@ test("fromJSON applies known value paths, skips stale ones, and notifies once", 
   assert.equal(p.params.a, 5);
   assert.equal(p.params.b, 1);                 // untouched (skip-missing)
   assert.equal(calls, 1);                      // one notification for the whole restore
+});
+
+// Synthetic pointer event — jsdom has no PointerEvent constructor, and the drag paths
+// only read pointerId / button / buttons / clientX / clientY off it.
+const ptr = (type, props) => Object.assign(new Event(type, { bubbles: true, cancelable: true }), { pointerId: 1, button: 0, buttons: 1, pointerType: "mouse", ...props });
+
+test("a header press released off the header can't leave the panel dragging on hover", () => {
+  // Regression: pointer capture is only taken once the press crosses the 4px drag
+  // threshold, so a release just off the header (a hair of drift onto the body, or the
+  // page scrolling under a held button) never reached endDrag and left dragId set. The
+  // next plain hover then passed the threshold against the stale origin and lifted the
+  // panel into a drag with no button held.
+  const p = tweaks("Drag", { a: [1, 0, 10, 1] });
+  document.body.append(p.el);
+  const header = p.el.querySelector(".tw-header"), body = p.el.querySelector(".tw-body");
+  header.setPointerCapture = header.releasePointerCapture = () => {};
+
+  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
+  header.dispatchEvent(ptr("pointermove", { clientX: 101, clientY: 12 }));   // 3px — under the threshold, so no capture
+  body.dispatchEvent(ptr("pointerup", { clientX: 101, clientY: 13, buttons: 0 })); // lands off the header
+  header.dispatchEvent(ptr("pointermove", { clientX: 400, clientY: 10, buttons: 0 })); // a plain hover, nothing pressed
+
+  assert.equal(p.el.dataset.mode, "inline", "the panel stayed put instead of lifting into a floating drag");
+  assert.ok(!p.el.classList.contains("is-dragging"));
+  p.destroy();
+});
+
+test("double-clicking a slider readout resets it even once the hover armed the editor", async () => {
+  // Regression: the readout is both the reset target and the click-to-type trigger. After
+  // an 800ms hover — exactly what precedes a deliberate double-click — click #1 swapped it
+  // for the inline input, so the dblclick landed on the input and the reset never fired.
+  const p = tweaks("DblEdit", { x: [5, 0, 100, 1] });
+  document.body.append(p.el);
+  p.set("x", 42);
+  const val = p.el.querySelector(".tw-slider-value");
+  val.dispatchEvent(new Event("mouseenter", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 850)); // arm the hover-to-edit gate
+  assert.ok(val.classList.contains("is-editable"), "editing armed");
+
+  val.dispatchEvent(new Event("click", { bubbles: true }));      // click #1 opens the editor…
+  const input = p.el.querySelector(".tw-slider-input");
+  assert.ok(input, "the inline editor opened");
+  input.dispatchEvent(new Event("dblclick", { bubbles: true })); // …so the dblclick retargets to it
+
+  assert.equal(p.params.x, 5, "reset to the schema default");
+  assert.equal(p.el.querySelector(".tw-slider-input"), null, "the editor closed behind it");
+  p.destroy();
 });
 
 test("text-field focus is quiet after a pointer press, ringed after a key press", () => {

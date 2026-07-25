@@ -211,12 +211,15 @@ const modeSpaceId = (mode) => (mode === "hex" || mode === "css" ? "srgb" : mode)
 // mode blends through, so the editor's ramp shows what the chosen colour technology
 // actually does to a blend. Narrow notations (hex / css / rgb) all blend in srgb; p3's
 // CSS keyword is `display-p3`; every other mode interpolates in its own space.
-const MODE_INTERP = { hex: "srgb", srgb: "srgb", css: "srgb", hsl: "hsl", hwb: "hwb", oklch: "oklch", oklab: "oklab", lch: "lch", lab: "lab", p3: "display-p3", rec2020: "rec2020" };
+// Null-prototype (the kit-wide rule for a table indexed with caller data): a mode or
+// interpolation string of "constructor" must miss and fall to the default, not resolve
+// to an inherited member.
+const MODE_INTERP = Object.assign(Object.create(null), { hex: "srgb", srgb: "srgb", css: "srgb", hsl: "hsl", hwb: "hwb", oklch: "oklch", oklab: "oklab", lch: "lch", lab: "lab", p3: "display-p3", rec2020: "rec2020" });
 export const modeInterpolation = (mode) => MODE_INTERP[mode] || "oklch";
 // The reverse, for opening a stored gradient in the mode that produced its blend
 // (srgb → RGB channels, display-p3 → P3). `srgb` is the canonical mode for the three
 // narrow notations; an unknown / absent space falls back to OKLCH, the editor default.
-const INTERP_MODE = { srgb: "srgb", hsl: "hsl", hwb: "hwb", oklch: "oklch", oklab: "oklab", lch: "lch", lab: "lab", "display-p3": "p3", rec2020: "rec2020" };
+const INTERP_MODE = Object.assign(Object.create(null), { srgb: "srgb", hsl: "hsl", hwb: "hwb", oklch: "oklch", oklab: "oklab", lch: "lch", lab: "lab", "display-p3": "p3", rec2020: "rec2020" });
 export const interpolationMode = (interp) => INTERP_MODE[interp] || "oklch";
 const MAX_CHROMA = 0.5;
 export const MODE_CHANNELS = {

@@ -9,8 +9,13 @@ function createFps(meta) {
   wrap.append(txt("span", "tw-fps-label", meta.label || "FPS"), val, canvas);
   const ctx = canvas.getContext("2d");
   const N = 80, samples = new Array(N).fill(0), MAX = 120;
-  let i = 0, last = 0, raf = 0, w = 0, h = 0, wasConnected = false;
+  let i = 0, last = 0, raf = 0, w = 0, h = 0, wasConnected = false, stopped = false;
   const resize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
+  // Release everything: the rAF loop and its two listeners. Called on a real unmount
+  // (below) AND handed to the panel as the blade's `destroy`, so a panel torn down
+  // before it ever connected — which the "never mounted yet" branch below deliberately
+  // idles through, so it can never self-stop — doesn't leave the loop spinning forever.
+  const stop = () => { stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; window.removeEventListener("resize", resize); window.removeEventListener("tw-reflow", resize); };
   const draw = () => {
     if (!w) return;
     ctx.clearRect(0, 0, w, h);
@@ -27,18 +32,18 @@ function createFps(meta) {
     if (!canvas.isConnected) {
       // "Never mounted yet" (a host builds the panel eagerly, appends panel.el later) is
       // not "removed": idle cheaply until the first connected tick; only a real unmount
-      // stops the loop + its listeners for good.
-      if (wasConnected) { window.removeEventListener("resize", resize); window.removeEventListener("tw-reflow", resize); raf = 0; return; }
+      // (or panel.destroy(), via the blade's `destroy`) stops the loop + its listeners.
+      if (wasConnected) { stop(); return; }
       last = 0; raf = requestAnimationFrame(tick); return;
     }
     if (!wasConnected) { wasConnected = true; resize(); } // first connected tick → fit the canvas (it measured 0 detached)
     if (last) { const fps = 1000 / (now - last); samples[i] = fps; i = (i + 1) % N; val.textContent = Math.round(fps); draw(); }
     last = now; raf = requestAnimationFrame(tick);
   };
-  requestAnimationFrame(() => { resize(); raf = requestAnimationFrame(tick); });
+  raf = requestAnimationFrame(() => { if (stopped) return; resize(); raf = requestAnimationFrame(tick); }); // held in `raf` (and re-checked) so a destroy() before the first frame can't start the loop behind it
   window.addEventListener("resize", resize);
   window.addEventListener("tw-reflow", resize); // a tab page revealing this control re-fits the canvas (it measured 0 while hidden)
-  return blade(wrap);
+  return blade(wrap, stop);
 }
 
 // ── Monitor — poll any getter on an interval and show it: a number as a sparkline
@@ -58,9 +63,11 @@ function createMonitor(meta) {
 
   let timer = 0, onResize = () => {}, wasConnected = false;
   const fmt = (v) => (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(meta.decimals ?? 2)) : String(v));
+  // Also handed to the panel as the blade's `destroy` — a panel destroyed before it ever
+  // connected idles below forever, so it could never clear its own interval on unmount.
   const stop = () => { if (timer) clearInterval(timer); timer = 0; window.removeEventListener("resize", onResize); window.removeEventListener("tw-reflow", onResize); };
   // "Never mounted yet" (a host appends panel.el after building) idles the tick; only a
-  // panel that was mounted and then removed stops the poll for good.
+  // panel that was mounted and then removed — or a panel.destroy() — stops the poll.
   const poll = (fn) => { timer = setInterval(() => { if (!wrap.isConnected) { if (wasConnected) stop(); return; } wasConnected = true; let v; try { v = get(); } catch { return; } fn(v); }, interval); };
 
   // String buffer (multiline) — the last `rows` values, newest at the bottom.
@@ -73,10 +80,10 @@ function createMonitor(meta) {
     wrap.append(buf);
     const lines = [];
     poll((v) => { lines.push(fmt(v)); while (lines.length > rows) lines.shift(); buf.textContent = lines.join("\n"); });
-    return blade(wrap);
+    return blade(wrap, stop);
   }
   // Plain readout — just the latest value, refreshed on the interval.
-  if (!graph) { poll((v) => { val.textContent = fmt(v); }); return blade(wrap); }
+  if (!graph) { poll((v) => { val.textContent = fmt(v); }); return blade(wrap, stop); }
 
   // Sparkline (numbers).
   const canvas = document.createElement("canvas"); canvas.className = "tw-fps-canvas";
@@ -113,7 +120,7 @@ function createMonitor(meta) {
   requestAnimationFrame(() => { onResize(); draw(); });
   window.addEventListener("resize", onResize);
   window.addEventListener("tw-reflow", onResize); // a tab page revealing this control re-fits the canvas (it measured 0 while hidden)
-  return blade(wrap);
+  return blade(wrap, stop);
 }
 
 registerControl("fpsgraph", createFps);
