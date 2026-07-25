@@ -35,12 +35,26 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // value/UI collectors exist; the stubs below cover the lazy window before ready — toJSON
   // returns the live values (no UI state yet); fromJSON enqueues onto preSets (tagged), so it
   // replays interleaved with set()/setMany() in call order, after the persist/preset restore.
-  const FROMJSON = Symbol("fromJSON"), SETMANY = Symbol("setMany");
+  const FROMJSON = Symbol("fromJSON"), SETMANY = Symbol("setMany"), RESET = Symbol("reset");
   let doToJSON: () => any = () => { const v = JSON.parse(JSON.stringify(params)); delete v._last; return { values: v, ui: {} }; };
   let doFromJSON: (state: any) => void = (state) => { preSets.push([FROMJSON, state]); };
   // Each listener runs isolated: a throwing on() callback (or internal listener)
   // can't break the others, skip persist(), or bubble back out through set().
   const notify = () => { listeners.forEach((fn) => { try { fn(params, params._last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); persist(); };
+  // Persistence + presets storage keys — opt-in via opts.persist (a string key, or
+  // `true` to key by the panel name). null disables both (existing callers unaffected).
+  // The reset itself, independent of the toolbar button — so api.reset() can run it
+  // directly (the button is `disabled` until assemble(), and .click() is a no-op on a
+  // disabled control, which silently swallowed every reset() made in the lazy window)
+  // and so the queued replay below can too. Per-entry isolation like applySnapshot.
+  const doReset = () => {
+    if (typeof opts.onReset === "function") return opts.onReset();
+    for (const e of entries) {
+      try { e.set(e.def); e.target[e.key] = e.get(); }
+      catch (err) { console.error(`[tweaks] resetting "${e.path.join(".")}" failed — control skipped:`, err); }
+    }
+    params._last = undefined; notify();
+  };
   // Persistence + presets storage keys — opt-in via opts.persist (a string key, or
   // `true` to key by the panel name). null disables both (existing callers unaffected).
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
@@ -72,7 +86,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   }
   // Filter (opts.filter): a search button swaps the title for an input; typing hides
   // controls whose label doesn't match (folders stay if their title or a child does).
-  const filterOn = !!opts.filter;
+  // The filter lives behind a toolbar button, so it needs a toolbar: with toolbar:false
+  // the button was never mounted and nothing could flip .is-searching — the input sat in
+  // the header, permanently invisible, with the whole search index built behind it.
+  const filterOn = !!opts.filter && (opts.toolbar !== false || (console.warn("[tweaks] opts.filter needs the toolbar (its search button lives there) — ignored alongside toolbar:false"), false));
   const searchBtn = filterOn ? toolbarBtn("", ICON_SEARCH, "Filter controls") : null;
   const searchInput = filterOn ? el("input", "tw-search") : null;
   if (filterOn) {
@@ -156,6 +173,19 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     t.addEventListener("contextmenu", (e) => { if (held) e.preventDefault(); }); // a long-press mustn't raise the text callout
     t.addEventListener("click", (e) => { if (held) { e.preventDefault(); e.stopImmediatePropagation(); held = false; } }, true); // a completed hold-reset swallows the trailing tap-to-edit
     t.addEventListener("dblclick", (e) => { e.preventDefault(); e.stopPropagation(); resetEntry(entry); });
+    // The slider's readout is BOTH the reset target and the click-to-type trigger, and
+    // the two collided: once an 800ms hover armed editing — exactly what a deliberate
+    // double-click does first — click #1 swapped the readout for the inline input, so the
+    // dblclick landed on the input and the reset never fired. Catch it there too: commit
+    // and close the editor (blur), then reset. Delegated on the control root because the
+    // input doesn't exist until that first click creates it.
+    if (t.classList.contains("tw-slider-value")) root.addEventListener("dblclick", (e) => {
+      const inp = e.target;
+      if (!inp.classList || !inp.classList.contains("tw-slider-input")) return;
+      e.preventDefault(); e.stopPropagation();
+      inp.blur(); // restores the readout via the input's own commit — a no-op value change, so it can't notify
+      resetEntry(entry);
+    });
   };
 
   // Conditional controls — `render: (get) => bool` shows/hides; `disabled` (boolean
@@ -168,6 +198,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
   const filterItems = [], filterFolders = []; // searchable index (opts.filter) keyed on each control's real label
   const folderEls: any[] = [], tabsCtrls: any[] = []; // folder + tabs handles keyed by path — read/restored as UI state by toJSON/fromJSON
+
+  // Build controls into a container, recursing into folders (nested params).
+  // A control that runs its own loop (the monitor's poll, the FPS graph's rAF) hands back
+  // a `destroy`; take it into the panel's cleanups so destroy() releases it. Those loops
+  // otherwise only stop on unmount, and they deliberately idle through the "built but not
+  // appended yet" window — so a panel destroyed before it ever connected ran forever.
+  const adopt = (ctrl) => { if (typeof ctrl.destroy === "function") cleanups.push(ctrl.destroy); };
 
   // Build controls into a container, recursing into folders (nested params).
   const build = (container, ms, target, basePath = [], folderItem = null) => {
@@ -191,9 +228,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         build(f.body, m.children, sub, [...basePath, m.key], fi); registerCond(f.el, m); container.append(f.el);
         continue;
       }
-      if (VALUELESS.has(m.type)) { const ctrl = createControl(m, () => {}); if (ctrl) { if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); registerCond(ctrl.el, m); container.append(ctrl.el); } continue; }
+      if (VALUELESS.has(m.type)) { const ctrl = createControl(m, () => {}); if (ctrl) { adopt(ctrl); if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); registerCond(ctrl.el, m); container.append(ctrl.el); } continue; }
       const ctrl = createControl(m, (v) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; params._last = m.key; notify(); }); // same-value emits (a discrete drag inside one detent, a re-entrant echo) don't notify
       if (!ctrl) continue;
+      adopt(ctrl);
       // A value a host parked on params directly before assemble ran (the lazy-load
       // window on the split build) wins over the schema default — apply it to the
       // control rather than clobbering it back with ctrl.get(). (API set() calls from
@@ -260,9 +298,19 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const atPath = (obj, path) => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
   const stripLast = function (k, v) { return k === "_last" && this === params ? undefined : v; }; // function, not arrow: `this` is the holder, so only the top-level changed-key channel strips — a folder child legitimately keyed "_last" survives
   const snapshot = () => JSON.parse(JSON.stringify(params, stripLast));
+  // Per-entry isolation, the kit-wide degrade idiom (createControl, metaFor, notify,
+  // applyConditionals all do the same): a control whose set() throws on hostile stored
+  // data — a corrupt localStorage snapshot, a hand-edited preset, a fromJSON from
+  // elsewhere — must cost only its own value. Unguarded, one throw abandoned every
+  // remaining entry AND skipped the notify/persist below, leaving the panel silently
+  // half-restored with listeners none the wiser.
   const applySnapshot = (snap, fire = true) => {
     if (!snap || typeof snap !== "object") return;
-    for (const e of entries) { const v = atPath(snap, e.path); if (v !== undefined) { e.set(v); e.target[e.key] = e.get(); } }
+    for (const e of entries) {
+      const v = atPath(snap, e.path); if (v === undefined) continue;
+      try { e.set(v); e.target[e.key] = e.get(); }
+      catch (err) { console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err); }
+    }
     params._last = undefined; if (fire) notify();
   };
   if (persistKey) {
@@ -357,6 +405,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     });
     header.addEventListener("pointermove", (e) => {
       if (e.pointerId !== dragId) return;
+      // Released where we never hear it — the press hadn't crossed the 4px threshold yet,
+      // so no pointer was captured and a pointerup just off the header (a hair of drift
+      // onto the body, or the page scrolling out from under a held button) never reaches
+      // endDrag. The button is up but dragId is still ours, so the NEXT plain hover across
+      // the header would pass the threshold against the stale origin and lift the panel
+      // into a drag with nothing pressed. Bail the same way every other drag surface in
+      // the kit does (the slider, the interval, dragGesture).
+      if (e.buttons === 0) { endDrag(e); return; }
       const dx = e.clientX - sx, dy = e.clientY - sy;
       if (!dragMoved) {
         if (Math.abs(dx) + Math.abs(dy) < 4) return; // a few px of slop before it counts as a drag, not a click
@@ -435,11 +491,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // A host can supply its own reset (e.g. restore real app defaults + rebuild);
   // otherwise reset each control to the default it was built with. The icon spins
   // once on click — motion feedback to match the copy swap.
-  resetBtn.addEventListener("click", () => {
-    spinReset(resetBtn);
-    if (typeof opts.onReset === "function") return opts.onReset();
-    entries.forEach((e) => { e.set(e.def); e.target[e.key] = e.get(); }); params._last = undefined; notify();
-  });
+  resetBtn.addEventListener("click", () => { spinReset(resetBtn); doReset(); });
 
   // ── Edit lifecycle (opts.onEditStart / onEditEnd) — fired when a drag/scrub on any
   // in-panel control begins and ends, so a host can pause expensive work during a
@@ -468,12 +520,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // ⇧ (or Ctrl-Y) redoes, scoped to when the panel is hovered or focused so it doesn't
   // hijack the page's own undo. A continuous drag coalesces into one step. ──
   if (opts.undo) {
+    // Bounded: each step is a deep clone of every value, and a long tuning session
+    // committed one every 350ms of editing with nothing ever dropping off the back.
+    const HIST_MAX = 200;
     let history = [snapshot()], histIdx = 0, applyingHistory = false, histTimer = 0;
     const commit = () => {
       histTimer = 0;
       const snap = snapshot();
       if (JSON.stringify(snap) === JSON.stringify(history[histIdx])) return; // unchanged
-      history = history.slice(0, histIdx + 1); history.push(snap); histIdx = history.length - 1; // a new edit drops the redo branch
+      history = history.slice(0, histIdx + 1); history.push(snap); // a new edit drops the redo branch
+      if (history.length > HIST_MAX) history = history.slice(history.length - HIST_MAX); // oldest steps age out
+      histIdx = history.length - 1;
     };
     const record = () => { if (applyingHistory) return; clearTimeout(histTimer); histTimer = setTimeout(commit, 350); };
     const flush = () => { if (histTimer) { clearTimeout(histTimer); commit(); } }; // commit a pending edit first, so ⌘Z right after a change still undoes it
@@ -496,7 +553,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // restore above, so an explicit host set() wins over a stored value the way it wins
   // over the schema default. Each replays through api.set, so paths resolve against
   // the real entries and listeners hear the changes.
-  for (const [k, v] of preSets.splice(0)) { if (k === FROMJSON) doFromJSON(v); else if (k === SETMANY) api.setMany(v); else api.set(k as string, v); } // tagged fromJSON/setMany entries replay through their assembled impls (one notify each); the shared queue preserves set/setMany/fromJSON call order
+  for (const [k, v] of preSets.splice(0)) { if (k === FROMJSON) doFromJSON(v); else if (k === SETMANY) api.setMany(v); else if (k === RESET) doReset(); else api.set(k as string, v); } // tagged fromJSON/setMany entries replay through their assembled impls (one notify each); the shared queue preserves set/setMany/fromJSON call order
   for (const b of [copyBtn, resetBtn, presetsBtn, searchBtn]) if (b) b.disabled = false; // the toolbar's handlers are live now
   }; // end assemble
 
@@ -529,7 +586,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     }
     const target = e ? e.target : params, leaf = e ? e.key : key;
     const prev = target[leaf];
-    if (e) { e.set(v); target[leaf] = e.get(); }
+    // Same isolation as applySnapshot: a control that throws on a hostile value degrades
+    // to "that key didn't take" instead of throwing out of set() — and, in setMany's loop,
+    // instead of abandoning the rest of the batch and its single notify.
+    if (e) { try { e.set(v); target[leaf] = e.get(); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; } }
     else if (subTrees.has(params[key])) { console.warn(`[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead`); return false; } // overwriting the subtree would silently orphan every child value
     else params[key] = v; // bag passthrough — hosts park free keys on params
     if (!valueChanged(prev, target[leaf])) return false; // a no-change set doesn't notify — the guard that keeps a store-sync listener from echoing forever
@@ -564,7 +624,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       for (const k of Object.keys(values)) { if (applySet(k, values[k])) changed = true; }
       if (changed) notify();
     },
-    reset() { if (!destroyed) resetBtn.click(); },
+    // Queues in the lazy window like set()/setMany()/fromJSON(), so it replays in call
+    // order with them rather than vanishing (it used to route through resetBtn.click(),
+    // and the toolbar buttons are disabled until assemble()).
+    reset() {
+      if (destroyed) return;
+      if (!assembled) return void preSets.push([RESET, null]);
+      spinReset(resetBtn); doReset();
+    },
     // Whole-panel state — values + UI (open folders, active tabs) as a plain JSON-safe
     // object, independent of localStorage. `JSON.stringify(panel)` works too (this is the
     // standard toJSON hook). fromJSON applies a previously-saved object back.

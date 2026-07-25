@@ -2,11 +2,20 @@
  * (the showcase path), sharing the panel's meta derivation via dataMeta. Imported
  * for its side effect too: it auto-runs over the document on load. */
 import { el, btn } from "./shared.js";
-import { dataMeta } from "./schema.js";
+import { dataMeta, hasOwn } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, flashCopied, spinReset, showToast, copyText, addHintMarker } from "./feedback.js";
 
+// Echo a control's value back onto its host's data-value, in the comma form the parsers
+// in schema.ts read (interval / cubicbezier / point all split data-value on ","). An array
+// already stringifies that way; a plain object — the point's component map, the spring's
+// config — used to hit the default toString and write the literal "[object Object]", so
+// take its values in declaration order instead. Order matches the components/channels the
+// control was built from, so a point round-trips exactly.
+const writeDataValue = (host, v) => {
+  host.dataset.value = v == null ? "" : Array.isArray(v) ? v.join(",") : typeof v === "object" ? Object.values(v).join(",") : String(v);
+};
 export async function enhance(root: Document | Element = document): Promise<void> {
   // Static showcase panels collapse like the real one: wrap the controls in a
   // .tw-body and turn the header title into a collapse toggle.
@@ -34,14 +43,21 @@ export async function enhance(root: Document | Element = document): Promise<void
       toolbar.append(copyBtn, resetBtn); header.append(toolbar);
       const live = () => [...panel.querySelectorAll("[data-tw]")].map((h: any) => h._tw).filter((t: any) => t && t.ctrl.get() !== undefined);
       copyBtn.addEventListener("click", async () => {
-        const vals = {}; for (const t of live()) vals[t.key] = t.ctrl.get();
+        // Two controls can legitimately share a key (a data-key repeated, or two hosts
+        // with the same label and no data-key at all) — suffix the duplicates instead of
+        // letting the later one overwrite the earlier and drop a value from the copy.
+        const vals = {};
+        for (const t of live()) {
+          let k = t.key, n = 2; while (hasOwn(vals, k)) k = `${t.key}-${n++}`;
+          vals[k] = t.ctrl.get();
+        }
         const ok = await copyText(JSON.stringify(vals, null, 2));
         if (ok) { flashCopied(copyBtn); showToast(`${name} values copied`, panel); }
         else showToast("Copy failed", panel);
       });
       resetBtn.addEventListener("click", () => {
         spinReset(resetBtn);
-        for (const t of live()) { t.ctrl.set(t.def); t.host.dataset.value = t.ctrl.get(); }
+        for (const t of live()) { t.ctrl.set(t.def); writeDataValue(t.host, t.ctrl.get()); }
       });
     }
   });
@@ -62,8 +78,8 @@ export async function enhance(root: Document | Element = document): Promise<void
   const pend = ensureForMetas(hosts.map((x) => x.meta));
   if (pend) await pend.catch(() => {}); // a failed chunk degrades to skipping its controls (createControl finds no constructor), not an unhandled rejection out of the auto-run
   for (const { host, meta } of hosts) {
-    const ctrl = createControl(meta, (v) => (host.dataset.value = v));
-    if (ctrl) { host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint); host._tw = { ctrl, def: meta.value, key: meta.label, host }; }
+    const ctrl = createControl(meta, (v) => writeDataValue(host, v));
+    if (ctrl) { host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint); host._tw = { ctrl, def: meta.value, key: host.dataset.key || meta.label, host }; }
   }
 }
 
