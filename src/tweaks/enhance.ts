@@ -5,7 +5,7 @@ import { el, btn } from "./shared.js";
 import { dataMeta, hasOwn } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, flashCopied, spinReset, showToast, copyText, addHintMarker } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
 
 // Echo a control's value back onto its host's data-value, in the comma form the parsers
 // in schema.ts read (interval / cubicbezier / point all split data-value on ","). An array
@@ -37,28 +37,21 @@ export async function enhance(root: Document | Element = document): Promise<void
     // controls (gathered lazily at click time; they're created in the pass below).
     if (!header.querySelector(".tw-toolbar")) {
       const name = (title && title.textContent) || "Panel";
-      const toolbar = el("div", "tw-toolbar");
-      const copyBtn = makeCopyBtn();
-      const resetBtn = makeResetBtn();
-      toolbar.append(copyBtn, resetBtn); header.append(toolbar);
       const live = () => [...panel.querySelectorAll("[data-tw]")].map((h: any) => h._tw).filter((t: any) => t && t.ctrl.get() !== undefined);
-      copyBtn.addEventListener("click", async () => {
-        // Two controls can legitimately share a key (a data-key repeated, or two hosts
-        // with the same label and no data-key at all) — suffix the duplicates instead of
-        // letting the later one overwrite the earlier and drop a value from the copy.
+      // Two controls can legitimately share a key (a data-key repeated, or two hosts
+      // with the same label and no data-key at all) — suffix the duplicates instead of
+      // letting the later one overwrite the earlier and drop a value from the copy.
+      const values = () => {
         const vals = {};
         for (const t of live()) {
           let k = t.key, n = 2; while (hasOwn(vals, k)) k = `${t.key}-${n++}`;
           vals[k] = t.ctrl.get();
         }
-        const ok = await copyText(JSON.stringify(vals, null, 2));
-        if (ok) { flashCopied(copyBtn); showToast(`${name} values copied`, panel); }
-        else showToast("Copy failed", panel);
-      });
-      resetBtn.addEventListener("click", () => {
-        spinReset(resetBtn);
-        for (const t of live()) { t.ctrl.set(t.def); writeDataValue(t.host, t.ctrl.get()); }
-      });
+        return JSON.stringify(vals, null, 2);
+      };
+      const reset = () => { for (const t of live()) { t.ctrl.set(t.def); writeDataValue(t.host, t.ctrl.get()); } };
+      const toolbar = el("div", "tw-toolbar");
+      toolbar.append(makeCopyBtn(panel, name, values), makeResetBtn(reset)); header.append(toolbar);
     }
   });
   // Folders first: build the collapsible chrome and move child [data-tw] hosts into it.

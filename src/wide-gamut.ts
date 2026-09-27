@@ -128,7 +128,8 @@ export function convert(coords, from, to) {
 
 // ── gamut ──
 const SLACK = 0.000075;
-function inGamut(oklch, gamut) { const rgb = convert(oklch, "oklch", gamut); return rgb.every((c) => c >= -SLACK && c <= 1 + SLACK); }
+const inRange = (rgb) => rgb.every((c) => c >= -SLACK && c <= 1 + SLACK);
+const inGamut = (oklch, gamut) => inRange(convert(oklch, "oklch", gamut));
 const clip = (rgb) => rgb.map((c) => Math.min(1, Math.max(0, c)));
 const deltaEOK = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 /** Map OKLCH into an RGB gamut (CSS Color 4 chroma reduction + local clip). */
@@ -140,20 +141,25 @@ export function toGamut(oklch, dest) {
   if (deltaEOK(convert(clipped, dest, "oklab"), convert(oklch, "oklch", "oklab")) < JND) return clipped;
   while (max - min > EPS) {
     const chroma = (min + max) / 2; cur[1] = chroma; const inDest = convert(cur, "oklch", dest);
-    if (minIn && inDest.every((c) => c >= -SLACK && c <= 1 + SLACK)) { min = chroma; continue; }
+    if (minIn && inRange(inDest)) { min = chroma; continue; }
     clipped = clip(inDest); const e = deltaEOK(convert(clipped, dest, "oklab"), convert(cur, "oklch", "oklab"));
     if (e < JND) { if (JND - e < EPS) return clipped; minIn = false; min = chroma; } else max = chroma;
   }
   return clipped;
 }
+// The fixed-hue fold behind the two per-pixel helpers below: at one hue, OKLab→LMS
+// collapses to p_i = L + C·d_i (OKLAB_TO_LMS[i][0] is 1, so cos/sin(hue) fold into d), and
+// LMS→XYZ→RGB into one matrix F. Each helper hoists this once, then runs trig- and
+// allocation-free per call — algebraically identical to convert([L,C,hue], "oklch", gamut).
+const hueFold = (hue, gamut) => {
+  const h = hue * RAD, cos = Math.cos(h), sin = Math.sin(h);
+  const d = OKLAB_TO_LMS.map((row) => cos * row[1] + sin * row[2]);
+  const F = mulMat(gamut === "p3" ? XYZ_TO_LIN_P3 : gamut === "rec2020" ? XYZ_TO_LIN_REC2020 : XYZ_TO_LIN_SRGB, LMS_TO_XYZ);
+  return { d, F, gam: gamut === "rec2020" ? rec2020Gam : srgbGam };
+};
 /** Fast in-gamut probe at a fixed hue — `(L,C)=>inside?` (his chroma-boundary loop). */
 export function oklchGamutProbe(hue, gamut) {
-  const h = hue * RAD, cos = Math.cos(h), sin = Math.sin(h);
-  const d0 = cos * OKLAB_TO_LMS[0][1] + sin * OKLAB_TO_LMS[0][2];
-  const d1 = cos * OKLAB_TO_LMS[1][1] + sin * OKLAB_TO_LMS[1][2];
-  const d2 = cos * OKLAB_TO_LMS[2][1] + sin * OKLAB_TO_LMS[2][2];
-  const F = mulMat(gamut === "p3" ? XYZ_TO_LIN_P3 : gamut === "rec2020" ? XYZ_TO_LIN_REC2020 : XYZ_TO_LIN_SRGB, LMS_TO_XYZ);
-  const gam = gamut === "rec2020" ? rec2020Gam : srgbGam; const lo = -SLACK, hi = 1 + SLACK;
+  const { d: [d0, d1, d2], F, gam } = hueFold(hue, gamut), lo = -SLACK, hi = 1 + SLACK;
   return (L, C) => {
     const p0 = L + C * d0, p1 = L + C * d1, p2 = L + C * d2, c0 = p0 ** 3, c1 = p1 ** 3, c2 = p2 ** 3;
     const r = gam(F[0][0] * c0 + F[0][1] * c1 + F[0][2] * c2); if (r < lo || r > hi) return false;
@@ -161,18 +167,11 @@ export function oklchGamutProbe(hue, gamut) {
     const b = gam(F[2][0] * c0 + F[2][1] * c1 + F[2][2] * c2); return b >= lo && b <= hi;
   };
 }
-/** OKLCH→RGB at a fixed hue, folded for per-pixel rasterising: hoists cos/sin(hue) and
- * collapses LMS→XYZ→RGB into one matrix once, then `(L, C, out)` writes the RGB straight
- * into `out` (no per-pixel array alloc, no per-pixel trig). Algebraically identical to
- * `convert([L,C,hue], "oklch", gamut)` — OKLAB_TO_LMS[i][0] is 1, so p_i = L + C·d_i, the
- * same fold `oklchGamutProbe` ships. The picker's plane raster calls it once per repaint. */
+/** OKLCH→RGB at a fixed hue for per-pixel rasterising: `(L, C, out)` writes the RGB straight
+ * into `out` (no per-pixel array alloc, no per-pixel trig). The picker's plane raster calls
+ * it once per repaint. */
 export function oklchToRgbFn(hue, gamut) {
-  const h = hue * RAD, cos = Math.cos(h), sin = Math.sin(h);
-  const d0 = cos * OKLAB_TO_LMS[0][1] + sin * OKLAB_TO_LMS[0][2];
-  const d1 = cos * OKLAB_TO_LMS[1][1] + sin * OKLAB_TO_LMS[1][2];
-  const d2 = cos * OKLAB_TO_LMS[2][1] + sin * OKLAB_TO_LMS[2][2];
-  const F = mulMat(gamut === "p3" ? XYZ_TO_LIN_P3 : gamut === "rec2020" ? XYZ_TO_LIN_REC2020 : XYZ_TO_LIN_SRGB, LMS_TO_XYZ);
-  const gam = gamut === "rec2020" ? rec2020Gam : srgbGam;
+  const { d: [d0, d1, d2], F, gam } = hueFold(hue, gamut);
   return (L, C, out) => {
     const p0 = L + C * d0, p1 = L + C * d1, p2 = L + C * d2, c0 = p0 ** 3, c1 = p1 ** 3, c2 = p2 ** 3;
     out[0] = gam(F[0][0] * c0 + F[0][1] * c1 + F[0][2] * c2);
@@ -222,17 +221,18 @@ export const modeInterpolation = (mode) => MODE_INTERP[mode] || "oklch";
 const INTERP_MODE = Object.assign(Object.create(null), { srgb: "srgb", hsl: "hsl", hwb: "hwb", oklch: "oklch", oklab: "oklab", lch: "lch", lab: "lab", "display-p3": "p3", rec2020: "rec2020" });
 export const interpolationMode = (interp) => INTERP_MODE[interp] || "oklch";
 const MAX_CHROMA = 0.5;
+// RGB channel triples: 0–255 display units for the sRGB notations, 0–1 for the wide spaces.
+const RGB_255 = ["R", "G", "B"].map((k) => ({ k, min: 0, max: 255, step: 1, scale: 255 }));
+const RGB_UNIT = ["R", "G", "B"].map((k) => ({ k, min: 0, max: 1, step: 0.01, scale: 1 }));
 export const MODE_CHANNELS = {
   oklch: [{ k: "L", min: 0, max: 100, step: 1, scale: 100 }, { k: "C", min: 0, max: MAX_CHROMA, step: 0.01, scale: 1 }, { k: "H", min: 0, max: 360, step: 1, scale: 1 }],
   oklab: [{ k: "L", min: 0, max: 100, step: 1, scale: 100 }, { k: "a", min: -0.4, max: 0.4, step: 0.01, scale: 1 }, { k: "b", min: -0.4, max: 0.4, step: 0.01, scale: 1 }],
   lch: [{ k: "L", min: 0, max: 100, step: 1, scale: 1 }, { k: "C", min: 0, max: 150, step: 1, scale: 1 }, { k: "H", min: 0, max: 360, step: 1, scale: 1 }],
   lab: [{ k: "L", min: 0, max: 100, step: 1, scale: 1 }, { k: "a", min: -125, max: 125, step: 1, scale: 1 }, { k: "b", min: -125, max: 125, step: 1, scale: 1 }],
-  srgb: [{ k: "R", min: 0, max: 255, step: 1, scale: 255 }, { k: "G", min: 0, max: 255, step: 1, scale: 255 }, { k: "B", min: 0, max: 255, step: 1, scale: 255 }],
-  css: [{ k: "R", min: 0, max: 255, step: 1, scale: 255 }, { k: "G", min: 0, max: 255, step: 1, scale: 255 }, { k: "B", min: 0, max: 255, step: 1, scale: 255 }],
+  srgb: RGB_255, css: RGB_255,
   hsl: [{ k: "H", min: 0, max: 360, step: 1, scale: 1 }, { k: "S", min: 0, max: 100, step: 1, scale: 1 }, { k: "L", min: 0, max: 100, step: 1, scale: 1 }],
   hwb: [{ k: "H", min: 0, max: 360, step: 1, scale: 1 }, { k: "W", min: 0, max: 100, step: 1, scale: 1 }, { k: "B", min: 0, max: 100, step: 1, scale: 1 }],
-  p3: [{ k: "R", min: 0, max: 1, step: 0.01, scale: 1 }, { k: "G", min: 0, max: 1, step: 0.01, scale: 1 }, { k: "B", min: 0, max: 1, step: 0.01, scale: 1 }],
-  rec2020: [{ k: "R", min: 0, max: 1, step: 0.01, scale: 1 }, { k: "G", min: 0, max: 1, step: 0.01, scale: 1 }, { k: "B", min: 0, max: 1, step: 0.01, scale: 1 }],
+  p3: RGB_UNIT, rec2020: RGB_UNIT,
 };
 const digitsFor = (step) => (step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3);
 

@@ -13,7 +13,7 @@ function createTabs(meta) {
   const pagesWrap = el("div", "tw-tabs-pages");
   const bodies = [];
   const tabs = meta.pages.map((page, i) => {
-    const tab = txt("button", "tw-tabs-tab", page.title); tab.type = "button"; tab.setAttribute("role", "tab");
+    const tab = txt("button", "tw-tabs-tab", page.title); tab.setAttribute("role", "tab");
     tab.dataset.active = String(i === 0); tab.setAttribute("aria-selected", String(i === 0));
     tab.tabIndex = i === 0 ? 0 : -1; // roving tabindex from build, not only after the first activate
     tab.id = `${uid}-tab-${i}`; tab.setAttribute("aria-controls", `${uid}-page-${i}`);

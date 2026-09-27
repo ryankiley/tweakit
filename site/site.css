@@ -373,6 +373,9 @@ a { color: inherit; text-decoration: none; }
   .ex-copy::after { transition: opacity var(--site-dur-fast) ease; transform: none; }
 }
 .ex-note { font-size: 12.5px; color: var(--site-faint); margin-top: -6px; }
+/* A demo's own action button (the panel-API remotes) — neutral chrome on the --demo-* tokens. */
+.demo-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong); background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px; line-height: 1.4; font-family: inherit; cursor: pointer; }
+.demo-btn:hover { background: var(--demo-bar); }
 
 /* ── Highlighter tokens — vivid, anchored on the kit's violet: violet keywords/attrs,
  * blue calls, green strings, orange numbers, teal keys; comments/punctuation recede

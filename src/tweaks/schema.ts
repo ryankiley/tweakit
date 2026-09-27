@@ -11,7 +11,7 @@ import type { SchemaObject } from "./types.js";
 // Per-control options (render / disabled / hint) ride on any object-form value; the
 // wrapper attaches them to whatever control baseMetaFor infers.
 function metaFor(key, value, depth = 0) {
-  if (key === "__proto__" || key === "constructor" || key === "prototype") return null; // params is an object-as-map — these keys would write through to the prototype
+  if (isReservedKey(key)) return null;
   const meta = baseMetaFor(key, value, depth);
   if (meta && value && typeof value === "object") {
     if (typeof value.render === "function") meta.render = value.render;
@@ -25,6 +25,9 @@ const isObj = (v) => v && typeof v === "object";
 // Own-key lookup for objects used as maps — a stray key like "toString" must miss,
 // not hit Object.prototype (the dispatch tables + params bags below).
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+// params is an object-as-map: a schema key or a set() path segment by one of these names
+// would write through to Object.prototype, so both entry points refuse it outright.
+const isReservedKey = (k) => k === "__proto__" || k === "constructor" || k === "prototype";
 // Did a value actually change? Identity for primitives; structural (JSON) for the
 // object-valued controls (spring/point/gradient/bezier), whose get() returns a fresh
 // object each call. Gates notify() so a same-value set()/emit can't echo — an on()
@@ -190,4 +193,4 @@ const dataMeta = (host) => {
   return meta;
 };
 
-export { metaFor, dataMeta, valueChanged, hasOwn, VALUELESS, TYPED_META, DATA_VALUE };
+export { metaFor, dataMeta, valueChanged, hasOwn, isReservedKey, VALUELESS, TYPED_META, DATA_VALUE };
