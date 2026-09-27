@@ -251,7 +251,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         entries.push(entry); wireReset(ctrl.el, entry);
       }
       registerCond(ctrl.el, m);
-      if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem });
+      if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); // every control is searchable by label except the (valueless) separator
       container.append(ctrl.el);
     }
   };
