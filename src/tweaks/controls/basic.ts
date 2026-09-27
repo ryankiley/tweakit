@@ -62,16 +62,12 @@ function createSlider(meta, onChange) {
     valueEl.textContent = qvText;
     track.setAttribute("aria-valuenow", String(qv));
     track.setAttribute("aria-valuetext", qvText);
-    // Value-dodge: the handle yields only when it actually overlaps the
-    // label (left) or value (right) text — comparing the handle's real pixel span
-    // (it renders at pct% − 9px, 3px wide) against each text's measured edge, so it
-    // dims right as it reaches the number, not a fixed fraction early.
+    // Value-dodge: the handle yields only while it actually overlaps the label (left) or
+    // value (right) text — its real pixel span (it renders at pct% − 9px, 3px wide) tested
+    // against each text's live-measured edge (overlapsText, shared with the interval), so it
+    // dims right as it reaches the number and re-shows the instant it clears.
     const trackW = wrap.offsetWidth;
     if (trackW) {
-      // Dodge tracks the handle's *actual* span: the hairline renders at pct%−9px
-      // (3px wide), tested for pure overlap against the live-measured label/value
-      // spans (overlapsText, shared with the interval) — the handle dims only while
-      // it truly covers the text and re-shows the instant it clears.
       const hx = Math.max(5, (pct / 100) * trackW + pull - 9);
       track.classList.toggle("is-dodge", overlapsText(labelEl, valueEl, hx, 3));
     }
@@ -328,7 +324,7 @@ function createSelect(meta, onChange) {
 }
 
 function createButton(meta) {
-  const b = txt("button", "tw-button", meta.label); b.type = "button";
+  const b = txt("button", "tw-button", meta.label);
   b.addEventListener("click", () => meta.action && meta.action());
   return blade(b);
 }
@@ -341,7 +337,7 @@ function createButtonGroup(meta) {
   const group = el("div", "tw-buttongroup-btns");
   const list = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label, b.action]) : Object.entries(meta.buttons || {});
   for (const [lab, fn] of list) {
-    const b = txt("button", "tw-buttongroup-btn", lab); b.type = "button";
+    const b = txt("button", "tw-buttongroup-btn", lab);
     b.addEventListener("click", () => typeof fn === "function" && fn());
     group.append(b);
   }

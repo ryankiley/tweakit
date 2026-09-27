@@ -358,6 +358,44 @@ test("double-clicking a slider readout resets it even once the hover armed the e
   p.destroy();
 });
 
+test("every button the kit renders is type=button, never a form submit", () => {
+  const p = tweaks("Btns", {
+    go: { action: () => {} },
+    grp: { type: "buttongroup", buttons: { A: () => {} } },
+    on: true,
+    pick: { type: "radiogrid", options: ["a", "b"] },
+    list: ["x", "y"],
+    pages: { type: "tabs", pages: { One: { a: 1 }, Two: { b: 2 } } },
+  }, { persist: "t-button-types" });
+  document.body.append(p.el);
+  p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click(); // portals the presets menu (its Save button) to <body>
+  const buttons = [...document.querySelectorAll(".tw-panel button, .tw-presets-menu button")];
+  assert.ok(buttons.length >= 14, `only ${buttons.length} buttons found`);
+  for (const b of buttons) assert.equal(b.type, "button", `<button class="${b.className}"> is type=${b.type}`);
+  p.destroy();
+});
+
+test("the toolbar's copy emits the values snapshot (nested, no _last) and its reset restores defaults", async () => {
+  const p = tweaks("Tb", { a: [1, 0, 10, 1], f: { b: [2, 0, 10, 1] } });
+  document.body.append(p.el);
+  p.set("a", 7); p.set("f.b", 9);
+  let copied = null;
+  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
+  try {
+    p.el.querySelector(".tw-toolbar-btn--swap").click();
+    await new Promise((r) => setTimeout(r, 0)); // the click handler awaits the write
+  } finally {
+    if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip);
+    else delete globalThis.navigator.clipboard;
+  }
+  assert.deepEqual(JSON.parse(copied), { a: 7, f: { b: 9 } });
+  p.el.querySelector(".tw-toolbar-btn--reset").click();
+  assert.equal(p.params.a, 1);
+  assert.equal(p.params.f.b, 2);
+  p.destroy();
+});
+
 test("text-field focus is quiet after a pointer press, ringed after a key press", () => {
   const p = tweaks("F", { note: "hello" });
   document.body.append(p.el);

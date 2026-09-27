@@ -95,9 +95,9 @@ const svgEl = (tag: string, cls?: string): any => { const n = document.createEle
 // The two element shapes the kit builds everywhere: a non-submitting button (every
 // <button> here is type="button" — inside a host's <form>, the default "submit" would
 // post the page), and a text-bearing node (textContent, never innerHTML — labels are
-// host data).
+// host data). txt("button", …) is the text-labelled button, so it carries the same type.
 const btn = (cls: string, html?: string): any => { const b = el("button", cls, html); b.type = "button"; return b; };
-const txt = (tag: string, cls: string, text: any): any => { const n = el(tag, cls); n.textContent = text; return n; };
+const txt = (tag: string, cls: string, text: any): any => { const n = el(tag, cls); n.textContent = text; if (tag === "button") n.type = "button"; return n; };
 // A resolved custom property off a node; accentColor picks the panel accent and
 // falls back to the primary text colour then white (canvas strokes need a literal).
 const cssVar = (node, name) => getComputedStyle(node).getPropertyValue(name).trim();
@@ -144,10 +144,11 @@ const quietFocus = (input) => {
   input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
 };
 // Press-drag on a node: onDown fires on pointerdown (pointer captured), onMove on
-// each move; it ends on pointerup/cancel or when the button releases off the node
-// (buttons===0), then onEnd runs. The shape behind the colour plane/strips, the
-// point pad, and the bezier handles — the controls with bespoke physics (slider,
-// number scrub, gradient) keep their own loops.
+// each move; it ends on pointerup/cancel/lost capture or when the button releases off
+// the node (buttons===0), then onEnd runs. The shape behind the colour plane/strips,
+// the point pad, the bezier handles, the gradient stops, the interval, and the number
+// scrub — only the slider (its spring detent) and the panel header (its click-vs-drag
+// threshold) keep bespoke loops.
 function dragGesture(node: any, { onDown, onMove, onEnd }: { onDown?: (e: any) => void; onMove?: (e: any) => void; onEnd?: (e: any) => void } = {}) {
   let activeId = null; // the one captured pointer — a second finger / other-button press can't hijack or fork the drag
   const end = (e) => { if (activeId === null || e.pointerId !== activeId) return; activeId = null; onEnd && onEnd(e); };
@@ -395,7 +396,7 @@ const setRadioActive = (btns, value) => btns.forEach((b) => { const on = b.datas
 // role + value + click identically; only the class and container differ. onPick(value).
 // _twVal carries the option's real value — dataset stringifies, so a keyboard pick
 // reading dataset.value turned a numeric option into a string (type flipped by input method).
-const radioButton = (cls, o, onPick) => { const b = btn(cls); b.setAttribute("role", "radio"); b.textContent = optLabel(o); b.dataset.value = optValue(o); b._twVal = optValue(o); b.addEventListener("click", () => onPick(b._twVal)); return b; };
+const radioButton = (cls, o, onPick) => { const b = txt("button", cls, optLabel(o)); b.setAttribute("role", "radio"); b._twVal = optValue(o); b.dataset.value = b._twVal; b.addEventListener("click", () => onPick(b._twVal)); return b; };
 // Arrow-key navigation over a one-dimensional or gridded group → the next index, or −1
 // when the key isn't the group's to handle. The three radio-ish groups share it:
 // cols > 0 jumps ↑/↓ by a row, clamped at the edges (the radio grid); cols 0 treats
@@ -481,13 +482,16 @@ function makeGrabGuide() {
 // from the field. read() returns the live value, apply(v) commits it, text() the
 // bubble label. Shared by createNumber and the numField building block.
 function attachScrub(grab, wrap, step, read, apply, text) {
-  let downX = 0, downV = 0, activeId = null, curK = 1; const gd = makeGrabGuide();
-  grab.addEventListener("pointerdown", (e) => { if (e.button !== 0 || activeId !== null) return; e.preventDefault(); activeId = e.pointerId; downX = e.clientX; downV = read(); curK = 1; grab.classList.add("is-dragging"); try { grab.setPointerCapture(e.pointerId); } catch {} const br = wrap.getBoundingClientRect(); gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2); gd.move(e.clientX, text()); });
-  // Shift = coarse (×10), Alt = fine (×0.1); re-anchor on a modifier change so the value doesn't jump.
-  grab.addEventListener("pointermove", (e) => { if (e.pointerId !== activeId) return; if (e.buttons === 0) { end(e); return; } const k = e.shiftKey ? 10 : e.altKey ? 0.1 : 1; if (k !== curK) { curK = k; downX = e.clientX; downV = read(); } apply(downV + (e.clientX - downX) * step * k); gd.move(e.clientX, text()); });
-  const end = (e) => { if (activeId === null || e.pointerId !== activeId) return; activeId = null; grab.classList.remove("is-dragging"); gd.hide(); };
-  grab.addEventListener("pointerup", end); grab.addEventListener("pointercancel", end);
-  grab.addEventListener("lostpointercapture", end); // capture lost mid-scrub (the popover hosting the field closing) must still hide the full-screen guide — the singleton ref is overwritten on the next show, which would orphan the node
+  let downX = 0, downV = 0, curK = 1; const gd = makeGrabGuide();
+  // The shared press-drag shape — its every end path matters here: capture lost mid-scrub
+  // (the popover hosting the field closing) must still hide the full-screen guide, whose
+  // singleton ref is overwritten on the next show and would otherwise orphan the node.
+  dragGesture(grab, {
+    onDown: (e) => { e.preventDefault(); downX = e.clientX; downV = read(); curK = 1; grab.classList.add("is-dragging"); const br = wrap.getBoundingClientRect(); gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2); gd.move(e.clientX, text()); },
+    // Shift = coarse (×10), Alt = fine (×0.1); re-anchor on a modifier change so the value doesn't jump.
+    onMove: (e) => { const k = e.shiftKey ? 10 : e.altKey ? 0.1 : 1; if (k !== curK) { curK = k; downX = e.clientX; downV = read(); } apply(downV + (e.clientX - downX) * step * k); gd.move(e.clientX, text()); },
+    onEnd: () => { grab.classList.remove("is-dragging"); gd.hide(); },
+  });
 }
 
 // ── The labelled numeric field — ONE numeric engine for the kit: a sanitized step,

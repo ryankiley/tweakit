@@ -22,5 +22,5 @@
 export { tweaks } from "./panel.js";
 export { enhance } from "./enhance.js";
 // Re-export the public types so `import type { Schema, Panel } from "tweakit"`
-// works from either entry — they erase at build time.
-export type { Schema, SchemaValue, SchemaObject, ControlOptions, Option, GradientStop, Get, TweaksOptions, Theme, Params, Panel, Control } from "./types.js";
+// works from either entry (single.ts re-exports this module) — they erase at build time.
+export type * from "./types.js";

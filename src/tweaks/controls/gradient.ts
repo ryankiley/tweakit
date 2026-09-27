@@ -194,7 +194,7 @@ function createGradient(meta, onChange) {
   });
 
   // Open the editor under the trigger; reflow the picker body once it's at real size.
-  popover(root, trigger, pop, { width: 260, fallbackH: 392, gap: 6, onOpen: () => body.reflow(), onReflow: () => body.reflow() });
+  popover(root, trigger, pop, { width: 260, fallbackH: 392, gap: 6, onOpen: body.reflow, onReflow: body.reflow });
 
   renderHandles(); paint(); reflectCount();
   return {

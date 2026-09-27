@@ -55,20 +55,15 @@ export const examples = [
       <div class="pa-remote">
         <div class="pa-tile"></div>
         <div class="pa-remote-row">
-          <button class="pa-btn pa-shuffle" type="button">panel.set(…) random</button>
-          <button class="pa-btn pa-restore" type="button">panel.reset()</button>
+          <button class="demo-btn pa-shuffle" type="button">panel.set(…) random</button>
+          <button class="demo-btn pa-restore" type="button">panel.reset()</button>
         </div>
       </div>`,
     css: `
       .pa-remote { display: flex; flex-direction: column; align-items: center; gap: 18px; }
       .pa-tile { width: 120px; height: 120px; border-radius: 18px; background: oklch(0.65 0.2 260);
                  transition: background 0.15s, transform 0.2s; }
-      .pa-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-      .pa-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
-                background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
-                line-height: 1.4; font-family: inherit; cursor: pointer; }
-      .pa-btn:active { background: var(--demo-bar); }
-      @media (hover: hover) and (pointer: fine) { .pa-btn:hover { background: var(--demo-bar); } }`,
+      .pa-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }`,
     run: ({ tweaks, mount, target }) => {
       const tile = target.querySelector(".pa-tile");
       const panel = tweaks("Remote", {
@@ -102,8 +97,8 @@ export const examples = [
     target: `
       <div class="pa-save">
         <div class="pa-save-row">
-          <button class="pa-btn pa-do-save" type="button">panel.toJSON()</button>
-          <button class="pa-btn pa-do-load" type="button">panel.fromJSON(…)</button>
+          <button class="demo-btn pa-do-save" type="button">panel.toJSON()</button>
+          <button class="demo-btn pa-do-load" type="button">panel.fromJSON(…)</button>
         </div>
         <pre class="pa-state">— Save to capture state —</pre>
       </div>`,
@@ -176,18 +171,13 @@ export const examples = [
       <div class="ud-remote">
         <div class="ud-card"></div>
         <div class="ud-remote-row">
-          <button class="ud-btn ud-undo-btn" type="button">⌘Z undo</button>
-          <button class="ud-btn ud-redo-btn" type="button">⇧⌘Z redo</button>
+          <button class="demo-btn ud-undo-btn" type="button">⌘Z undo</button>
+          <button class="demo-btn ud-redo-btn" type="button">⇧⌘Z redo</button>
         </div>
       </div>`,
     css: `
       .ud-remote { display: flex; flex-direction: column; align-items: center; gap: 18px; }
       .ud-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-      .ud-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
-                background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
-                line-height: 1.4; font-family: inherit; cursor: pointer; }
-      .ud-btn:active { background: var(--demo-bar); }
-      @media (hover: hover) and (pointer: fine) { .ud-btn:hover { background: var(--demo-bar); } }
       .ud-card { width: 160px; height: 100px; border-radius: 18px; background: #7C5CFF;
                  transition: width 0.15s, border-radius 0.15s; }`,
     run: ({ tweaks, mount, target }) => {
@@ -220,19 +210,14 @@ export const examples = [
       <div class="ps-remote">
         <div class="ps-tile"></div>
         <div class="ps-remote-row">
-          <button class="ps-btn ps-save" type="button">savePreset("mine")</button>
-          <button class="ps-btn ps-load" type="button">loadPreset("mine")</button>
+          <button class="demo-btn ps-save" type="button">savePreset("mine")</button>
+          <button class="demo-btn ps-load" type="button">loadPreset("mine")</button>
         </div>
         <div class="ps-note">&nbsp;</div>
       </div>`,
     css: `
       .ps-remote { display: flex; flex-direction: column; align-items: center; gap: 18px; }
       .ps-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-      .ps-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
-                background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
-                line-height: 1.4; font-family: inherit; cursor: pointer; }
-      .ps-btn:active { background: var(--demo-bar); }
-      @media (hover: hover) and (pointer: fine) { .ps-btn:hover { background: var(--demo-bar); } }
       .ps-tile { width: 120px; height: 120px; border-radius: 18px; background: oklch(0.6 0.18 260);
                  transition: all 0.15s; }
       .ps-note { font-size: 12px; color: var(--demo-faint); min-height: 1em; }`,
@@ -269,13 +254,7 @@ export const examples = [
       floating layer on first drag (<code>draggable: false</code> pins it). Pass
       <code>floating: true</code> or <code>{ x, y }</code> to start it floated, like a
       classic debug overlay.</p>`,
-    target: `<button class="fl-btn fl-spawn" type="button">Spawn a floating panel</button>`,
-    css: `
-      .fl-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
-                background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
-                line-height: 1.4; font-family: inherit; cursor: pointer; }
-      .fl-btn:active { background: var(--demo-bar); }
-      @media (hover: hover) and (pointer: fine) { .fl-btn:hover { background: var(--demo-bar); } }`,
+    target: `<button class="demo-btn fl-spawn" type="button">Spawn a floating panel</button>`,
     noMount: true,
     run: ({ tweaks, target }) => {
       const btn = target.querySelector(".fl-spawn");
