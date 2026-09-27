@@ -16,6 +16,7 @@
  *     prose   HTML string (optional)
  *     target  HTML injected as the demo surface (optional; run-mode only)
  *     css     page-scoped CSS — use example-unique class names, nothing auto-scopes
+ *             (site.css already provides .demo-btn for a demo's own action buttons)
  *     run     ({ tweaks, enhance, mount, target }) => {}  — live example, single source
  *     html    string — [data-tw] markup-mode example: injected verbatim AND displayed
  *     code    extra display-only snippet: string (js) or { lang: "js"|"html"|"css"|"sh", text }

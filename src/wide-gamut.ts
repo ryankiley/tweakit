@@ -222,8 +222,10 @@ const INTERP_MODE = Object.assign(Object.create(null), { srgb: "srgb", hsl: "hsl
 export const interpolationMode = (interp) => INTERP_MODE[interp] || "oklch";
 const MAX_CHROMA = 0.5;
 // RGB channel triples: 0–255 display units for the sRGB notations, 0–1 for the wide spaces.
-const RGB_255 = ["R", "G", "B"].map((k) => ({ k, min: 0, max: 255, step: 1, scale: 255 }));
-const RGB_UNIT = ["R", "G", "B"].map((k) => ({ k, min: 0, max: 1, step: 0.01, scale: 1 }));
+// Each is shared by two modes (srgb/css, p3/rec2020) and frozen, so a one-mode tweak can't
+// silently leak into its twin.
+const rgbTriple = (max, step, scale) => Object.freeze(["R", "G", "B"].map((k) => Object.freeze({ k, min: 0, max, step, scale })));
+const RGB_255 = rgbTriple(255, 1, 255), RGB_UNIT = rgbTriple(1, 0.01, 1);
 export const MODE_CHANNELS = {
   oklch: [{ k: "L", min: 0, max: 100, step: 1, scale: 100 }, { k: "C", min: 0, max: MAX_CHROMA, step: 0.01, scale: 1 }, { k: "H", min: 0, max: 360, step: 1, scale: 1 }],
   oklab: [{ k: "L", min: 0, max: 100, step: 1, scale: 100 }, { k: "a", min: -0.4, max: 0.4, step: 0.01, scale: 1 }, { k: "b", min: -0.4, max: 0.4, step: 0.01, scale: 1 }],

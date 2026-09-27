@@ -358,7 +358,9 @@ test("double-clicking a slider readout resets it even once the hover armed the e
   p.destroy();
 });
 
-test("every button the kit renders is type=button, never a form submit", () => {
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test("every button the kit renders is type=button, never a form submit", async () => {
   const p = tweaks("Btns", {
     go: { action: () => {} },
     grp: { type: "buttongroup", buttons: { A: () => {} } },
@@ -368,11 +370,37 @@ test("every button the kit renders is type=button, never a form submit", () => {
     pages: { type: "tabs", pages: { One: { a: 1 }, Two: { b: 2 } } },
   }, { persist: "t-button-types" });
   document.body.append(p.el);
-  p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click(); // portals the presets menu (its Save button) to <body>
-  const buttons = [...document.querySelectorAll(".tw-panel button, .tw-presets-menu button")];
-  assert.ok(buttons.length >= 14, `only ${buttons.length} buttons found`);
+  p.savePreset("button-type-probe"); // so the presets menu renders a Load + Delete row, not only "No presets yet"
+  p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click(); // portals the presets menu to <body>
+  await wait(30); // its list renders in the popover's onOpen, a frame later
+  const menu = [...document.querySelectorAll(".tw-presets-menu")].find((m) => m.textContent.includes("button-type-probe"));
+  assert.ok(menu, "this panel's presets menu rendered its rows");
+  const buttons = [...p.el.querySelectorAll("button"), ...menu.querySelectorAll("button")];
+  const kinds = new Set(buttons.map((b) => b.className.split(" ")[0]));
+  for (const k of ["tw-header-toggle", "tw-toolbar-btn", "tw-button", "tw-buttongroup-btn", "tw-seg-btn", "tw-radiogrid-btn", "tw-select-trigger", "tw-select-option", "tw-tabs-tab", "tw-presets-savebtn", "tw-presets-load", "tw-presets-del"]) assert.ok(kinds.has(k), `${k} rendered`);
   for (const b of buttons) assert.equal(b.type, "button", `<button class="${b.className}"> is type=${b.type}`);
   p.destroy();
+});
+
+test("destroy() in the same tick as opening a popover leaves no stray menu, focus, or listener", async () => {
+  // Regression: popover() deferred its is-open/onOpen work to the next frame and its outside-press
+  // listener to a setTimeout(0), neither re-checking `open` — so a close() in between (a destroy()
+  // right after the open) was undone: the dead menu re-showed, onOpen focused its input, and the
+  // document listener was re-added after close() had removed it.
+  const p = tweaks("Race", { a: 1 }, { persist: "t-popover-race" });
+  document.body.append(p.el);
+  p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click();
+  const menu = [...document.querySelectorAll(".tw-presets-menu")].at(-1);
+  assert.ok(menu && menu.isConnected, "the menu portaled to <body>");
+  p.destroy(); // same tick as the open
+  const added = [];
+  document.addEventListener = function (type, ...rest) { added.push(type); return Object.getPrototypeOf(this).addEventListener.call(this, type, ...rest); }; // spy on listeners added behind the close
+  try { await wait(40); } finally { delete document.addEventListener; } // past the rAF (16ms here) and the setTimeout(0)
+  assert.ok(!menu.classList.contains("is-open"), "the dead menu did not re-open");
+  assert.ok(!menu.contains(document.activeElement), "focus was not stolen into it");
+  assert.ok(!added.includes("pointerdown"), "no outside-press listener was added after the close");
+  await wait(220); // the portaled node is removed 200ms after close
+  assert.equal(menu.isConnected, false, "the menu was removed");
 });
 
 test("the toolbar's copy emits the values snapshot (nested, no _last) and its reset restores defaults", async () => {

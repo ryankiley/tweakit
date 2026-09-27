@@ -314,7 +314,7 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     window.addEventListener("tw-retheme", recarry); // setTheme() while open
     if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] }); } // host scheme flip while open
     place();
-    requestAnimationFrame(() => { pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed)
+    requestAnimationFrame(() => { if (!open) return; pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed) — unless a same-tick close (a destroy() right after the open) already ran: showing the dead pop and letting onOpen focus into it would undo that close
     // Unmount watchdog: a host that removes the panel while this is open (an SPA route
     // change) would otherwise strand the portaled pop on screen — visible and interactive
     // over whatever renders next — until something else was pressed. One rAF per frame,
@@ -322,7 +322,7 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     requestAnimationFrame(function watch() { if (!open) return; if (!root.isConnected) return close(); requestAnimationFrame(watch); });
     // Capture phase, so a press anywhere else in the panel closes too — the panel's own
     // stopPointerLeak would otherwise swallow the event before it bubbles to document.
-    setTimeout(() => document.addEventListener("pointerdown", onOutside, true), 0); // skip the opening click
+    setTimeout(() => { if (open) document.addEventListener("pointerdown", onOutside, true); }, 0); // skip the opening click; a same-tick close has already run its removal, so don't add behind it
     document.addEventListener("keydown", onKey); // Esc closes from anywhere while open, not only when focus is inside
     window.addEventListener("scroll", reflow, true); window.addEventListener("resize", reflow);
   };

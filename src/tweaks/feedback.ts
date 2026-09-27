@@ -11,16 +11,20 @@ import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 const toolbarBtn = (cls, icon, label) => { const b = btn("tw-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
 // Copy: puts `text()` on the clipboard and confirms — the check cross-fades in and a toast
 // (anchored to the panel, so it carries its theme + scheme) names what was copied.
+// Both handlers bail while the button is `disabled` (the panel's lazy window, before its
+// controls exist): a user click never reaches a disabled control, but a synthetic
+// dispatchEvent(click) does, and it must stay as inert as the button reads.
 const makeCopyBtn = (anchor, name, text) => {
   const b = toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values");
   b.addEventListener("click", async () => {
+    if (b.disabled) return;
     if (await copyText(text())) { flashCopied(b); showToast(`${name} values copied`, anchor); }
     else showToast("Copy failed", anchor);
   });
   return b;
 };
 // Reset: runs `onReset` behind the icon's one-shot spin — motion feedback to match the copy swap.
-const makeResetBtn = (onReset) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { spinReset(b); onReset(); }); return b; };
+const makeResetBtn = (onReset) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
 const flashCopied = (btn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
 // Reset spin — an accumulated rotation on --tw-spin, driven by the transform transition
 // (no keyframes): transitions retarget mid-flight, so a second click mid-spin continues
