@@ -39,9 +39,11 @@ function createSpring(meta, onChange) {
   // Initial config — accept top-level props (the inline shorthand
   // `{ type:"spring", visualDuration:0.3, bounce:0.2 }` or `{ …, stiffness, damping, mass }`)
   // as well as the legacy `value:{…}` form, with value taking precedence. Mode is explicit
-  // (`meta.mode`) or inferred from which keys are present — time wins when either is given.
+  // (on the value, or `meta.mode`) or inferred from which keys are present — time wins
+  // when either is given.
+  const explicit = (m) => (m === "time" || m === "physics" ? m : null);
   const init = { stiffness: meta.stiffness, damping: meta.damping, mass: meta.mass, visualDuration: meta.visualDuration, bounce: meta.bounce, ...(meta.value || {}) };
-  let mode = meta.mode === "time" || meta.mode === "physics" ? meta.mode : (has(init.visualDuration) || has(init.bounce)) ? "time" : "physics";
+  let mode = explicit(init.mode) ?? explicit(meta.mode) ?? ((has(init.visualDuration) || has(init.bounce)) ? "time" : "physics");
   const time = { visualDuration: clampDur(init.visualDuration), bounce: clampBounce(init.bounce) };
   let phys = clampS({ stiffness: init.stiffness, damping: init.damping, mass: init.mass });
 
@@ -138,9 +140,9 @@ function createSpring(meta, onChange) {
     // without emitting (set() is the silent path; the panel stamps + notifies itself).
     set: (v) => {
       if (!v || typeof v !== "object") return;
-      const hasTime = has(v.visualDuration) || has(v.bounce), hasPhys = has(v.stiffness) || has(v.damping) || has(v.mass);
-      if (!hasTime && !hasPhys) return;
-      mode = hasTime ? "time" : "physics"; // time wins when both are present (it's the authoring mode)
+      const ex = explicit(v.mode), hasTime = has(v.visualDuration) || has(v.bounce), hasPhys = has(v.stiffness) || has(v.damping) || has(v.mass);
+      if (!hasTime && !hasPhys && !ex) return;
+      mode = ex ?? (hasTime ? "time" : "physics"); // an explicit mode wins (the authored default carries one, so a reset restores it); else time wins when both groups are present (it's the authoring mode)
       if (hasTime) { if (has(v.visualDuration)) time.visualDuration = clampDur(v.visualDuration); if (has(v.bounce)) time.bounce = clampBounce(v.bounce); }
       // Restore the physics cache whenever physics keys are present — even alongside time keys
       // (reset's default carries both groups), so a later toggle to Physics shows the intended

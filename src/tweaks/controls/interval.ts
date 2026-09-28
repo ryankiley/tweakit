@@ -1,5 +1,5 @@
 // ── Interval / range slider — dual-handle [lo,hi]. Lazy.
-import { el, txt, clamp, roundToStep, stepPrecision, normalizeRange, rangeStep, overlapsText, dragGesture, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
+import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, overlapsText, dragGesture, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
 
 // ── Interval / range slider — a dual-handle slider bound to [lo, hi] inside
 // [min, max]. Reuses the
@@ -12,7 +12,8 @@ function createInterval(meta, onChange) {
   // swaps, and a degenerate step re-infers — so markup like data-min="abc"
   // can't ride in as NaN ("NaN – NaN").
   const t0 = +(meta.value && meta.value[0]), t1 = +(meta.value && meta.value[1]);
-  const { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, Number.isFinite(t0) ? t0 : 0, Number.isFinite(t1) ? t1 : 1);
+  let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, Number.isFinite(t0) ? t0 : 0, Number.isFinite(t1) ? t1 : 1);
+  [min, max] = gridEnds(min, max, step); // as the slider: the range is its reachable grid, so an off-grid bound never reports a value past it and every surface shares one lattice
   const decimals = stepPrecision(step);
   const q = (v) => roundToStep(v, min, step);
   // Missing/non-finite tuple entries fall back to the bounds (the .set path already
@@ -39,10 +40,11 @@ function createInterval(meta, onChange) {
   });
 
   const pctOf = (v) => ((v - min) / ((max - min) || 1)) * 100;
+  const handleLeft = (pct) => `clamp(5px, calc(${pct}% - 1.5px), calc(100% - 9px))`; // stay inset at the extremes, like the slider handle
   const render = () => {
     const a = pctOf(lo), b = pctOf(hi);
     fill.style.left = a + "%"; fill.style.width = Math.max(0, b - a) + "%";
-    hLo.style.left = `clamp(5px, calc(${a}% - 1.5px), calc(100% - 9px))`; hHi.style.left = `clamp(5px, calc(${b}% - 1.5px), calc(100% - 9px))`; // stay inset at the extremes, like the slider handle
+    hLo.style.left = handleLeft(a); hHi.style.left = handleLeft(b);
     valueEl.textContent = `${lo.toFixed(decimals)} – ${hi.toFixed(decimals)}`;
     hLo.setAttribute("aria-valuenow", String(lo)); hHi.setAttribute("aria-valuenow", String(hi));
     // Value-dodge, the slider's shared overlap test (overlapsText) — per handle here:

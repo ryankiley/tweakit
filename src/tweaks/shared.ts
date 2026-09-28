@@ -21,9 +21,28 @@ const stepPrecision = (step) => {
   const i = t.indexOf(".");
   return i === -1 ? 0 : Math.min(MAX_FIXED, t.length - i - 1);
 };
+// Round to the min-anchored step grid, on the step's decimals. The anchor is min rounded
+// to those decimals too: a finer min (0.5 on a step-1 grid, -Math.PI on a 0.01 grid) put
+// every grid point half a decimal off the rounding, and at exactly half a step the two
+// roundings compounded — each round-to-step (a reset, a restore, set(get())) walked the
+// value up by a step (3 → 4 → 5 …).
 const roundToStep = (v, min, step) => {
   if (!(step > 0)) return v;
-  return Number((min + Math.round((v - min) / step) * step).toFixed(stepPrecision(step)));
+  const p = stepPrecision(step), a = Number((+min).toFixed(p));
+  return Number((a + Math.round((v - a) / step) * step).toFixed(p));
+};
+// The reachable ends of a [min, max] step grid: the first grid point at or above min and the
+// last at or below max. Clamping to an off-grid bound (max 14.45 on a step-1 grid) left a
+// value the readout showed rounded and the next round-to-step moved — or, on a slider, one
+// past max. A range too narrow to hold a grid point pins to its min (one value, so the
+// clamp stays a fixed point — raw [min, max] ends had the value walking between them).
+// ±Infinity = open.
+const gridEnds = (min, max, step, anchor = min) => {
+  const r = (v) => roundToStep(v, anchor, step);
+  let lo = Number.isFinite(min) ? r(min) : -Infinity, hi = Number.isFinite(max) ? r(max) : Infinity;
+  if (lo < min) lo = r(lo + step);
+  if (hi > max) hi = r(hi - step);
+  return lo > hi ? [min, min] : [lo, hi];
 };
 const inferStep = (min, max) => {
   const range = max - min;
@@ -95,9 +114,9 @@ const svgEl = (tag: string, cls?: string): any => { const n = document.createEle
 // The two element shapes the kit builds everywhere: a non-submitting button (every
 // <button> here is type="button" — inside a host's <form>, the default "submit" would
 // post the page), and a text-bearing node (textContent, never innerHTML — labels are
-// host data).
+// host data). txt("button", …) is the text-labelled button, so it carries the same type.
 const btn = (cls: string, html?: string): any => { const b = el("button", cls, html); b.type = "button"; return b; };
-const txt = (tag: string, cls: string, text: any): any => { const n = el(tag, cls); n.textContent = text; return n; };
+const txt = (tag: string, cls: string, text: any): any => { const n = el(tag, cls); n.textContent = text; if (tag === "button") n.type = "button"; return n; };
 // A resolved custom property off a node; accentColor picks the panel accent and
 // falls back to the primary text colour then white (canvas strokes need a literal).
 const cssVar = (node, name) => getComputedStyle(node).getPropertyValue(name).trim();
@@ -143,11 +162,32 @@ const quietFocus = (input) => {
   input.addEventListener("focus", () => input.classList.toggle("tw-focus-quiet", pointerModality));
   input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
 };
+// Select the whole value when a text field takes focus, so a click into it replaces the
+// value on the first keystroke instead of inserting at the caret (the hex field: you
+// paste or type a new colour, never edit one digit). Browsers collapse a focus-time
+// selection on the click's own mouseup, so the first primary-button mouseup after a
+// pointer-initiated focus is swallowed while the whole value is still selected — its only
+// default is that caret placement (a middle button's mouseup carries the X11 paste, so it
+// is left alone, and a press that ended elsewhere leaves nothing to protect). Keyboard
+// focus selects natively, and a later click inside an already-focused field places the
+// caret as usual. As with any select-on-focus field, a drag on that first press moves the
+// selected text rather than selecting a range; the second press drag-selects natively.
+const selectAllOnFocus = (input) => {
+  let swallowUp = false;
+  input.addEventListener("pointerdown", (e) => { swallowUp = e.button === 0 && document.activeElement !== input; });
+  input.addEventListener("focus", () => input.select());
+  input.addEventListener("mouseup", (e) => {
+    if (!swallowUp) return;
+    swallowUp = false;
+    if (e.button === 0 && document.activeElement === input && input.selectionStart === 0 && input.selectionEnd === input.value.length) e.preventDefault();
+  });
+};
 // Press-drag on a node: onDown fires on pointerdown (pointer captured), onMove on
-// each move; it ends on pointerup/cancel or when the button releases off the node
-// (buttons===0), then onEnd runs. The shape behind the colour plane/strips, the
-// point pad, and the bezier handles — the controls with bespoke physics (slider,
-// number scrub, gradient) keep their own loops.
+// each move; it ends on pointerup/cancel/lost capture or when the button releases off
+// the node (buttons===0), then onEnd runs. The shape behind the colour plane/strips,
+// the point pad, the bezier handles, the gradient stops, the interval, and the number
+// scrub — only the slider (its spring detent) and the panel header (its click-vs-drag
+// threshold) keep bespoke loops.
 function dragGesture(node: any, { onDown, onMove, onEnd }: { onDown?: (e: any) => void; onMove?: (e: any) => void; onEnd?: (e: any) => void } = {}) {
   let activeId = null; // the one captured pointer — a second finger / other-button press can't hijack or fork the drag
   const end = (e) => { if (activeId === null || e.pointerId !== activeId) return; activeId = null; onEnd && onEnd(e); };
@@ -313,7 +353,7 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     window.addEventListener("tw-retheme", recarry); // setTheme() while open
     if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] }); } // host scheme flip while open
     place();
-    requestAnimationFrame(() => { pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed)
+    requestAnimationFrame(() => { if (!open) return; pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed) — unless a same-tick close (a destroy() right after the open) already ran: showing the dead pop and letting onOpen focus into it would undo that close
     // Unmount watchdog: a host that removes the panel while this is open (an SPA route
     // change) would otherwise strand the portaled pop on screen — visible and interactive
     // over whatever renders next — until something else was pressed. One rAF per frame,
@@ -321,7 +361,7 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     requestAnimationFrame(function watch() { if (!open) return; if (!root.isConnected) return close(); requestAnimationFrame(watch); });
     // Capture phase, so a press anywhere else in the panel closes too — the panel's own
     // stopPointerLeak would otherwise swallow the event before it bubbles to document.
-    setTimeout(() => document.addEventListener("pointerdown", onOutside, true), 0); // skip the opening click
+    setTimeout(() => { if (open) document.addEventListener("pointerdown", onOutside, true); }, 0); // skip the opening click; a same-tick close has already run its removal, so don't add behind it
     document.addEventListener("keydown", onKey); // Esc closes from anywhere while open, not only when focus is inside
     window.addEventListener("scroll", reflow, true); window.addEventListener("resize", reflow);
   };
@@ -387,6 +427,13 @@ const measurePill = (container, pill, animate?) => {
   if (animate && Number.isFinite(prev) && prev !== left) stretchPill(pill, left > prev ? 1 : -1);
 };
 
+// Collapse / expand a section — the panel body, a markup panel, a folder: the class the
+// CSS folds on, the toggle's aria-expanded, and `inert` on the body so its (still mounted,
+// clip-faded) controls leave the tab order + a11y tree while hidden. Synchronous, so it's
+// correct under reduced-motion too.
+const setCollapsed = (root, toggle, body, c) => { root.classList.toggle("is-collapsed", c); toggle.setAttribute("aria-expanded", String(!c)); body.inert = c; };
+// The index of the button whose (stringified — dataset) value is the active one, or −1.
+const activeIndex = (btns, value) => btns.findIndex((b) => b.dataset.value === String(value));
 // Reflect a single-select value onto a radio group's buttons: data-active (paint),
 // aria-checked (semantics), and a roving tabindex so Tab lands on the selected one
 // and arrow keys move within the group. Shared by the segmented control + radio grid.
@@ -395,7 +442,7 @@ const setRadioActive = (btns, value) => btns.forEach((b) => { const on = b.datas
 // role + value + click identically; only the class and container differ. onPick(value).
 // _twVal carries the option's real value — dataset stringifies, so a keyboard pick
 // reading dataset.value turned a numeric option into a string (type flipped by input method).
-const radioButton = (cls, o, onPick) => { const b = btn(cls); b.setAttribute("role", "radio"); b.textContent = optLabel(o); b.dataset.value = optValue(o); b._twVal = optValue(o); b.addEventListener("click", () => onPick(b._twVal)); return b; };
+const radioButton = (cls, o, onPick) => { const b = txt("button", cls, optLabel(o)); b.setAttribute("role", "radio"); b._twVal = optValue(o); b.dataset.value = b._twVal; b.addEventListener("click", () => onPick(b._twVal)); return b; };
 // Arrow-key navigation over a one-dimensional or gridded group → the next index, or −1
 // when the key isn't the group's to handle. The three radio-ish groups share it:
 // cols > 0 jumps ↑/↓ by a row, clamped at the edges (the radio grid); cols 0 treats
@@ -427,7 +474,7 @@ function createSegmented(options, value, onChange, ariaLabel) {
   const reflect = () => { setRadioActive(btns, value); measure(true); };
   const set = (v, fire = true) => { value = v; reflect(); if (fire) onChange(v); };
   seg.addEventListener("keydown", (e) => {
-    const i = btns.findIndex((b) => b.dataset.value === String(value)); if (i < 0) return;
+    const i = activeIndex(btns, value); if (i < 0) return;
     const j = navIndex(e.key, i, btns.length); if (j < 0) return;
     e.preventDefault(); set(btns[j]._twVal); btns[j].focus(); // _twVal, not dataset.value — the keyboard pick must emit the option's real (possibly non-string) value
   });
@@ -458,11 +505,12 @@ const triggerRow = (cls: string, label: string) => {
 function makeGrabGuide() {
   let g = null, y = 0, x0 = 0, bx = 0;
   return {
-    show(x, atY, bubbleX) {
+    show(x, atY, bubbleX, anchor) {
       g = el("div", "tw-grab-guide tw-portal");
       g.innerHTML = `<span class="tw-grab-line"></span><span class="tw-grab-dot"></span><span class="tw-grab-arrow"></span><span class="tw-grab-bubble"></span>`;
       y = atY; x0 = x; bx = bubbleX ?? x; // bubble anchors over the field centre, not the cursor
       g.children[1].style.cssText = `left:${x}px;top:${y}px`;
+      carrySkin(g, anchor); // the anchor panel's theme + winning scheme, like every portal (a light-pinned panel's guide used to follow the OS scheme)
       document.body.appendChild(g);
     },
     move(x, text) {
@@ -481,13 +529,16 @@ function makeGrabGuide() {
 // from the field. read() returns the live value, apply(v) commits it, text() the
 // bubble label. Shared by createNumber and the numField building block.
 function attachScrub(grab, wrap, step, read, apply, text) {
-  let downX = 0, downV = 0, activeId = null, curK = 1; const gd = makeGrabGuide();
-  grab.addEventListener("pointerdown", (e) => { if (e.button !== 0 || activeId !== null) return; e.preventDefault(); activeId = e.pointerId; downX = e.clientX; downV = read(); curK = 1; grab.classList.add("is-dragging"); try { grab.setPointerCapture(e.pointerId); } catch {} const br = wrap.getBoundingClientRect(); gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2); gd.move(e.clientX, text()); });
-  // Shift = coarse (×10), Alt = fine (×0.1); re-anchor on a modifier change so the value doesn't jump.
-  grab.addEventListener("pointermove", (e) => { if (e.pointerId !== activeId) return; if (e.buttons === 0) { end(e); return; } const k = e.shiftKey ? 10 : e.altKey ? 0.1 : 1; if (k !== curK) { curK = k; downX = e.clientX; downV = read(); } apply(downV + (e.clientX - downX) * step * k); gd.move(e.clientX, text()); });
-  const end = (e) => { if (activeId === null || e.pointerId !== activeId) return; activeId = null; grab.classList.remove("is-dragging"); gd.hide(); };
-  grab.addEventListener("pointerup", end); grab.addEventListener("pointercancel", end);
-  grab.addEventListener("lostpointercapture", end); // capture lost mid-scrub (the popover hosting the field closing) must still hide the full-screen guide — the singleton ref is overwritten on the next show, which would orphan the node
+  let downX = 0, downV = 0, curK = 1; const gd = makeGrabGuide();
+  // The shared press-drag shape — its every end path matters here: capture lost mid-scrub
+  // (the popover hosting the field closing) must still hide the full-screen guide, whose
+  // singleton ref is overwritten on the next show and would otherwise orphan the node.
+  dragGesture(grab, {
+    onDown: (e) => { e.preventDefault(); downX = e.clientX; downV = read(); curK = 1; grab.classList.add("is-dragging"); const br = wrap.getBoundingClientRect(); gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2, wrap); gd.move(e.clientX, text()); },
+    // Shift = coarse (×10), Alt = fine (×0.1); re-anchor on a modifier change so the value doesn't jump.
+    onMove: (e) => { const k = e.shiftKey ? 10 : e.altKey ? 0.1 : 1; if (k !== curK) { curK = k; downX = e.clientX; downV = read(); } apply(downV + (e.clientX - downX) * step * k); gd.move(e.clientX, text()); },
+    onEnd: () => { grab.classList.remove("is-dragging"); gd.hide(); },
+  });
 }
 
 // ── The labelled numeric field — ONE numeric engine for the kit: a sanitized step,
@@ -500,17 +551,13 @@ function numField(spec, onChange) {
   // A 0/negative/non-finite step breaks round-to-step (NaN out of Infinity, inverted
   // scrub + keyboard from a negative — reachable via a point component's user-supplied
   // step); a non-finite seed shows literal "NaN". Default both to sane values.
-  const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1, decimals = stepPrecision(step);
-  let min = +spec.min, max = +spec.max; // non-finite (absent/garbage) → unbounded
+  const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1;
+  const bound = (b) => (b == null ? NaN : +b); // absent/null/garbage → NaN → unbounded (a null max coerced to 0 and swapped in as the floor)
+  let min = bound(spec.min), max = bound(spec.max);
   if (Number.isFinite(min) && Number.isFinite(max) && max < min) { const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
-  const fit = (val) => {
-    let n = roundToStep(val, Number.isFinite(min) ? min : 0, step); // min-anchored, like the slider — the value grid starts at the floor
-    if (!spec.soft) {
-      if (Number.isFinite(min)) n = Math.max(min, n);
-      if (Number.isFinite(max)) n = Math.min(max, n);
-    }
-    return n;
-  };
+  const anchor = Number.isFinite(min) ? min : 0, decimals = stepPrecision(step); // min-anchored, like the slider — the value grid starts at the floor
+  const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor); // the value never leaves the grid, so fit(fit(x)) === fit(x): reset() and fromJSON(toJSON()) hold still
+  const fit = (val) => { const n = roundToStep(val, anchor, step); return spec.soft ? n : clamp(n, lo, hi); };
   let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
   const root = el("div", spec.row ? "tw-row" : "tw-field");
   const wrap = el("div", "tw-num-wrap");
@@ -544,11 +591,11 @@ export const registerControl = (type, ctor) => { REGISTRY[type] = ctor; };
 export const getControl = (type) => REGISTRY[type];
 
 export {
-  titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultRange,
+  titleCase, clamp, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
-  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
-  numField, blade, quietFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE,
+  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
+  numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE,
 };
 

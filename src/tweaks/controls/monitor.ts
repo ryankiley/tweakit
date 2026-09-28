@@ -19,6 +19,14 @@ const strokeSeries = (ctx, node, w, h, samples, start, frac) => {
   ctx.stroke();
 };
 
+// Re-fit a canvas on window resize and on tw-reflow (a tab page revealing the control —
+// it measured 0 while hidden); returns the release. Manual, not onLive: these blades idle
+// through the "built but not mounted yet" window, which onLive would read as gone.
+const watchReflow = (fn) => {
+  for (const t of ["resize", "tw-reflow"]) window.addEventListener(t, fn);
+  return () => { for (const t of ["resize", "tw-reflow"]) window.removeEventListener(t, fn); };
+};
+
 // ── FPS graph — a live monitor blade, zero deps ──
 function createFps(meta) {
   const wrap = el("div", "tw-fps");
@@ -29,11 +37,12 @@ function createFps(meta) {
   const N = 80, samples = new Array(N).fill(0), MAX = 120;
   let i = 0, last = 0, raf = 0, w = 0, h = 0, wasConnected = false, stopped = false;
   const resize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
+  const unwatch = watchReflow(resize);
   // Release everything: the rAF loop and its two listeners. Called on a real unmount
   // (below) AND handed to the panel as the blade's `destroy`, so a panel torn down
   // before it ever connected — which the "never mounted yet" branch below deliberately
   // idles through, so it can never self-stop — doesn't leave the loop spinning forever.
-  const stop = () => { stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; window.removeEventListener("resize", resize); window.removeEventListener("tw-reflow", resize); };
+  const stop = () => { stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; unwatch(); };
   const draw = () => { if (w) strokeSeries(ctx, wrap, w, h, samples, i, (s) => s / MAX); };
   const tick = (now) => {
     if (!canvas.isConnected) {
@@ -48,8 +57,6 @@ function createFps(meta) {
     last = now; raf = requestAnimationFrame(tick);
   };
   raf = requestAnimationFrame(() => { if (stopped) return; resize(); raf = requestAnimationFrame(tick); }); // held in `raf` (and re-checked) so a destroy() before the first frame can't start the loop behind it
-  window.addEventListener("resize", resize);
-  window.addEventListener("tw-reflow", resize); // a tab page revealing this control re-fits the canvas (it measured 0 while hidden)
   return blade(wrap, stop);
 }
 
@@ -68,11 +75,11 @@ function createMonitor(meta) {
   const val = txt("span", "tw-fps-val", "—");
   wrap.append(txt("span", "tw-fps-label", meta.label || "Monitor"), val);
 
-  let timer = 0, onResize = () => {}, wasConnected = false;
+  let timer = 0, unwatch = () => {}, wasConnected = false;
   const fmt = (v) => (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(meta.decimals ?? 2)) : String(v));
   // Also handed to the panel as the blade's `destroy` — a panel destroyed before it ever
   // connected idles below forever, so it could never clear its own interval on unmount.
-  const stop = () => { if (timer) clearInterval(timer); timer = 0; window.removeEventListener("resize", onResize); window.removeEventListener("tw-reflow", onResize); };
+  const stop = () => { if (timer) clearInterval(timer); timer = 0; unwatch(); };
   // "Never mounted yet" (a host appends panel.el after building) idles the tick; only a
   // panel that was mounted and then removed — or a panel.destroy() — stops the poll.
   const poll = (fn) => { timer = setInterval(() => { if (!wrap.isConnected) { if (wasConnected) stop(); return; } wasConnected = true; let v; try { v = get(); } catch { return; } fn(v); }, interval); };
@@ -98,7 +105,8 @@ function createMonitor(meta) {
   const ctx = canvas.getContext("2d");
   const N = 80, samples = new Array(N).fill(NaN);
   let idx = 0, w = 0, h = 0;
-  onResize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
+  const onResize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
+  unwatch = watchReflow(onResize);
   const draw = () => {
     if (!w) onResize();
     if (!w) return;
@@ -115,8 +123,6 @@ function createMonitor(meta) {
   };
   poll((v) => { if (typeof v !== "number") return; samples[idx] = v; idx = (idx + 1) % N; val.textContent = fmt(v); draw(); });
   requestAnimationFrame(() => { onResize(); draw(); });
-  window.addEventListener("resize", onResize);
-  window.addEventListener("tw-reflow", onResize); // a tab page revealing this control re-fits the canvas (it measured 0 while hidden)
   return blade(wrap, stop);
 }
 
