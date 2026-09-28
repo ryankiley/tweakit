@@ -469,6 +469,126 @@ test("reset() restores the value a control opened on, not the raw schema value i
   assert.equal(p.params.s.visualDuration, 0.6);
   p.reset();                                            // used to leave "x", 8, and a time-mode spring
   assert.deepEqual(p.toJSON().values, opened);
+  document.body.append(p.el);
+  const timeBtn = [...p.el.querySelectorAll(".tw-spring .tw-seg-btn")].find((b) => b.textContent.trim() === "Time");
+  timeBtn.click();                                      // the time cache is the schema's pair again, not the 0.6/0.1 edit
+  assert.equal(p.params.s.visualDuration, 0.4);
+  assert.equal(p.params.s.bounce, 0.3);
+  p.destroy();
+});
+
+test("reset() re-parses the authored colour exactly, whatever mode the picker is in", () => {
+  // Regression: the default was the opened form alone — the readout's rounded string
+  // ("oklch(87% 0.29 142)"), which re-parses a step off the authored #00ff00.
+  const p = tweaks("Cx", { c: "#00ff00" });
+  document.body.append(p.el);
+  const mode = p.el.querySelector(".tw-color-mode");
+  mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
+  assert.equal(p.el.querySelector(".tw-color-chan-input").value, "#00ff00"); // (params keep the last emitted string until a value changes)
+  p.set("c", "#123456");
+  p.reset();
+  assert.equal(p.params.c, "#00ff00");                  // not #29ff0e, the re-parse of the rounded readout string
+  p.destroy();
+});
+
+test("reset() restores both of a spring's caches from the schema", () => {
+  const p = tweaks("Sc", { s: { type: "spring", value: { stiffness: 85, damping: 12, mass: 2, visualDuration: 0.4, bounce: 0.3 } } }); // time inferred
+  document.body.append(p.el);
+  const btn = (t) => [...p.el.querySelectorAll(".tw-spring .tw-seg-btn")].find((b) => b.textContent.trim() === t);
+  btn("Physics").click();
+  assert.deepEqual(p.params.s, { stiffness: 85, damping: 12, mass: 2 });
+  btn("Time").click();
+  p.set("s", { visualDuration: 0.6, bounce: 0.1 });
+  p.reset();
+  assert.equal(p.params.s.visualDuration, 0.4);
+  btn("Physics").click();                               // the physics cache used to hold the time-derived spring after a reset
+  assert.deepEqual(p.params.s, { stiffness: 85, damping: 12, mass: 2 });
+  p.destroy();
+});
+
+test("a hard slider's range is its reachable grid, so its ends, keys and value agree", () => {
+  const p = tweaks("Ends", { x: [5, 0, 14.6, 1], s: [5, 0, 14.6, 5], soft: { type: "slider", value: 5, min: 0, max: 14.6, step: 1, soft: true } });
+  document.body.append(p.el);
+  const track = (k) => p.el.querySelectorAll(".tw-slider")[k];
+  assert.equal(track(0).getAttribute("aria-valuemax"), "14");
+  track(0).dispatchEvent(Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), { key: "End" }));
+  assert.equal(p.params.x, 14);
+  track(0).dispatchEvent(Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), { key: "ArrowLeft" }));
+  assert.equal(p.params.x, 13);                         // End landed on max (14.6, reported 14): the first ArrowLeft used to be a dead press
+  track(1).dispatchEvent(Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), { key: "End" }));
+  assert.equal(p.params.s, 10);                         // the snap slider's last notch is 10, not a phantom 14.6 that also reported 10
+  assert.equal(track(1).getAttribute("aria-valuemax"), "10");
+  assert.equal(track(2).getAttribute("aria-valuemax"), "14.6"); // a soft slider keeps its authored range
+  p.destroy();
+});
+
+test("a range too narrow for a grid point pins to one value", () => {
+  const p = tweaks("Pin", { n: { type: "number", value: 2.7, min: 2.1, max: 2.3, step: 1 } });
+  assert.equal(p.params.n, 2.1);
+  p.set("n", 2.3);
+  assert.equal(p.params.n, 2.1);                        // used to walk 2.3 ↔ 2.1 on every set of its own value
+  const s = p.toJSON(); p.fromJSON(s);
+  assert.deepEqual(p.toJSON(), s);
+});
+
+test("a restore refuses a function as a control value, and a bag bigint can't break the snapshot", () => {
+  const p = tweaks("Fn2", { sel: ["a", "b"] });
+  const error = console.error; let logged = ""; console.error = (m) => { logged = String(m); };
+  try { p.fromJSON({ values: { sel: () => 1 } }); } finally { console.error = error; }
+  assert.match(logged, /restoring "sel" failed/);
+  assert.equal(p.params.sel, "a");
+  p.params.big = 10n;                                   // a host-parked bag value: the persist/undo timers and toJSON used to throw
+  assert.equal(p.toJSON().values.big, "10");
+});
+
+test("a hint survives a leave and a blur queued within its grace, then a re-enter", async () => {
+  const p = tweaks("Hint", { h: { type: "slider", value: 1, min: 0, max: 2, hint: "a hint" } });
+  document.body.append(p.el);
+  const mark = p.el.querySelector(".tw-hint");
+  mark.dispatchEvent(new Event("pointerenter"));
+  const tip = document.querySelector(".tw-tip");
+  assert.ok(tip.classList.contains("is-open"));
+  mark.dispatchEvent(new Event("pointerleave"));
+  mark.dispatchEvent(new Event("blur"));                // a second pending hide, which the re-enter below used to leave ticking
+  mark.dispatchEvent(new Event("pointerenter"));
+  await wait(120);
+  assert.ok(tip.classList.contains("is-open"), "still open after the grace");
+  mark.dispatchEvent(new Event("pointerleave"));
+  await wait(120);
+  assert.ok(!tip.classList.contains("is-open"));
+  p.destroy();
+});
+
+test("the grab guide carries the panel's pinned scheme like every other portal", () => {
+  const host = document.createElement("div"); host.setAttribute("data-tw-scheme", "light"); document.body.append(host);
+  const p = tweaks("Guide", { n: { type: "number", value: 1 } });
+  host.append(p.el);
+  const grab = p.el.querySelector(".tw-num-grab");
+  grab.dispatchEvent(ptr("pointerdown", { clientX: 10, clientY: 10 }));
+  const guide = document.querySelector(".tw-grab-guide");
+  assert.ok(guide, "the guide is up during a scrub");
+  assert.equal(guide.getAttribute("data-tw-scheme"), "light");
+  grab.dispatchEvent(ptr("pointerup", { buttons: 0 }));
+  assert.ok(!document.querySelector(".tw-grab-guide"));
+  p.destroy(); host.remove();
+});
+
+test("the hex field catches up on blur after a plane tap while it was focused", () => {
+  const p = tweaks("Stale", { c: "#ff0000" });
+  document.body.append(p.el);
+  const mode = p.el.querySelector(".tw-color-mode");
+  mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
+  const inp = p.el.querySelector(".tw-color-chan-input");
+  inp.focus();
+  const hue = p.el.querySelector(".tw-wg-hue");
+  hue.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 10, right: 100, bottom: 10 });
+  hue.dispatchEvent(ptr("pointerdown", { clientX: 50, clientY: 5 }));
+  hue.dispatchEvent(ptr("pointerup", { clientX: 50, clientY: 5, buttons: 0 }));
+  assert.notEqual(p.params.c, "#ff0000");
+  assert.equal(inp.value, "#ff0000");                   // refresh() skips the focused field (a typed edit must not be clobbered)
+  inp.blur();
+  assert.equal(inp.value, p.params.c);                  // used to stay stale until the next edit
+  p.destroy();
 });
 
 test("numeric values stay on their step grid: a null bound is unbounded, an off-grid max is the last grid point under it", () => {
@@ -525,6 +645,11 @@ test("a click into the colour picker's hex field selects the whole value", () =>
   mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
   const inp = p.el.querySelector(".tw-color-chan-input");
   assert.equal(inp.value, "#ff0000");
+  const mid = ptr("mouseup", { button: 1 });
+  inp.dispatchEvent(ptr("pointerdown", { button: 1 }));                    // a middle click into the unfocused field: its mouseup carries the X11 paste
+  inp.focus(); inp.dispatchEvent(mid);
+  assert.ok(!mid.defaultPrevented, "a middle button's mouseup is left alone");
+  inp.blur();
   inp.dispatchEvent(ptr("pointerdown"));                                   // a fresh click: the field isn't focused yet
   inp.focus();                                                              // the press's default action
   const up = new window.MouseEvent("mouseup", { bubbles: true, cancelable: true });

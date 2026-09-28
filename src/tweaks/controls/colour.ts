@@ -212,6 +212,7 @@ function createPickerBody(meta, onChange) {
       const wrap = el("div", "tw-color-chan");
       const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp); selectAllOnFocus(inp); // a click into the hex takes the whole value — you replace a colour, not a digit
       inp.addEventListener("change", () => { const v = inp.value.trim(); if (HEX_RE.test(v)) { [L, C, H, A] = parseColor(v); commit(true); } });
+      inp.addEventListener("blur", refresh); // a tap on the plane/strips while the field is focused commits before the browser blurs it, and refresh() skips a focused field — catch up on the way out (change fires before blur, so a typed edit is already in)
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
       wrap.append(txt("span", "tw-color-chan-label", "HEX"), inp); channels.append(wrap);
     } else {
@@ -221,6 +222,7 @@ function createPickerBody(meta, onChange) {
       const vals = channelValues([L, C, H], mode);
       MODE_CHANNELS[mode].forEach((ch, i) => {
         const f = numField({ label: ch.k, value: vals[i], min: ch.min, max: ch.max, step: ch.step }, (v) => { [L, C, H] = withChannel([L, C, H], mode, i, clamp(v, ch.min, ch.max)); commit(true); });
+        f.el.addEventListener("focusout", refresh); // as the hex field: a focused channel skipped the refresh a plane tap triggered
         chanFields.push(f); channels.append(f.el);
       });
     }

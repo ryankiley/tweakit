@@ -33,6 +33,14 @@ const isReservedKey = (k) => k === "__proto__" || k === "constructor" || k === "
 // object each call. Gates notify() so a same-value set()/emit can't echo — an on()
 // listener mirroring values back into the panel recursed to stack exhaustion without it.
 const valueChanged = (a, b) => a !== b && !(isObj(a) && isObj(b) && JSON.stringify(a) === JSON.stringify(b));
+// Put a control back to its default: the form it OPENED on (its own get() at build — the
+// state the constructor made of the schema value, so it covers a value set() can't take
+// as-is: an unusable number, a numeric text, a spring mode the value alone doesn't fix),
+// then the authored value on top, so whatever the control CAN take lands exactly (a hex
+// colour re-parses to the same colour where its opened form is the readout's rounded
+// string; a spring restores both of its mode caches). One rule for the panel's reset
+// paths and the markup toolbar's.
+const restoreDefault = (ctrl, raw, def) => { ctrl.set(def); ctrl.set(raw); };
 
 // ── Verbose `{ type: "…" }` forms — one handler per control type. Adding a control
 // means one entry here (plus its constructor in the registry). A handler returns a
@@ -74,7 +82,8 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: 
     if (Number.isFinite(+s.visualDuration)) value.visualDuration = +s.visualDuration;
     if (Number.isFinite(+s.bounce)) value.bounce = +s.bounce;
     const mode = v.mode ?? s.mode;
-    return { type: "spring", key, label, value, ...(mode === "time" || mode === "physics" ? { mode } : {}) };
+    if (mode === "time" || mode === "physics") value.mode = mode; // rides on the value, so the authored default carries it to set() (a reset restores the mode, not only the numbers)
+    return { type: "spring", key, label, value };
   },
   cubicbezier: (v, key, label) => ({ type: "cubicbezier", key, label, value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
   point: (v, key, label) => Array.isArray(v.components) && { type: "point", key, label, components: v.components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(v.components.map((c) => [c.key, c.value ?? 0])) }, // `value` = the default component map, so reset() / double-click-reset can restore it
@@ -199,4 +208,4 @@ const dataMeta = (host) => {
   return meta;
 };
 
-export { metaFor, dataMeta, valueChanged, hasOwn, isReservedKey, VALUELESS, TYPED_META, DATA_VALUE };
+export { metaFor, dataMeta, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS, TYPED_META, DATA_VALUE };

@@ -34,13 +34,15 @@ const roundToStep = (v, min, step) => {
 // The reachable ends of a [min, max] step grid: the first grid point at or above min and the
 // last at or below max. Clamping to an off-grid bound (max 14.45 on a step-1 grid) left a
 // value the readout showed rounded and the next round-to-step moved — or, on a slider, one
-// past max. A range too narrow to hold a grid point keeps its raw bounds. ±Infinity = open.
+// past max. A range too narrow to hold a grid point pins to its min (one value, so the
+// clamp stays a fixed point — raw [min, max] ends had the value walking between them).
+// ±Infinity = open.
 const gridEnds = (min, max, step, anchor = min) => {
   const r = (v) => roundToStep(v, anchor, step);
   let lo = Number.isFinite(min) ? r(min) : -Infinity, hi = Number.isFinite(max) ? r(max) : Infinity;
   if (lo < min) lo = r(lo + step);
   if (hi > max) hi = r(hi - step);
-  return lo > hi ? [min, max] : [lo, hi];
+  return lo > hi ? [min, min] : [lo, hi];
 };
 const inferStep = (min, max) => {
   const range = max - min;
@@ -163,14 +165,22 @@ const quietFocus = (input) => {
 // Select the whole value when a text field takes focus, so a click into it replaces the
 // value on the first keystroke instead of inserting at the caret (the hex field: you
 // paste or type a new colour, never edit one digit). Browsers collapse a focus-time
-// selection on the click's own mouseup, so the first mouseup after a pointer-initiated
-// focus is swallowed — its only default is that caret placement. Keyboard focus selects
-// natively, and a later click inside an already-focused field places the caret as usual.
+// selection on the click's own mouseup, so the first primary-button mouseup after a
+// pointer-initiated focus is swallowed while the whole value is still selected — its only
+// default is that caret placement (a middle button's mouseup carries the X11 paste, so it
+// is left alone, and a press that ended elsewhere leaves nothing to protect). Keyboard
+// focus selects natively, and a later click inside an already-focused field places the
+// caret as usual. As with any select-on-focus field, a drag on that first press moves the
+// selected text rather than selecting a range; the second press drag-selects natively.
 const selectAllOnFocus = (input) => {
   let swallowUp = false;
-  input.addEventListener("pointerdown", () => { swallowUp = document.activeElement !== input; });
+  input.addEventListener("pointerdown", (e) => { swallowUp = e.button === 0 && document.activeElement !== input; });
   input.addEventListener("focus", () => input.select());
-  input.addEventListener("mouseup", (e) => { if (swallowUp) { e.preventDefault(); swallowUp = false; } });
+  input.addEventListener("mouseup", (e) => {
+    if (!swallowUp) return;
+    swallowUp = false;
+    if (e.button === 0 && document.activeElement === input && input.selectionStart === 0 && input.selectionEnd === input.value.length) e.preventDefault();
+  });
 };
 // Press-drag on a node: onDown fires on pointerdown (pointer captured), onMove on
 // each move; it ends on pointerup/cancel/lost capture or when the button releases off
@@ -495,11 +505,12 @@ const triggerRow = (cls: string, label: string) => {
 function makeGrabGuide() {
   let g = null, y = 0, x0 = 0, bx = 0;
   return {
-    show(x, atY, bubbleX) {
+    show(x, atY, bubbleX, anchor) {
       g = el("div", "tw-grab-guide tw-portal");
       g.innerHTML = `<span class="tw-grab-line"></span><span class="tw-grab-dot"></span><span class="tw-grab-arrow"></span><span class="tw-grab-bubble"></span>`;
       y = atY; x0 = x; bx = bubbleX ?? x; // bubble anchors over the field centre, not the cursor
       g.children[1].style.cssText = `left:${x}px;top:${y}px`;
+      carrySkin(g, anchor); // the anchor panel's theme + winning scheme, like every portal (a light-pinned panel's guide used to follow the OS scheme)
       document.body.appendChild(g);
     },
     move(x, text) {
@@ -523,7 +534,7 @@ function attachScrub(grab, wrap, step, read, apply, text) {
   // (the popover hosting the field closing) must still hide the full-screen guide, whose
   // singleton ref is overwritten on the next show and would otherwise orphan the node.
   dragGesture(grab, {
-    onDown: (e) => { e.preventDefault(); downX = e.clientX; downV = read(); curK = 1; grab.classList.add("is-dragging"); const br = wrap.getBoundingClientRect(); gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2); gd.move(e.clientX, text()); },
+    onDown: (e) => { e.preventDefault(); downX = e.clientX; downV = read(); curK = 1; grab.classList.add("is-dragging"); const br = wrap.getBoundingClientRect(); gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2, wrap); gd.move(e.clientX, text()); },
     // Shift = coarse (×10), Alt = fine (×0.1); re-anchor on a modifier change so the value doesn't jump.
     onMove: (e) => { const k = e.shiftKey ? 10 : e.altKey ? 0.1 : 1; if (k !== curK) { curK = k; downX = e.clientX; downV = read(); } apply(downV + (e.clientX - downX) * step * k); gd.move(e.clientX, text()); },
     onEnd: () => { grab.classList.remove("is-dragging"); gd.hide(); },
