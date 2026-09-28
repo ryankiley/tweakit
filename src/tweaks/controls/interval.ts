@@ -1,5 +1,5 @@
 // ── Interval / range slider — dual-handle [lo,hi]. Lazy.
-import { el, txt, clamp, roundToStep, stepPrecision, normalizeRange, rangeStep, overlapsText, dragGesture, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
+import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, overlapsText, dragGesture, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
 
 // ── Interval / range slider — a dual-handle slider bound to [lo, hi] inside
 // [min, max]. Reuses the
@@ -14,7 +14,8 @@ function createInterval(meta, onChange) {
   const t0 = +(meta.value && meta.value[0]), t1 = +(meta.value && meta.value[1]);
   const { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, Number.isFinite(t0) ? t0 : 0, Number.isFinite(t1) ? t1 : 1);
   const decimals = stepPrecision(step);
-  const q = (v) => roundToStep(v, min, step);
+  const [gLo, gHi] = gridEnds(min, max, step); // as the slider: an off-grid bound never reports a value past it
+  const q = (v) => clamp(roundToStep(v, min, step), gLo, gHi);
   // Missing/non-finite tuple entries fall back to the bounds (the .set path already
   // guards this — match it at construction so e.g. value:[5] gives [5, max], not [5, NaN]).
   // t0/t1 already read the tuple null-safely above — reuse them rather than re-reading

@@ -28,10 +28,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let liftSlot = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
   let persist = () => {}; // reassigned below when opts.persist is set (debounced localStorage save)
   // The values snapshot — persist, presets, undo, toJSON and copy all read it: params minus
-  // its `_last` channel. A replacer function, not an arrow: `this` is the holder, so only
-  // the top-level changed-key strips — a folder child legitimately keyed "_last" survives.
-  const stripLast = function (k, v) { return k === "_last" && this === params ? undefined : v; };
-  const snapshot = () => JSON.parse(JSON.stringify(params, stripLast));
+  // its `_last` channel, with a control holding `undefined` (a list with no matching option,
+  // a set(key, undefined)) written as null — JSON has no undefined, so the key silently
+  // dropped out, and a null → undefined edit was invisible to undo (redo left the null behind).
+  // A replacer function, not an arrow: `this` is the holder, so only the top-level
+  // changed-key strips — a folder child legitimately keyed "_last" survives.
+  const replacer = function (k, v) { return k === "_last" && this === params ? undefined : v === undefined ? null : v; };
+  const snapshot = () => JSON.parse(JSON.stringify(params, replacer));
   // Assigned by assemble() below. Declared here so the API returned synchronously can
   // forward to them even on the lazy path, where assemble() runs after modules load.
   let listPresets: () => Record<string, any> = () => ({}), savePreset: (nm?: string) => boolean = () => false, loadPreset: (nm?: string) => boolean = () => false, deletePreset: (nm?: string) => void = () => {};
@@ -81,7 +84,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const toolbar = el("div", "tw-toolbar");
   // Copy emits the values snapshot; reset restores every default (or runs opts.onReset).
   // feedback.ts owns their click feedback (the copy ⇄ check swap, the reset spin).
-  const copyBtn = makeCopyBtn(panel, name, () => JSON.stringify(params, stripLast, 2));
+  const copyBtn = makeCopyBtn(panel, name, () => JSON.stringify(params, replacer, 2));
   const resetBtn = makeResetBtn(doReset);
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn = null;
@@ -239,13 +242,19 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (!ctrl) continue;
       adopt(ctrl);
       if (valued) {
+        // The default reset() restores is the value the control OPENED on — its own sanitised
+        // form of the schema value — not the raw schema value: set() rejects or re-reads that
+        // form (a numeric-string text default, a NaN number default, a spring's explicit
+        // physics mode over a time pair), so a reset used to leave such a control where it
+        // was, or flip it into the wrong mode. Read before the parked value below applies.
+        const def = ctrl.get();
         // A value a host parked on params directly before assemble ran (the lazy-load
         // window on the split build) wins over the schema default — apply it to the
         // control rather than clobbering it back with ctrl.get(). (API set() calls from
         // that window queue in preSets and replay after the build instead.)
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, def: m.value, path: [...basePath, m.key] };
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, def, path: [...basePath, m.key] };
         entries.push(entry); wireReset(ctrl.el, entry);
       }
       registerCond(ctrl.el, m);
@@ -585,6 +594,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Same isolation as applySnapshot: a control that throws on a hostile value degrades
     // to "that key didn't take" instead of throwing out of set() — and, in setMany's loop,
     // instead of abandoning the rest of the batch and its single notify.
+    // A function/symbol/bigint is no control value: the list control takes any value as-is,
+    // and JSON can't carry those — the snapshot (persist, presets, undo, toJSON) silently
+    // dropped the key, or threw on the bigint. (Bag keys stay free: hosts park what they like.)
+    if (e && (typeof v === "function" || typeof v === "symbol" || typeof v === "bigint")) { console.warn(`[tweaks] set("${key}") ignored — a ${typeof v} is not a control value`); return false; }
     if (e) { try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; } }
     else if (subTrees.has(params[key])) { console.warn(`[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead`); return false; } // overwriting the subtree would silently orphan every child value
     else params[key] = v; // bag passthrough — hosts park free keys on params

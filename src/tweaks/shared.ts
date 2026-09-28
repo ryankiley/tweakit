@@ -21,9 +21,26 @@ const stepPrecision = (step) => {
   const i = t.indexOf(".");
   return i === -1 ? 0 : Math.min(MAX_FIXED, t.length - i - 1);
 };
+// Round to the min-anchored step grid, on the step's decimals. The anchor is min rounded
+// to those decimals too: a finer min (0.5 on a step-1 grid, -Math.PI on a 0.01 grid) put
+// every grid point half a decimal off the rounding, and at exactly half a step the two
+// roundings compounded — each round-to-step (a reset, a restore, set(get())) walked the
+// value up by a step (3 → 4 → 5 …).
 const roundToStep = (v, min, step) => {
   if (!(step > 0)) return v;
-  return Number((min + Math.round((v - min) / step) * step).toFixed(stepPrecision(step)));
+  const p = stepPrecision(step), a = Number((+min).toFixed(p));
+  return Number((a + Math.round((v - a) / step) * step).toFixed(p));
+};
+// The reachable ends of a [min, max] step grid: the first grid point at or above min and the
+// last at or below max. Clamping to an off-grid bound (max 14.45 on a step-1 grid) left a
+// value the readout showed rounded and the next round-to-step moved — or, on a slider, one
+// past max. A range too narrow to hold a grid point keeps its raw bounds. ±Infinity = open.
+const gridEnds = (min, max, step, anchor = min) => {
+  const r = (v) => roundToStep(v, anchor, step);
+  let lo = Number.isFinite(min) ? r(min) : -Infinity, hi = Number.isFinite(max) ? r(max) : Infinity;
+  if (lo < min) lo = r(lo + step);
+  if (hi > max) hi = r(hi - step);
+  return lo > hi ? [min, max] : [lo, hi];
 };
 const inferStep = (min, max) => {
   const range = max - min;
@@ -142,6 +159,18 @@ if (typeof document !== "undefined") {
 const quietFocus = (input) => {
   input.addEventListener("focus", () => input.classList.toggle("tw-focus-quiet", pointerModality));
   input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
+};
+// Select the whole value when a text field takes focus, so a click into it replaces the
+// value on the first keystroke instead of inserting at the caret (the hex field: you
+// paste or type a new colour, never edit one digit). Browsers collapse a focus-time
+// selection on the click's own mouseup, so the first mouseup after a pointer-initiated
+// focus is swallowed — its only default is that caret placement. Keyboard focus selects
+// natively, and a later click inside an already-focused field places the caret as usual.
+const selectAllOnFocus = (input) => {
+  let swallowUp = false;
+  input.addEventListener("pointerdown", () => { swallowUp = document.activeElement !== input; });
+  input.addEventListener("focus", () => input.select());
+  input.addEventListener("mouseup", (e) => { if (swallowUp) { e.preventDefault(); swallowUp = false; } });
 };
 // Press-drag on a node: onDown fires on pointerdown (pointer captured), onMove on
 // each move; it ends on pointerup/cancel/lost capture or when the button releases off
@@ -511,17 +540,13 @@ function numField(spec, onChange) {
   // A 0/negative/non-finite step breaks round-to-step (NaN out of Infinity, inverted
   // scrub + keyboard from a negative — reachable via a point component's user-supplied
   // step); a non-finite seed shows literal "NaN". Default both to sane values.
-  const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1, decimals = stepPrecision(step);
-  let min = +spec.min, max = +spec.max; // non-finite (absent/garbage) → unbounded
+  const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1;
+  const bound = (b) => (b == null ? NaN : +b); // absent/null/garbage → NaN → unbounded (a null max coerced to 0 and swapped in as the floor)
+  let min = bound(spec.min), max = bound(spec.max);
   if (Number.isFinite(min) && Number.isFinite(max) && max < min) { const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
-  const fit = (val) => {
-    let n = roundToStep(val, Number.isFinite(min) ? min : 0, step); // min-anchored, like the slider — the value grid starts at the floor
-    if (!spec.soft) {
-      if (Number.isFinite(min)) n = Math.max(min, n);
-      if (Number.isFinite(max)) n = Math.min(max, n);
-    }
-    return n;
-  };
+  const anchor = Number.isFinite(min) ? min : 0, decimals = stepPrecision(step); // min-anchored, like the slider — the value grid starts at the floor
+  const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor); // the value never leaves the grid, so fit(fit(x)) === fit(x): reset() and fromJSON(toJSON()) hold still
+  const fit = (val) => { const n = roundToStep(val, anchor, step); return spec.soft ? n : clamp(n, lo, hi); };
   let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
   const root = el("div", spec.row ? "tw-row" : "tw-field");
   const wrap = el("div", "tw-num-wrap");
@@ -555,11 +580,11 @@ export const registerControl = (type, ctor) => { REGISTRY[type] = ctor; };
 export const getControl = (type) => REGISTRY[type];
 
 export {
-  titleCase, clamp, isColorStr, stepPrecision, roundToStep, inferStep, defaultRange,
+  titleCase, clamp, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
-  numField, blade, quietFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE,
+  numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE,
 };
 
