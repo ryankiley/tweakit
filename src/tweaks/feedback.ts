@@ -75,7 +75,8 @@ const spinReset = (btn) => {
 // carries the anchor panel's winning scheme + live theme the way the tip does.
 let toastEl = null, toastTimer = 0;
 function showToast(msg, anchor?) {
-  if (!toastEl) { toastEl = el("div", "tw-toast tw-portal"); toastEl.setAttribute("role", "status"); document.body.appendChild(toastEl); }
+  if (!toastEl) { toastEl = el("div", "tw-toast tw-portal"); toastEl.setAttribute("role", "status"); }
+  if (!toastEl.isConnected) document.body.appendChild(toastEl); // re-home the singleton after a host replaced <body>'s content (a route change) — every later toast was silent
   toastEl.textContent = msg;
   carrySkin(toastEl, anchor); // the anchor panel's theme + winning scheme, tip-style
   toastEl.classList.add("is-open");
@@ -88,7 +89,8 @@ let hintTip = null, hintTimer = 0, hintAnchor = null;
 const onHintKey = (e) => { if (e.key === "Escape") hideHintNow(); }; // bound only while the tip is open — WCAG 1.4.13, the hover content is dismissable
 const hideHintNow = () => { clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
 function showHint(anchor, text) {
-  if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); document.body.appendChild(hintTip); }
+  if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); }
+  if (!hintTip.isConnected) document.body.appendChild(hintTip); // as the toast: re-home after a body replacement
   clearTimeout(hintTimer);
   hintTip.textContent = text;
   carrySkin(hintTip, anchor); // theme + winning scheme, resolved at show time (setTheme may have run since build)
@@ -105,7 +107,7 @@ function showHint(anchor, text) {
   // otherwise strand the open tip on screen. One rAF per frame, only while open.
   if (!wasOpen) requestAnimationFrame(function watch() { if (!hintTip.classList.contains("is-open")) return; if (!hintAnchor.isConnected) return hideHintNow(); requestAnimationFrame(watch); });
 }
-function hideHint() { if (hintTip) hintTimer = setTimeout(hideHintNow, 80); } // a short grace, so a pointer crossing marker → tip doesn't flicker it
+function hideHint() { if (hintTip) { clearTimeout(hintTimer); hintTimer = setTimeout(hideHintNow, 80); } } // a short grace, so a pointer crossing marker → tip doesn't flicker it; one pending hide at a time (a leave then a blur queued two, and a re-enter cleared only the second)
 // A control's `hint` becomes a visible ⓘ marker beside its label that reveals the
 // text in the tooltip on hover/focus — discoverable and keyboard-reachable, unlike
 // the old native `title`. Shared by the panel build (registerCond) and enhance().

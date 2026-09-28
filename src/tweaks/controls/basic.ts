@@ -17,7 +17,13 @@ function createSlider(meta, onChange) {
   // Normalise the range before anything reads it (normalizeRange, shared with the
   // interval) — every slider source (schema shorthand, verbose form, [data-tw]
   // markup) funnels through it.
-  const { min, max, step } = normalizeRange(meta.min, meta.max, meta.step);
+  let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step);
+  // A hard slider's range is its reachable grid: the ends move in to the first/last grid
+  // point (an off-grid max — [5, 0, 14.6, 1] — reported 15 from the track's end; a min
+  // finer than the step's decimals is rounded to them), so the notch physics, hashmarks,
+  // keyboard ends, aria bounds and the emitted value all agree on one lattice. A soft
+  // slider keeps its authored range (its values may leave it anyway).
+  if (!meta.soft) [min, max] = gridEnds(min, max, step);
   const snap = (max - min) / step <= 6; // snap + show rule lines only for a handful of stops; past ~6, snapping at every step felt notchy ("too many places"), so those run continuous
   const seed = Number.isFinite(+meta.value) ? +meta.value : min; // non-finite seed → min, so a NaN value / garbage data-value can't reach the readout or param
   let value = meta.soft && !snap ? seed : clamp(seed, min, max), pull = 0; // a soft slider keeps an out-of-range default — the seed is a scripted value, so it follows set()'s soft rule (only the snap slider always clamps, also like set()); pull = the discrete detent's tension offset (read by render(), called below at construction)
@@ -44,8 +50,7 @@ function createSlider(meta, onChange) {
 
   // Rule lines (hashmarks) live only on the discrete slider — one per step. The
   // continuous slider has none.
-  const [lo, hi] = meta.soft ? [-Infinity, Infinity] : gridEnds(min, max, step); // an off-grid max ([5, 0, 14.6, 1]) reported 15 from the track's end — the emitted value stays on the grid, inside [min, max] (a soft slider may exceed max by design)
-  const q = (v) => clamp(roundToStep(v, min, step), lo, hi);
+  const q = (v) => roundToStep(v, min, step); // min and max sit on the grid (above), so a clamped value rounds to a value inside the range
   const marks = snap ? Array.from({ length: Math.max(0, Math.round((max - min) / step) - 1) }, (_, i) => ((i + 1) * step) / (max - min) * 100) : [];
   for (const pct of marks) { const m = el("div", "tw-slider-hashmark"); m.style.left = pct + "%"; hashes.append(m); }
 
@@ -209,10 +214,11 @@ function createSlider(meta, onChange) {
   onReady(render);
   onLive(track, [[window, "resize"]], render); // self-cleans once the panel leaves the DOM
   track.addEventListener("keydown", (e) => {
-    if (snap) { springStop(); pull = 0; if (!downPos) track.classList.remove("is-active"); } // keyboard steps are instant — cancel any in-flight settle + its offset, and the active styling that settle would have dropped (a key landing mid-settle used to leave the track lit until the next press)
+    if (downPos) return; // keys don't steer a pointer drag (a Shift press mid-drag used to cancel the detent's settle and freeze the handle until release)
     const nv = rangeStep(e, value, step, min, max, (max - min) / 10 || step * 10); // the shared range keyboard model (arrows/⇧/Page/Home/End)
     if (nv == null) return;
     e.preventDefault();
+    if (snap) { springStop(); pull = 0; track.classList.remove("is-active"); } // keyboard steps are instant — cancel any in-flight settle + its offset, and the active styling that settle would have dropped (a key landing mid-settle used to leave the track lit until the next press)
     set(clamp(nv, min, max));
   });
 

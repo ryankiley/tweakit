@@ -6,7 +6,7 @@ import {
   applyThemeVars, resolveTheme, carryScheme, onLive, quietFocus, fuzzyMatch,
   REDUCE_MOTION, getControl,
 } from "./shared.js";
-import { metaFor, valueChanged, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
+import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNow, addHintMarker } from "./feedback.js";
@@ -33,7 +33,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // dropped out, and a null → undefined edit was invisible to undo (redo left the null behind).
   // A replacer function, not an arrow: `this` is the holder, so only the top-level
   // changed-key strips — a folder child legitimately keyed "_last" survives.
-  const replacer = function (k, v) { return k === "_last" && this === params ? undefined : v === undefined ? null : v; };
+  const replacer = function (k, v) { return k === "_last" && this === params ? undefined : v === undefined ? null : typeof v === "bigint" ? String(v) : v; }; // a bigint (a host-parked bag value) would otherwise throw out of every snapshot — the debounced persist and undo timers uncaught
   const snapshot = () => JSON.parse(JSON.stringify(params, replacer));
   // Assigned by assemble() below. Declared here so the API returned synchronously can
   // forward to them even on the lazy path, where assemble() runs after modules load.
@@ -50,8 +50,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // can't break the others, skip persist(), or bubble back out through set().
   const notify = () => { listeners.forEach((fn) => { try { fn(params, params._last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); persist(); };
   // Push a value into a control and mirror what it actually took back onto params — the
-  // one write path behind reset, per-control reset, restores, and set().
-  const assign = (e, v) => { e.set(v); e.target[e.key] = e.get(); };
+  // one write path behind restores and set(). A function/symbol/bigint is no control value
+  // (the list control stores any value as-is, and JSON can't carry those: every snapshot
+  // silently dropped the key) — set() warns first; the restore paths' per-entry catch logs it.
+  const notAValue = (v) => typeof v === "function" || typeof v === "symbol" || typeof v === "bigint";
+  const assign = (e, v) => { if (notAValue(v)) throw new TypeError(`a ${typeof v} is not a control value`); e.set(v); e.target[e.key] = e.get(); };
+  // …and the reset write: the opened form, then the authored value (restoreDefault).
+  const assignDefault = (e) => { restoreDefault(e, e.raw, e.def); e.target[e.key] = e.get(); };
   // The reset itself, independent of the toolbar button — so api.reset() can run it
   // directly (the button is `disabled` until assemble(), and .click() is a no-op on a
   // disabled control, which silently swallowed every reset() made in the lazy window)
@@ -59,7 +64,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const doReset = () => {
     if (typeof opts.onReset === "function") return opts.onReset();
     for (const e of entries) {
-      try { assign(e, e.def); }
+      try { assignDefault(e); }
       catch (err) { console.error(`[tweaks] resetting "${e.path.join(".")}" failed — control skipped:`, err); }
     }
     params._last = undefined; notify();
@@ -157,7 +162,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Per-control reset: double-click a control's label (or the slider's value
   // readout — its label is a pointer-events:none overlay) to revert just that
   // control to the default it was built with. Complements the whole-panel reset.
-  const resetEntry = (e) => { assign(e, e.def); params._last = e.key; notify(); };
+  const resetEntry = (e) => { assignDefault(e); params._last = e.key; notify(); };
   const wireReset = (root, entry) => {
     const t = root.querySelector(".tw-slider-value")
       || root.querySelector(".tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label")
@@ -242,11 +247,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (!ctrl) continue;
       adopt(ctrl);
       if (valued) {
-        // The default reset() restores is the value the control OPENED on — its own sanitised
-        // form of the schema value — not the raw schema value: set() rejects or re-reads that
-        // form (a numeric-string text default, a NaN number default, a spring's explicit
-        // physics mode over a time pair), so a reset used to leave such a control where it
-        // was, or flip it into the wrong mode. Read before the parked value below applies.
+        // reset() restores the schema value (`raw`) over the form the control OPENED on (`def`,
+        // its own get() at build, read before the parked value below applies) — see
+        // restoreDefault: the raw value alone left a control set() can't take it on where it
+        // was (a numeric text, a NaN number, a spring's explicit mode), and the opened form
+        // alone re-parsed a colour from its rounded readout string.
         const def = ctrl.get();
         // A value a host parked on params directly before assemble ran (the lazy-load
         // window on the split build) wins over the schema default — apply it to the
@@ -254,7 +259,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // that window queue in preSets and replay after the build instead.)
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, def, path: [...basePath, m.key] };
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key] };
         entries.push(entry); wireReset(ctrl.el, entry);
       }
       registerCond(ctrl.el, m);
@@ -594,10 +599,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Same isolation as applySnapshot: a control that throws on a hostile value degrades
     // to "that key didn't take" instead of throwing out of set() — and, in setMany's loop,
     // instead of abandoning the rest of the batch and its single notify.
-    // A function/symbol/bigint is no control value: the list control takes any value as-is,
-    // and JSON can't carry those — the snapshot (persist, presets, undo, toJSON) silently
-    // dropped the key, or threw on the bigint. (Bag keys stay free: hosts park what they like.)
-    if (e && (typeof v === "function" || typeof v === "symbol" || typeof v === "bigint")) { console.warn(`[tweaks] set("${key}") ignored — a ${typeof v} is not a control value`); return false; }
+    if (e && notAValue(v)) { console.warn(`[tweaks] set("${key}") ignored — a ${typeof v} is not a control value`); return false; } // assign() would throw; the API path warns like its other refusals (bag keys stay free: hosts park what they like)
     if (e) { try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; } }
     else if (subTrees.has(params[key])) { console.warn(`[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead`); return false; } // overwriting the subtree would silently orphan every child value
     else params[key] = v; // bag passthrough — hosts park free keys on params

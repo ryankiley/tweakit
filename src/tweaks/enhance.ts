@@ -2,7 +2,7 @@
  * (the showcase path), sharing the panel's meta derivation via dataMeta. Imported
  * for its side effect too: it auto-runs over the document on load. */
 import { el, btn, setCollapsed } from "./shared.js";
-import { dataMeta, hasOwn } from "./schema.js";
+import { dataMeta, restoreDefault, hasOwn } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
@@ -49,7 +49,7 @@ export async function enhance(root: Document | Element = document): Promise<void
         }
         return JSON.stringify(vals, null, 2);
       };
-      const reset = () => { for (const t of live()) { t.ctrl.set(t.def); writeDataValue(t.host, t.ctrl.get()); } };
+      const reset = () => { for (const t of live()) { restoreDefault(t.ctrl, t.raw, t.def); writeDataValue(t.host, t.ctrl.get()); } };
       const toolbar = el("div", "tw-toolbar");
       toolbar.append(makeCopyBtn(panel, name, values), makeResetBtn(reset)); header.append(toolbar);
     }
@@ -72,8 +72,8 @@ export async function enhance(root: Document | Element = document): Promise<void
   if (pend) await pend.catch(() => {}); // a failed chunk degrades to skipping its controls (createControl finds no constructor), not an unhandled rejection out of the auto-run
   for (const { host, meta } of hosts) {
     const ctrl = createControl(meta, (v) => writeDataValue(host, v));
-    // def = the value the control opened on (its sanitised form), as the panel's entries hold it.
-    if (ctrl) { host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint); host._tw = { ctrl, def: ctrl.get(), key: host.dataset.key || meta.label, host }; }
+    // raw = the markup's value, def = the form the control opened on — the panel's entries hold the same pair for reset (restoreDefault).
+    if (ctrl) { host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint); host._tw = { ctrl, raw: meta.value, def: ctrl.get(), key: host.dataset.key || meta.label, host }; }
   }
 }
 
