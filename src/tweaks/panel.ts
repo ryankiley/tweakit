@@ -2,7 +2,7 @@
  * returns the live API (params/on/set/reset/toJSON/…). Persistence, presets,
  * undo, the filter, floating drag, and the lazy-window replay all live here. */
 import {
-  el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak,
+  el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, setCollapsed,
   applyThemeVars, resolveTheme, carryScheme, onLive, quietFocus, fuzzyMatch,
   REDUCE_MOTION, getControl,
 } from "./shared.js";
@@ -116,9 +116,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let dragMoved = false;
   titleBtn.addEventListener("click", () => {
     if (dragMoved) { dragMoved = false; return; }
-    const collapsed = panel.classList.toggle("is-collapsed");
-    titleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    body.inert = collapsed; // same a11y reason as the folder: a collapsed panel's controls leave the tab order + a11y tree
+    setCollapsed(panel, titleBtn, body, !panel.classList.contains("is-collapsed"));
     // A bottom-parked floating panel grows past the viewport when it expands — re-clamp
     // once the 0.25s body collapse has settled and the height is real.
     if (panel.dataset.mode === "floating") setTimeout(() => { if (panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } }, 270);

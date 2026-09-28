@@ -4,7 +4,7 @@
  * siblings in this directory, so basic panels build synchronously. */
 import {
   el, btn, txt, clamp, stepPrecision, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel,
-  popover, radioButton, setRadioActive, navIndex, createSegmented, numField, blade,
+  popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, numField, blade, setCollapsed,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl,
   EASE_SPRING, EASE_GLIDE,
 } from "../shared.js";
@@ -208,7 +208,7 @@ function createSlider(meta, onChange) {
   onReady(render);
   onLive(track, [[window, "resize"]], render); // self-cleans once the panel leaves the DOM
   track.addEventListener("keydown", (e) => {
-    if (snap) { springStop(); pull = 0; } // keyboard steps are instant — cancel any in-flight settle + its offset
+    if (snap) { springStop(); pull = 0; if (!downPos) track.classList.remove("is-active"); } // keyboard steps are instant — cancel any in-flight settle + its offset, and the active styling that settle would have dropped (a key landing mid-settle used to leave the track lit until the next press)
     const nv = rangeStep(e, value, step, min, max, (max - min) / 10 || step * 10); // the shared range keyboard model (arrows/⇧/Page/Home/End)
     if (nv == null) return;
     e.preventDefault();
@@ -263,7 +263,7 @@ function createRadiogrid(meta, onChange) {
   // Arrow keys roam the grid: ←/→ step linearly (wrapping), ↑/↓ jump a row (by
   // the column count, clamped at the edges); Home/End to the ends.
   grid.addEventListener("keydown", (e) => {
-    const i = btns.findIndex((b) => b.dataset.value === String(value)); if (i < 0) return;
+    const i = activeIndex(btns, value); if (i < 0) return;
     const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
     e.preventDefault(); if (j !== i) { set(btns[j]._twVal); btns[j].focus(); } // _twVal, not dataset.value — same reason as the segmented control
   });
@@ -379,13 +379,10 @@ function createFolder(meta) {
   const body = el("div", "tw-folder-body");
   const inner = el("div", "tw-controls"); body.append(inner);
   root.append(header, body);
-  // inert on the collapsed body takes its (still-mounted, clip-faded) controls out of the
-  // tab order + a11y tree — otherwise a keyboard/SR user lands on invisible zero-height rows
-  // that aria-expanded="false" claims are hidden. Synchronous, so it's correct under reduced-motion.
-  const setCollapsed = (c) => { root.classList.toggle("is-collapsed", c); header.setAttribute("aria-expanded", c ? "false" : "true"); body.inert = c; };
-  header.addEventListener("click", () => setCollapsed(!root.classList.contains("is-collapsed")));
+  const collapse = (c) => setCollapsed(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
+  header.addEventListener("click", () => collapse(!root.classList.contains("is-collapsed")));
   // setCollapsed lets the panel read + restore the open/closed state (toJSON/fromJSON).
-  return { el: root, body: inner, setCollapsed };
+  return { el: root, body: inner, setCollapsed: collapse };
 }
 // One bad control constructor must not abort the whole panel build — degrade to
 // skipping just that control (every caller null-checks). Constructors come from

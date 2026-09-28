@@ -76,7 +76,7 @@ function parseColor(str) {
   const c2d = ((parseColor as any)._c2d ||= document.createElement("canvas").getContext("2d"));
   c2d.fillStyle = "#000"; c2d.fillStyle = str;
   const norm = c2d.fillStyle;
-  if (norm[0] === "#") return parseColor(norm); // opaque → the hex branch above
+  if (HEX_RE.test(norm)) return parseColor(norm); // opaque → the hex branch above (gated on the hex shape, so the recursion is bounded even if a canvas echoed something else back)
   const rm = norm.match(/^rgba?\(([^)]*)\)/i);
   const cm = ((rm ? rm[1] : "").match(/-?[\d.]+(?:e[+-]?\d+)?/gi) || [0, 0, 0]).map(Number);
   const k = convert([cm[0] / 255, cm[1] / 255, cm[2] / 255], "srgb", "oklch");

@@ -111,15 +111,14 @@
 
 /* Highlights — a neutral, themeable text-selection wash (never the browser's blue), and
  * no grey/blue tap-flash on touch. Scoped to the panel + the portaled popovers. */
-.tw-panel ::selection,
-.tw-color-pop ::selection, .tw-select-dropdown ::selection, .tw-presets-menu ::selection { background: var(--tw-selection); color: var(--tw-text-focus); }
+:is(.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu) ::selection { background: var(--tw-selection); color: var(--tw-text-focus); }
 .tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu { -webkit-tap-highlight-color: transparent; }
 
 /* UA-rendered internals (the colour pop's overflow scrollbar, text-input carets) follow
  * the kit's resolved palette, not the host page's color-scheme — a dark panel on an
  * undeclared light page still gets dark scrollbars. The light blocks at the foot of
  * the file flip this to light together with the tokens. */
-.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu, .tw-tip, .tw-toast { color-scheme: dark; }
+.tw-panel, .tw-portal { color-scheme: dark; }
 
 /* Floating mode — a fixed, draggable panel. The header is the drag surface; a
  * grab cursor + a lift in elevation on pickup signal it. Below the portaled
@@ -602,12 +601,13 @@
  * transform) and the panel's overflow. The cascade can't deliver the panel's tokens
  * there, so they ALL carry the dark defaults themselves — one block, no per-surface
  * var() fallbacks (the tip and toast used to keep their own fallback copies, which
- * had already drifted from these values). The light twins at the foot of the file
- * flip the same list. */
+ * had already drifted from these values). Every portaled node carries .tw-portal (the
+ * JS adds it as it builds them), so that one class addresses the whole set here, in
+ * the color-scheme rule above, and in the light twin at the foot of the file. */
 .tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu {
   line-height: normal; /* same pin as .tw-panel — these portal to <body>, so the host's global line-height would inflate their text metrics (the tip + toast pin their own 1.4 instead) */
 }
-.tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu, .tw-tip, .tw-toast {
+.tw-portal {
   --tw-surface: rgba(255, 255, 255, 0.04); --tw-surface-hover: rgba(255, 255, 255, 0.075);
   --tw-surface-active: rgba(255, 255, 255, 0.13);
   --tw-text-label: rgba(255, 255, 255, 0.64); --tw-text-primary: rgba(255, 255, 255, 0.92);
@@ -620,10 +620,7 @@
   font-family: var(--tw-font-sans); -webkit-font-smoothing: antialiased;
   box-sizing: border-box; /* on <body> now, so it doesn't inherit .tw-panel's */
 }
-.tw-color-pop *, .tw-color-pop *::before, .tw-color-pop *::after,
-.tw-select-dropdown *, .tw-select-dropdown *::before, .tw-select-dropdown *::after,
-.tw-presets-menu *, .tw-presets-menu *::before, .tw-presets-menu *::after,
-.tw-grab-guide *, .tw-grab-guide *::before, .tw-grab-guide *::after { box-sizing: border-box; }
+.tw-portal *, .tw-portal *::before, .tw-portal *::after { box-sizing: border-box; }
 
 /* the colour dropdown */
 .tw-color-pop {
@@ -949,7 +946,7 @@
   /* Portaled popovers carry their own tokens — flip them to light too. (The scheme
    * attribute, when present, sits on the portal root itself — copied at open; the
    * hint tooltip gets the same carry, else it would keep its dark fallbacks.) */
-  :is(.tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu, .tw-tip, .tw-toast):where(:not([data-tw-scheme="dark"])) {
+  .tw-portal:where(:not([data-tw-scheme="dark"])) {
     --tw-surface: rgba(255, 255, 255, 0.82); --tw-surface-hover: rgba(0, 0, 0, 0.04);
     --tw-surface-active: rgba(0, 0, 0, 0.1);
     --tw-text-label: rgba(0, 0, 0, 0.58); --tw-text-primary: rgba(0, 0, 0, 0.88);

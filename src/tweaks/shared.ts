@@ -388,6 +388,13 @@ const measurePill = (container, pill, animate?) => {
   if (animate && Number.isFinite(prev) && prev !== left) stretchPill(pill, left > prev ? 1 : -1);
 };
 
+// Collapse / expand a section — the panel body, a markup panel, a folder: the class the
+// CSS folds on, the toggle's aria-expanded, and `inert` on the body so its (still mounted,
+// clip-faded) controls leave the tab order + a11y tree while hidden. Synchronous, so it's
+// correct under reduced-motion too.
+const setCollapsed = (root, toggle, body, c) => { root.classList.toggle("is-collapsed", c); toggle.setAttribute("aria-expanded", String(!c)); body.inert = c; };
+// The index of the button whose (stringified — dataset) value is the active one, or −1.
+const activeIndex = (btns, value) => btns.findIndex((b) => b.dataset.value === String(value));
 // Reflect a single-select value onto a radio group's buttons: data-active (paint),
 // aria-checked (semantics), and a roving tabindex so Tab lands on the selected one
 // and arrow keys move within the group. Shared by the segmented control + radio grid.
@@ -428,7 +435,7 @@ function createSegmented(options, value, onChange, ariaLabel) {
   const reflect = () => { setRadioActive(btns, value); measure(true); };
   const set = (v, fire = true) => { value = v; reflect(); if (fire) onChange(v); };
   seg.addEventListener("keydown", (e) => {
-    const i = btns.findIndex((b) => b.dataset.value === String(value)); if (i < 0) return;
+    const i = activeIndex(btns, value); if (i < 0) return;
     const j = navIndex(e.key, i, btns.length); if (j < 0) return;
     e.preventDefault(); set(btns[j]._twVal); btns[j].focus(); // _twVal, not dataset.value — the keyboard pick must emit the option's real (possibly non-string) value
   });
@@ -552,7 +559,7 @@ export {
   normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
-  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
+  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
   numField, blade, quietFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE,
 };
 
