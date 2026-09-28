@@ -41,12 +41,18 @@ const valueChanged = (a, b) => a !== b && !(isObj(a) && isObj(b) && JSON.stringi
 // The explicit slider/number/checkbox forms exist so shorthand controls can carry
 // options (render / disabled / hint / step) the array/boolean shorthands can't.
 const radiogridMeta = (v, key, label) => Array.isArray(v.options) && { type: "radiogrid", key, label, options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
+// The colour a `{ type: "color" }` / [data-tw="color"] opens on when none is given — it
+// lives on the meta (not only in the picker's own fallback) so reset() restores it rather
+// than handing the control `undefined`, which parsed as black.
+const DEFAULT_COLOR = "#7c5cff";
+// The verbose range bounds (slider + interval): min/max default to 0/1, step to the inferred grain.
+const rangeOf = (v) => { const min = v.min ?? 0, max = v.max ?? 1; return { min, max, step: v.step ?? inferStep(min, max) }; };
 // Typed against the public SchemaObject union, so tsc itself flags a control type
 // added to types.ts but missing here (or a stray key with no public form). "button"
 // is the one exception — it has no handler because the `{ action }` shorthand
 // inference below already covers the verbose form.
 const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: string, label: string, depth?: number) => any> = {
-  slider: (v, key, label) => { const mn = v.min ?? 0, mx = v.max ?? 1; return { type: "slider", key, label, value: v.value ?? mn, min: mn, max: mx, step: v.step ?? inferStep(mn, mx), soft: v.soft }; },
+  slider: (v, key, label) => { const r = rangeOf(v); return { type: "slider", key, label, value: v.value ?? r.min, ...r, soft: v.soft }; },
   number: (v, key, label) => ({ type: "number", key, label, value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
   checkbox: (v, key, label) => ({ type: "checkbox", key, label, value: !!v.value }),
   // "segmented" is kept as an alias: picking one of a list renders as the radio
@@ -55,9 +61,9 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: 
   segmented: radiogridMeta,
   list: (v, key, label) => Array.isArray(v.options) && { type: "list", key, label, options: v.options, value: v.value ?? optValue(v.options[0]) },
   // An explicit colour with a custom label: { type: "color", value: "#hex", label: "Background" }.
-  color: (v, key, label) => ({ type: "color", key, label: v.label || label, value: v.value }),
+  color: (v, key, label) => ({ type: "color", key, label: v.label || label, value: v.value ?? DEFAULT_COLOR }),
   text: (v, key, label) => ({ type: "text", key, label, value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
-  interval: (v, key, label) => { const mn = v.min ?? 0, mx = v.max ?? 1; return { type: "interval", key, label, value: (Array.isArray(v.value) ? v.value : [mn, mx]).map(Number), min: mn, max: mx, step: v.step ?? inferStep(mn, mx) }; },
+  interval: (v, key, label) => { const r = rangeOf(v); return { type: "interval", key, label, value: (Array.isArray(v.value) ? v.value : [r.min, r.max]).map(Number), ...r }; },
   // The config reads off the top level or a nested `value: {…}` — both published forms.
   // Physics (stiffness/damping/mass) is always normalised; the perceptual time pair
   // (visualDuration/bounce) and an explicit mode ride along only when present, so the
@@ -160,7 +166,7 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: any, host: any, label
   checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
   radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
   list: (d) => ({ options: splitList(d.options), value: d.value }),
-  color: (d) => ({ value: d.value || "#7c5cff" }),
+  color: (d) => ({ value: d.value || DEFAULT_COLOR }),
   button: (d, host, label) => ({ action: () => showToast(`${label} pressed`, host) }),
   buttongroup: (d, host) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab, action: () => showToast(`${lab} pressed`, host) })) }),
   separator: () => ({}),

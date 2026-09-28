@@ -39,10 +39,11 @@ function createInterval(meta, onChange) {
   });
 
   const pctOf = (v) => ((v - min) / ((max - min) || 1)) * 100;
+  const handleLeft = (pct) => `clamp(5px, calc(${pct}% - 1.5px), calc(100% - 9px))`; // stay inset at the extremes, like the slider handle
   const render = () => {
     const a = pctOf(lo), b = pctOf(hi);
     fill.style.left = a + "%"; fill.style.width = Math.max(0, b - a) + "%";
-    hLo.style.left = `clamp(5px, calc(${a}% - 1.5px), calc(100% - 9px))`; hHi.style.left = `clamp(5px, calc(${b}% - 1.5px), calc(100% - 9px))`; // stay inset at the extremes, like the slider handle
+    hLo.style.left = handleLeft(a); hHi.style.left = handleLeft(b);
     valueEl.textContent = `${lo.toFixed(decimals)} – ${hi.toFixed(decimals)}`;
     hLo.setAttribute("aria-valuenow", String(lo)); hHi.setAttribute("aria-valuenow", String(hi));
     // Value-dodge, the slider's shared overlap test (overlapsText) — per handle here:

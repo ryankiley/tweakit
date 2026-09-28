@@ -424,6 +424,37 @@ test("the toolbar's copy emits the values snapshot (nested, no _last) and its re
   p.destroy();
 });
 
+test("a keyboard step during a snap slider's settle doesn't leave it lit", async () => {
+  // Regression: after a press-release the discrete slider springs to its notch over ~300ms
+  // and only that settle dropped .is-active; an arrow key in that window cancelled the
+  // settle (keyboard steps are instant) and the active styling stuck until the next press.
+  const p = tweaks("Settle", { snap: [3, 0, 6, 1] });
+  document.body.append(p.el);
+  const track = p.el.querySelector(".tw-slider");
+  track.setPointerCapture = () => {};
+  track.parentNode.getBoundingClientRect = () => ({ left: 0, top: 0, right: 200, bottom: 32, width: 200, height: 32 }); // jsdom lays out nothing; a press needs a real track width
+  track.dispatchEvent(ptr("pointerdown", { clientX: 120 }));
+  track.dispatchEvent(ptr("pointerup", { clientX: 120, buttons: 0 }));
+  await wait(20); // mid-settle
+  track.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+  await wait(600);
+  assert.ok(!track.classList.contains("is-active"), "the track is no longer lit");
+  assert.ok(Number.isInteger(p.params.snap), "the value sits on a notch");
+  p.destroy();
+});
+
+test("a colour control given no value resets to the colour it opened on, not black", () => {
+  // Regression: `{ type: "color" }` built on the picker's default, but its meta carried
+  // value: undefined, so reset() handed the control undefined — which parsed as black.
+  const p = tweaks("Col", { c: { type: "color" } });
+  const opened = p.params.c;
+  assert.match(opened, /^oklch\(/);
+  p.set("c", "#00ff00");
+  assert.notEqual(p.params.c, opened);
+  p.reset();
+  assert.equal(p.params.c, opened);
+});
+
 test("text-field focus is quiet after a pointer press, ringed after a key press", () => {
   const p = tweaks("F", { note: "hello" });
   document.body.append(p.el);

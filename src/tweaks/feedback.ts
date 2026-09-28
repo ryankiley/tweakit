@@ -105,7 +105,7 @@ function showHint(anchor, text) {
   // otherwise strand the open tip on screen. One rAF per frame, only while open.
   if (!wasOpen) requestAnimationFrame(function watch() { if (!hintTip.classList.contains("is-open")) return; if (!hintAnchor.isConnected) return hideHintNow(); requestAnimationFrame(watch); });
 }
-function hideHint() { if (hintTip) hintTimer = setTimeout(() => { hintTip.classList.remove("is-open"); document.removeEventListener("keydown", onHintKey); }, 80); }
+function hideHint() { if (hintTip) hintTimer = setTimeout(hideHintNow, 80); } // a short grace, so a pointer crossing marker → tip doesn't flicker it
 // A control's `hint` becomes a visible ⓘ marker beside its label that reveals the
 // text in the tooltip on hover/focus — discoverable and keyboard-reachable, unlike
 // the old native `title`. Shared by the panel build (registerCond) and enhance().

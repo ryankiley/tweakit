@@ -1,7 +1,7 @@
 /* Markup-driven enhancement — enhance() turns [data-tw] hosts into live controls
  * (the showcase path), sharing the panel's meta derivation via dataMeta. Imported
  * for its side effect too: it auto-runs over the document on load. */
-import { el, btn } from "./shared.js";
+import { el, btn, setCollapsed } from "./shared.js";
 import { dataMeta, hasOwn } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
@@ -31,7 +31,7 @@ export async function enhance(root: Document | Element = document): Promise<void
     if (!toggle && title) { toggle = btn("tw-header-toggle"); title.replaceWith(toggle); toggle.append(title); }
     if (!toggle) return;
     toggle.setAttribute("aria-expanded", "true");
-    toggle.addEventListener("click", () => { const c = panel.classList.toggle("is-collapsed"); toggle.setAttribute("aria-expanded", c ? "false" : "true"); body.inert = c; });
+    toggle.addEventListener("click", () => setCollapsed(panel, toggle, body, !panel.classList.contains("is-collapsed")));
     // Copy + reset are part of the component, so the static samples carry them too —
     // the same toolbar tweaks() builds, operating over this panel's own [data-tw]
     // controls (gathered lazily at click time; they're created in the pass below).
