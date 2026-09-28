@@ -72,7 +72,8 @@ export async function enhance(root: Document | Element = document): Promise<void
   if (pend) await pend.catch(() => {}); // a failed chunk degrades to skipping its controls (createControl finds no constructor), not an unhandled rejection out of the auto-run
   for (const { host, meta } of hosts) {
     const ctrl = createControl(meta, (v) => writeDataValue(host, v));
-    if (ctrl) { host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint); host._tw = { ctrl, def: meta.value, key: host.dataset.key || meta.label, host }; }
+    // def = the value the control opened on (its sanitised form), as the panel's entries hold it.
+    if (ctrl) { host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint); host._tw = { ctrl, def: ctrl.get(), key: host.dataset.key || meta.label, host }; }
   }
 }
 

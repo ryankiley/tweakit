@@ -1,6 +1,6 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, rangeStep, grabSurface, boxFrac, numField, popover, triggerRow, quietFocus, registerControl } from "../shared.js";
+import { el, txt, clamp, rangeStep, grabSurface, boxFrac, numField, popover, triggerRow, quietFocus, selectAllOnFocus, registerControl } from "../shared.js";
 import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 
 // ── Colour — one module: a row that opens a dropdown OKLCH picker. Ported from
@@ -210,7 +210,7 @@ function createPickerBody(meta, onChange) {
     if (mode === "hex") {
       channels.classList.add("tw-color-channels--hex");
       const wrap = el("div", "tw-color-chan");
-      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp);
+      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp); selectAllOnFocus(inp); // a click into the hex takes the whole value — you replace a colour, not a digit
       inp.addEventListener("change", () => { const v = inp.value.trim(); if (HEX_RE.test(v)) { [L, C, H, A] = parseColor(v); commit(true); } });
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
       wrap.append(txt("span", "tw-color-chan-label", "HEX"), inp); channels.append(wrap);

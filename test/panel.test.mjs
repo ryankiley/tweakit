@@ -455,6 +455,89 @@ test("a colour control given no value resets to the colour it opened on, not bla
   assert.equal(p.params.c, opened);
 });
 
+test("reset() restores the value a control opened on, not the raw schema value it sanitised", () => {
+  const p = tweaks("Def", {
+    label: { type: "text", value: 5 },                 // a numeric text default
+    n: { type: "number", value: "abc" },               // an unusable number default → 0
+    s: { type: "spring", mode: "physics", value: { stiffness: 85, damping: 12, mass: 2, visualDuration: 0.4, bounce: 0.3 } }, // explicit physics over a time pair
+  });
+  const opened = p.toJSON().values;
+  assert.equal(opened.label, "5");
+  assert.equal(opened.n, 0);
+  assert.deepEqual(opened.s, { stiffness: 85, damping: 12, mass: 2 });
+  p.set("label", "x"); p.set("n", 8); p.set("s", { visualDuration: 0.6, bounce: 0.1 });
+  assert.equal(p.params.s.visualDuration, 0.6);
+  p.reset();                                            // used to leave "x", 8, and a time-mode spring
+  assert.deepEqual(p.toJSON().values, opened);
+});
+
+test("numeric values stay on their step grid: a null bound is unbounded, an off-grid max is the last grid point under it", () => {
+  const p = tweaks("Grid", {
+    size: { type: "number", value: 27.44, min: 14.45, max: null, step: null }, // a JSON'd schema — null is absent
+    cap: { type: "number", value: 20, min: 0, max: 14.45, step: 1 },
+    half: { type: "number", value: 3, min: 0.5, step: 1 },                     // a min half a step off the readout's rounding
+    rot: [0, -Math.PI, Math.PI, 0.01],                                          // a computed bound keeps the step's readout
+    s: [5, 0, 14.6, 1], iv: [[2, 8], 0, 14.6, 1],
+  });
+  assert.equal(p.params.size, 27);      // max: null used to read as 0 and swap in as the floor, clamping to 14.45
+  assert.equal(p.params.cap, 14);       // not 14.45, which the field can't show and its own set() re-rounded
+  assert.equal(p.params.half, 3);       // not 4 (and 5, 6, … on every set of its own value)
+  assert.ok(p.params.rot === 0);        // on the 0.01 grid, not -0.0016 (the min-anchored point) or -0
+  p.set("cap", 14.45); p.set("half", 3); p.set("s", 100); p.set("iv", [0, 100]);
+  assert.equal(p.params.cap, 14);
+  assert.equal(p.params.half, 3);
+  assert.equal(p.params.s, 14);         // the track's end reported 15, past max
+  assert.deepEqual(p.params.iv, [0, 14]);
+  p.set("half", 0); p.set("s", -1);
+  assert.equal(p.params.half, 1);       // the first grid point at or above min, not 0.5 (which its own set() then moved to 1)
+  assert.equal(p.params.s, 0);
+  const s = p.toJSON(); p.fromJSON(s);
+  assert.deepEqual(p.toJSON(), s);      // a round trip is a fixed point
+});
+
+test("set() refuses a function as a control value (JSON can't carry it, so every snapshot dropped the key)", () => {
+  const p = tweaks("Fn", { sel: ["a", "b"], free: 1 });
+  const warn = console.warn; let warned = ""; console.warn = (m) => { warned = m; };
+  try { p.set("sel", () => 1); } finally { console.warn = warn; }
+  assert.match(warned, /a function is not a control value/);
+  assert.equal(p.params.sel, "a");
+  p.params.hook = () => 2;                      // bag keys stay free
+  assert.deepEqual(p.toJSON().values, { sel: "a", free: 1 });
+});
+
+test("a control holding undefined serialises as null, so undo/redo and the copy carry it", async () => {
+  const p = tweaks("Undef", { sel: ["a", "b"] }, { undo: true });
+  document.body.append(p.el);
+  p.set("sel", null); await wait(400);          // one history step: null
+  p.set("sel", undefined); await wait(400);     // the next: undefined — JSON dropped the key, so undo had no step to return to
+  assert.equal(p.toJSON().values.sel, null);
+  assert.ok("sel" in JSON.parse(JSON.stringify(p)).values); // the key is present, not dropped
+  const cur = p.toJSON().values;
+  p.undo(); p.redo();
+  assert.deepEqual(p.toJSON().values, cur);     // redo used to leave the null from the earlier step behind
+  p.destroy();
+});
+
+test("a click into the colour picker's hex field selects the whole value", () => {
+  const p = tweaks("Hex", { c: "#ff0000" });
+  document.body.append(p.el);
+  const mode = p.el.querySelector(".tw-color-mode");
+  mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
+  const inp = p.el.querySelector(".tw-color-chan-input");
+  assert.equal(inp.value, "#ff0000");
+  inp.dispatchEvent(ptr("pointerdown"));                                   // a fresh click: the field isn't focused yet
+  inp.focus();                                                              // the press's default action
+  const up = new window.MouseEvent("mouseup", { bubbles: true, cancelable: true });
+  inp.dispatchEvent(up);
+  assert.equal(inp.selectionStart, 0);
+  assert.equal(inp.selectionEnd, inp.value.length);
+  assert.ok(up.defaultPrevented, "the click's own mouseup can't collapse the selection");
+  const again = new window.MouseEvent("mouseup", { bubbles: true, cancelable: true });
+  inp.dispatchEvent(ptr("pointerdown")); inp.dispatchEvent(again);         // a second click inside the focused field places the caret as usual
+  assert.ok(!again.defaultPrevented);
+  p.destroy();
+});
+
 test("text-field focus is quiet after a pointer press, ringed after a key press", () => {
   const p = tweaks("F", { note: "hello" });
   document.body.append(p.el);

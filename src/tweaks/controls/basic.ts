@@ -3,7 +3,7 @@
  * wrapper every builder calls. Statically imported by the entry, unlike the lazy
  * siblings in this directory, so basic panels build synchronously. */
 import {
-  el, btn, txt, clamp, stepPrecision, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel,
+  el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel,
   popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, numField, blade, setCollapsed,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl,
   EASE_SPRING, EASE_GLIDE,
@@ -44,7 +44,8 @@ function createSlider(meta, onChange) {
 
   // Rule lines (hashmarks) live only on the discrete slider — one per step. The
   // continuous slider has none.
-  const q = (v) => roundToStep(v, min, step);
+  const [lo, hi] = meta.soft ? [-Infinity, Infinity] : gridEnds(min, max, step); // an off-grid max ([5, 0, 14.6, 1]) reported 15 from the track's end — the emitted value stays on the grid, inside [min, max] (a soft slider may exceed max by design)
+  const q = (v) => clamp(roundToStep(v, min, step), lo, hi);
   const marks = snap ? Array.from({ length: Math.max(0, Math.round((max - min) / step) - 1) }, (_, i) => ((i + 1) * step) / (max - min) * 100) : [];
   for (const pct of marks) { const m = el("div", "tw-slider-hashmark"); m.style.left = pct + "%"; hashes.append(m); }
 
@@ -350,7 +351,7 @@ const createSeparator = () => blade(el("div", "tw-separator"));
 
 // ── String — a labelled text input ──
 function createString(meta, onChange) {
-  let value = meta.value ?? "";
+  let value = meta.value == null ? "" : String(meta.value); // a non-string default (value: 5) holds its string form from the start, so get() and reset() agree with the input
   // `rows` makes it a multiline textarea: the row
   // grows to fit and aligns its label to the top instead of centring.
   const multi = meta.rows > 0;
