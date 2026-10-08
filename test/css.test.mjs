@@ -5,9 +5,22 @@
  * :hover selector that is not under that query. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 const FILES = ["src/tweaks.css", "site/site.css"];
+
+// The docs examples carry their own CSS (`examples[].css` in site/pages/*.mjs), which the
+// build puts into each page's <style>. It follows the same rule.
+async function examplesCss() {
+  const dir = new URL("../site/pages/", import.meta.url);
+  const files = (await readdir(dir)).filter((f) => f.endsWith(".mjs")).sort();
+  let css = "";
+  for (const file of files) {
+    const { examples = [] } = await import(new URL(file, dir));
+    for (const ex of examples) if (ex.css) css += `\n/* ${file} ${ex.id || ex.title || ""} */\n${ex.css}\n`;
+  }
+  return css;
+}
 // Both features, in either order, and no comma: `@media (hover: hover) and (pointer: fine), print`
 // would apply its rules to every printer.
 const isHoverGuard = (prelude) =>
@@ -40,10 +53,14 @@ function hoverSelectors(css) {
   return found;
 }
 
-for (const file of FILES) {
+const SOURCES = [
+  ...FILES.map((file) => [file, () => readFile(new URL(`../${file}`, import.meta.url), "utf8")]),
+  ["site/pages/*.mjs examples[].css", examplesCss],
+];
+
+for (const [file, read] of SOURCES) {
   test(`${file}: every :hover rule sits inside @media (hover: hover) and (pointer: fine)`, async () => {
-    const css = await readFile(new URL(`../${file}`, import.meta.url), "utf8");
-    const rules = hoverSelectors(css);
+    const rules = hoverSelectors(await read());
     assert.ok(rules.length > 0, `${file} has no :hover rules — the parser found nothing, which is not what this file looks like`);
     const bare = rules.filter((r) => !r.atRules.some((a) => a.startsWith("@media") && isHoverGuard(a)));
     assert.deepEqual(bare.map((r) => r.selector), [], `unguarded :hover in ${file}`);
