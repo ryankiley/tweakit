@@ -179,7 +179,13 @@ a { color: inherit; text-decoration: none; }
   text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
   transition: text-decoration-color var(--site-dur-base) var(--site-ease-out), color var(--site-dur-base) var(--site-ease-out);
 }
-.doc a:hover { text-decoration-color: currentColor; color: var(--site-text); }
+/* Every :hover rule in this file sits inside `@media (hover: hover) and (pointer: fine)`.
+ * A touch screen applies :hover on tap and keeps it until the next tap somewhere else,
+ * so an unguarded hover style sticks. Anything a hover REVEALS (the copy button, the
+ * heading permalink) is shown at rest where hover does not exist, so touch can reach it. */
+@media (hover: hover) and (pointer: fine) {
+  .doc a:hover { text-decoration-color: currentColor; color: var(--site-text); }
+}
 .doc .doc-footnav a { text-decoration: none; }
 
 /* ── Layout ── */
@@ -199,9 +205,10 @@ a { color: inherit; text-decoration: none; }
 .sb-brand a {
   color: var(--site-text); font-size: 17px; font-weight: 600; letter-spacing: -0.02em;
 }
-.sb-brand a:hover { text-decoration: none; }
 .sb-brand .sb-gh { display: inline-flex; align-items: center; color: var(--site-muted); transition: color var(--site-dur-fast) var(--site-ease-out); }
-.sb-brand .sb-gh:hover { color: var(--site-text); }
+@media (hover: hover) and (pointer: fine) {
+  .sb-brand .sb-gh:hover { color: var(--site-text); }
+}
 .sb-brand .sb-gh svg { display: block; width: 18px; height: 18px; }
 .sb-group { margin-bottom: 20px; }
 .sb-section {
@@ -213,7 +220,9 @@ a { color: inherit; text-decoration: none; }
   color: var(--site-muted); font-size: 14px;
   transition: color var(--site-dur-fast) var(--site-ease-out), background var(--site-dur-fast) var(--site-ease-out);
 }
-.sb-link:hover { color: var(--site-text); background: var(--site-fill-hover); text-decoration: none; }
+@media (hover: hover) and (pointer: fine) {
+  .sb-link:hover { color: var(--site-text); background: var(--site-fill-hover); }
+}
 .sb-link.sb-current { color: var(--site-text); background: var(--site-fill-active); font-weight: 500; }
 
 .doc {
@@ -277,14 +286,18 @@ a { color: inherit; text-decoration: none; }
  * panel, so the panel reads as living inside the scene it controls. */
 .ex { margin: 0 0 56px; scroll-margin-top: 24px; }
 
-/* Hover-revealed section permalink (site.js appends it to each anchored h2). */
+/* Section permalink (site.js appends it to each anchored h2). Shown at rest; where a
+ * pointer can hover it hides until the heading is hovered or the link is focused. */
 .h-anchor {
   margin-left: 10px; color: var(--site-faint); font-weight: 440;
-  opacity: 0; transition: opacity var(--site-dur-fast) var(--site-ease-out), color var(--site-dur-fast) var(--site-ease-out);
+  transition: opacity var(--site-dur-fast) var(--site-ease-out), color var(--site-dur-fast) var(--site-ease-out);
 }
 .doc .h-anchor { text-decoration: none; }
-.ex h2:hover .h-anchor, .h-anchor:focus-visible { opacity: 1; }
-.h-anchor:hover { color: var(--site-text); }
+@media (hover: hover) and (pointer: fine) {
+  .h-anchor { opacity: 0; }
+  .ex h2:hover .h-anchor, .h-anchor:focus-visible { opacity: 1; }
+  .h-anchor:hover { color: var(--site-text); }
+}
 
 /* The stage: a faint dot grid over a soft vertical falloff — the design-canvas the
  * panel floats on — capped with an inset top hairline. */
@@ -319,30 +332,38 @@ a { color: inherit; text-decoration: none; }
   font-variant-numeric: tabular-nums;
 }
 
-/* Copy button — the kit's copy ⇄ check icon swap (opacity + scale + blur cross-fade),
- * revealed on hover. Tuned per the design system: a borderless ink button (no box to
- * pixel-snap), block-level icons promoted to their own compositor layer (will-change)
- * so the blur/scale swap renders steady, and an inverted-ink tooltip with a quick
- * ease-in hide / soft ease-out show. */
+/* Copy button — the kit's copy ⇄ check icon swap (opacity + scale + blur cross-fade).
+ * Shown at rest; where a pointer can hover it hides until the code block is hovered.
+ * Tuned per the design system: a borderless ink button (no box to pixel-snap),
+ * block-level icons promoted to their own compositor layer (will-change) so the
+ * blur/scale swap renders steady, and an inverted-ink tooltip with a quick ease-in
+ * hide / soft ease-out show. */
 .ex-copy {
   position: absolute; top: 6px; right: 6px; z-index: 1;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 8px; border: none; background: transparent; border-radius: 8px;
-  color: var(--site-muted); cursor: pointer; opacity: 0;
+  color: var(--site-muted); cursor: pointer;
   transition: opacity var(--site-dur-base) var(--site-ease-out), color var(--site-dur-fast) var(--site-ease-out),
               background var(--site-dur-fast) var(--site-ease-out), box-shadow var(--site-dur-fast) var(--site-ease-out);
 }
-.ex-codewrap:hover .ex-copy, .ex-copy:focus-visible { opacity: 1; }
 /* Filled chip on hover / focus / just-copied — an opaque lift over the code surface
  * (the kit's hover overlay composited onto --site-code-bg), so the glyph reads as a
  * button instead of running into the code text behind it (design-system's .icon-btn
  * hover-fill, adapted to sit over a code block). */
-.ex-copy:hover, .ex-copy:focus-visible, .ex-copy.is-copied {
+.ex-copy:focus-visible, .ex-copy.is-copied {
   color: var(--site-text);
   background: linear-gradient(var(--site-fill-active), var(--site-fill-active)), var(--site-code-bg);
   box-shadow: inset 0 0 0 1px var(--site-border-soft);
 }
-.ex-copy.is-copied { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .ex-copy { opacity: 0; }
+  .ex-codewrap:hover .ex-copy, .ex-copy:focus-visible, .ex-copy.is-copied { opacity: 1; }
+  .ex-copy:hover {
+    color: var(--site-text);
+    background: linear-gradient(var(--site-fill-active), var(--site-fill-active)), var(--site-code-bg);
+    box-shadow: inset 0 0 0 1px var(--site-border-soft);
+  }
+}
 .ex-copy-icons { position: relative; display: block; width: 15px; height: 15px; }
 .ex-copy-icons svg {
   position: absolute; inset: 0; display: block; width: 15px; height: 15px;
@@ -365,9 +386,15 @@ a { color: inherit; text-decoration: none; }
   pointer-events: none;
   transition: opacity calc(var(--site-dur-base) * 0.6) ease-in, transform calc(var(--site-dur-base) * 0.6) ease-in;
 }
-.ex-copy:hover::after, .ex-copy:focus-visible::after {
+.ex-copy:focus-visible::after {
   opacity: 1; transform: none;
   transition: opacity var(--site-dur-base) var(--site-ease-out), transform var(--site-dur-base) var(--site-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ex-copy:hover::after {
+    opacity: 1; transform: none;
+    transition: opacity var(--site-dur-base) var(--site-ease-out), transform var(--site-dur-base) var(--site-ease-out);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .ex-copy::after { transition: opacity var(--site-dur-fast) ease; transform: none; }
@@ -399,7 +426,9 @@ a { color: inherit; text-decoration: none; }
   color: var(--site-text); font-weight: 500; font-size: 14.5px;
   transition: border-color var(--site-dur-fast) var(--site-ease-out), background var(--site-dur-fast) var(--site-ease-out);
 }
-.doc-footnav a:hover { text-decoration: none; border-color: var(--site-border-hover); background: var(--site-fill-whisper); }
+@media (hover: hover) and (pointer: fine) {
+  .doc-footnav a:hover { border-color: var(--site-border-hover); background: var(--site-fill-whisper); }
+}
 .doc-footnav a span { font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--site-faint); }
 .doc-footnav .fn-next { text-align: right; margin-left: auto; }
 .fn-prev span::before, .fn-next span::after {
@@ -407,8 +436,10 @@ a { color: inherit; text-decoration: none; }
 }
 .fn-prev span::before { content: "←"; margin-right: 6px; }
 .fn-next span::after { content: "→"; margin-left: 6px; }
-.fn-prev:hover span::before { transform: translateX(-3px); }
-.fn-next:hover span::after { transform: translateX(3px); }
+@media (hover: hover) and (pointer: fine) {
+  .fn-prev:hover span::before { transform: translateX(-3px); }
+  .fn-next:hover span::after { transform: translateX(3px); }
+}
 
 /* ── Mobile ── */
 .topbar { display: none; }
@@ -430,7 +461,9 @@ a { color: inherit; text-decoration: none; }
   }
   .topbar-brand { color: var(--site-text); font-weight: 600; letter-spacing: -0.02em; font-size: 16px; }
   .topbar-gh { margin-left: auto; display: inline-flex; align-items: center; color: var(--site-muted); }
-  .topbar-gh:hover { color: var(--site-text); }
+  @media (hover: hover) and (pointer: fine) {
+    .topbar-gh:hover { color: var(--site-text); }
+  }
   .topbar-gh svg { display: block; width: 20px; height: 20px; }
 
   .layout { display: block; padding-left: 0; } /* sidebar is a drawer on mobile — no reserved column */
