@@ -21,10 +21,14 @@ async function examplesCss() {
   }
   return css;
 }
-// Both features, in either order, and no comma: `@media (hover: hover) and (pointer: fine), print`
-// would apply its rules to every printer.
+// Both features, in either order, joined by `and` only. A comma (`…, print`) would apply
+// the rules to every printer, `or` to any device with either feature, and `not` to
+// exactly the devices the guard is meant to exclude.
 const isHoverGuard = (prelude) =>
-  /\(hover:\s*hover\)/.test(prelude) && /\(pointer:\s*fine\)/.test(prelude) && !prelude.includes(",");
+  /\(hover:\s*hover\)/.test(prelude) &&
+  /\(pointer:\s*fine\)/.test(prelude) &&
+  !prelude.includes(",") &&
+  !/\b(not|or)\b/.test(prelude);
 
 // Every selector in `css` that contains :hover, each with the at-rule preludes it sits
 // under (outermost first). Comments and strings are blanked first so a brace or a
@@ -53,15 +57,17 @@ function hoverSelectors(css) {
   return found;
 }
 
+// The two stylesheets are known to hold hover rules, so finding none there means the
+// walker broke. The examples may legitimately end up with none.
 const SOURCES = [
-  ...FILES.map((file) => [file, () => readFile(new URL(`../${file}`, import.meta.url), "utf8")]),
-  ["site/pages/*.mjs examples[].css", examplesCss],
+  ...FILES.map((file) => [file, () => readFile(new URL(`../${file}`, import.meta.url), "utf8"), true]),
+  ["site/pages/*.mjs examples[].css", examplesCss, false],
 ];
 
-for (const [file, read] of SOURCES) {
+for (const [file, read, expectSome] of SOURCES) {
   test(`${file}: every :hover rule sits inside @media (hover: hover) and (pointer: fine)`, async () => {
     const rules = hoverSelectors(await read());
-    assert.ok(rules.length > 0, `${file} has no :hover rules — the parser found nothing, which is not what this file looks like`);
+    if (expectSome) assert.ok(rules.length > 0, `${file} has no :hover rules — the parser found nothing, which is not what this file looks like`);
     const bare = rules.filter((r) => !r.atRules.some((a) => a.startsWith("@media") && isHoverGuard(a)));
     assert.deepEqual(bare.map((r) => r.selector), [], `unguarded :hover in ${file}`);
   });
@@ -83,4 +89,7 @@ test("the guard check accepts either feature order and rejects a comma list", ()
   assert.ok(isHoverGuard("@media (pointer: fine) and (hover: hover)"));
   assert.ok(!isHoverGuard("@media (hover: hover)"));
   assert.ok(!isHoverGuard("@media (hover: hover) and (pointer: fine), print"));
+  assert.ok(!isHoverGuard("@media not all and (hover: hover) and (pointer: fine)"));
+  assert.ok(!isHoverGuard("@media (hover: hover) or (pointer: fine)"));
+  assert.ok(isHoverGuard("@media(hover:hover)and (pointer:fine)")); // as esbuild emits it
 });
