@@ -67,7 +67,8 @@ export const examples = [
       .pa-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
                 background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
                 line-height: 1.4; font-family: inherit; cursor: pointer; }
-      .pa-btn:hover { background: var(--demo-bar); }`,
+      .pa-btn:active { background: var(--demo-bar); }
+      @media (hover: hover) and (pointer: fine) { .pa-btn:hover { background: var(--demo-bar); } }`,
     run: ({ tweaks, mount, target }) => {
       const tile = target.querySelector(".pa-tile");
       const panel = tweaks("Remote", {
@@ -185,7 +186,8 @@ export const examples = [
       .ud-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
                 background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
                 line-height: 1.4; font-family: inherit; cursor: pointer; }
-      .ud-btn:hover { background: var(--demo-bar); }
+      .ud-btn:active { background: var(--demo-bar); }
+      @media (hover: hover) and (pointer: fine) { .ud-btn:hover { background: var(--demo-bar); } }
       .ud-card { width: 160px; height: 100px; border-radius: 18px; background: #7C5CFF;
                  transition: width 0.15s, border-radius 0.15s; }`,
     run: ({ tweaks, mount, target }) => {
@@ -229,7 +231,8 @@ export const examples = [
       .ps-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
                 background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
                 line-height: 1.4; font-family: inherit; cursor: pointer; }
-      .ps-btn:hover { background: var(--demo-bar); }
+      .ps-btn:active { background: var(--demo-bar); }
+      @media (hover: hover) and (pointer: fine) { .ps-btn:hover { background: var(--demo-bar); } }
       .ps-tile { width: 120px; height: 120px; border-radius: 18px; background: oklch(0.6 0.18 260);
                  transition: all 0.15s; }
       .ps-note { font-size: 12px; color: var(--demo-faint); min-height: 1em; }`,
@@ -271,7 +274,8 @@ export const examples = [
       .fl-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong);
                 background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px;
                 line-height: 1.4; font-family: inherit; cursor: pointer; }
-      .fl-btn:hover { background: var(--demo-bar); }`,
+      .fl-btn:active { background: var(--demo-bar); }
+      @media (hover: hover) and (pointer: fine) { .fl-btn:hover { background: var(--demo-bar); } }`,
     noMount: true,
     run: ({ tweaks, target }) => {
       const btn = target.querySelector(".fl-spawn");
