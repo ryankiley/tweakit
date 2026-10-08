@@ -163,11 +163,9 @@
   transform: translateX(-50%) scaleX(0.4); opacity: 0; pointer-events: none;
   transition: opacity 0.15s, transform 0.2s var(--tw-ease-spring);
 }
-/* Every :hover rule in this file sits inside `@media (hover: hover) and (pointer: fine)`.
- * A touch screen applies :hover on tap and keeps it until the next tap somewhere else,
- * so an unguarded hover style sticks: a lit button, a wound-up reset icon, a swollen
- * chip. The query limits hover styles to a mouse or trackpad; touch gets its feedback
- * from :active and the JS-set is-grabbing / is-hover / is-active classes. */
+/* Every :hover rule sits inside `@media (hover: hover) and (pointer: fine)`: a touch
+ * screen keeps :hover on after a tap, so an unguarded hover style sticks. Touch gets
+ * its feedback from :active and the JS-set is-grabbing / is-hover / is-active classes. */
 @media (hover: hover) and (pointer: fine) {
   .tw-header:hover > .tw-grabber { opacity: 0.4; transform: translateX(-50%) scaleX(1); }
 }

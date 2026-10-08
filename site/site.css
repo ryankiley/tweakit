@@ -179,10 +179,10 @@ a { color: inherit; text-decoration: none; }
   text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
   transition: text-decoration-color var(--site-dur-base) var(--site-ease-out), color var(--site-dur-base) var(--site-ease-out);
 }
-/* Every :hover rule in this file sits inside `@media (hover: hover) and (pointer: fine)`.
- * A touch screen applies :hover on tap and keeps it until the next tap somewhere else,
- * so an unguarded hover style sticks. Anything a hover REVEALS (the copy button, the
- * heading permalink) is shown at rest where hover does not exist, so touch can reach it. */
+/* Every :hover rule sits inside `@media (hover: hover) and (pointer: fine)`: a touch
+ * screen keeps :hover on after a tap, so an unguarded hover style sticks. Anything a
+ * hover reveals (the copy button, the heading permalink) shows at rest where hover
+ * does not exist. */
 @media (hover: hover) and (pointer: fine) {
   .doc a:hover { text-decoration-color: currentColor; color: var(--site-text); }
 }
