@@ -8,7 +8,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const FILES = ["src/tweaks.css", "site/site.css"];
-const HOVER_GUARD = /\(hover:\s*hover\)\s*and\s*\(pointer:\s*fine\)/;
+// Both features, in either order, and no comma: `@media (hover: hover) and (pointer: fine), print`
+// would apply its rules to every printer.
+const isHoverGuard = (prelude) =>
+  /\(hover:\s*hover\)/.test(prelude) && /\(pointer:\s*fine\)/.test(prelude) && !prelude.includes(",");
 
 // Every selector in `css` that contains :hover, each with the at-rule preludes it sits
 // under (outermost first). Comments and strings are blanked first so a brace or a
@@ -42,7 +45,7 @@ for (const file of FILES) {
     const css = await readFile(new URL(`../${file}`, import.meta.url), "utf8");
     const rules = hoverSelectors(css);
     assert.ok(rules.length > 0, `${file} has no :hover rules — the parser found nothing, which is not what this file looks like`);
-    const bare = rules.filter((r) => !r.atRules.some((a) => a.startsWith("@media") && HOVER_GUARD.test(a)));
+    const bare = rules.filter((r) => !r.atRules.some((a) => a.startsWith("@media") && isHoverGuard(a)));
     assert.deepEqual(bare.map((r) => r.selector), [], `unguarded :hover in ${file}`);
   });
 }
@@ -56,4 +59,11 @@ test("the hover walker reads nesting, not just presence", () => {
   // A nested media (the mobile block wraps its own hover guard) still counts as guarded.
   const nested = `@media (max-width: 1000px) { @media (hover: hover) and (pointer: fine) { .c:hover { color: red; } } }`;
   assert.deepEqual(hoverSelectors(nested)[0].atRules.length, 2);
+});
+
+test("the guard check accepts either feature order and rejects a comma list", () => {
+  assert.ok(isHoverGuard("@media (hover: hover) and (pointer: fine)"));
+  assert.ok(isHoverGuard("@media (pointer: fine) and (hover: hover)"));
+  assert.ok(!isHoverGuard("@media (hover: hover)"));
+  assert.ok(!isHoverGuard("@media (hover: hover) and (pointer: fine), print"));
 });
