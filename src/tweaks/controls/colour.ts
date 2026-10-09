@@ -333,4 +333,7 @@ const oklchStr = (L, C, H, A) => A < 0.999
 
 export { createPickerBody, parseColor, oklchStr, CHECKER };
 registerControl("color", createColor);
-
+// The body registers beside its control so createColorPicker() (standalone.ts, in core) can
+// reach it through the registry once this chunk has loaded — no static import of this module
+// from the core entry, which would pull the whole colour engine into the basic bundle.
+registerControl("colorpicker", createPickerBody);

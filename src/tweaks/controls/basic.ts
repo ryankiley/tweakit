@@ -287,7 +287,7 @@ function createRadiogrid(meta, onChange) {
   let value = meta.value ?? optValue(options[0]);
   const btns = options.map((o) => { const b = radioButton("tw-radiogrid-btn", o, (v) => set(v)); grid.append(b); return b; }); // lazy `set` — it's declared below
   const reflect = () => setRadioActive(btns, value);
-  const set = (v, fire = true) => { value = v; reflect(); if (fire) onChange(v); };
+  const set = (v, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null/undefined clear the selection (a snapshot writes undefined as null); any other value matching no option is ignored (a stale restore used to land in params verbatim)
   // Arrow keys roam the grid: ←/→ step linearly (wrapping), ↑/↓ jump a row (by
   // the column count, clamped at the edges); Home/End to the ends.
   grid.addEventListener("keydown", (e) => {
@@ -320,7 +320,7 @@ function createSelect(meta, onChange) {
   });
   root.append(trigger, dropdown);
   const reflect = () => { valEl.textContent = (opts.find((o) => o.value === value) || {}).label ?? value; optButtons.forEach((b) => { const sel = b.dataset.value === String(value); b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); }; // String(value): dataset stringifies, so numeric option values never matched (no selected/aria state)
-  const set = (v, fire = true) => { value = v; reflect(); if (fire) onChange(v); };
+  const set = (v, fire = true) => { if (v != null && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null/undefined clear the selection (a snapshot writes undefined as null); any other value matching no option is ignored (a stale restore used to land in params verbatim, then persist as null)
   // The shared popover shell portals the dropdown to <body> (never clipped by the
   // panel's overflow or a transformed ancestor), themes + places it, and closes on
   // outside-press / Esc-back-to-trigger / scroll-away — the same machinery as the
