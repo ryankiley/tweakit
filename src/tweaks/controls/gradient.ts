@@ -88,13 +88,19 @@ function createGradient(meta, onChange) {
   pop.append(barRow, body.el);
   root.append(pop);
 
-  const reflectSel = () => { for (const h of rail.children) h.dataset.sel = String(h._stop === selStop); };
+  // A stop's accessible name carries its position and whether it's the selected one —
+  // the state the ring shows sighted users. Refreshed on every select + move.
+  const labelStop = (h) => h.setAttribute("aria-label", `Colour stop at ${Math.round(h._stop.pos * 100)}%${h._stop === selStop ? ", selected" : ""}`);
+  const reflectSel = () => { for (const h of rail.children) { h.dataset.sel = String(h._stop === selStop); labelStop(h); } };
   const renderHandles = () => {
     rail.replaceChildren();
     for (const s of stops) {
       const h = btn("tw-gradient-stop"); h._stop = s;
       h.style.left = s.pos * 100 + "%"; h.style.setProperty("--stop", s.color);
-      h.dataset.sel = String(s === selStop); h.setAttribute("aria-label", "Colour stop");
+      h.dataset.sel = String(s === selStop); labelStop(h);
+      // Focus is selection: tabbing onto a stop points the picker at it and makes it the
+      // one Delete removes — before, Tab reached a stop the editor wasn't editing.
+      h.addEventListener("focus", () => select(s, false));
       let offBar = false;
       dragGesture(h, {
         // preventDefault suppresses click-to-focus on the button — focus explicitly so
@@ -105,7 +111,7 @@ function createGradient(meta, onChange) {
           // One rail rect for both the X position and the off-bar Y test, so the move
           // doesn't force a second layout read; the X math is posFromX inlined verbatim.
           const r = rail.getBoundingClientRect();
-          s.pos = clamp((e.clientX - r.left) / (r.width || 1), 0, 1); h.style.left = s.pos * 100 + "%"; paint(); emit();
+          s.pos = clamp((e.clientX - r.left) / (r.width || 1), 0, 1); h.style.left = s.pos * 100 + "%"; labelStop(h); paint(); emit();
           // Drag a stop clear of the bar (past ~24px above/below) to remove it — the
           // touch-friendly removal path; floored at two stops. The stop fades as a cue.
           offBar = stops.length > 2 && (e.clientY < r.top - 24 || e.clientY > r.bottom + 24);
@@ -120,7 +126,7 @@ function createGradient(meta, onChange) {
         const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0; if (!d) return;
         e.preventDefault();
         s.pos = clamp(s.pos + d * (e.shiftKey ? 0.1 : 0.01), 0, 1);
-        h.style.left = s.pos * 100 + "%"; paint(); emit();
+        h.style.left = s.pos * 100 + "%"; labelStop(h); paint(); emit();
       });
       rail.append(h);
     }
@@ -191,14 +197,17 @@ function createGradient(meta, onChange) {
   });
 
   // Delete / Backspace removes the selected stop (min 2). Ignored while typing in a field
-  // (a channel input). Lives on the popover, where the stop handles + picker now sit.
+  // (a channel input), and with Alt held (the panel's reset chord, so it never reads as
+  // a stop removal). Lives on the popover, where the stop handles + picker now sit.
   pop.tabIndex = -1;
   pop.addEventListener("keydown", (e) => {
-    if ((e.key === "Delete" || e.key === "Backspace") && !/^(input|textarea|select)$/i.test(e.target.tagName) && stops.length > 2) { e.preventDefault(); removeStop(selStop); }
+    if ((e.key === "Delete" || e.key === "Backspace") && !e.altKey && !/^(input|textarea|select)$/i.test(e.target.tagName) && stops.length > 2) { e.preventDefault(); removeStop(selStop); }
   });
 
   // Open the editor under the trigger; reflow the picker body once it's at real size.
-  popover(root, trigger, pop, { width: 260, fallbackH: 392, gap: 6, onOpen: body.reflow, onReflow: body.reflow });
+  // Focus lands on the selected stop (not the first in DOM order — focus is selection,
+  // so that would re-point the picker on every open).
+  popover(root, trigger, pop, { width: 260, fallbackH: 392, gap: 6, onOpen: body.reflow, onReflow: body.reflow, initialFocus: () => handleFor(selStop) });
 
   renderHandles(); paint(); reflectCount();
   return {

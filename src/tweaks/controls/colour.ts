@@ -129,6 +129,9 @@ function createPickerBody(meta, onChange) {
   const root = el("div", "tw-color-body");
   const area = el("div", "tw-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "tw-wg-canvas"; const areaThumb = el("div", "tw-wg-thumb"); area.append(areaCanvas, areaThumb);
   const hueBar = el("div", "tw-wg-hue"); const hueCanvas = document.createElement("canvas"); hueCanvas.className = "tw-wg-hue-canvas"; const hueThumb = el("div", "tw-wg-hue-thumb"); hueBar.append(hueCanvas, hueThumb);
+  // The rasters are images to assistive tech (a bare canvas is announced as nothing).
+  areaCanvas.setAttribute("role", "img"); areaCanvas.setAttribute("aria-label", "Colour plane: chroma across, lightness up");
+  hueCanvas.setAttribute("role", "img"); hueCanvas.setAttribute("aria-label", "Hue strip");
   const alphaBar = el("div", "tw-wg-alpha"); const alphaGrad = el("div", "tw-wg-alpha-grad"); const alphaThumb = el("div", "tw-wg-hue-thumb"); alphaBar.append(alphaGrad, alphaThumb);
   // Keyboard-operable alpha strip (the interval handles' slider idiom): Tab to it, arrows
   // nudge (⇧ = coarse ×10), Home/End snap to transparent/opaque.

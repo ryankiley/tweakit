@@ -53,8 +53,9 @@ export const examples = [
   {
     id: "cubicbezier",
     title: "Cubic bézier",
-    prose: `<p>A CSS easing editor — drag the two handles, or type into the
-      X1/Y1/X2/Y2 fields. The param is the four-number array, ready for
+    prose: `<p>A CSS easing editor — drag the two handles (or Tab to one and nudge it
+      with the arrow keys, ⇧ for 0.1 steps), or type into the X1/Y1/X2/Y2 fields. The
+      param is the four-number array, ready for
       <code>cubic-bezier(…)</code> anywhere CSS takes a timing function. The dot below
       ping-pongs on an infinite animation; the curve is applied live.</p>`,
     target: `<div class="bez-track"><div class="bez-dot"></div></div>`,

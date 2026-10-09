@@ -52,8 +52,9 @@ export const examples = [
   {
     id: "gradient",
     title: "Gradient",
-    prose: `<p>A Figma-style stop editor: drag stops along the bar, double-click the bar
-      (or the + button) to add, select a stop to recolor it with the full picker. The value is
+    prose: `<p>A Figma-style stop editor: drag stops along the bar (or Tab to one and nudge
+      it with the arrow keys), double-click the bar (or the + button) to add, select a stop
+      to recolor it with the full picker, Delete to remove it. The value is
       <code>{ stops: [{ color, pos }], interpolation }</code> — ready to template into any CSS
       gradient. Stops can be authored in <code>oklch()</code> for wide-gamut ramps.</p>
       <p>The ramp blends in whichever color space you pick in the stop editor: switch the mode

@@ -336,7 +336,7 @@ let activePopoverClose: null | (() => void) = null, activePopoverTrigger: any = 
 // close runs only when the open popover's trigger lives inside it (destroying panel A
 // used to dismiss the menu or picker open on panel B). No owner closes whichever is up.
 const closeActivePopover = (owner?: any) => { if (activePopoverClose && (!owner || owner.contains(activePopoverTrigger))) activePopoverClose(); };
-function popover(root: any, trigger: any, pop: any, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void } = {}) {
+function popover(root: any, trigger: any, pop: any, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => any } = {}) {
   let open = false, schemeObs: any = null;
   pop.classList.add("tw-portal"); // the reduced-motion kill-switch + portal-wide rules key off this
   // Relay pointerdowns to the host panel's edit-lifecycle hook (capture, ahead of the
@@ -350,6 +350,24 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
   const reflow = () => { if (open) { if (!root.isConnected) return close(); place(); opts.onReflow && opts.onReflow(); } };
   const onOutside = (e) => { if (!root.contains(e.target) && !pop.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === "Escape" && open) { close(); trigger.focus(); } };
+  // Focus leaving both the pop and its trigger (Tab past the last field, Shift+Tab off
+  // the first) closes, so a keyboard user never leaves a portaled surface stranded open
+  // behind them. A blur with no relatedTarget is ambiguous: a press on a non-focusable
+  // drag surface inside the pop (the colour plane) blurs the hex field to <body> too, so
+  // the modality note decides — a pointer-origin blur is left to the outside-press path.
+  // A keyboard move that lands outside the host panel (the portaled pop sits at the end
+  // of <body>, so Tab wraps to the top of the page) comes back to the trigger instead —
+  // the pop's place in the tab order — a tick later, once the browser's own focus move
+  // has finished. A pointer press elsewhere closed on pointerdown, so it never gets here.
+  const onFocusOut = (e) => {
+    if (!open) return; const t = e.relatedTarget;
+    if (t ? root.contains(t) || pop.contains(t) : pointerModality) return;
+    close();
+    if (t && !trigger.closest(".tw-panel")?.contains(t)) setTimeout(() => { if (!open && document.activeElement === t) trigger.focus(); }, 0);
+  };
+  root.addEventListener("focusout", onFocusOut); pop.addEventListener("focusout", onFocusOut);
+  // The first keyboard-reachable element inside the pop, for the focus move on open.
+  const firstFocusable = () => pop.querySelector('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])');
   // Re-carry the host scheme + theme while open. The portaled node took them at open
   // time and the cascade can't reach <body>, so a mid-open scheme flip (a dark-mode
   // toggle, the theming demo's segmented control) or a setTheme() would otherwise strand
@@ -365,7 +383,16 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     window.addEventListener("tw-retheme", recarry); // setTheme() while open
     if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] }); } // host scheme flip while open
     place();
-    requestAnimationFrame(() => { if (!open) return; pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); }); // render at real size, then re-place (height may have changed) — unless a same-tick close (a destroy() right after the open) already ran: showing the dead pop and letting onOpen focus into it would undo that close
+    requestAnimationFrame(() => {
+      if (!open) return; // a same-tick close (a destroy() right after the open) already ran: showing the dead pop and focusing into it would undo that close
+      pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); // render at real size, then re-place (height may have changed)
+      // Focus moves into the pop on open — a trigger opened with Enter otherwise kept
+      // focus, and Tab walked straight past the portaled node (it sits at the end of
+      // <body>). An onOpen that placed focus itself (the listbox's selected option, the
+      // gradient's selected stop, via initialFocus) wins; otherwise the first focusable.
+      // A pointer-opened pop takes focus quietly (no ring); browsers without the option ignore it.
+      if (!pop.contains(document.activeElement)) { const f: any = (opts.initialFocus && opts.initialFocus()) || firstFocusable(); if (f) f.focus({ focusVisible: !pointerModality }); }
+    });
     // Unmount watchdog: a host that removes the panel while this is open (an SPA route
     // change) would otherwise strand the portaled pop on screen — visible and interactive
     // over whatever renders next — until something else was pressed. One rAF per frame,
@@ -585,7 +612,16 @@ function numField(spec, onChange) {
   wrap.append(grab, inp); root.append(txt("span", spec.row ? "tw-row-label" : "tw-field-label", spec.label), wrap);
   const set = (val, fire = true) => { val = +val; if (!Number.isFinite(val)) return; value = fit(val); inp.value = value.toFixed(decimals); if (fire && onChange) onChange(value); };
   inp.addEventListener("change", () => { const p = parseFloat(inp.value); set(isNaN(p) ? value : p); });
-  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
+  // Enter commits (blur → change). ↑/↓ step the value in place (⇧ = ×10), the keyboard
+  // twin of the grab handle's scrub — off a half-typed value, so a typed "4" then ↑ reads
+  // 5, not the committed value plus one.
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") return inp.blur();
+    const d = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0; if (!d) return;
+    e.preventDefault();
+    const p = parseFloat(inp.value);
+    set((isNaN(p) ? value : p) + d * step * (e.shiftKey ? 10 : 1));
+  });
   attachScrub(grab, wrap, step, () => value, set, () => inp.value);
   return { el: root, set: (val) => set(val, false), get: () => value };
 }

@@ -213,6 +213,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       inp.blur(); // restores the readout via the input's own commit — a no-op value change, so it can't notify
       resetEntry(entry);
     });
+    // The keyboard reset: Alt+Backspace (or Alt+Delete) with focus anywhere inside the
+    // control — its track, a handle, a field, the text input. The pointer paths above had
+    // no keyboard twin. Alt-qualified, so a bare Backspace in a text field stays a
+    // backspace and the gradient editor keeps Delete for its stops.
+    root.addEventListener("keydown", (e) => {
+      if (!e.altKey || e.metaKey || e.ctrlKey || (e.key !== "Backspace" && e.key !== "Delete")) return;
+      e.preventDefault(); e.stopPropagation();
+      if (e.target.classList && e.target.classList.contains("tw-slider-input")) e.target.blur(); // an open inline editor commits + closes first, as on the double-click path
+      resetEntry(entry);
+    });
   };
 
   // Conditional controls — `render: (get) => bool` shows/hides; `disabled` (boolean
