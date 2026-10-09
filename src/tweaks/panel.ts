@@ -1,6 +1,6 @@
 /* tweaks() — the panel factory: builds the shell + controls from a schema and
  * returns the live API (params/on/set/reset/toJSON/…). Persistence, presets,
- * undo, the filter, floating drag, and the lazy-window replay all live here. */
+ * undo, the filter, floating drag, and the lazy-window queue all live here. */
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, setCollapsed,
   applyThemeVars, resolveTheme, carryScheme, onLive, requestReflow, quietFocus, fuzzyMatch,
@@ -25,10 +25,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const listeners = new Set<(p?: any, last?: any) => void>();
   const cleanups: Array<() => void> = []; // every global attachment (document/window listeners, pending timers) registers its release here for destroy()
   let destroyed = false; // flipped by destroy(): assemble() bails, the mutating API methods go silent
-  let assembled = false; // flipped at the end of assemble() — set() queues until the controls exist
-  const preSets: Array<[string | symbol, any]> = []; // set()/setMany()/fromJSON() calls from the lazy window, replayed once assemble() has built the controls — a dotted/nested set before then used to warn-and-drop, and a bare nested key minted a top-level orphan while the control kept its default
+  let assembled = false; // flipped at the end of assemble() — until then the controls don't exist
+  // The lazy window (split build, before the chunks land): a mutating API call made before
+  // the controls exist queues here and replays — in call order, against the real entries —
+  // once assemble() has built them. A dotted/nested set before then used to warn-and-drop,
+  // a bare nested key minted a top-level orphan while the control kept its default, and a
+  // preset save or an undo was silently dropped.
+  const queue: Array<() => void> = [];
+  const later = (fn: () => void) => { if (destroyed) return; assembled ? fn() : queue.push(fn); };
   let liftSlot = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
-  let persist = () => {}; // reassigned below when opts.persist is set (debounced localStorage save)
   // The values snapshot — persist, presets, undo, toJSON and copy all read it: params minus
   // its `_last` channel, with a control holding `undefined` (a list with no matching option,
   // a set(key, undefined)) written as null — JSON has no undefined, so the key silently
@@ -37,25 +42,21 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // changed-key strips — a folder child legitimately keyed "_last" survives.
   const replacer = function (k, v) { return k === "_last" && this === params ? undefined : v === undefined ? null : typeof v === "bigint" ? String(v) : v; }; // a bigint (a host-parked bag value) would otherwise throw out of every snapshot — the debounced persist and undo timers uncaught
   const snapshot = () => JSON.parse(JSON.stringify(params, replacer));
-  // Assigned by assemble() below. Declared here so the API returned synchronously can
-  // forward to them even on the lazy path, where assemble() runs after modules load.
-  // Lazy-window stubs: presets and undo queue onto preSets like set()/fromJSON() do, so a
-  // call made before ready replays in order once assemble() has the real bindings (they
-  // used to be silently dropped). The list reads storage directly, which exists already.
-  let listPresets: () => Record<string, any> = () => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); };
-  let savePreset: (nm?: string) => boolean = (nm) => { if (!presetsKey || !nm) return false; preSets.push([SAVEPRESET, nm]); return true; };
-  let loadPreset: (nm?: string) => boolean = (nm) => { if (!hasOwn(listPresets(), nm)) return false; preSets.push([LOADPRESET, nm]); return true; };
-  let deletePreset: (nm?: string) => void = (nm) => { if (presetsKey) preSets.push([DELETEPRESET, nm]); };
-  let undo = () => { preSets.push([UNDO, null]); }, redo = () => { preSets.push([REDO, null]); };
-  // Whole-panel state (toJSON/fromJSON). Reassigned in assemble() once the controls + the
-  // value/UI collectors exist; the stubs below cover the lazy window before ready — toJSON
-  // returns the live values (no UI state yet); fromJSON enqueues onto preSets (tagged), so it
-  // replays interleaved with set()/setMany() in call order, after the persist/preset restore.
-  // (Before ready the values are only what set() has parked so far — the controls, and so
-  // their defaults, don't exist yet.)
-  const FROMJSON = Symbol("fromJSON"), SETMANY = Symbol("setMany"), RESET = Symbol("reset"), SAVEPRESET = Symbol("savePreset"), LOADPRESET = Symbol("loadPreset"), DELETEPRESET = Symbol("deletePreset"), UNDO = Symbol("undo"), REDO = Symbol("redo");
-  let doToJSON: () => any = () => ({ values: snapshot(), ui: {} });
-  let doFromJSON: (state: any) => void = (state) => { preSets.push([FROMJSON, state]); };
+  // Persistence + presets storage keys — opt-in via opts.persist (a string key, or
+  // `true` to key by the panel name). null disables both (existing callers unaffected).
+  const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
+  const presetsKey = persistKey ? `${persistKey}:presets` : null;
+  const readStore = (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
+  const writeStore = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  // The live values save to localStorage, debounced. destroy() flushes a pending write
+  // rather than dropping it — the last edit before a teardown (an SPA route change right
+  // after a tweak) used to vanish with the timer.
+  const persist = persistKey ? (() => {
+    let saveT: any = 0;
+    const save = () => { saveT = 0; writeStore(persistKey, snapshot()); };
+    cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
+    return () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };
+  })() : () => {};
   // Each listener runs isolated: a throwing on() callback (or internal listener)
   // can't break the others, skip persist(), or bubble back out through set().
   const notify = () => { listeners.forEach((fn) => { try { fn(params, params._last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); persist(); };
@@ -67,16 +68,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const assign = (e, v) => { if (notAValue(v)) throw new TypeError(`a ${typeof v} is not a control value`); e.set(v); e.target[e.key] = e.get(); };
   // …and the reset write: the opened form, then the authored value (restoreDefault).
   const assignDefault = (e) => { restoreDefault(e, e.raw, e.def); e.target[e.key] = e.get(); };
-  // The reset itself, independent of the toolbar button — so api.reset() can run it
-  // directly (the button is `disabled` until assemble(), and .click() is a no-op on a
-  // disabled control, which silently swallowed every reset() made in the lazy window)
-  // and so the queued replay below can too. Per-entry isolation like applySnapshot.
-  // opts.onReset replaces the default; a reset() called from INSIDE it performs the
-  // default instead of re-entering the hook (doReset → onReset → reset() → doReset → …
-  // used to recurse until the stack blew — the hook that wraps the default is the
-  // obvious thing to write).
+  // The reset itself, independent of the toolbar button — api.reset() and the lazy-window
+  // replay run it directly. Per-entry isolation like applySnapshot. opts.onReset replaces
+  // the default; a reset() called from INSIDE it performs the default instead of
+  // re-entering the hook (resetAll → onReset → reset() → resetAll → … used to recurse until
+  // the stack blew — the hook that wraps the default is the obvious thing to write).
   let inOnReset = false;
-  const doReset = () => {
+  const resetAll = () => {
     if (typeof opts.onReset === "function" && !inOnReset) {
       inOnReset = true;
       try { return opts.onReset(); } finally { inOnReset = false; }
@@ -87,12 +85,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     }
     params._last = undefined; notify();
   };
-  // Persistence + presets storage keys — opt-in via opts.persist (a string key, or
-  // `true` to key by the panel name). null disables both (existing callers unaffected).
-  const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
-  const presetsKey = persistKey ? `${persistKey}:presets` : null;
-  const readStore = (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
-  const writeStore = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   const panel = el("div", "tw-panel"); panel.dataset.mode = "inline";
   // Stop pointer events leaking past the panel to whatever's behind it (e.g. a
@@ -108,7 +100,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Copy emits the values snapshot; reset restores every default (or runs opts.onReset).
   // feedback.ts owns their click feedback (the copy ⇄ check swap, the reset spin).
   const copyBtn = makeCopyBtn(panel, name, () => JSON.stringify(params, replacer, 2));
-  const resetBtn = makeResetBtn(doReset);
+  const resetBtn = makeResetBtn(resetAll);
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn = null;
   if (persistKey) {
@@ -162,7 +154,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   // ── Floating position — seeded in the shell, so an opts.floating / persisted-position
   // panel is fixed in place the moment tweaks() returns instead of jumping when the lazy
-  // chunks land. The drag wiring itself still lives in assemble(). ──
+  // chunks land. ──
   const draggable = opts.draggable !== false;
   const MARGIN = 8, SNAP = 28; // px: viewport inset, and the drop distance within which the panel parks against an edge
   const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - panel.offsetHeight - MARGIN) });
@@ -292,7 +284,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // A value a host parked on params directly before assemble ran (the lazy-load
         // window on the split build) wins over the schema default — apply it to the
         // control rather than clobbering it back with ctrl.get(). (API set() calls from
-        // that window queue in preSets and replay after the build instead.)
+        // that window queue and replay after the build instead.)
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
         const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key] };
@@ -303,34 +295,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       container.append(ctrl.el);
     }
   };
-
-  // Build the controls + wire everything (persistence, presets, undo, filter, …).
-  // Runs synchronously when every control type the schema needs is already registered
-  // — the readable single-file build, and any split build after the modules have loaded
-  // once — and is deferred behind panel.ready otherwise. tweaks() returns synchronously
-  // either way: the panel shell + API exist immediately; lazy controls fill in on ready.
-  const assemble = () => {
-  if (destroyed) return; // destroy() before the lazy chunks landed — nothing to build
-  build(controls, metas, params);
-
-  // Apply the conditionals now and on every change (a sibling's value can flip them).
-  if (conditionals.length) {
-    const byKey = new Map(); for (const e of entries) if (!byKey.has(e.key)) byKey.set(e.key, e); // first wins, like the find() it replaces
-    const getVal = (k) => { const e = byKey.get(k); return e ? e.target[e.key] : params[k]; };
-    const applyConditionals = () => {
-      let revealed = false;
-      for (const { node, m } of conditionals) {
-        // A throwing render/disabled predicate degrades to "leave the node as-is"
-        // rather than aborting construction or the whole notify() pass.
-        try {
-          if (m.render) { const hide = !m.render(getVal); if (!hide && node.classList.contains("tw-cond-hidden")) revealed = true; node.classList.toggle("tw-cond-hidden", hide); }
-          if (m.disabled != null) { const d = typeof m.disabled === "function" ? m.disabled(getVal) : m.disabled; node.classList.toggle("is-disabled", !!d); node.inert = !!d; } // inert blocks keyboard + focus too, not just the CSS pointer-events
-        } catch {}
-      }
-      if (revealed) requestReflow(); // a control built behind a false render condition measured 0×0 (blank canvas/SVG, a stuck pill) — once shown, let it re-measure, as a tab page does
-    };
-    listeners.add(applyConditionals); applyConditionals();
-  }
 
   // ── Filter (opts.filter) — the search button swaps the title for a filter input ──
   if (filterOn) {
@@ -361,16 +325,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     searchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") { exitSearch(); searchBtn.focus(); } });
   }
 
-  // ── Persistence + named presets (opt-in via opts.persist) ──────────────────
-  // The live values save to localStorage (debounced) and restore on build; presets
-  // are named snapshots under "<key>:presets". Path-aware so folders round-trip.
-  const atPath = (obj, path) => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
-  // Per-entry isolation, the kit-wide degrade idiom (createControl, metaFor, notify,
-  // applyConditionals all do the same): a control whose set() throws on hostile stored
-  // data — a corrupt localStorage snapshot, a hand-edited preset, a fromJSON from
+  // ── Snapshots in: persisted sessions, presets, fromJSON, undo. Path-aware so folders
+  // round-trip. Per-entry isolation, the kit-wide degrade idiom (createControl, metaFor,
+  // notify, applyConditionals all do the same): a control whose set() throws on hostile
+  // stored data — a corrupt localStorage snapshot, a hand-edited preset, a fromJSON from
   // elsewhere — must cost only its own value. Unguarded, one throw abandoned every
   // remaining entry AND skipped the notify/persist below, leaving the panel silently
-  // half-restored with listeners none the wiser.
+  // half-restored with listeners none the wiser. ──
+  const atPath = (obj, path) => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
   const owned = new Set(metas.map((m) => m.key)); // top-level control, folder and tabs keys — everything else on params is a bag key
   const applySnapshot = (snap, fire = true) => {
     if (!snap || typeof snap !== "object") return;
@@ -385,29 +347,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     for (const k of Object.keys(snap)) if (!owned.has(k) && k !== "_last" && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) params[k] = snap[k];
     params._last = undefined; if (fire) notify();
   };
-  if (persistKey) {
-    let saveT: any = 0;
-    const save = () => { saveT = 0; writeStore(persistKey, snapshot()); };
-    persist = () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };
-    // destroy() flushes a pending write rather than dropping it — the last edit before a
-    // teardown (an SPA route change right after a tweak) used to vanish with the timer.
-    cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
-    // Restore last session, notifying: on the lazy path assemble runs after tweaks()
-    // returned, so a host that already subscribed must hear the restored values (on the
-    // synchronous path nobody is subscribed yet, so the notify is free).
-    applySnapshot(readStore(persistKey));
-  }
-  listPresets = () => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key (a plain object's assignment wrote the prototype — savePreset claimed success while storing nothing, loadPreset applied Object.prototype)
-  savePreset = (nm) => { if (!presetsKey || !nm) return false; const all = listPresets(); all[nm] = snapshot(); writeStore(presetsKey, all); return true; };
-  loadPreset = (nm) => { const all = listPresets(); if (all[nm]) { applySnapshot(all[nm]); return true; } return false; };
-  deletePreset = (nm) => { if (!presetsKey) return; const all = listPresets(); delete all[nm]; writeStore(presetsKey, all); };
+  // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets". The API
+  // layer below guards the key + name and queues these in the lazy window. ──
+  const listPresets = () => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key (a plain object's assignment wrote the prototype — savePreset claimed success while storing nothing, loadPreset applied Object.prototype)
+  const savePreset = (nm) => { const all = listPresets(); all[nm] = snapshot(); writeStore(presetsKey, all); };
+  const loadPreset = (nm) => { const all = listPresets(); if (all[nm]) applySnapshot(all[nm]); }; // re-read at replay: a delete queued ahead of it wins
+  const deletePreset = (nm) => { const all = listPresets(); delete all[nm]; writeStore(presetsKey, all); };
 
-  // ── Whole-panel state (toJSON / fromJSON) ──────────────────────────────────
-  // Values via the same snapshot machinery as presets, PLUS UI state — folder
-  // open/closed and the active tab, keyed by dotted path. Decoupled from
-  // localStorage: the host persists the returned object however it likes (a file,
-  // a URL/share link, a server). fromJSON applies values where their path still
-  // exists (missing keys skipped, like a preset load) then restores the UI state.
+  // ── Whole-panel UI state (toJSON / fromJSON) — folder open/closed and the active tab,
+  // keyed by dotted path, alongside the values snapshot. Decoupled from localStorage: the
+  // host persists the returned object however it likes (a file, a URL/share link, a server). ──
   const pathKey = (p) => p.map((k) => String(k).replace(/~/g, "~1").replace(/\./g, "~0")).join("."); // JSON-pointer-style escaping → injective: a literal "." in a key can't collide with the nesting separator (keys without dots stay readable)
   const collectUI = () => {
     const ui: any = {};
@@ -420,8 +369,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (ui.folders) for (const fe of folderEls) { const c = ui.folders[pathKey(fe.path)]; if (typeof c === "boolean") fe.setCollapsed(c); }
     if (ui.tabs) for (const tc of tabsCtrls) { const i = tc.pageKeys.indexOf(ui.tabs[pathKey(tc.path)]); if (i >= 0 && i !== tc.ctrl.active()) tc.ctrl.activate(i); } // skip re-activating the already-active tab — avoids a spurious tw-reflow on a no-op restore
   };
-  doToJSON = () => ({ values: snapshot(), ui: collectUI() });
-  doFromJSON = (state) => { if (!state || typeof state !== "object") return; if (state.values) applySnapshot(state.values); applyUI(state.ui); }; // applySnapshot fires notify once; UI restore is silent (not a value change). A lazy-window fromJSON replays via its tagged preSets entry, in call order.
 
   // ── Repositioning — drag the header to move the panel ───────────────────────
   // Every panel is draggable by its header (opt out with opts.draggable:false). An
@@ -604,12 +551,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   // ── Undo / redo (opts.undo) — a debounced history of snapshots. Cmd/Ctrl-Z undoes,
   // ⇧ (or Ctrl-Y) redoes, scoped to when the panel is hovered or focused so it doesn't
-  // hijack the page's own undo. A continuous drag coalesces into one step. ──
-  if (opts.undo) {
+  // hijack the page's own undo. A continuous drag coalesces into one step. The history
+  // is seeded by assemble() once the controls (and any persisted session) are in. ──
+  const undoApi = opts.undo ? (() => {
     // Bounded: each step is a deep clone of every value, and a long tuning session
     // committed one every 350ms of editing with nothing ever dropping off the back.
     const HIST_MAX = 200;
-    let history = [snapshot()], histIdx = 0, applyingHistory = false, histTimer = 0;
+    let history = [], histIdx = 0, applyingHistory = false, histTimer = 0;
     const commit = () => {
       histTimer = 0;
       const snap = snapshot();
@@ -622,8 +570,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const flush = () => { if (histTimer) { clearTimeout(histTimer); commit(); } }; // commit a pending edit first, so ⌘Z right after a change still undoes it
     listeners.add(record);
     const restore = (idx) => { applyingHistory = true; applySnapshot(history[idx]); applyingHistory = false; histIdx = idx; };
-    undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
-    redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
+    const undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
+    const redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
     const focused = () => panel.matches(":hover") || panel.contains(document.activeElement);
     // A text field owns its own undo: ⌘Z with the caret in the text control, the filter
     // input, a preset name or the plot's expression stays native (the panel's history
@@ -637,26 +585,55 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
     }));
-  }
-  assembled = true;
-  // Replay set() calls queued during the lazy window — after the persisted-session
-  // restore above, so an explicit host set() wins over a stored value the way it wins
-  // over the schema default. Each replays through api.set, so paths resolve against
-  // the real entries and listeners hear the changes.
-  for (const [k, v] of preSets.splice(0)) { if (k === FROMJSON) doFromJSON(v); else if (k === SETMANY) api.setMany(v); else if (k === RESET) doReset(); else if (k === SAVEPRESET) savePreset(v); else if (k === LOADPRESET) loadPreset(v); else if (k === DELETEPRESET) deletePreset(v); else if (k === UNDO) undo(); else if (k === REDO) redo(); else api.set(k as string, v); } // tagged fromJSON/setMany entries replay through their assembled impls (one notify each); the shared queue preserves set/setMany/fromJSON call order
-  for (const b of toolbarBtns) b.disabled = false; // the controls exist now
-  }; // end assemble
+    return { undo, redo, seed: () => { history = [snapshot()]; histIdx = 0; } };
+  })() : null;
 
-  // The API is built + returned synchronously. on/set/reset/setTheme operate on the
-  // shell (live immediately); the presets + undo methods forward to bindings assemble()
-  // fills in (no-ops until then — only reachable on the lazy path, before ready).
+  // Build the controls, then everything that needs them built: the conditionals' first
+  // pass, the persisted-session restore, the undo seed, the queued API calls. Runs
+  // synchronously when every control type the schema needs is already registered — the
+  // single-file build, and any split build after the modules have loaded once — and is
+  // deferred behind panel.ready otherwise. tweaks() returns synchronously either way: the
+  // panel shell + API exist immediately; lazy controls fill in on ready.
+  const assemble = () => {
+    if (destroyed) return; // destroy() before the lazy chunks landed — nothing to build
+    build(controls, metas, params);
+    // Apply the conditionals now and on every change (a sibling's value can flip them).
+    if (conditionals.length) {
+      const byKey = new Map(); for (const e of entries) if (!byKey.has(e.key)) byKey.set(e.key, e); // first wins, like the find() it replaces
+      const getVal = (k) => { const e = byKey.get(k); return e ? e.target[e.key] : params[k]; };
+      const applyConditionals = () => {
+        let revealed = false;
+        for (const { node, m } of conditionals) {
+          // A throwing render/disabled predicate degrades to "leave the node as-is"
+          // rather than aborting construction or the whole notify() pass.
+          try {
+            if (m.render) { const hide = !m.render(getVal); if (!hide && node.classList.contains("tw-cond-hidden")) revealed = true; node.classList.toggle("tw-cond-hidden", hide); }
+            if (m.disabled != null) { const d = typeof m.disabled === "function" ? m.disabled(getVal) : m.disabled; node.classList.toggle("is-disabled", !!d); node.inert = !!d; } // inert blocks keyboard + focus too, not just the CSS pointer-events
+          } catch {}
+        }
+        if (revealed) requestReflow(); // a control built behind a false render condition measured 0×0 (blank canvas/SVG, a stuck pill) — once shown, let it re-measure, as a tab page does
+      };
+      listeners.add(applyConditionals); applyConditionals();
+    }
+    // Restore last session, notifying: on the lazy path assemble runs after tweaks()
+    // returned, so a host that already subscribed must hear the restored values (on the
+    // synchronous path nobody is subscribed yet, so the notify is free).
+    if (persistKey) applySnapshot(readStore(persistKey));
+    undoApi?.seed();
+    assembled = true;
+    // Replay the API calls queued during the lazy window — after the persisted-session
+    // restore above, so an explicit host set() wins over a stored value the way it wins
+    // over the schema default.
+    for (const fn of queue.splice(0)) fn();
+    for (const b of toolbarBtns) b.disabled = false; // the controls exist now
+  };
+
   // One programmatic value write — resolve a (possibly dotted) key to its control or to a
   // free bag key, apply it, and report whether the resolved leaf actually changed. The
   // shared core of set()/setMany(): it never notifies, so a batch can fire one notify at
   // the end (a set() loop would re-run every listener + persist per key).
-  const reservedKey = (key) => { if (String(key).split(".").some(isReservedKey)) { console.warn(`[tweaks] set("${key}") ignored — reserved key`); return true; } return false; }; // params is an object-as-map; never write through to the prototype — shared by applySet + the lazy-window queue paths
   const applySet = (key, v) => {
-    if (reservedKey(key)) return false;
+    if (String(key).split(".").some(isReservedKey)) { console.warn(`[tweaks] set("${key}") ignored — reserved key`); return false; } // params is an object-as-map; never write through to the prototype
     const parts = String(key).split(".");
     let e;
     if (parts.length > 1) {
@@ -690,52 +667,43 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     return true;
   };
 
+  // The API is built + returned synchronously. Every mutating method goes through
+  // later(): live at once on the synchronous path, queued (in call order) in the lazy
+  // window, and silent after destroy().
   const api: any = {
     el: panel, params,
     on(fn) { if (destroyed) return () => {}; listeners.add(fn); return () => listeners.delete(fn); },
-    set(key, v) {
-      if (destroyed) return;
-      if (!assembled) { // the lazy window (split build, before ready): the controls don't exist yet, so queue and let assemble() replay — resolving against the real entries instead of warning a nested path away or orphaning a bare key on params
-        if (reservedKey(key)) return;
-        return void preSets.push([String(key), v]);
-      }
-      if (applySet(key, v)) notify();
-    },
+    set(key, v) { later(() => { if (applySet(key, v)) notify(); }); },
     // Batch write — apply a flat map of (possibly dotted) keys, e.g.
     // setMany({ "shadow.radius": 28, blur: 48 }), firing listeners + persist ONCE for the
     // whole batch rather than per key as a set() loop would. Same path resolution and
     // no-op / reserved / bad-path guards as set(); unrecognised keys warn-and-skip.
     setMany(values) {
-      if (destroyed || values == null || typeof values !== "object") return;
-      if (!assembled) { // lazy window — queue the whole batch as ONE tagged entry, so it replays as a single setMany() (one notify), interleaved in call order with set()/fromJSON()
-        const filtered: any = {};
-        for (const k of Object.keys(values)) { if (!reservedKey(k)) filtered[k] = values[k]; }
-        preSets.push([SETMANY, filtered]);
-        return;
-      }
-      let changed = false;
-      for (const k of Object.keys(values)) { if (applySet(k, values[k])) changed = true; }
-      if (changed) notify();
+      if (values == null || typeof values !== "object") return;
+      const batch = Object.entries(values); // read now, so a host mutating the object after the call can't change what a lazy-window replay applies
+      later(() => { let changed = false; for (const [k, v] of batch) if (applySet(k, v)) changed = true; if (changed) notify(); });
     },
-    // Queues in the lazy window like set()/setMany()/fromJSON(), so it replays in call
-    // order with them rather than vanishing (it used to route through resetBtn.click(),
-    // and the toolbar buttons are disabled until assemble()).
-    reset() {
-      if (destroyed) return;
-      if (!assembled) return void preSets.push([RESET, null]);
-      spinReset(resetBtn); doReset();
-    },
+    reset() { if (assembled && !destroyed) spinReset(resetBtn); later(resetAll); },
     // Whole-panel state — values + UI (open folders, active tabs) as a plain JSON-safe
     // object, independent of localStorage. `JSON.stringify(panel)` works too (this is the
-    // standard toJSON hook). fromJSON applies a previously-saved object back.
-    toJSON() { return destroyed ? { values: {}, ui: {} } : doToJSON(); },
-    fromJSON(state) { if (!destroyed) doFromJSON(state); },
+    // standard toJSON hook). Before ready the values are only what set() has parked so far
+    // (the controls, and so their defaults, don't exist yet). fromJSON applies a
+    // previously-saved object back: values where their path still exists (missing ones
+    // skipped, like a preset load — one notify), then the UI state, silently (not a value
+    // change, and outside undo so a ⌘Z reverts values without thrashing folders/tabs).
+    toJSON() { return destroyed ? { values: {}, ui: {} } : { values: snapshot(), ui: collectUI() }; },
+    fromJSON(state) { if (state && typeof state === "object") later(() => { if (state.values) applySnapshot(state.values); applyUI(state.ui); }); },
     // Live theming — re-applies --tw-* vars to the panel (and future popovers). Clears
     // the prior theme first, so setTheme(null) reverts to the default monochrome look.
     setTheme(theme) { if (destroyed) return; if (themeVars) for (const k in themeVars) panel.style.removeProperty(k); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
-    // Presets API (no-ops without opts.persist). Names are arbitrary strings.
-    savePreset: (nm) => !destroyed && savePreset(nm), loadPreset: (nm) => !destroyed && loadPreset(nm), deletePreset: (nm) => { if (!destroyed) deletePreset(nm); }, presets: () => (destroyed ? [] : Object.keys(listPresets())),
-    undo: () => { if (!destroyed) undo(); }, redo: () => { if (!destroyed) redo(); }, // no-ops without opts.undo
+    // Presets API (no-ops without opts.persist). Names are arbitrary strings. The list reads
+    // storage, which exists already; a save/load/delete made before ready queues like set()
+    // does (a save then snapshots the built controls, not an empty panel).
+    savePreset: (nm) => { if (destroyed || !presetsKey || !nm) return false; later(() => savePreset(nm)); return true; },
+    loadPreset: (nm) => { if (destroyed || !listPresets()[nm]) return false; later(() => loadPreset(nm)); return true; }, // a stored entry that isn't a snapshot (a hand-edited null) reads as absent, as it always did after ready
+    deletePreset: (nm) => { if (presetsKey) later(() => deletePreset(nm)); },
+    presets: () => (destroyed ? [] : Object.keys(listPresets())),
+    undo: () => { if (undoApi) later(undoApi.undo); }, redo: () => { if (undoApi) later(undoApi.redo); }, // no-ops without opts.undo; queued before ready, in order with the value writes
     // Teardown: close this panel's open portaled surfaces, release every global
     // attachment, pull the panel (and the lift placeholder) out of the DOM, and inert the
     // API. Safe to call before ready resolves — assemble() sees the flag and bails.
