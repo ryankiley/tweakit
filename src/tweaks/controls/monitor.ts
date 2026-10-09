@@ -2,9 +2,9 @@
 import { el, txt, fitCanvas, accentColor, clamp, blade, json, registerControl } from "../shared.js";
 import type { Meta } from "../schema.js";
 
-// Stroke a ring buffer of samples across the canvas — the FPS graph and the numeric
-// monitor share the pen; each maps a sample to a 0-1 fraction its own way. NaN = no
-// sample yet: the pen lifts, so a sparse buffer draws segments, not a false zero line.
+// Stroke a ring buffer of samples across the canvas, each mapped to a 0-1 fraction by
+// `frac`. NaN = no sample yet: the pen lifts, so a sparse buffer draws segments, not a
+// false zero line.
 const strokeSeries = (ctx: CanvasRenderingContext2D, node: Element, w: number, h: number, samples: number[], start: number, frac: (s: number) => number) => {
   const N = samples.length;
   ctx.clearRect(0, 0, w, h);
@@ -28,48 +28,12 @@ const watchReflow = (fn: () => void) => {
   return () => { for (const t of ["resize", "tw-reflow"]) window.removeEventListener(t, fn); };
 };
 
-// The FPS readout takes the rounded frame rate as a number — textContent stringifies it,
-// as it always has; the setter admits that where the DOM lib's property type does not.
-interface Readout extends HTMLSpanElement { get textContent(): string | null; set textContent(v: string | number | null) }
-// ── FPS graph — a live monitor blade, zero deps ──
-function createFps(meta: Meta) {
-  const wrap = el("div", "tw-fps");
-  const val: Readout = txt("span", "tw-fps-val", "—");
-  const canvas = document.createElement("canvas"); canvas.className = "tw-fps-canvas";
-  wrap.append(txt("span", "tw-fps-label", meta.label ?? "FPS"), val, canvas); // ??: an explicit "" label renders none
-  const ctx = canvas.getContext("2d");
-  const N = 80, samples: number[] = new Array(N).fill(0), MAX = 120;
-  let i = 0, last = 0, raf = 0, w = 0, h = 0, wasConnected = false, stopped = false;
-  const resize = () => { if (ctx) [w, h] = fitCanvas(canvas, ctx, 2); }; // no 2D context (a headless DOM, a blocked canvas): w stays 0, so draw() is a no-op and the number readout still runs
-  const unwatch = watchReflow(resize);
-  // Release everything: the rAF loop and its two listeners. Called on a real unmount
-  // (below) AND handed to the panel as the blade's `destroy`, so a panel torn down
-  // before it ever connected — which the "never mounted yet" branch below deliberately
-  // idles through, so it can never self-stop — doesn't leave the loop spinning forever.
-  const stop = () => { stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; unwatch(); };
-  const draw = () => { if (w) strokeSeries(ctx, wrap, w, h, samples, i, (s) => s / MAX); };
-  const tick = (now: number) => {
-    if (!canvas.isConnected) {
-      // "Never mounted yet" (a host builds the panel eagerly, appends panel.el later) is
-      // not "removed": idle cheaply until the first connected tick; only a real unmount
-      // (or panel.destroy(), via the blade's `destroy`) stops the loop + its listeners.
-      if (wasConnected) { stop(); return; }
-      last = 0; raf = requestAnimationFrame(tick); return;
-    }
-    if (!wasConnected) { wasConnected = true; resize(); } // first connected tick → fit the canvas (it measured 0 detached)
-    if (last) { const fps = 1000 / (now - last); samples[i] = fps; i = (i + 1) % N; val.textContent = Math.round(fps); draw(); }
-    last = now; raf = requestAnimationFrame(tick);
-  };
-  raf = requestAnimationFrame(() => { if (stopped) return; resize(); raf = requestAnimationFrame(tick); }); // held in `raf` (and re-checked) so a destroy() before the first frame can't start the loop behind it
-  return blade(wrap, stop);
-}
-
-// ── Monitor — poll any getter on an interval and show it: a number as a sparkline
-// (auto-ranged, or pinned with min/max) or a rolling readout, a string as a buffer
-// of the last few values. The FPS graph is the per-frame special case (createFps);
-// this is the general one — a graph/buffer monitor. ──
-function createMonitor(meta: Meta) {
-  const get = typeof meta.get === "function" ? meta.get : () => meta.value;
+// ── Monitor — read a getter and show it: a number as a sparkline (auto-ranged, or pinned
+// with min/max) or a rolling readout, a string as a buffer of the last few values. Read
+// on an interval, or — `perFrame`, the FPS graph — once per animation frame, the getter
+// handed the frame's timestamp. One blade, one loop, one teardown for both. ──
+function createMonitor(meta: Meta, perFrame = false) {
+  const get: (now?: number) => unknown = typeof meta.get === "function" ? meta.get : () => meta.value;
   const interval = Math.max(30, Number.isFinite(+meta.interval) ? +meta.interval : 200); // a non-finite interval would make setInterval(…, NaN) a 0 ms busy-poll
   let probe: unknown; try { probe = get(); } catch {}
   const isNum = typeof probe === "number";
@@ -79,18 +43,29 @@ function createMonitor(meta: Meta) {
   const val = txt("span", "tw-fps-val", "—");
   wrap.append(txt("span", "tw-fps-label", meta.label ?? "Monitor"), val);
 
-  let timer = 0, unwatch = () => {}, wasConnected = false;
+  let timer = 0, raf = 0, unwatch = () => {}, wasConnected = false;
   // `decimals` is clamped to what a readout can show (toFixed throws past 100 and nothing
   // wants more than 20); a missing value reads as a dash, not the word "undefined".
   const decimals = Number.isFinite(+meta.decimals) ? Math.min(20, Math.max(0, Math.floor(+meta.decimals))) : 2;
   const fmt = (v: unknown) => (v == null ? "—" : typeof v === "number" ? (Number.isInteger(v) || !Number.isFinite(v) ? String(v) : v.toFixed(decimals)) : typeof v === "object" ? json(v) : String(v));
-  // Also handed to the panel as the blade's `destroy` — a panel destroyed before it ever
-  // connected idles below forever, so it could never clear its own interval on unmount.
-  let firstFrame = 0;
-  const stop = () => { if (timer) clearInterval(timer); timer = 0; if (firstFrame) cancelAnimationFrame(firstFrame); firstFrame = 0; unwatch(); };
+  // Release the loop and its listeners. Called on a real unmount (below) AND handed to the
+  // panel as the blade's `destroy`, so a panel torn down before it ever connected — which
+  // the "never mounted yet" branch below deliberately idles through, so it can never
+  // self-stop — doesn't leave the loop running forever.
+  const stop = () => { if (timer) clearInterval(timer); timer = 0; if (raf) cancelAnimationFrame(raf); raf = 0; unwatch(); };
   // "Never mounted yet" (a host appends panel.el after building) idles the tick; only a
-  // panel that was mounted and then removed — or a panel.destroy() — stops the poll.
-  const poll = (fn: (v: number | string) => void) => { timer = setInterval(() => { if (!wrap.isConnected) { if (wasConnected) stop(); return; } wasConnected = true; let v; try { v = get(); } catch { return; } fn(v); }, interval); };
+  // panel that was mounted and then removed — or a panel.destroy() — stops it. The next
+  // frame is booked before the read, so a stop() from anywhere in the tick cancels it.
+  const poll = (fn: (v: unknown) => void) => {
+    const tick = (now?: number) => {
+      if (perFrame) raf = requestAnimationFrame(tick);
+      if (!wrap.isConnected) { if (wasConnected) stop(); return; }
+      wasConnected = true;
+      let v: unknown; try { v = get(now); } catch { return; }
+      fn(v);
+    };
+    if (perFrame) raf = requestAnimationFrame(tick); else timer = setInterval(tick, interval);
+  };
 
   // String buffer (multiline) — the last `rows` values, newest at the bottom.
   if (!graph && meta.rows) {
@@ -119,7 +94,7 @@ function createMonitor(meta: Meta) {
   const onResize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
   unwatch = watchReflow(onResize);
   const draw = () => {
-    if (!w) onResize();
+    if (!w) onResize(); // the canvas measured 0 while detached — fit it on the first connected draw
     if (!w) return;
     let lo = meta.min, hi = meta.max;
     if (lo == null || hi == null) {
@@ -132,11 +107,15 @@ function createMonitor(meta: Meta) {
     const span = (hi - lo) || 1;
     strokeSeries(ctx, wrap, w, h, samples, idx, (s) => (s - lo) / span);
   };
-  poll((v) => { if (!Number.isFinite(v)) { val.textContent = fmt(v); return; } samples[idx] = v as number; /* finite, so a number — the guard above */ idx = (idx + 1) % N; val.textContent = fmt(v); draw(); }); // a non-finite sample shows in the readout but stays out of the graph
-  firstFrame = requestAnimationFrame(() => { firstFrame = 0; onResize(); draw(); }); // held so a destroy() before the first frame cancels it
+  poll((v) => { if (typeof v !== "number" || !Number.isFinite(v)) { val.textContent = fmt(v); return; } samples[idx] = v; idx = (idx + 1) % N; val.textContent = fmt(v); draw(); }); // a non-finite sample shows in the readout but stays out of the graph
   return blade(wrap, stop);
 }
 
-registerControl("fpsgraph", createFps);
-registerControl("monitor", createMonitor);
+// ── FPS graph — the per-frame monitor: the getter turns each frame's timestamp into the
+// rate since the last one (nothing on the first, and nothing for the construction-time
+// probe, which carries no timestamp), pinned to a 0–120 range, read out as a whole number. ──
+const frameRate = () => { let last = 0; return (now?: number) => { if (!(now! > 0)) return undefined; const fps = last ? 1000 / (now! - last) : undefined; last = now!; return fps; }; };
+const createFps = (meta: Meta) => createMonitor({ ...meta, label: meta.label ?? "FPS", get: frameRate(), view: "graph", min: 0, max: 120, decimals: 0 }, true); // ??: an explicit "" label renders none
 
+registerControl("fpsgraph", createFps);
+registerControl("monitor", (meta: Meta) => createMonitor(meta)); // the registry's constructors take (meta, onChange); the per-frame switch is the FPS wrapper's alone
