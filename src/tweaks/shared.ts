@@ -416,7 +416,7 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; }
     setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
   };
-  trigger.addEventListener("click", () => (open ? close() : openPop()));
+  trigger.addEventListener("click", () => { if (trigger.disabled) return; open ? close() : openPop(); }); // a disabled trigger (the presets button before the panel is built) stays inert to a synthetic click, as the toolbar buttons do
   return { open: openPop, close, isOpen: () => open, reflow };
 }
 
