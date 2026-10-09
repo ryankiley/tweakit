@@ -42,13 +42,17 @@ const valueChanged = (a, b) => a !== b && !(isObj(a) && isObj(b) && JSON.stringi
 // paths and the markup toolbar's.
 const restoreDefault = (ctrl, raw, def) => { ctrl.set(def); ctrl.set(raw); };
 
-// ── Verbose `{ type: "…" }` forms — one handler per control type. Adding a control
-// means one entry here (plus its constructor in the registry). A handler returns a
-// falsy value for a malformed shape (e.g. a point without components), which falls
-// through to the shorthand inference — where a plain object still becomes a folder.
-// The explicit slider/number/checkbox forms exist so shorthand controls can carry
-// options (render / disabled / hint / step) the array/boolean shorthands can't.
-const radiogridMeta = (v, key, label) => Array.isArray(v.options) && { type: "radiogrid", key, label, options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
+// ── Verbose `{ type: "…" }` forms — one handler per control type, returning only the
+// control's own fields: baseMetaFor stamps `type` (the value's), `key` and `label` on
+// top, and a handler may override any of them (segmented → radiogrid). Adding a control
+// means one entry here (plus its constructor in the registry). A handler returns a falsy
+// value for a malformed shape (e.g. a point without components), which falls through to
+// the shorthand inference — where a plain object still becomes a folder. The explicit
+// slider/number/checkbox forms exist so shorthand controls can carry options (render /
+// disabled / hint / step) the array/boolean shorthands can't.
+// "segmented" is kept as an alias: picking one of a list renders as the radio grid (the
+// nicer-looking single-select). The inline pill is reserved for booleans.
+const radiogridMeta = (v) => Array.isArray(v.options) && { type: "radiogrid", options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
 // The colour a `{ type: "color" }` / [data-tw="color"] opens on when none is given — it
 // lives on the meta (not only in the picker's own fallback) so reset() restores it rather
 // than handing the control `undefined`, which parsed as black.
@@ -69,54 +73,52 @@ const ownLabel = (v, label) => (v.label == null ? label : String(v.label));
 // added to types.ts but missing here (or a stray key with no public form). "button"
 // is the one exception — it has no handler because the `{ action }` shorthand
 // inference below already covers the verbose form.
-const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: string, label: string, depth?: number) => any> = {
-  slider: (v, key, label) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { type: "slider", key, label, value: v.value ?? r.min, ...r, soft: v.soft }; },
-  number: (v, key, label) => ({ type: "number", key, label, value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
-  checkbox: (v, key, label) => ({ type: "checkbox", key, label, value: !!v.value }),
-  // "segmented" is kept as an alias: picking one of a list renders as the radio
-  // grid (the nicer-looking single-select). The inline pill is reserved for booleans.
+const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth: number) => any> = {
+  slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft }; },
+  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
+  checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
-  list: (v, key, label) => Array.isArray(v.options) && { type: "list", key, label, options: v.options, value: v.value ?? optValue(v.options[0]) },
-  color: (v, key, label) => ({ type: "color", key, label, value: v.value ?? DEFAULT_COLOR }),
-  text: (v, key, label) => ({ type: "text", key, label, value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
-  interval: (v, key, label) => { const r = rangeOf(v, ...(Array.isArray(v.value) ? v.value : [])); return { type: "interval", key, label, value: (Array.isArray(v.value) ? v.value : [r.min, r.max]).map(Number), ...r }; },
+  list: (v) => Array.isArray(v.options) && { options: v.options, value: v.value ?? optValue(v.options[0]) },
+  color: (v) => ({ value: v.value ?? DEFAULT_COLOR }),
+  text: (v) => ({ value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
+  interval: (v) => { const r = rangeOf(v, ...(Array.isArray(v.value) ? v.value : [])); return { value: (Array.isArray(v.value) ? v.value : [r.min, r.max]).map(Number), ...r }; },
   // The config reads off the top level or a nested `value: {…}` — both published forms.
   // Physics (stiffness/damping/mass) is always normalised; the perceptual time pair
   // (visualDuration/bounce) and an explicit mode ride along only when present, so the
   // control can infer/restore the Time vs Physics mode.
-  spring: (v, key, label) => {
+  spring: (v) => {
     const s = isObj(v.value) ? v.value : v;
     const value: any = { stiffness: s.stiffness ?? 300, damping: s.damping ?? 26, mass: s.mass ?? 1 };
     if (Number.isFinite(+s.visualDuration)) value.visualDuration = +s.visualDuration;
     if (Number.isFinite(+s.bounce)) value.bounce = +s.bounce;
     const mode = v.mode ?? s.mode;
     if (mode === "time" || mode === "physics") value.mode = mode; // rides on the value, so the authored default carries it to set() (a reset restores the mode, not only the numbers)
-    return { type: "spring", key, label, value };
+    return { value };
   },
-  cubicbezier: (v, key, label) => ({ type: "cubicbezier", key, label, value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
-  point: (v, key, label) => Array.isArray(v.components) && { type: "point", key, label, components: v.components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(v.components.map((c) => [c.key, c.value ?? 0])) }, // `value` = the default component map, so reset() / double-click-reset can restore it
-  gradient: (v, key, label) => ({ type: "gradient", key, label, value: v.value ?? v.stops ?? null }),
-  image: (v, key, label) => ({ type: "image", key, label, value: v.value || "" }),
-  plot: (v, key, label) => {
+  cubicbezier: (v) => ({ value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
+  point: (v) => Array.isArray(v.components) && { components: v.components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(v.components.map((c) => [c.key, c.value ?? 0])) }, // `value` = the default component map, so reset() / double-click-reset can restore it
+  gradient: (v) => ({ value: v.value ?? v.stops ?? null }),
+  image: (v) => ({ value: v.value || "" }),
+  plot: (v) => {
     const expr = v.expr != null ? String(v.expr) : (typeof v.fn === "function" ? "" : "sin(x)");
-    return { type: "plot", key, label, value: expr, expr, fn: typeof v.fn === "function" ? v.fn : null,
+    return { value: expr, expr, fn: typeof v.fn === "function" ? v.fn : null,
       xMin: v.xMin ?? v.min ?? -10, xMax: v.xMax ?? v.max ?? 10,
       yMin: v.yMin, yMax: v.yMax, samples: v.samples, editable: v.editable };
   },
-  fpsgraph: (v, key, label) => ({ type: "fpsgraph", key, label }),
-  monitor: (v, key, label) => ({ type: "monitor", key, label, get: v.get, value: v.value, graph: v.graph, view: v.view, min: v.min, max: v.max, interval: v.interval, rows: v.rows, decimals: v.decimals }),
-  buttongroup: (v, key, label) => ({ type: "buttongroup", key, label, buttons: v.buttons }),
-  separator: (v, key, label) => ({ type: "separator", key, label }),
+  fpsgraph: () => ({}),
+  monitor: (v) => ({ get: v.get, value: v.value, graph: v.graph, view: v.view, min: v.min, max: v.max, interval: v.interval, rows: v.rows, decimals: v.decimals }),
+  buttongroup: (v) => ({ buttons: v.buttons }),
+  separator: () => ({}),
   // Page keys dedupe ("A!" and "A?" both slug to "a") so two pages can't silently share
   // one params subtree (the second used to overwrite the first, losing its values).
-  tabs: (v, key, label, depth) => {
+  tabs: (v, depth) => {
     if (!v.pages || typeof v.pages !== "object") return false;
     const used = new Set();
-    return { type: "tabs", key, label, pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => {
+    return { pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => {
       const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "tab";
       let k = base, n = 2; while (used.has(k)) k = `${base}-${n++}`; used.add(k);
-      return { key: k, title, children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, (depth || 0) + 1)).filter(Boolean) };
+      return { key: k, title, children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) };
     }) };
   },
 };
@@ -124,17 +126,19 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: 
 function baseMetaFor(key, value, depth = 0) {
   if (depth > 64) return null; // a pathologically deep schema degrades to skipped controls instead of a RangeError out of tweaks()
   const label = titleCase(key);
+  // Every meta carries type / key / label; a handler's own fields ride on top (and may
+  // override the type — segmented renders as the radio grid).
+  const meta = (type, fields, lab = label) => ({ type, key, label: lab, ...fields });
   if (isObj(value) && !Array.isArray(value) && hasOwn(TYPED_META, value.type)) { // own key only, so a stray type like "toString" can't hit Object.prototype
     // A handler that THROWS on a malformed shape (a null components entry, pages: { A: null })
     // degrades to skipping that control — not a TypeError out of tweaks() that drops the whole
     // panel. (A falsy return still falls through to shorthand inference, as documented above.)
-    // The label is resolved here, once, so every verbose form honors `{ label }` (only the
-    // colour and FPS handlers used to read it); a plain folder object is not a verbose form,
-    // so its `label` key stays a child control.
-    let meta;
-    try { meta = TYPED_META[value.type](value, key, ownLabel(value, label), depth); }
+    // The label is resolved here, once, so every verbose form honors `{ label }`; a plain
+    // folder object is not a verbose form, so its `label` key stays a child control.
+    let fields;
+    try { fields = TYPED_META[value.type](value, depth); }
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
-    if (meta) return meta;
+    if (fields) return meta(value.type, fields, ownLabel(value, label));
   }
   // ── Shorthand inference ──
   // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple.
@@ -142,7 +146,7 @@ function baseMetaFor(key, value, depth = 0) {
     // Missing bounds fall back to the tuple itself ([[2,8]] → min 2, max 8) — an
     // undefined min/max used to ride into the control as NaN ("NaN – NaN").
     const mn = Number.isFinite(+value[1]) ? +value[1] : +value[0][0], mx = Number.isFinite(+value[2]) ? +value[2] : +value[0][1];
-    return { type: "interval", key, label, value: value[0].map(Number), min: mn, max: mx, step: value[3] ?? inferStep(mn, mx) };
+    return meta("interval", { value: value[0].map(Number), min: mn, max: mx, step: value[3] ?? inferStep(mn, mx) });
   }
   if (Array.isArray(value) && value.length <= 4 && typeof value[0] === "number") {
     // Tolerate a short array (e.g. [n] = "just a default"): fall back to a sensible
@@ -151,23 +155,21 @@ function baseMetaFor(key, value, depth = 0) {
     const [dmin, dmax] = defaultRange(v0);
     const min = value.length > 1 ? value[1] : dmin;
     const max = value.length > 2 ? value[2] : dmax;
-    return { type: "slider", key, label, value: v0, min, max, step: value[3] ?? inferStep(min, max) };
+    return meta("slider", { value: v0, min, max, step: value[3] ?? inferStep(min, max) });
   }
   if (typeof value === "number") {
     const [min, max] = defaultRange(value);
-    return { type: "slider", key, label, value, min, max, step: inferStep(min, max) };
+    return meta("slider", { value, min, max, step: inferStep(min, max) });
   }
-  if (typeof value === "boolean") return { type: "checkbox", key, label, value };
-  if (Array.isArray(value)) return { type: "list", key, label, options: value, value: optValue(value[0]) };
-  if (isObj(value) && typeof value.action === "function")
-    return { type: "button", key, label: ownLabel(value, label), action: value.action };
-  if (isObj(value) && Array.isArray(value.options))
-    return { type: "list", key, label, options: value.options, value: value.value ?? optValue(value.options[0]) };
-  if (isColorStr(value)) return { type: "color", key, label, value };
-  if (typeof value === "string") return { type: "text", key, label, value };
+  if (typeof value === "boolean") return meta("checkbox", { value });
+  if (Array.isArray(value)) return meta("list", { options: value, value: optValue(value[0]) });
+  if (isObj(value) && typeof value.action === "function") return meta("button", { action: value.action }, ownLabel(value, label));
+  if (isObj(value) && Array.isArray(value.options)) return meta("list", { options: value.options, value: value.value ?? optValue(value.options[0]) });
+  if (isColorStr(value)) return meta("color", { value });
+  if (typeof value === "string") return meta("text", { value });
   // Option keys metaFor consumes off this same object (render / disabled / hint) are the
   // folder's chrome, not children — a folder's `disabled: true` mustn't also build a checkbox.
-  if (isObj(value)) return { type: "folder", key, label, children: Object.entries(value).filter(([k, v]) => !(k === "render" && typeof v === "function") && !((k === "disabled" || k === "hint") && v != null)).map(([k, v]) => metaFor(k, v, depth + 1)).filter(Boolean) };
+  if (isObj(value)) return meta("folder", { children: Object.entries(value).filter(([k, v]) => !(k === "render" && typeof v === "function") && !((k === "disabled" || k === "hint") && v != null)).map(([k, v]) => metaFor(k, v, depth + 1)).filter(Boolean) });
   return null;
 }
 // Display/action controls — they carry no value, so the panel build skips the
