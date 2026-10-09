@@ -147,7 +147,7 @@ function baseMetaFor(key, value, depth = 0) {
     try { fields = TYPED_META[value.type](value, depth); }
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
     if (!fields) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped`); return null; }
-    return meta(value.type, fields, ownLabel(value, label));
+    return meta(String(value.type), fields, ownLabel(value, label)); // the canonical string: a String object or one-element array coerces through the table lookup but would miss the identity checks downstream (m.type === "tabs", VALUELESS.has)
   }
   // ── Shorthand inference ──
   // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple.
