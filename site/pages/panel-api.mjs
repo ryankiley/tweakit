@@ -271,6 +271,42 @@ export const examples = [
     },
   },
   {
+    title: "Standalone controls",
+    prose: `<p>Sometimes you want a control, not a panel — a slider in your own settings
+      form, or the color picker behind a swatch your page already draws.
+      <code>mountControl(host, value, opts)</code> builds one control from any schema value
+      (shorthand or verbose) straight into an element of yours and returns
+      <code>{ el, set, get, destroy, ready }</code>. Unlike a panel there is no params bag:
+      <code>onChange</code> gets the value, and <code>set()</code> fires it too, so your own
+      state stays the single source. <code>label: ""</code> suppresses the label when the host
+      page has one.</p>
+      <p><code>createColorPicker({ value, mode, onChange })</code> is the picker body alone —
+      the OKLCH plane, strips and channel fields with no trigger row — for a swatch of your
+      own. Append <code>el</code> wherever you like (a popover, a sidebar), call
+      <code>reflow()</code> after showing it, and read <code>get()</code> back in whatever
+      notation the mode dropdown is set to: <code>hex</code> gives <code>#rrggbb</code>; the
+      wide-gamut modes give a CSS color like <code>oklch(…)</code>, which a native
+      <code>&lt;input type="color"&gt;</code> won't accept — feed that only hex. Both handles
+      exist synchronously, and <code>el</code> is a wrapper that carries the kit's tokens, so
+      the control renders outside any panel; on the code-split build a control whose chunk
+      hasn't loaded yet fills it in behind <code>ready</code>.</p>`,
+    code: `
+      import { mountControl, createColorPicker } from "tweakit";
+
+      const blur = mountControl(form, [12, 0, 40, 1], {
+        key: "blur", label: "",                      // the form already labels it
+        onChange: (v) => card.style.filter = "blur(" + v + "px)",
+      });
+      blur.set(20);                                   // moves the slider AND runs onChange
+
+      const picker = createColorPicker({
+        value: "oklch(0.7 0.15 200)", mode: "oklch",
+        onChange: (c) => swatch.style.background = c,
+      });
+      myPopover.append(picker.el);
+      swatch.addEventListener("click", () => { openPopover(); picker.reflow(); });`,
+  },
+  {
     title: "The rest of the options",
     prose: `<p>The full third argument, for reference:</p>
       <table>

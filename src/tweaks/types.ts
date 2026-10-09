@@ -210,3 +210,79 @@ export interface Control {
    *  the live controls supply it; the panel calls it from `destroy()`. */
   destroy?(): void;
 }
+
+/** Options for `mountControl(host, value, opts?)` — one control, no panel. */
+export interface MountOptions {
+  /** The key passed to `onChange` and used to derive the label when none is given (default `"value"`). */
+  key?: string;
+  /** The label shown on the control; `""` shows none (the host page already has one). Wins over
+   *  the title-cased key and over a verbose form's own `label`. */
+  label?: string;
+  /** Fired with the new value whenever the control changes — by hand or through `set()`. */
+  onChange?: (value: unknown, key: string) => void;
+}
+
+/** The handle `mountControl()` returns. */
+export interface MountedControl {
+  /** The wrapper (`.tw-control`) the control lives in, already appended to the host and
+   *  stable from creation — it carries the kit's tokens, so the control renders outside a
+   *  panel. On the code-split build a lazily-loaded control fills it in once `ready` resolves. */
+  el: HTMLElement;
+  /** Apply a value — the control updates AND `onChange` fires (when the value actually
+   *  changed). Before `ready`, the value is queued and applied once the control builds. */
+  set(value: unknown): void;
+  /** The current value (the queued or schema value before `ready`; `undefined` for a
+   *  valueless control such as a button). */
+  get(): unknown;
+  /** Remove the control from the host and release anything it owns. */
+  destroy(): void;
+  /** Resolves with this handle once the control has built — immediately on the single-file build. */
+  ready: Promise<MountedControl>;
+}
+
+/** The notations the colour picker edits in (its mode dropdown). The emitted value follows
+ *  the mode: `hex` gives `#rrggbb`, the wide-gamut modes give a CSS colour like `oklch(…)`. */
+export type ColorMode = "hex" | "srgb" | "css" | "hsl" | "hwb" | "oklch" | "oklab" | "lch" | "lab" | "p3" | "rec2020";
+
+/** Options for `createColorPicker(opts?)` — the picker body alone, no trigger row. */
+export interface ColorPickerOptions {
+  /** The colour it opens on — any CSS colour string (default `#7c5cff`). */
+  value?: string;
+  /** The notation it opens in (default `oklch`). */
+  mode?: ColorMode;
+  /** Fired with the new colour string whenever it changes — by hand or through `set()`. */
+  onChange?: (value: string) => void;
+}
+
+/** The handle `createColorPicker()` returns. Bring your own trigger: append `el` to a popover
+ *  or a panel of your own; the kit owns the editor surface and the gamut math. */
+export interface ColorPicker {
+  /** The picker's root (`.tw-color-picker`), stable from creation; it carries the kit's tokens,
+   *  so the picker renders anywhere. On the code-split build the editor fills it in once the
+   *  colour chunk has loaded. */
+  el: HTMLElement;
+  /** Apply a colour — the picker updates AND `onChange` fires (when the colour actually changed). */
+  set(value: string): void;
+  /** The current colour, serialized in the picker's mode. */
+  get(): string;
+  /** The current notation. */
+  mode(): ColorMode;
+  /** Switch notation — formatting only, nothing fires. */
+  setMode(mode: ColorMode): void;
+  /** Re-rasterize and re-place the thumbs. It reflows itself a frame after creation; call
+   *  this when you show it later (a popover opening) or after it resizes. */
+  reflow(): void;
+  /** Remove the picker from the DOM. */
+  destroy(): void;
+  /** Resolves with this handle once the editor has built — immediately on the single-file build. */
+  ready: Promise<ColorPicker>;
+}
+
+/** `detail` of the `tw:change` event a `[data-tw]` host dispatches (bubbling) whenever its
+ *  control changes — `key` is the host's `data-key` (or its label), `value` the new value,
+ *  also written to the host's `data-value`. */
+export interface TwChangeDetail { key: string; value: unknown; }
+
+declare global {
+  interface HTMLElementEventMap { "tw:change": CustomEvent<TwChangeDetail>; }
+}
