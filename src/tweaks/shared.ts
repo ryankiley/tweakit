@@ -591,8 +591,15 @@ function numField(spec, onChange) {
   return { el: root, set: (val) => set(val, false), get: () => value };
 }
 
+// One stroke-icon shell for every inline SVG in the kit (icons.ts holds the chrome set;
+// the gradient's + and the grip below use it too): the body is the path data, the class
+// (optional) is the CSS hook, the stroke weight and view box vary per glyph. It lives here
+// rather than in icons.ts because a lazy control imports it: anything both core and a
+// lazy chunk import must sit in the module that is already the shared chunk, or esbuild
+// hoists the whole module into a third chunk every basic panel has to fetch.
+const icon = (body: string, cls = "", width = 2, box = 24) => `<svg${cls ? ` class="${cls}"` : ""} viewBox="0 0 ${box} ${box}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 // ICON_GRIP — original 2-bar drag handle, not from an icon set (Lucide's grip is dots).
-const ICON_GRIP = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 4v8M10 4v8"/></svg>`;
+const ICON_GRIP = icon('<path d="M6 4v8M10 4v8"/>', "", 1.5, 16);
 
 // The handle a display/action control returns — buttons, separators, monitors, the
 // FPS graph. No value: the panel build skips entry/reset/persist wiring for them.
@@ -615,6 +622,6 @@ export {
   optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
-  numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE,
+  numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
 };
 

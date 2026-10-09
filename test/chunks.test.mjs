@@ -31,3 +31,19 @@ test("every lazy control loads from the split build and registers", async () => 
     p.destroy(); // the monitor loops would otherwise outlive a failed assertion and pin the process open
   }
 });
+
+// esbuild splits per module: a module imported by the core entry AND by a lazy control is
+// hoisted into its own shared chunk. The kit keeps exactly two — shared.ts (core + every
+// control) and the colour engine (colour + gradient) — so a basic panel fetches core plus
+// one chunk. A lazy control importing a core-only module (icons, feedback, schema) would
+// mint a third, and every basic panel would fetch one more file while the build's size
+// report quietly stopped describing what a basic panel loads.
+test("the split build has exactly two shared chunks, and core imports exactly one of them", async () => {
+  const { readdir, readFile } = await import("node:fs/promises");
+  const dir = new URL("../dist/tweaks/", import.meta.url);
+  const chunks = (await readdir(dir)).filter((f) => /^chunk-[\w-]+\.js$/.test(f));
+  assert.equal(chunks.length, 2, `shared chunks: ${chunks.join(", ")} — a core-only module is being imported from a lazy control`);
+  const core = await readFile(new URL("core.js", dir), "utf8");
+  const staticImports = [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]);
+  assert.equal(staticImports.length, 1, `core.js statically imports: ${staticImports.join(", ")}`);
+});
