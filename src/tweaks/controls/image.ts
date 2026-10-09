@@ -1,5 +1,6 @@
 // ── Image — drop-zone / file-pick → data URL. Lazy.
-import { el, triggerRow, registerControl } from "../shared.js";
+import { el, registerControl } from "../shared.js";
+import { triggerRow } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";

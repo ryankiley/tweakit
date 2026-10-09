@@ -1,10 +1,10 @@
 /* The core controls — always-registered constructors (slider, toggle, radio grid,
- * select, buttons, text, number, folder) plus createControl, the degrade-to-skip
+ * select, buttons, text, folder) plus createControl, the degrade-to-skip
  * wrapper every builder calls. Statically imported by the entry, unlike the lazy
  * siblings in this directory, so basic panels build synchronously. */
 import {
   el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel, json,
-  popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, numField, blade, setCollapsed,
+  popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, setCollapsed,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl,
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
 } from "../shared.js";
@@ -398,10 +398,6 @@ function createString(meta: Meta, onChange: OnChange): Control {
   return { el: row, set: (v: unknown) => { value = str(v); input.value = value; }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
 }
 
-// ── Number — the shared numField engine in its row chrome: a typeable field with a
-// grab handle (drag to scrub), min-anchored rounding, soft support. ──
-const createNumber = (meta: Meta, onChange: OnChange) => numField({ ...meta, row: true }, onChange);
-
 // ── Folder — a collapsible titled group. Returns its inner
 // container as `body` so the caller fills it; collapse reuses the grid-rows trick. ──
 function createFolder(meta: { label: string }) {
@@ -435,7 +431,6 @@ registerControl("button", createButton);
 registerControl("buttongroup", createButtonGroup);
 registerControl("separator", createSeparator);
 registerControl("text", createString);
-registerControl("number", createNumber);
 registerControl("folder", createFolder);
 
 export { createFolder, createControl };

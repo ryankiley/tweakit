@@ -1,6 +1,7 @@
 // ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the colour
 // module (reuses its picker body, parseColor, and oklchStr).
-import { el, btn, dragGesture, clamp, popover, triggerRow, registerControl, icon } from "../shared.js";
+import { el, btn, clamp, popover, registerControl, icon } from "../shared.js";
+import { dragGesture, triggerRow } from "../heavy.js";
 import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./colour.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
 import type { Oklcha } from "./colour.js";

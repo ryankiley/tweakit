@@ -1,5 +1,6 @@
 // ── Monitor + FPS graph — live sparkline / readout. Lazy; registers both types.
-import { el, txt, fitCanvas, accentColor, clamp, blade, json, registerControl } from "../shared.js";
+import { el, txt, clamp, blade, json, registerControl } from "../shared.js";
+import { fitCanvas, accentColor } from "../heavy.js";
 import type { Meta } from "../schema.js";
 
 // Stroke a ring buffer of samples across the canvas, each mapped to a 0-1 fraction by

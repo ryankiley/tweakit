@@ -1,5 +1,6 @@
 // ── Interval / range slider — dual-handle [lo,hi]. Lazy.
-import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, overlapsText, dragGesture, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
+import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, overlapsText, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
+import { dragGesture } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";

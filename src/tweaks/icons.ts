@@ -9,7 +9,7 @@
 // paints as one union. Copy and presets are the exceptions: their parts stay separate
 // paths so the hover can move them (tweaks.css), drawn to abut rather than overlap (the
 // back sheet's ends stop at the front sheet's stroke edge). Info's circle doesn't touch
-// its marks. ICON_GRIP (shared.ts) is original. Per-icon origins and the MIT notice:
+// its marks. ICON_GRIP (heavy.ts) is original. Per-icon origins and the MIT notice:
 // ../../THIRD-PARTY-NOTICES.md.
 import { icon } from "./shared.js";
 const ICON_COPY = icon('<path class="tw-copy-back" d="m5.5 16.5-.7-.2q-1.5-.6-2.1-2.1-.2-.7-.2-2.7v-2c0-3.3 0-5 1-6s2.7-1 6-1h2c1.4 0 2 0 2.7.2q1.6.5 2.1 2.1l.2.7"/><path class="tw-copy-front" d="M7.5 14.5c0-3.3 0-5 1-6s2.7-1 6-1 5 0 6 1 1 2.7 1 6 0 5-1 6-2.7 1-6 1-5 0-6-1-1-2.7-1-6"/>', "tw-toolbar-btn__copy");

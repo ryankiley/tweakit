@@ -7,9 +7,9 @@ export const meta = {
 };
 
 export const intro = `
-<p>Four ways to edit a number — or two, or four of them at once. Sliders and number
-fields are built in; <code>interval</code> and <code>point</code> are heavy controls
-that load on first use.</p>`;
+<p>Four ways to edit a number — or two, or four of them at once. Sliders are built in;
+<code>number</code>, <code>interval</code> and <code>point</code> load on first use on the
+code-split build.</p>`;
 
 export const examples = [
   {

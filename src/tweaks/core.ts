@@ -21,6 +21,7 @@
  *   enhance.ts         — [data-tw] markup enhancement (auto-runs on load)
  *   feedback.ts        — toast, hint tooltip, toolbar buttons
  *   lazy.ts            — the dynamic-import map for the code-split build
+ *   heavy.ts           — helpers only the lazy controls use (numField, svgEl, …)
  *   standalone.ts      — mountControl() + createColorPicker(), the controls without a panel
  */
 export { tweaks } from "./panel.js";
