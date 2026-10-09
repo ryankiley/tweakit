@@ -14,6 +14,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A published GitHub Release (the tag that triggers the npm publish) rebuilds the site
+  # from the tagged commit too, so the docs always match what was just released.
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
