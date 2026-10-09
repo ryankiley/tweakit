@@ -49,7 +49,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const queue: Array<() => void> = [];
   const presetOps = new Map<string, "save" | "delete">(); // the last preset op a lazy-window call queued per name: a loadPreset() behind a save is accepted, one behind a delete refused; cleared once the queue has replayed
   let failed = false; // flipped when the lazy chunks fail to load: the panel can never be built, so the queue would only grow
-  const later = (fn: () => void) => { if (destroyed) return; if (failed) { console.warn("[tweaks] call ignored — the panel's lazy controls failed to load"); return; } assembled ? fn() : queue.push(fn); }; // a refused call says so, like every other refusal here
+  const later = (fn: () => void) => { if (destroyed) return; if (failed) { console.warn("[tweaks] call ignored — the panel could not be built"); return; } assembled ? fn() : queue.push(fn); }; // a refused call says so, like every other refusal here
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
   // The values snapshot — persist, presets, undo, toJSON and copy all read it: params minus
   // its `_last` channel, with a control holding `undefined` (a list with no matching option,
@@ -58,7 +58,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // A replacer function, not an arrow: `this` is the holder, so only the top-level
   // changed-key strips — a folder child legitimately keyed "_last" survives.
   const replacer = function (this: unknown, k: string, v: unknown) { return k === "_last" && this === params ? undefined : v === undefined ? null : typeof v === "bigint" ? String(v) : v; }; // a bigint (a host-parked bag value) would otherwise throw out of every snapshot — the debounced persist and undo timers uncaught
-  const snapshot = (): Snapshot => JSON.parse(JSON.stringify(params, replacer));
+  // A host-parked bag value JSON can't take (a circular object) must not throw out of every
+  // snapshot — the persist timer, the undo commit, toJSON, the copy: the snapshot then
+  // carries the controls' values only (always JSON-safe: assign() refuses the rest), and says
+  // so once.
+  let snapshotWarned = false;
+  const controlsSnapshot = (): Snapshot => { const out: Record<string, any> = {}; for (const e of entries) { let o = out; for (const k of e.path.slice(0, -1)) o = o[k] ||= {}; o[e.key] = e.get(); } return JSON.parse(JSON.stringify(out, replacer)); };
+  const snapshot = (): Snapshot => { try { return JSON.parse(JSON.stringify(params, replacer)); } catch (e) { if (!snapshotWarned) { snapshotWarned = true; console.warn("[tweaks] a value parked on params can't be serialised — snapshots carry the controls' values only:", e); } return controlsSnapshot(); } };
   // Persistence + presets storage keys — opt-in via opts.persist (a string key, or
   // `true` to key by the panel name). null disables both (existing callers unaffected).
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
@@ -361,7 +367,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Free bag keys the host has parked on params ride along: the snapshot carries them,
     // so a restore (undo, a preset, fromJSON) brings their values back too. A key params
     // doesn't hold is still skipped, like a control path that no longer exists.
-    for (const k of Object.keys(snap)) if (!owned.has(k) && k !== "_last" && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) params[k] = snap[k];
+    for (const k of Object.keys(snap)) if (!owned.has(k) && k !== "_last" && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) { try { params[k] = snap[k]; } catch (err) { console.error(`[tweaks] restoring "${k}" failed — value skipped:`, err); } } // a getter-only bag key costs only itself, like a control that refuses
     params._last = undefined; if (fire) notify();
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets". The API
@@ -750,6 +756,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       listeners.clear();
       if (liftSlot) { liftSlot.remove(); liftSlot = null; }
       if (topFloating === panel) topFloating = null;
+      panel.dataset.twDestroyed = ""; // the controls' own global listeners (onLive) release on their next event by this mark — a destroy() within a frame of the build never let them see the panel connected
       panel.remove();
     },
   } as Panel; // `ready` is filled in just below, once the lazy check has run
@@ -762,7 +769,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // queued calls are dropped (they could only pile up), later calls are refused with a
     // warning, and ready rejects for hosts that await it — the shell stays up with its
     // toolbar inert rather than a silent sink.
-    const fail = (e: unknown) => { failed = true; queue.length = 0; if (!destroyed) console.warn(`[tweaks] "${name}": its lazy controls failed to load — the API is inert`); throw e; }; // the error itself is logged where the chunk failed (lazy.ts); a destroyed panel has nothing to report
+    // A build that got partway (nothing today throws past build(), but the handler is the
+    // backstop) must not leave live controls behind an inert API: release what it wired and
+    // empty the stack, so the shell stands with its toolbar inert and nothing else.
+    const fail = (e: unknown) => {
+      failed = true; queue.length = 0;
+      const partial = entries.length > 0 || controls.childElementCount > 0;
+      for (const fn of cleanups.splice(0)) { try { fn(); } catch {} }
+      listeners.clear(); entries.length = 0; controls.replaceChildren();
+      if (!destroyed) console.warn(`[tweaks] "${name}": the panel could not be built — ${partial ? "the build threw" : "its lazy controls failed to load"}; the API is inert`); // the chunk's own error is logged where it failed (lazy.ts); a destroyed panel has nothing to report
+      throw e;
+    };
     api.ready = panel.ready = pending.then(assemble).then(() => api, fail); // fail covers both the chunk and a build that throws (a non-JSON-safe bag value parked before ready, which the undo seed's snapshot can't take)
     api.ready.catch(() => {}); // a handled fork — no unhandled-rejection noise, while ready still rejects for hosts that await it
   }

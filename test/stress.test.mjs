@@ -93,10 +93,6 @@ const UNSKIP = !!process.env.TW_STRESS_UNSKIP;
 // the reason, so the suite stays green while the fix ships as its own PR.
 const KNOWN_BUGS = new Map([
   // Add a seed with a one-line symptom when a sweep turns up a bug; remove it with the fix.
-  // hwb readout near grey: the integer hue re-parsed through sRGB lands one degree off, so
-  // fromJSON(toJSON()) isn't a fixed point after one trip. Seen through the canvas stand-in;
-  // "hwb(210 3% 87%)" → "hwb(211 3% 87%)". Low: a near-achromatic hue is barely defined.
-  [73, "hwb readout drifts one degree per toJSON/fromJSON trip near grey"],
 ]);
 
 // ── PRNG — mulberry32: tiny, seedable, good enough to spread a schema across the space ──
