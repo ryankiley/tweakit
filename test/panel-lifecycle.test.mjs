@@ -32,6 +32,48 @@ test("a lifted panel leaves the document with the host container that held it", 
   p.destroy();
 });
 
+// The three edges a real pointer hits that header-only listeners missed: a release that
+// lands a hair off the header, a flick whose first move is already outside it, and the
+// click the browser fires on the capturing header once the drag ends.
+test("a press released off the header still ends: the grabber unlights", () => {
+  const p = tweaks("Press", { a: 1 }); document.body.append(p.el);
+  const header = p.el.querySelector(".tw-header");
+  header.setPointerCapture = header.releasePointerCapture = () => {};
+  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
+  assert.ok(p.el.classList.contains("is-grabbing"));
+  document.body.dispatchEvent(ptr("pointerup", { clientX: 101, clientY: 60, buttons: 0 }));
+  assert.ok(!p.el.classList.contains("is-grabbing"), "the release elsewhere ended the press");
+  assert.equal(p.el.dataset.mode, "inline");
+  p.destroy();
+});
+
+test("a flick whose moves land outside the header still drags the panel", () => {
+  const p = tweaks("Flick", { a: 1 }); document.body.append(p.el);
+  const header = p.el.querySelector(".tw-header");
+  header.setPointerCapture = header.releasePointerCapture = () => {};
+  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
+  document.body.dispatchEvent(ptr("pointermove", { clientX: 160, clientY: 90 }));
+  document.body.dispatchEvent(ptr("pointerup", { clientX: 160, clientY: 90, buttons: 0 }));
+  assert.equal(p.el.dataset.mode, "floating", "the move heard on the document lifted it");
+  assert.ok(!p.el.classList.contains("is-grabbing") && !p.el.classList.contains("is-dragging"));
+  p.destroy();
+});
+
+test("the click that ends a drag is swallowed once; the next title click still collapses", () => {
+  const p = tweaks("Click", { a: 1 }); document.body.append(p.el);
+  const header = p.el.querySelector(".tw-header"), title = p.el.querySelector(".tw-header-toggle");
+  drag(p, 40);
+  // With the header holding pointer capture, the browser targets the drag-ending click at
+  // the header (the common ancestor of the press on the title and the captured release).
+  header.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+  assert.ok(!p.el.classList.contains("is-collapsed"), "the drag-ending click did not collapse");
+  title.click();
+  assert.ok(p.el.classList.contains("is-collapsed"), "the next real click collapses");
+  title.click();
+  assert.ok(!p.el.classList.contains("is-collapsed"), "and the one after re-expands");
+  p.destroy();
+});
+
 test("the floating panel touched last sits above the others", () => {
   const a = tweaks("A", { a: 1 }, { floating: true }), b = tweaks("B", { b: 1 }, { floating: true });
   document.body.append(a.el, b.el);
