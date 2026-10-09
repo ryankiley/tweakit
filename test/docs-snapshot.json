@@ -1,0 +1,483 @@
+{
+  "color-and-gradient.mjs › color": [
+    {
+      "values": {
+        "tint": "oklch(60% 0.23 286)"
+      },
+      "ui": {}
+    }
+  ],
+  "color-and-gradient.mjs › gradient": [
+    {
+      "values": {
+        "ramp": {
+          "stops": [
+            {
+              "color": "oklch(0.72 0.19 25)",
+              "pos": 0
+            },
+            {
+              "color": "oklch(0.86 0.17 95)",
+              "pos": 0.5
+            },
+            {
+              "color": "oklch(0.72 0.16 280)",
+              "pos": 1
+            }
+          ],
+          "interpolation": "oklch"
+        },
+        "angle": 90
+      },
+      "ui": {}
+    }
+  ],
+  "color-and-gradient.mjs › image": [
+    {
+      "values": {
+        "texture": ""
+      },
+      "ui": {}
+    }
+  ],
+  "getting-started.mjs › first-panel": [
+    {
+      "values": {
+        "radius": 18,
+        "visible": true,
+        "tint": "oklch(60% 0.23 286)"
+      },
+      "ui": {}
+    }
+  ],
+  "getting-started.mjs › reading-values": [
+    {
+      "values": {
+        "size": 40,
+        "speed": 1.5,
+        "mode": "calm"
+      },
+      "ui": {}
+    }
+  ],
+  "imports.mjs › ready": [
+    {
+      "values": {
+        "motion": {
+          "stiffness": 220,
+          "damping": 18,
+          "mass": 1
+        },
+        "speed": 1
+      },
+      "ui": {}
+    }
+  ],
+  "index.mjs › showcase": [
+    {
+      "values": {
+        "intensity": 0.65,
+        "accent": "oklch(60% 0.23 286)",
+        "shape": {
+          "range": [
+            20,
+            80
+          ],
+          "quality": "Med",
+          "origin": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "motion": {
+          "spring": {
+            "stiffness": 220,
+            "damping": 18,
+            "mass": 1
+          }
+        },
+        "monitor": {
+          "live": true
+        }
+      },
+      "ui": {
+        "folders": {
+          "shape": false,
+          "motion": false,
+          "monitor": false
+        }
+      }
+    }
+  ],
+  "markup.mjs › static-panel": [
+    {
+      "key": "Blur",
+      "value": "12"
+    },
+    {
+      "key": "Visible",
+      "value": null
+    },
+    {
+      "key": "Blend",
+      "value": "normal"
+    }
+  ],
+  "markup.mjs › heavy-markup": [
+    {
+      "key": "Tint",
+      "value": "#7C5CFF"
+    },
+    {
+      "key": "Motion",
+      "value": null
+    },
+    {
+      "key": "Offset",
+      "value": "0,0"
+    },
+    {
+      "key": "Band",
+      "value": "30,70"
+    }
+  ],
+  "markup.mjs › bare-hosts": [
+    {
+      "key": "Inline anywhere",
+      "value": null
+    },
+    {
+      "key": "Speed",
+      "value": "1.5"
+    },
+    {
+      "key": "Size",
+      "value": "M"
+    }
+  ],
+  "markup.mjs › change-event": [],
+  "monitors.mjs › monitor": [
+    {
+      "values": {},
+      "ui": {}
+    }
+  ],
+  "monitors.mjs › fpsgraph": [
+    {
+      "values": {
+        "load": 0
+      },
+      "ui": {}
+    }
+  ],
+  "motion.mjs › spring": [
+    {
+      "values": {
+        "motion": {
+          "stiffness": 220,
+          "damping": 18,
+          "mass": 1
+        }
+      },
+      "ui": {}
+    }
+  ],
+  "motion.mjs › cubicbezier": [
+    {
+      "values": {
+        "curve": [
+          0.25,
+          0.1,
+          0.25,
+          1
+        ],
+        "seconds": 1.2
+      },
+      "ui": {}
+    }
+  ],
+  "motion.mjs › plot": [
+    {
+      "values": {
+        "wave": "sin(x) * exp(-x / 6)"
+      },
+      "ui": {}
+    }
+  ],
+  "numbers.mjs › slider": [
+    {
+      "values": {
+        "radius": 16,
+        "size": 4
+      },
+      "ui": {}
+    }
+  ],
+  "numbers.mjs › number": [
+    {
+      "values": {
+        "angle": 12
+      },
+      "ui": {}
+    }
+  ],
+  "numbers.mjs › interval": [
+    {
+      "values": {
+        "band": [
+          30,
+          70
+        ]
+      },
+      "ui": {}
+    }
+  ],
+  "numbers.mjs › point": [
+    {
+      "values": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "ui": {}
+    }
+  ],
+  "panel-api.mjs › events": [
+    {
+      "values": {
+        "radius": 12,
+        "mode": "calm",
+        "armed": false
+      },
+      "ui": {}
+    }
+  ],
+  "panel-api.mjs › set-reset": [
+    {
+      "values": {
+        "hue": 260,
+        "lift": 0
+      },
+      "ui": {}
+    }
+  ],
+  "panel-api.mjs › save-load": [
+    {
+      "values": {
+        "blur": 12,
+        "accent": "oklch(60% 0.23 286)",
+        "shadow": {
+          "radius": 16,
+          "opacity": 0.4
+        }
+      },
+      "ui": {
+        "folders": {
+          "shadow": false
+        }
+      }
+    }
+  ],
+  "panel-api.mjs › conditional": [
+    {
+      "values": {
+        "glow": false,
+        "color": "oklch(60% 0.23 286)",
+        "strength": 36
+      },
+      "ui": {}
+    }
+  ],
+  "panel-api.mjs › undo": [
+    {
+      "values": {
+        "width": 160,
+        "round": 18
+      },
+      "ui": {}
+    }
+  ],
+  "panel-api.mjs › presets": [
+    {
+      "values": {
+        "hue": 260,
+        "size": 120
+      },
+      "ui": {}
+    }
+  ],
+  "panel-api.mjs › floating": [],
+  "quick-tour.mjs › scene": [
+    {
+      "values": {
+        "size": 140,
+        "blur": 0,
+        "caption": "Shorthands",
+        "show": true,
+        "blend": "normal",
+        "glow": "oklch(60% 0.23 286)"
+      },
+      "ui": {}
+    }
+  ],
+  "quick-tour.mjs › verbose": [
+    {
+      "values": {
+        "opacity": 1,
+        "zoom": 100,
+        "fit": "cover"
+      },
+      "ui": {}
+    }
+  ],
+  "structure.mjs › folder": [
+    {
+      "values": {
+        "label": "Stacked",
+        "shadow": {
+          "x": 0,
+          "y": 12,
+          "blur": 32,
+          "alpha": 0.5
+        }
+      },
+      "ui": {
+        "folders": {
+          "shadow": false
+        }
+      }
+    }
+  ],
+  "structure.mjs › tabs": [
+    {
+      "values": {
+        "look": {
+          "fill": {
+            "color": "oklch(60% 0.23 286)",
+            "opacity": 1
+          },
+          "stroke": {
+            "color": "oklch(63% 0.00 180)",
+            "width": 2,
+            "dashed": false
+          }
+        }
+      },
+      "ui": {
+        "tabs": {
+          "look": "fill"
+        }
+      }
+    }
+  ],
+  "structure.mjs › actions": [
+    {
+      "values": {
+        "seconds": 6
+      },
+      "ui": {}
+    }
+  ],
+  "text-and-choices.mjs › text": [
+    {
+      "values": {
+        "headline": "Synthesizers",
+        "body": "Voltage in, music out."
+      },
+      "ui": {}
+    }
+  ],
+  "text-and-choices.mjs › checkbox": [
+    {
+      "values": {
+        "enabled": true,
+        "color": true
+      },
+      "ui": {}
+    }
+  ],
+  "text-and-choices.mjs › list": [
+    {
+      "values": {
+        "blend": "normal"
+      },
+      "ui": {}
+    }
+  ],
+  "text-and-choices.mjs › radiogrid": [
+    {
+      "values": {
+        "align": "center center"
+      },
+      "ui": {}
+    }
+  ],
+  "theming.mjs › scheme": [
+    {
+      "values": {
+        "scheme": "Auto",
+        "glow": 24,
+        "tint": "oklch(60% 0.23 286)",
+        "live": true
+      },
+      "ui": {}
+    }
+  ],
+  "theming.mjs › construction": [
+    {
+      "values": {
+        "warmth": 0.6,
+        "contrast": 1.1,
+        "enabled": true
+      },
+      "ui": {}
+    }
+  ],
+  "theming.mjs › editor": [
+    {
+      "values": {
+        "glow": 24,
+        "tint": "oklch(60% 0.23 286)",
+        "mode": "soft",
+        "on": true
+      },
+      "ui": {}
+    },
+    {
+      "values": {
+        "accent": "oklch(60% 0.23 286)",
+        "base": "oklch(26% 0.00 180)",
+        "radius": 8,
+        "density": 32
+      },
+      "ui": {}
+    }
+  ],
+  "theming.mjs › recipes": [
+    {
+      "values": {
+        "level": 60,
+        "mode": "auto",
+        "on": true
+      },
+      "ui": {}
+    },
+    {
+      "values": {
+        "level": 60,
+        "mode": "auto",
+        "on": true
+      },
+      "ui": {}
+    },
+    {
+      "values": {
+        "level": 60,
+        "mode": "auto",
+        "on": true
+      },
+      "ui": {}
+    }
+  ]
+}
