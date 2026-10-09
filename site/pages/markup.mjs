@@ -75,10 +75,50 @@ export const examples = [
       </div>`,
   },
   {
+    id: "change-event",
+    title: "Listening for changes",
+    prose: `<p>Every edit on a host writes its <code>data-value</code> and dispatches a
+      bubbling <code>tw:change</code> event with <code>{ key, value }</code> in
+      <code>detail</code> — <code>key</code> is the host's <code>data-key</code> (or its
+      label) — so one listener on an ancestor hears every control under it. The host also
+      keeps its handle at <code>host._tw.ctrl</code>: <code>get()</code> reads the value
+      and <code>set(v)</code> applies one <em>and</em> runs the same change path (data-value
+      + event), where a same-value <code>set()</code> stays silent. Drag the slider, then
+      hit the button.</p>`,
+    target: `
+      <div class="mk-change">
+        <div class="tw-panel" data-mode="inline" style="max-width: 300px">
+          <div class="tw-header"><span class="tw-title">Observed</span></div>
+          <div class="tw-controls">
+            <div data-tw="slider" data-key="blur" data-value="12" data-min="0" data-max="40" data-step="1"></div>
+          </div>
+        </div>
+        <button class="demo-btn mk-set" type="button">host._tw.ctrl.set(random)</button>
+        <pre class="mk-log">— change something —</pre>
+      </div>`,
+    css: `
+      .mk-change { display: flex; flex-direction: column; gap: 12px; width: 100%; align-self: stretch; }
+      .mk-log { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--demo-well);
+                border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.6; color: var(--demo-well-ink); }`,
+    noMount: true,
+    noCaption: true,
+    run: ({ enhance, target }) => {
+      const log = target.querySelector(".mk-log");
+      target.addEventListener("tw:change", (e) => {
+        log.textContent = e.detail.key + " → " + JSON.stringify(e.detail.value) + "  (data-value=" + e.target.dataset.value + ")";
+      });
+      enhance(target).then(() => {
+        const host = target.querySelector("[data-tw]");
+        target.querySelector(".mk-set").addEventListener("click", () => host._tw.ctrl.set(Math.round(Math.random() * 40)));
+      });
+    },
+  },
+  {
     title: "Calling enhance() yourself",
     prose: `<p>Auto-enhance covers the initial document. For markup you inject later —
-      a modal, a CMS block, a partial render — call it on the new root. Hosts that are
-      already live are skipped, so re-running is safe.</p>`,
+      a modal, a CMS block, a partial render — call it on the new root, which counts
+      too when it is itself a <code>[data-tw]</code> host. Hosts that are already live
+      are skipped, so re-running is safe.</p>`,
     code: `
       import { enhance } from "tweakit/core";
 
