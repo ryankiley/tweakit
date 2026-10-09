@@ -79,7 +79,8 @@ function createMonitor(meta) {
   // `decimals` is clamped to what a readout can show (toFixed throws past 100 and nothing
   // wants more than 20); a missing value reads as a dash, not the word "undefined".
   const decimals = Number.isFinite(+meta.decimals) ? Math.min(20, Math.max(0, Math.floor(+meta.decimals))) : 2;
-  const fmt = (v) => (v == null ? "—" : typeof v === "number" ? (Number.isInteger(v) || !Number.isFinite(v) ? String(v) : v.toFixed(decimals)) : String(v));
+  const json = (v) => { try { return JSON.stringify(v); } catch { return String(v); } }; // an object reads as its JSON, not "[object Object]" (a circular one falls back)
+  const fmt = (v) => (v == null ? "—" : typeof v === "number" ? (Number.isInteger(v) || !Number.isFinite(v) ? String(v) : v.toFixed(decimals)) : typeof v === "object" ? json(v) : String(v));
   // Also handed to the panel as the blade's `destroy` — a panel destroyed before it ever
   // connected idles below forever, so it could never clear its own interval on unmount.
   let firstFrame = 0;
