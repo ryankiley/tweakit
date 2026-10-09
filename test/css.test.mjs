@@ -67,3 +67,14 @@ test("the hover walker reads nesting, not just presence", () => {
     [[".a:hover", true], [".b:hover", false], [".c:hover", true]],
   );
 });
+
+// The control stack is a grid item holding a flex column; without zero floors, one nowrap
+// child (a long selected option, a wide tab bar, an eight-button group) widened every row
+// past the panel and over its neighbours. This keeps the floors in place.
+test("src/tweaks.css: the control stack and its children can shrink below their content", async () => {
+  const css = (await read("src/tweaks.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const rule = (selector) => { const m = css.match(new RegExp(`(^|[\\n}])\\s*${selector.replace(/[.*+?^${}()|[\]\\>]/g, "\\$&")}\\s*\\{([^}]*)\\}`)); return m ? m[2] : ""; };
+  for (const sel of [".tw-body > .tw-controls", ".tw-controls > *", ".tw-folder-body > .tw-controls", ".tw-tabs-bar", ".tw-select-value"]) {
+    assert.match(rule(sel), /min-width:\s*0\b/, `${sel} needs min-width: 0`);
+  }
+});
