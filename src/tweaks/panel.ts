@@ -13,6 +13,8 @@ import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNo
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params } from "./types.js";
 
+let topFloating: HTMLElement | null = null; // the floating panel raised last (see raise() in the drag wiring)
+
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
   // "_last" is the changed-key channel on params — a schema entry by that name would
   // fight it (the param's value doubles as the listener's "what changed" argument).
@@ -37,13 +39,21 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const snapshot = () => JSON.parse(JSON.stringify(params, replacer));
   // Assigned by assemble() below. Declared here so the API returned synchronously can
   // forward to them even on the lazy path, where assemble() runs after modules load.
-  let listPresets: () => Record<string, any> = () => ({}), savePreset: (nm?: string) => boolean = () => false, loadPreset: (nm?: string) => boolean = () => false, deletePreset: (nm?: string) => void = () => {};
-  let undo = () => {}, redo = () => {};
+  // Lazy-window stubs: presets and undo queue onto preSets like set()/fromJSON() do, so a
+  // call made before ready replays in order once assemble() has the real bindings (they
+  // used to be silently dropped). The list reads storage directly, which exists already.
+  let listPresets: () => Record<string, any> = () => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); };
+  let savePreset: (nm?: string) => boolean = (nm) => { if (!presetsKey || !nm) return false; preSets.push([SAVEPRESET, nm]); return true; };
+  let loadPreset: (nm?: string) => boolean = (nm) => { if (!hasOwn(listPresets(), nm)) return false; preSets.push([LOADPRESET, nm]); return true; };
+  let deletePreset: (nm?: string) => void = (nm) => { if (presetsKey) preSets.push([DELETEPRESET, nm]); };
+  let undo = () => { preSets.push([UNDO, null]); }, redo = () => { preSets.push([REDO, null]); };
   // Whole-panel state (toJSON/fromJSON). Reassigned in assemble() once the controls + the
   // value/UI collectors exist; the stubs below cover the lazy window before ready — toJSON
   // returns the live values (no UI state yet); fromJSON enqueues onto preSets (tagged), so it
   // replays interleaved with set()/setMany() in call order, after the persist/preset restore.
-  const FROMJSON = Symbol("fromJSON"), SETMANY = Symbol("setMany"), RESET = Symbol("reset");
+  // (Before ready the values are only what set() has parked so far — the controls, and so
+  // their defaults, don't exist yet.)
+  const FROMJSON = Symbol("fromJSON"), SETMANY = Symbol("setMany"), RESET = Symbol("reset"), SAVEPRESET = Symbol("savePreset"), LOADPRESET = Symbol("loadPreset"), DELETEPRESET = Symbol("deletePreset"), UNDO = Symbol("undo"), REDO = Symbol("redo");
   let doToJSON: () => any = () => ({ values: snapshot(), ui: {} });
   let doFromJSON: (state: any) => void = (state) => { preSets.push([FROMJSON, state]); };
   // Each listener runs isolated: a throwing on() callback (or internal listener)
@@ -348,6 +358,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // elsewhere — must cost only its own value. Unguarded, one throw abandoned every
   // remaining entry AND skipped the notify/persist below, leaving the panel silently
   // half-restored with listeners none the wiser.
+  const owned = new Set(metas.map((m) => m.key)); // top-level control, folder and tabs keys — everything else on params is a bag key
   const applySnapshot = (snap, fire = true) => {
     if (!snap || typeof snap !== "object") return;
     for (const e of entries) {
@@ -355,6 +366,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       try { assign(e, v); }
       catch (err) { console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err); }
     }
+    // Free bag keys the host has parked on params ride along: the snapshot carries them,
+    // so a restore (undo, a preset, fromJSON) brings their values back too. A key params
+    // doesn't hold is still skipped, like a control path that no longer exists.
+    for (const k of Object.keys(snap)) if (!owned.has(k) && k !== "_last" && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) params[k] = snap[k];
     params._last = undefined; if (fire) notify();
   };
   if (persistKey) {
@@ -434,7 +449,19 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       carryScheme(panel, panel);
       document.body.appendChild(panel);
       panel.dataset.mode = "floating"; apply();
+      // A host that removes its container without destroy() (an SPA route change) would
+      // leave the lifted panel on screen over whatever renders next. The placeholder left
+      // in the slot is the tell: when it leaves the document, the panel follows it out.
+      if (liftSlot && typeof MutationObserver === "function") {
+        const obs = new MutationObserver(() => { if (liftSlot && !liftSlot.isConnected) { obs.disconnect(); liftSlot = null; panel.remove(); } });
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+        cleanups.push(() => obs.disconnect());
+      }
     };
+    // Two floating panels share one z-index in the stylesheet, so the one touched last
+    // didn't stay on top. The last lifted or dragged panel gets the higher inline value
+    // and the previous holder gives its own back to the stylesheet.
+    const raise = () => { if (topFloating && topFloating !== panel) topFloating.style.zIndex = ""; panel.style.zIndex = "99991"; topFloating = panel; };
 
     let dragId = null, sx = 0, sy = 0, ox = 0, oy = 0;
     header.addEventListener("pointerdown", (e) => {
@@ -464,7 +491,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       const dx = e.clientX - sx, dy = e.clientY - sy;
       if (!dragMoved) {
         if (Math.abs(dx) + Math.abs(dy) < 4) return; // a few px of slop before it counts as a drag, not a click
-        dragMoved = true; lift(); ox = px; oy = py; // capture the (possibly just-lifted) origin once the drag truly starts
+        dragMoved = true; lift(); raise(); ox = px; oy = py; // capture the (possibly just-lifted) origin once the drag truly starts
         try { header.setPointerCapture(dragId); } catch {}
         panel.classList.add("is-dragging");
       }
@@ -595,7 +622,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // restore above, so an explicit host set() wins over a stored value the way it wins
   // over the schema default. Each replays through api.set, so paths resolve against
   // the real entries and listeners hear the changes.
-  for (const [k, v] of preSets.splice(0)) { if (k === FROMJSON) doFromJSON(v); else if (k === SETMANY) api.setMany(v); else if (k === RESET) doReset(); else api.set(k as string, v); } // tagged fromJSON/setMany entries replay through their assembled impls (one notify each); the shared queue preserves set/setMany/fromJSON call order
+  for (const [k, v] of preSets.splice(0)) { if (k === FROMJSON) doFromJSON(v); else if (k === SETMANY) api.setMany(v); else if (k === RESET) doReset(); else if (k === SAVEPRESET) savePreset(v); else if (k === LOADPRESET) loadPreset(v); else if (k === DELETEPRESET) deletePreset(v); else if (k === UNDO) undo(); else if (k === REDO) redo(); else api.set(k as string, v); } // tagged fromJSON/setMany entries replay through their assembled impls (one notify each); the shared queue preserves set/setMany/fromJSON call order
   for (const b of toolbarBtns) b.disabled = false; // the controls exist now
   }; // end assemble
 
@@ -699,6 +726,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       for (const fn of cleanups.splice(0)) { try { fn(); } catch {} }
       listeners.clear();
       if (liftSlot) { liftSlot.remove(); liftSlot = null; }
+      if (topFloating === panel) topFloating = null;
       panel.remove();
     },
   };
