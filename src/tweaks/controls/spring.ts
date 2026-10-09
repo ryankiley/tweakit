@@ -136,8 +136,20 @@ function createSpring(meta, onChange) {
   // scheme flips, and when the host re-themes (SVG controls update via CSS, but a
   // canvas keeps a stale colour otherwise). Self-cleans once the panel is gone.
   onLive(canvas, [[window, "resize"], [window, "tw-reflow"], [matchMedia("(prefers-color-scheme: dark)"), "change"], [window, "tw-retheme"]], draw);
+  // A host flipping [data-tw-scheme] re-themes the SVG controls through CSS alone; the
+  // canvas needs a redraw. Watches the document for the attribute, like the popovers do,
+  // and lets go once the control has been mounted and removed (or on destroy()).
+  let schemeObs = null, wasMounted = false;
+  if (typeof MutationObserver === "function") {
+    schemeObs = new MutationObserver(() => {
+      if (canvas.isConnected) { wasMounted = true; draw(); }
+      else if (wasMounted) { schemeObs.disconnect(); schemeObs = null; }
+    });
+    schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] });
+  }
   return {
     el: root,
+    destroy: () => { if (schemeObs) { schemeObs.disconnect(); schemeObs = null; } },
     // Programmatic set / restore — infer the mode from the value's keys (time wins when
     // visualDuration/bounce are present), update the matching cache + fields, and redraw
     // without emitting (set() is the silent path; the panel stamps + notifies itself).

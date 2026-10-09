@@ -128,15 +128,19 @@ function createPlot(meta, onChange) {
   if (editable) {
     const field = el("div", "tw-plot-field");
     input = el("input", "tw-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
-    input.autocapitalize = "off"; input.autocomplete = "off"; input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`);
+    input.autocapitalize = "off"; input.autocomplete = "off"; input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`); input.setAttribute("aria-invalid", "false");
     field.append(txt("span", "tw-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML, and no label in the kit goes through that door
   }
 
   const PAD = 6;
   const draw = () => {
+    // The invalid flag doesn't wait for a measurable graph: a plot in a hidden tab page
+    // still reports a bad expression, visually and to assistive tech.
+    const ok = typeof compiled === "function";
+    root.classList.toggle("is-invalid", editable && !ok);
+    if (input) input.setAttribute("aria-invalid", editable && !ok ? "true" : "false");
     const r = graph.getBoundingClientRect(), W = r.width, H = r.height; if (W < 2) return;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    const ok = typeof compiled === "function";
     const ys = []; let yLo = Infinity, yHi = -Infinity;
     if (ok) for (let k = 0; k < samples; k++) {
       const x = xMin + (xMax - xMin) * (k / (samples - 1));
@@ -162,7 +166,6 @@ function createPlot(meta, onChange) {
       d += (pen ? "L" : "M") + px.toFixed(1) + "," + py.toFixed(1) + " "; pen = true;
     }
     curve.setAttribute("d", d);
-    root.classList.toggle("is-invalid", editable && !ok);
   };
 
   if (editable) input.addEventListener("input", () => {

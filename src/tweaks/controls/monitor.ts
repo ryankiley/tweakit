@@ -76,7 +76,10 @@ function createMonitor(meta) {
   wrap.append(txt("span", "tw-fps-label", meta.label ?? "Monitor"), val);
 
   let timer = 0, unwatch = () => {}, wasConnected = false;
-  const fmt = (v) => (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(meta.decimals ?? 2)) : String(v));
+  // `decimals` is clamped to what a readout can show (toFixed throws past 100 and nothing
+  // wants more than 20); a missing value reads as a dash, not the word "undefined".
+  const decimals = Number.isFinite(+meta.decimals) ? Math.min(20, Math.max(0, Math.floor(+meta.decimals))) : 2;
+  const fmt = (v) => (v == null ? "—" : typeof v === "number" ? (Number.isInteger(v) || !Number.isFinite(v) ? String(v) : v.toFixed(decimals)) : String(v));
   // Also handed to the panel as the blade's `destroy` — a panel destroyed before it ever
   // connected idles below forever, so it could never clear its own interval on unmount.
   let firstFrame = 0;
@@ -117,7 +120,7 @@ function createMonitor(meta) {
     let lo = meta.min, hi = meta.max;
     if (lo == null || hi == null) {
       let mn = Infinity, mx = -Infinity;
-      for (const s of samples) if (!Number.isNaN(s)) { if (s < mn) mn = s; if (s > mx) mx = s; }
+      for (const s of samples) if (Number.isFinite(s)) { if (s < mn) mn = s; if (s > mx) mx = s; } // an Infinity sample would blank the auto-range for the whole buffer
       if (mn === Infinity) { mn = 0; mx = 1; } else if (mn === mx) { mn -= 0.5; mx += 0.5; }
       const pad = (mx - mn) * 0.1;
       if (lo == null) lo = mn - pad; if (hi == null) hi = mx + pad;
@@ -125,7 +128,7 @@ function createMonitor(meta) {
     const span = (hi - lo) || 1;
     strokeSeries(ctx, wrap, w, h, samples, idx, (s) => (s - lo) / span);
   };
-  poll((v) => { if (typeof v !== "number") return; samples[idx] = v; idx = (idx + 1) % N; val.textContent = fmt(v); draw(); });
+  poll((v) => { if (!Number.isFinite(v)) { val.textContent = fmt(v); return; } samples[idx] = v; idx = (idx + 1) % N; val.textContent = fmt(v); draw(); }); // a non-finite sample shows in the readout but stays out of the graph
   firstFrame = requestAnimationFrame(() => { firstFrame = 0; onResize(); draw(); }); // held so a destroy() before the first frame cancels it
   return blade(wrap, stop);
 }
