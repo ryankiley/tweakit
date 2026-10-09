@@ -49,6 +49,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const queue: Array<() => void> = [];
   const presetOps = new Map<string, "save" | "delete">(); // the last preset op a lazy-window call queued per name: a loadPreset() behind a save is accepted, one behind a delete refused; cleared once the queue has replayed
   let failed = false; // flipped when the lazy chunks fail to load: the panel can never be built, so the queue would only grow
+  let built = -1; // cleanups.length as assemble() enters build(): the fail handler releases only what the build wired (the shell's own attachments stay for destroy()) and knows the chunk did load
   const later = (fn: () => void) => { if (destroyed) return; if (failed) { console.warn("[tweaks] call ignored — the panel could not be built"); return; } assembled ? fn() : queue.push(fn); }; // a refused call says so, like every other refusal here
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
   // The values snapshot — persist, presets, undo, toJSON and copy all read it: params minus
@@ -122,7 +123,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const toolbar = el("div", "tw-toolbar");
   // Copy emits the values snapshot; reset restores every default (or runs opts.onReset).
   // feedback.ts owns their click feedback (the copy ⇄ check swap, the reset spin).
-  const copyBtn = makeCopyBtn(panel, name, () => JSON.stringify(params, replacer, 2));
+  const copyBtn = makeCopyBtn(panel, name, () => JSON.stringify(snapshot(), null, 2)); // through snapshot(): a bag value JSON can't take falls back to the controls' values instead of throwing out of the click
   const resetBtn = makeResetBtn(resetAll);
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn: HTMLButtonElement | null = null;
@@ -627,7 +628,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // panel shell + API exist immediately; lazy controls fill in on ready.
   const assemble = () => {
     if (destroyed) return; // destroy() before the lazy chunks landed — nothing to build
-    build(controls, metas, params);
+    built = cleanups.length; build(controls, metas, params);
     // Apply the conditionals now and on every change (a sibling's value can flip them).
     if (conditionals.length) {
       const byKey = new Map<string, Entry>(); for (const e of entries) if (!byKey.has(e.key)) byKey.set(e.key, e); // first wins, like the find() it replaces
@@ -769,15 +770,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // queued calls are dropped (they could only pile up), later calls are refused with a
     // warning, and ready rejects for hosts that await it — the shell stays up with its
     // toolbar inert rather than a silent sink.
-    // A build that got partway (nothing today throws past build(), but the handler is the
-    // backstop) must not leave live controls behind an inert API: release what it wired and
-    // empty the stack, so the shell stands with its toolbar inert and nothing else.
+    // A build that got partway (a value parked on params before ready that a control's set()
+    // can't coerce throws out of build()) must not leave live controls behind an inert API:
+    // release what it wired and empty the stack, so the shell stands with its toolbar inert
+    // and nothing else.
     const fail = (e: unknown) => {
       failed = true; queue.length = 0;
-      const partial = entries.length > 0 || controls.childElementCount > 0;
-      for (const fn of cleanups.splice(0)) { try { fn(); } catch {} }
+      if (built >= 0) for (const fn of cleanups.splice(built)) { try { fn(); } catch {} } // only what the build wired: the shell's drag, lift watchdog, edit lifecycle and persist flush stay for destroy()
+      for (const c of controls.children) (c as HTMLElement).dataset.twDestroyed = ""; // the built controls' global listeners (onLive) release on their next event by this mark — detached below, they would never see the panel's own
       listeners.clear(); entries.length = 0; controls.replaceChildren();
-      if (!destroyed) console.warn(`[tweaks] "${name}": the panel could not be built — ${partial ? "the build threw" : "its lazy controls failed to load"}; the API is inert`); // the chunk's own error is logged where it failed (lazy.ts); a destroyed panel has nothing to report
+      if (!destroyed) console.warn(`[tweaks] "${name}": the panel could not be built — ${built >= 0 ? "the build threw" : "its lazy controls failed to load"}; the API is inert`); // the chunk's own error is logged where it failed (lazy.ts); a destroyed panel has nothing to report
       throw e;
     };
     api.ready = panel.ready = pending.then(assemble).then(() => api, fail); // fail covers both the chunk and a build that throws (a non-JSON-safe bag value parked before ready, which the undo seed's snapshot can't take)
