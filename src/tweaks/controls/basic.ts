@@ -245,7 +245,7 @@ function createSlider(meta, onChange) {
   // and leaves focus where the user sent it.
   const openEditor = () => {
     if (valueEl.classList.contains("is-editing")) return;
-    const input = el("input", "tw-slider-input"); input.type = "text"; input.inputMode = "decimal"; input.value = q(value).toFixed(decimals);
+    const input = el("input", "tw-slider-input"); input.type = "text"; input.inputMode = "decimal"; quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */ input.value = q(value).toFixed(decimals);
     valueEl.classList.add("is-editing"); valueEl.replaceWith(input); input.focus(); input.select();
     const restore = () => { input.replaceWith(valueEl); valueEl.classList.remove("is-editing", "is-editable"); };
     const commit = () => { const p = parseFloat(input.value); if (!isNaN(p)) set(meta.soft ? p : clamp(p, min, max)); restore(); };

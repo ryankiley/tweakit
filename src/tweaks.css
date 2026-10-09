@@ -912,6 +912,12 @@
  * (.tw-focus-quiet) keeps the border lift only, like the bare text rows. */
 .tw-field .tw-num-wrap:has(> .tw-num:focus-visible:not(.tw-focus-quiet)), .tw-field .tw-num-wrap:has(> .tw-color-chan-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -1px; }
 .tw-field .tw-num-wrap > .tw-num:focus-visible, .tw-field .tw-num-wrap > .tw-color-chan-input:focus-visible { outline: none; }
+/* The same rule for the other two boxed editors: the plot's expression field rings its box,
+ * and a slider's inline number field (opened with Enter) rings the track it sits in. */
+.tw-plot-field:has(> .tw-plot-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
+.tw-slider:has(.tw-slider-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
+/* The alpha strip is a keyboard slider with no ring of its own until now; outset, like the handles. */
+.tw-wg-alpha:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
 .tw-field .tw-num { flex: 1; width: auto; min-width: 0; }
 .tw-field .tw-num-grab { width: 10px; }
 

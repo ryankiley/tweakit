@@ -1,5 +1,5 @@
 // ── Plot — graph y=f(x) with a safe expression evaluator (compileExpr). Lazy.
-import { el, txt, svgEl, clamp, onReady, onLive, registerControl } from "../shared.js";
+import { el, txt, svgEl, clamp, onReady, onLive, quietFocus, registerControl } from "../shared.js";
 
 // ── A tiny, safe expression evaluator for the plot control. ──────────────────
 // Compiles "sin(x)/x" → a closure (x) => number. It is a hand-rolled
@@ -128,7 +128,7 @@ function createPlot(meta, onChange) {
   if (editable) {
     const field = el("div", "tw-plot-field");
     input = el("input", "tw-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
-    input.autocapitalize = "off"; input.autocomplete = "off"; input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`); input.setAttribute("aria-invalid", "false");
+    input.autocapitalize = "off"; input.autocomplete = "off"; quietFocus(input); /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`); input.setAttribute("aria-invalid", "false");
     field.append(txt("span", "tw-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML, and no label in the kit goes through that door
   }
 
