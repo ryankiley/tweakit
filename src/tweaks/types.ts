@@ -36,7 +36,7 @@ export type SchemaObject =
   | { type: "color"; value?: string; label?: string }
   | { type: "text"; value?: string; rows?: number; placeholder?: string }
   | { type: "interval"; value?: [number, number]; min?: number; max?: number; step?: number }
-  | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
+  | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
   | { type: "cubicbezier"; value?: [number, number, number, number] }
   | { type: "point"; components: Array<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
   | { type: "gradient"; value?: { stops: GradientStop[]; interpolation?: GradientInterpolation } | Array<GradientStop | [string, number]> }
