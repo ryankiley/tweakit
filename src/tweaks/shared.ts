@@ -178,6 +178,10 @@ const onReady = (fn: () => void) => { requestAnimationFrame(fn); if (document.fo
 // for owners that also tear down eagerly (panel.destroy()).
 const onLive = (owner: Element, targets: Array<[EventTarget, string]>, fn: (e?: Event) => void) => {
   let mounted = owner.isConnected;
+  // A host appends the owner right after building it, in the same task — before any event
+  // can arrive. Note that mount next frame, so an unmount with no event in between (an SPA
+  // route change, no destroy()) still releases on the first event after it, instead of never.
+  if (!mounted) requestAnimationFrame(() => { if (owner.isConnected) mounted = true; });
   const h = (e: Event) => { if (!owner.isConnected) { if (mounted) off(); return; } mounted = true; fn(e); };
   const off = () => targets.forEach(([t, ev]) => t.removeEventListener(ev, h));
   targets.forEach(([t, ev]) => t.addEventListener(ev, h));
