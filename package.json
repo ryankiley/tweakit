@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "type": "module",
   "main": "./dist/tweaks.js",
-  "types": "./dist/types/tweaks/single.d.ts",
+  "types": "./dist/types/tweaks/core.d.ts",
   "description": "A dependency-free, code-split real-time parameter panel \u2014 sliders, toggles, a wide-gamut OKLCH colour picker, curve editors and more, from a plain schema.",
   "license": "MIT",
   "author": "Ryan Kiley",
@@ -34,7 +34,7 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/types/tweaks/single.d.ts",
+      "types": "./dist/types/tweaks/core.d.ts",
       "import": "./dist/tweaks.js",
       "default": "./dist/tweaks.js"
     },
