@@ -58,6 +58,19 @@ A few things aren't obvious from the file tree and will trip you up otherwise:
 - **Site copy is American English** (color, not colour). The kit's public API keeps the
   `color` type string too.
 
+## The stress harness
+
+`test/stress.test.mjs` is a seeded fuzzer that runs as part of `npm test`: each seed grows a
+random schema (every control type, shorthand and verbose, folders and tabs, a slice of
+hostile values), builds it under jsdom and drives the panel API, keyboard and clicks through
+a few dozen random operations, checking the invariants after each one. A failure names its
+seed; replay it alone with `TW_STRESS_SEED=17 node --test test/stress.test.mjs` (add
+`TW_STRESS_TRACE=1` to print every operation). The default is 40 seeds — run more with
+`TW_STRESS_SEEDS=500 node --test test/stress.test.mjs`, or bump the fallback in the
+`SEED_COUNT` line at the top of the file to make it permanent. A seed that reproduces a
+known, unfixed bug goes in the file's `KNOWN_BUGS` map with its symptom, which skips it
+until the fix lands; `TW_STRESS_UNSKIP=1` runs those seeds anyway, to check that a fix holds.
+
 ## Before you open a PR
 
 - `npm test` is green (build + tsc + the jsdom suite — the build fails on `tsc` errors,
