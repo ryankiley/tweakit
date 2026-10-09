@@ -12,7 +12,7 @@ import type { Control, GradientStop } from "../types.js";
 interface StopHandle extends HTMLButtonElement { _stop?: GradientStop }
 
 // ICON_PLUS — adapted from Hugeicons `add-01` (MIT), two paths merged. See ../../../THIRD-PARTY-NOTICES.md.
-const ICON_PLUS = icon('<path d="M12 5V19M19 12L5 12"/>', "", 2.5);
+const ICON_PLUS = icon('<path d="M12 5v14m7-7H5"/>', "", 2.5);
 
 // ── Gradient — a Figma-style editor: the panel shows a swatch-trigger row (the
 // gradient preview + stop count, mirroring the colour row), and clicking it opens a
