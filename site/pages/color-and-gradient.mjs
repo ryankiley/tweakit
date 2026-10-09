@@ -56,7 +56,7 @@ export const examples = [
       (or the + button) to add, select a stop to recolor it with the full picker. The value is
       <code>{ stops: [{ color, pos }], interpolation }</code> — ready to template into any CSS
       gradient. Stops can be authored in <code>oklch()</code> for wide-gamut ramps.</p>
-      <p>The ramp blends in whichever colour space you pick in the stop editor: switch the mode
+      <p>The ramp blends in whichever color space you pick in the stop editor: switch the mode
       to RGB and the blend goes through sRGB (muddier — that's what <code>rgb()</code> blends
       look like); OKLCH stays perceptually even. That chosen space rides along as
       <code>interpolation</code>, so dropping it into <code>linear-gradient(in …)</code> makes

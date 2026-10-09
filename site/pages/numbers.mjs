@@ -19,7 +19,8 @@ export const examples = [
       <code>{ type: "slider" }</code> for options. Drag anywhere on the track, scrub with
       arrow keys (⇧ for coarse steps), or hover the value and click to type
       (double-click resets). With six or fewer stops the track snaps and shows rule
-      lines.</p>`,
+      lines. <code>soft: true</code> lets a typed or scripted value run past
+      <code>min</code>/<code>max</code>; dragging stays within them.</p>`,
     target: `<div class="num-tile"></div>`,
     css: `
       .num-tile { width: 132px; height: 132px; background: #7C5CFF;
@@ -48,7 +49,8 @@ export const examples = [
     prose: `<p><code>{ type: "number" }</code> is a plain numeric field with a
       drag-to-scrub grab handle — for values where a track makes no sense. Drag the
       handle to scrub it, click the field to type. <code>min</code>/<code>max</code>
-      clamp; omit them for unbounded.</p>`,
+      clamp; omit them for unbounded, or add <code>soft: true</code> to keep the bounds
+      advisory rather than clamping.</p>`,
     target: `<div class="num-rotor"><div class="num-rotor-card">12°</div></div>`,
     css: `
       .num-rotor { display: grid; place-items: center; width: 200px; height: 200px; }
@@ -110,7 +112,8 @@ export const examples = [
     prose: `<p>An n-dimensional vector — one scrubbable field per component, plus a
       draggable 2D pad for the first two (on by default; <code>pad: false</code> opts
       out). The value is a plain map of component keys. Add a third component for 3D, a
-      fourth for 4D; the pad stays 2D, the fields stack.</p>`,
+      fourth for 4D; the pad stays 2D, the fields stack. The pad points +Y up;
+      <code>invertY: true</code> flips it for screen-space coordinates.</p>`,
     target: `<div class="num-field"><div class="num-dot"></div></div>`,
     css: `
       .num-field { position: relative; width: 220px; height: 220px; border-radius: 16px;

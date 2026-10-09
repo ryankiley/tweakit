@@ -95,6 +95,7 @@ export const examples = [
       <table>
         <tr><th>Token</th><th>Drives</th></tr>
         <tr><td><code>accent</code></td><td>slider fills, focus rings, active highlights</td></tr>
+        <tr><td><code>onAccent</code></td><td>text drawn on the accent (active segment, radio label) — derived from the accent's luminance when unset</td></tr>
         <tr><td><code>base</code></td><td>panel background, reused for recessed wells</td></tr>
         <tr><td><code>dropdownBg</code></td><td>popover / dropdown background</td></tr>
         <tr><td><code>surface</code>, <code>surfaceHover</code>, <code>surfaceActive</code></td><td>control surfaces and their interaction steps</td></tr>

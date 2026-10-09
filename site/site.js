@@ -1,6 +1,6 @@
 /* Docs shell runtime — copy buttons on snippets + the mobile nav drawer.
- * The copy/check icons are the kit's own (Lucide, ISC — see THIRD-PARTY-NOTICES.md),
- * so the site's copy interaction matches the panels'. */
+ * The copy/check icons are the kit's own (Feather `copy` and Lucide-from-Feather `check`,
+ * both MIT — see THIRD-PARTY-NOTICES.md), so the site's copy interaction matches the panels'. */
 (() => {
   const ICON_COPY = '<svg class="ex-copy-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   const ICON_CHECK = '<svg class="ex-copy-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';

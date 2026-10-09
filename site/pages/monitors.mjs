@@ -18,7 +18,10 @@ export const examples = [
     prose: `<p>Two monitors over the same signal — a noisy sine the page generates.
       The graph form scrolls; the text form just re-reads. <code>min</code>/<code>max</code>
       frame the graph, <code>interval</code> sets the poll rate (ms),
-      <code>decimals</code> trims the readout.</p>`,
+      <code>decimals</code> trims the readout. <code>view: "graph"</code> or
+      <code>"text"</code> forces one form whatever the value's type, and
+      <code>rows</code> turns the text form into a scrolling buffer of the last
+      <em>n</em> values.</p>`,
     run: ({ tweaks, mount }) => {
       const signal = () => Math.sin(Date.now() / 600) * 50 + (Math.random() - 0.5) * 12;
       const panel = tweaks("Monitor", {

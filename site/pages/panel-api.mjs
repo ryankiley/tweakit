@@ -277,7 +277,7 @@ export const examples = [
         <tr><th>Option</th><th>Does</th></tr>
         <tr><td><code>theme</code></td><td>token overrides — see <a href="./theming.html">Theming</a></td></tr>
         <tr><td><code>persist</code></td><td>localStorage key (or <code>true</code> to key by panel name); enables presets</td></tr>
-        <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title)</td></tr>
+        <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title) — needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
         <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
         <tr><td><code>draggable</code></td><td>header dragging — on by default, <code>false</code> pins</td></tr>
         <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>

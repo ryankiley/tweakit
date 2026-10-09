@@ -86,7 +86,8 @@ export const examples = [
     prose: `<p>An expression grapher with a safe evaluator — no <code>eval</code>, just a
       small parser over <code>x</code>, the usual math functions and constants. The
       param is the expression string itself; type into the field to regraph. Pass
-      <code>fn</code> instead to graph one of your own functions (read-only), and
+      <code>fn</code> instead to graph one of your own functions (read-only), or
+      <code>editable: false</code> to drop the field and keep a fixed expression, and
       <code>xMin</code>/<code>xMax</code>/<code>yMin</code>/<code>yMax</code>/<code>samples</code>
       to frame it.</p>`,
     target: `<code class="plt-readout">params.wave = "sin(x) * exp(-x / 6)"</code>`,
