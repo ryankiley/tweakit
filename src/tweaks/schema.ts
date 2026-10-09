@@ -5,12 +5,52 @@
  * test/registry.test.mjs cross-checks the tables so they can't drift apart. */
 import { titleCase, isColorStr, inferStep, defaultRange, optValue } from "./shared.js";
 import { showToast } from "./feedback.js";
-import type { SchemaObject } from "./types.js";
+import type { SchemaObject, Option, Get, Control } from "./types.js";
+
+/** A point control's component spec, as the public verbose form declares it. */
+type PointComponent = Extract<SchemaObject, { type: "point" }>["components"][number];
+/** One page of a tabs control: its slug key, title and the metas built inside it. */
+interface TabPage { key: string; title: string; children: Meta[] }
+/** The normalized control meta — ONE shape for every control type, derived from a schema
+ *  value or a [data-tw] dataset and consumed by every constructor. The per-type fields
+ *  are optional (a constructor reads the ones its type carries); the common three are
+ *  always set. `value` is the authored default in the control's own shape — a number, a
+ *  [lo, hi] tuple, a spring config, a stop list — which the constructor validates. */
+interface Meta {
+  type: string; key: string; label: string;
+  value?: any; // the control's own value shape, host-authored; each constructor checks what it accepts
+  // Per-control options (ControlOptions), attached by metaFor.
+  render?: (get: Get) => boolean; disabled?: boolean | ((get: Get) => boolean); hint?: string;
+  // Ranges — slider, number, interval, monitor.
+  min?: number; max?: number; step?: number; soft?: boolean;
+  // Single-select — list, radiogrid.
+  options?: Option[]; cols?: number;
+  // Text.
+  rows?: number; placeholder?: string;
+  // Spring (also tolerated top-level, beside the normalized `value`).
+  mode?: "time" | "physics"; stiffness?: number; damping?: number; mass?: number; visualDuration?: number; bounce?: number;
+  // Point.
+  components?: PointComponent[]; pad?: boolean; invertY?: boolean;
+  // Plot.
+  expr?: string; fn?: ((x: number) => number) | null; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean;
+  // Monitor.
+  get?: () => number | string; graph?: boolean; view?: "graph" | "text"; interval?: number; decimals?: number;
+  // Button / button group.
+  action?: () => void; buttons?: Record<string, () => void> | Array<{ label: string; action: () => void }>;
+  // Folder / tabs.
+  children?: Meta[]; pages?: TabPage[];
+}
+/** A verbose handler's result: the control's own fields (type / key / label are stamped
+ *  on by baseMetaFor, and a handler may override the type), or falsy for a malformed shape. */
+type MetaFields = Partial<Meta> | false;
 
 // Parse one schema entry → a control meta. Returns null for unknown shapes.
 // Per-control options (render / disabled / hint) ride on any object-form value; the
 // wrapper attaches them to whatever control baseMetaFor infers.
-function metaFor(key, value, depth = 0) {
+// `value` is the host's schema value — any shape at all, inspected field by field (the
+// public SchemaValue is what a well-formed one looks like; the derivation tolerates the
+// rest), so the inspection layer takes it as `any` rather than casting at every read.
+function metaFor(key: string, value: any, depth = 0): Meta | null {
   if (isReservedKey(key)) return null;
   const meta = baseMetaFor(key, value, depth);
   if (meta && value && typeof value === "object") {
@@ -21,18 +61,19 @@ function metaFor(key, value, depth = 0) {
   return meta;
 }
 // True for an object-form schema value (the verbose `{ type, … }` shapes).
-const isObj = (v) => v && typeof v === "object";
+const isObj = (v: unknown) => v && typeof v === "object";
 // Own-key lookup for objects used as maps — a stray key like "toString" must miss,
-// not hit Object.prototype (the dispatch tables + params bags below).
-const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+// not hit Object.prototype (the dispatch tables + params bags below). A type guard, so
+// a hit narrows the key to the table's own (the typed dispatch tables index by it).
+const hasOwn = <T extends object>(o: T, k: PropertyKey): k is keyof T => Object.prototype.hasOwnProperty.call(o, k);
 // params is an object-as-map: a schema key or a set() path segment by one of these names
 // would write through to Object.prototype, so both entry points refuse it outright.
-const isReservedKey = (k) => k === "__proto__" || k === "constructor" || k === "prototype";
+const isReservedKey = (k: string) => k === "__proto__" || k === "constructor" || k === "prototype";
 // Did a value actually change? Identity for primitives; structural (JSON) for the
 // object-valued controls (spring/point/gradient/bezier), whose get() returns a fresh
 // object each call. Gates notify() so a same-value set()/emit can't echo — an on()
 // listener mirroring values back into the panel recursed to stack exhaustion without it.
-const valueChanged = (a, b) => a !== b && !(isObj(a) && isObj(b) && JSON.stringify(a) === JSON.stringify(b));
+const valueChanged = (a: unknown, b: unknown) => a !== b && !(isObj(a) && isObj(b) && JSON.stringify(a) === JSON.stringify(b));
 // Put a control back to its default: the form it OPENED on (its own get() at build — the
 // state the constructor made of the schema value, so it covers a value set() can't take
 // as-is: an unusable number, a numeric text, a spring mode the value alone doesn't fix),
@@ -40,7 +81,7 @@ const valueChanged = (a, b) => a !== b && !(isObj(a) && isObj(b) && JSON.stringi
 // colour re-parses to the same colour where its opened form is the readout's rounded
 // string; a spring restores both of its mode caches). One rule for the panel's reset
 // paths and the markup toolbar's.
-const restoreDefault = (ctrl, raw, def) => { ctrl.set(def); ctrl.set(raw); };
+const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) => { ctrl.set(def); ctrl.set(raw); }; // a control, or the panel's entry for one
 
 // ── Verbose `{ type: "…" }` forms — one handler per control type, returning only the
 // control's own fields: baseMetaFor stamps `type` (the value's), `key` and `label` on
@@ -54,7 +95,7 @@ const restoreDefault = (ctrl, raw, def) => { ctrl.set(def); ctrl.set(raw); };
 // disabled / hint / step) the array/boolean shorthands can't.
 // "segmented" is kept as an alias: picking one of a list renders as the radio grid (the
 // nicer-looking single-select). The inline pill is reserved for booleans.
-const radiogridMeta = (v) => Array.isArray(v.options) && { type: "radiogrid", options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
+const radiogridMeta = (v: any): MetaFields => Array.isArray(v.options) && { type: "radiogrid", options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
 // The colour a `{ type: "color" }` / [data-tw="color"] opens on when none is given — it
 // lives on the meta (not only in the picker's own fallback) so reset() restores it rather
 // than handing the control `undefined`, which parsed as black.
@@ -63,19 +104,20 @@ const DEFAULT_COLOR = "#7c5cff";
 // the range must contain, the way the bare-number shorthand does (defaultRange) — so
 // `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`, and an interval's ends each
 // widen it. (Both used to default to 0–1 and clamp a 50 to 1.) Step defaults to the grain.
-const rangeOf = (v, ...seeds) => {
+const rangeOf = (v: any, ...seeds: unknown[]) => {
   const ranges = (seeds.length ? seeds : [0]).map((s) => defaultRange(Number.isFinite(+s) ? +s : 0));
   const min = v.min ?? Math.min(...ranges.map((r) => r[0])), max = v.max ?? Math.max(...ranges.map((r) => r[1]));
   return { min, max, step: v.step ?? inferStep(min, max) };
 };
 // A verbose form's own `label` wins over the title-cased key — `??` semantics, so an
 // explicit "" (= no label) survives where `||` fell back to the key.
-const ownLabel = (v, label) => (v.label == null ? label : String(v.label));
+const ownLabel = (v: any, label: string) => (v.label == null ? label : String(v.label));
 // Typed against the public SchemaObject union, so tsc itself flags a control type
 // added to types.ts but missing here (or a stray key with no public form). "button"
 // is the one exception — it has no handler because the `{ action }` shorthand
-// inference below already covers the verbose form.
-const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth: number) => any> = {
+// inference below already covers the verbose form. (`v` is the host's object form,
+// inspected as metaFor's `value` is.)
+const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth: number) => MetaFields> = {
   slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft }; },
   number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
   checkbox: (v) => ({ value: !!v.value }),
@@ -103,8 +145,8 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
     if (!Array.isArray(v.components) || !v.components.length) return false;
     // A component without a key takes its label (lower-cased, the markup convention) or its
     // index — a missing key used to land on params as the literal "undefined".
-    const components = v.components.map((c, k) => ({ ...c, key: c.key ?? (c.label != null ? String(c.label).toLowerCase() : `c${k}`) }));
-    return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c) => [c.key, c.value ?? 0])) }; // `value` = the default component map, so reset() / double-click-reset can restore it
+    const components = v.components.map((c: any, k: number) => ({ ...c, key: c.key ?? (c.label != null ? String(c.label).toLowerCase() : `c${k}`) }));
+    return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) }; // `value` = the default component map, so reset() / double-click-reset can restore it
   },
   gradient: (v) => ({ value: v.value ?? v.stops ?? null }),
   image: (v) => ({ value: v.value || "" }),
@@ -122,7 +164,7 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
   // one params subtree (the second used to overwrite the first, losing its values).
   tabs: (v, depth) => {
     if (!v.pages || typeof v.pages !== "object" || !Object.keys(v.pages).length) return false; // no pages is nothing to show, not an empty bar
-    const used = new Set();
+    const used = new Set<string>();
     return { pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => {
       const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "tab";
       let k = base, n = 2; while (used.has(k)) k = `${base}-${n++}`; used.add(k);
@@ -131,20 +173,20 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
   },
 };
 
-function baseMetaFor(key, value, depth = 0) {
+function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   if (depth > 64) return null; // a pathologically deep schema degrades to skipped controls instead of a RangeError out of tweaks()
   const label = titleCase(key);
   // Every meta carries type / key / label; a handler's own fields ride on top (and may
   // override the type — segmented renders as the radio grid).
-  const meta = (type, fields, lab = label) => ({ type, key, label: lab, ...fields });
+  const meta = (type: string, fields: Partial<Meta>, lab = label): Meta => ({ type, key, label: lab, ...fields });
   if (isObj(value) && !Array.isArray(value) && hasOwn(TYPED_META, value.type)) { // own key only, so a stray type like "toString" can't hit Object.prototype
     // A handler that THROWS on a malformed shape (a null components entry, pages: { A: null })
     // or returns nothing for one (components: null, pages: {}) degrades to skipping that
     // control — not a TypeError out of tweaks() that drops the whole panel, and not a folder.
     // The label is resolved here, once, so every verbose form honors `{ label }`; a plain
     // folder object is not a verbose form, so its `label` key stays a child control.
-    let fields;
-    try { fields = TYPED_META[value.type](value, depth); }
+    let fields: MetaFields;
+    try { fields = TYPED_META[value.type as keyof typeof TYPED_META](value, depth); } // own key, per the hasOwn guard above (a guard can't narrow a property of an `any`)
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
     if (!fields) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped`); return null; }
     return meta(String(value.type), fields, ownLabel(value, label)); // the canonical string: a String object or one-element array coerces through the table lookup but would miss the identity checks downstream (m.type === "tabs", VALUELESS.has)
@@ -183,7 +225,7 @@ function baseMetaFor(key, value, depth = 0) {
 }
 // Display/action controls — they carry no value, so the panel build skips the
 // entry/reset/persist wiring for them.
-const VALUELESS = new Set(["button", "fpsgraph", "monitor", "buttongroup", "separator"]);
+const VALUELESS = new Set<string>(["button", "fpsgraph", "monitor", "buttongroup", "separator"]);
 // ── Markup-driven enhancement (the showcase: minimal [data-tw] hosts → live control) ──
 // Each [data-tw] type parses its dataset into the same verbose schema value the
 // TYPED_META table (and shorthand inference) consume, then rides metaFor — ONE meta
@@ -192,7 +234,7 @@ const VALUELESS = new Set(["button", "fpsgraph", "monitor", "buttongroup", "sepa
 // readout while the schema path defaulted to the first option).
 // Partial over the same public union: every markup type must be a real control type
 // (tsc flags a typo'd key), but not every control needs a markup form.
-const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: any, host: any, label: string) => any>> = {
+const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: HTMLElement, label: string) => object>> = {
   slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft) }), // absent bounds derive from the value in the verbose handler, as on the schema path (this table used to pin 0–100)
   // A list of options is a single-select → radio grid; a bare checkbox is boolean.
   checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
@@ -218,10 +260,10 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: any, host: any, label
   },
   plot: (d) => ({ expr: d.expr, xMin: num(d.xmin), xMax: num(d.xmax), yMin: num(d.ymin), yMax: num(d.ymax), samples: num(d.samples), editable: d.editable !== "false" }),
 };
-const num = (s) => { if (s == null || s === "") return undefined; const n = +s; return Number.isFinite(n) ? n : undefined; }; // an absent, empty or non-numeric attribute → undefined, so the schema default applies (a NaN used to survive `??` and collapse an interval's range)
-const flag = (s) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
-const splitList = (s) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
-const dataMeta = (host) => {
+const num = (s: string | undefined) => { if (s == null || s === "") return undefined; const n = +s; return Number.isFinite(n) ? n : undefined; }; // an absent, empty or non-numeric attribute → undefined, so the schema default applies (a NaN used to survive `??` and collapse an interval's range)
+const flag = (s: string | undefined) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
+const splitList = (s: string | undefined) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
+const dataMeta = (host: HTMLElement) => {
   const d = host.dataset, type = d.tw;
   if (!hasOwn(DATA_VALUE, type)) return null;
   const label = d.label ?? titleCase(d.key || type); // an explicit data-label="" means no label, like the schema's `label: ""`
@@ -234,3 +276,4 @@ const dataMeta = (host) => {
 };
 
 export { metaFor, dataMeta, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS, TYPED_META, DATA_VALUE };
+export type { Meta, TabPage, PointComponent };
