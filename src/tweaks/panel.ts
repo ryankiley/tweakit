@@ -3,13 +3,13 @@
  * undo, the filter, floating drag, and the lazy-window replay all live here. */
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, setCollapsed,
-  applyThemeVars, resolveTheme, carryScheme, onLive, quietFocus, fuzzyMatch,
+  applyThemeVars, resolveTheme, carryScheme, onLive, requestReflow, quietFocus, fuzzyMatch,
   REDUCE_MOTION, getControl,
 } from "./shared.js";
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNow, addHintMarker } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params } from "./types.js";
 
@@ -61,8 +61,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // directly (the button is `disabled` until assemble(), and .click() is a no-op on a
   // disabled control, which silently swallowed every reset() made in the lazy window)
   // and so the queued replay below can too. Per-entry isolation like applySnapshot.
+  // opts.onReset replaces the default; a reset() called from INSIDE it performs the
+  // default instead of re-entering the hook (doReset → onReset → reset() → doReset → …
+  // used to recurse until the stack blew — the hook that wraps the default is the
+  // obvious thing to write).
+  let inOnReset = false;
   const doReset = () => {
-    if (typeof opts.onReset === "function") return opts.onReset();
+    if (typeof opts.onReset === "function" && !inOnReset) {
+      inOnReset = true;
+      try { return opts.onReset(); } finally { inOnReset = false; }
+    }
     for (const e of entries) {
       try { assignDefault(e); }
       catch (err) { console.error(`[tweaks] resetting "${e.path.join(".")}" failed — control skipped:`, err); }
@@ -162,10 +170,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Per-control reset: double-click a control's label (or the slider's value
   // readout — its label is a pointer-events:none overlay) to revert just that
   // control to the default it was built with. Complements the whole-panel reset.
+  // The target is the control's label (LABEL_SEL — the same list the hint marker homes
+  // on, so the two can't drift), or the whole root for a label-less control.
   const resetEntry = (e) => { assignDefault(e); params._last = e.key; notify(); };
   const wireReset = (root, entry) => {
     const t = root.querySelector(".tw-slider-value")
-      || root.querySelector(".tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label")
+      || root.querySelector(LABEL_SEL)
       || root;
     t.classList.add("tw-resettable"); t.title = "Double-click or hold to reset";
     // Coarse pointers get a press-and-hold reset — the desktop double-click fights
@@ -186,7 +196,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     t.addEventListener("pointerleave", cancelHold);
     t.addEventListener("contextmenu", (e) => { if (held) e.preventDefault(); }); // a long-press mustn't raise the text callout
     t.addEventListener("click", (e) => { if (held) { e.preventDefault(); e.stopImmediatePropagation(); held = false; } }, true); // a completed hold-reset swallows the trailing tap-to-edit
-    t.addEventListener("dblclick", (e) => { e.preventDefault(); e.stopPropagation(); resetEntry(entry); });
+    t.addEventListener("dblclick", (e) => {
+      if (t === root && e.target.closest && e.target.closest("input, textarea")) return; // on the whole-root fallback, a double-click inside a text field is a word-select, not a reset
+      e.preventDefault(); e.stopPropagation(); resetEntry(entry);
+    });
     // The slider's readout is BOTH the reset target and the click-to-type trigger, and
     // the two collided: once an 800ms hover armed editing — exactly what a deliberate
     // double-click does first — click #1 swapped the readout for the inline input, so the
@@ -282,14 +295,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const byKey = new Map(); for (const e of entries) if (!byKey.has(e.key)) byKey.set(e.key, e); // first wins, like the find() it replaces
     const getVal = (k) => { const e = byKey.get(k); return e ? e.target[e.key] : params[k]; };
     const applyConditionals = () => {
+      let revealed = false;
       for (const { node, m } of conditionals) {
         // A throwing render/disabled predicate degrades to "leave the node as-is"
         // rather than aborting construction or the whole notify() pass.
         try {
-          if (m.render) node.classList.toggle("tw-cond-hidden", !m.render(getVal));
+          if (m.render) { const hide = !m.render(getVal); if (!hide && node.classList.contains("tw-cond-hidden")) revealed = true; node.classList.toggle("tw-cond-hidden", hide); }
           if (m.disabled != null) { const d = typeof m.disabled === "function" ? m.disabled(getVal) : m.disabled; node.classList.toggle("is-disabled", !!d); node.inert = !!d; } // inert blocks keyboard + focus too, not just the CSS pointer-events
         } catch {}
       }
+      if (revealed) requestReflow(); // a control built behind a false render condition measured 0×0 (blank canvas/SVG, a stuck pill) — once shown, let it re-measure, as a tab page does
     };
     listeners.add(applyConditionals); applyConditionals();
   }
@@ -298,16 +313,24 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   if (filterOn) {
     const applyFilter = (raw) => {
       const q = raw.trim().toLowerCase();
-      if (!q) { filterItems.forEach((i) => i.el.classList.remove("tw-filter-hidden")); filterFolders.forEach((f) => f.el.classList.remove("tw-filter-hidden")); return; }
-      for (const it of filterItems) {
-        const folderMatch = it.folder && fuzzyMatch(it.folder.label, q);
-        it.el.classList.toggle("tw-filter-hidden", !(fuzzyMatch(it.label, q) || folderMatch));
+      // Track reveals: a control hidden by the filter measured 0×0 if it was built or
+      // resized meanwhile, so an un-hide re-measures it (requestReflow), like a reveal
+      // by render condition or tab page.
+      let revealed = false;
+      const show = (node, hide) => { if (!hide && node.classList.contains("tw-filter-hidden")) revealed = true; node.classList.toggle("tw-filter-hidden", hide); };
+      if (!q) { filterItems.forEach((i) => show(i.el, false)); filterFolders.forEach((f) => show(f.el, false)); }
+      else {
+        for (const it of filterItems) {
+          const folderMatch = it.folder && fuzzyMatch(it.folder.label, q);
+          show(it.el, !(fuzzyMatch(it.label, q) || folderMatch));
+        }
+        // innermost folders first, so an outer folder sees its children's resolved state
+        for (const f of filterFolders.slice().reverse()) {
+          const hasChild = [...f.body.children].some((ch) => !ch.classList.contains("tw-filter-hidden"));
+          show(f.el, !(fuzzyMatch(f.label, q) || hasChild));
+        }
       }
-      // innermost folders first, so an outer folder sees its children's resolved state
-      for (const f of filterFolders.slice().reverse()) {
-        const hasChild = [...f.body.children].some((ch) => !ch.classList.contains("tw-filter-hidden"));
-        f.el.classList.toggle("tw-filter-hidden", !(fuzzyMatch(f.label, q) || hasChild));
-      }
+      if (revealed) requestReflow();
     };
     const exitSearch = () => { panel.classList.remove("is-searching"); searchInput.value = ""; applyFilter(""); };
     searchBtn.addEventListener("click", () => { if (panel.classList.toggle("is-searching")) { searchInput.focus(); searchInput.select(); } else exitSearch(); });
@@ -335,8 +358,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     params._last = undefined; if (fire) notify();
   };
   if (persistKey) {
-    let saveT; persist = () => { clearTimeout(saveT); saveT = setTimeout(() => writeStore(persistKey, snapshot()), 150); };
-    cleanups.push(() => clearTimeout(saveT));
+    let saveT: any = 0;
+    const save = () => { saveT = 0; writeStore(persistKey, snapshot()); };
+    persist = () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };
+    // destroy() flushes a pending write rather than dropping it — the last edit before a
+    // teardown (an SPA route change right after a tweak) used to vanish with the timer.
+    cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
     // Restore last session, notifying: on the lazy path assemble runs after tweaks()
     // returned, so a host that already subscribed must hear the restored values (on the
     // synchronous path nobody is subscribed yet, so the notify is free).
@@ -550,10 +577,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
     redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
     const focused = () => panel.matches(":hover") || panel.contains(document.activeElement);
+    // A text field owns its own undo: ⌘Z with the caret in the text control, the filter
+    // input, a preset name or the plot's expression stays native (the panel's history
+    // used to swallow it there and kill the field's edit undo).
+    const inTextField = (t) => !!(t && t.matches && (t.matches("input, textarea") || t.isContentEditable));
     // Self-cleaning (the listener used to hold the whole panel + history alive forever),
     // and released eagerly by destroy().
     cleanups.push(onLive(panel, [[document, "keydown"]], (e) => {
-      if (!focused() || !(e.metaKey || e.ctrlKey)) return;
+      if (!focused() || !(e.metaKey || e.ctrlKey) || inTextField(e.target)) return;
       const k = e.key.toLowerCase();
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
@@ -588,11 +619,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       e = t && entries.find((x) => x.target === t && x.key === parts[parts.length - 1]);
       if (!e) { console.warn(`[tweaks] set("${key}") — no control at that path`); return false; }
     } else {
-      // Bare key — a unique match anywhere reaches nested controls without a path;
-      // ambiguity warns instead of guessing (and instead of minting an orphan top-level key).
+      // Bare key — a top-level control by that name wins outright (a top-level key has no
+      // dotted form, so nothing else could ever reach it); otherwise a unique match anywhere
+      // reaches a nested control without a path, and ambiguity between nested namesakes
+      // warns instead of guessing (and instead of minting an orphan top-level key).
       const matches = entries.filter((x) => x.key === key);
-      if (matches.length > 1) { console.warn(`[tweaks] set("${key}") is ambiguous — ${matches.length} controls share that key; use a dotted path (e.g. "${matches[0].path.join(".")}")`); return false; }
-      e = matches[0];
+      const top = matches.find((x) => x.target === params);
+      if (!top && matches.length > 1) { console.warn(`[tweaks] set("${key}") is ambiguous — ${matches.length} controls share that key; use a dotted path (e.g. "${matches[0].path.join(".")}")`); return false; }
+      e = top || matches[0];
     }
     const target = e ? e.target : params, leaf = e ? e.key : key;
     const prev = target[leaf];
@@ -654,14 +688,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Presets API (no-ops without opts.persist). Names are arbitrary strings.
     savePreset: (nm) => !destroyed && savePreset(nm), loadPreset: (nm) => !destroyed && loadPreset(nm), deletePreset: (nm) => { if (!destroyed) deletePreset(nm); }, presets: () => (destroyed ? [] : Object.keys(listPresets())),
     undo: () => { if (!destroyed) undo(); }, redo: () => { if (!destroyed) redo(); }, // no-ops without opts.undo
-    // Teardown: close any open portaled surface, release every global attachment, pull
-    // the panel (and the lift placeholder) out of the DOM, and inert the API. Safe to
-    // call before ready resolves — assemble() sees the flag and bails.
+    // Teardown: close this panel's open portaled surfaces, release every global
+    // attachment, pull the panel (and the lift placeholder) out of the DOM, and inert the
+    // API. Safe to call before ready resolves — assemble() sees the flag and bails.
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      closeActivePopover(); // popovers are globally single-open, so whichever is up closes (idempotent if it isn't this panel's)
-      hideHintNow();
+      closeActivePopover(panel); // the popover + hint are page-wide singletons: scope the close to a surface anchored in THIS panel (an unscoped close dismissed another panel's open menu or picker)
+      hideHintNow(panel);
       for (const fn of cleanups.splice(0)) { try { fn(); } catch {} }
       listeners.clear();
       if (liftSlot) { liftSlot.remove(); liftSlot = null; }

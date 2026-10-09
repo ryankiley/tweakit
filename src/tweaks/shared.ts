@@ -132,14 +132,23 @@ const onReady = (fn) => { requestAnimationFrame(fn); if (document.fonts && docum
 // Listen on global targets (window / document / a media query) for a DOM-bound owner:
 // the first event arriving after the owner has left the document drops the whole
 // listener set — the kit-wide self-cleaning idiom (sliders re-rendering their dodge on
-// resize, canvases re-fitting, the floating panel's viewport clamp). Returns the
-// release fn for owners that also tear down eagerly (panel.destroy()).
+// resize, canvases re-fitting, the floating panel's viewport clamp). "Left" means it was
+// connected once: an event in the window between build and the host's append (a second
+// panel built but not yet mounted, a resize mid-construction) is skipped, not fatal — it
+// used to unsubscribe permanently, so the owner mounted deaf. Returns the release fn
+// for owners that also tear down eagerly (panel.destroy()).
 const onLive = (owner: any, targets: Array<[any, string]>, fn: (e?: any) => void) => {
-  const h = (e) => { if (!owner.isConnected) return off(); fn(e); };
+  let mounted = owner.isConnected;
+  const h = (e) => { if (!owner.isConnected) { if (mounted) off(); return; } mounted = true; fn(e); };
   const off = () => targets.forEach(([t, ev]) => t.removeEventListener(ev, h));
   targets.forEach(([t, ev]) => t.addEventListener(ev, h));
   return off;
 };
+// Ask every measured surface (canvas/SVG controls, the segmented + tabs pills, the
+// slider dodge) to re-measure next frame — the owner of a display:none → shown flip
+// (a tab page, a render condition, the filter) dispatches it once the box is real.
+// Namespaced, not a real "resize": host pages listen to that.
+const requestReflow = () => requestAnimationFrame(() => window.dispatchEvent(new Event("tw-reflow")));
 // Toggle .is-hover while the pointer is over a node; onEnter runs on entry (the slider
 // + interval re-render their value-dodge with the real track width on first hover).
 const wireHoverClass = (el, onEnter) => {
@@ -322,8 +331,11 @@ const carrySkin = (portal, anchor) => { applyThemeVars(portal, anchor?.closest("
 // Esc / scroll-away. Globally single-open — opening any popover closes whichever
 // other one is up. onOpen runs once it's placed at real size (then it re-places,
 // so content rendered in onOpen is measured); onReflow on scroll/resize while open.
-let activePopoverClose: null | (() => void) = null;
-const closeActivePopover = () => { if (activePopoverClose) activePopoverClose(); }; // panel teardown closes whichever popover is up
+let activePopoverClose: null | (() => void) = null, activePopoverTrigger: any = null;
+// Panel teardown closes the open popover — but only its own: with `owner` given, the
+// close runs only when the open popover's trigger lives inside it (destroying panel A
+// used to dismiss the menu or picker open on panel B). No owner closes whichever is up.
+const closeActivePopover = (owner?: any) => { if (activePopoverClose && (!owner || owner.contains(activePopoverTrigger))) activePopoverClose(); };
 function popover(root: any, trigger: any, pop: any, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void } = {}) {
   let open = false, schemeObs: any = null;
   pop.classList.add("tw-portal"); // the reduced-motion kill-switch + portal-wide rules key off this
@@ -346,7 +358,7 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
   const onScheme = (recs) => { if (!recs.every((r) => r.target === pop)) recarry(); };
   const openPop = () => {
     if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open popover first
-    activePopoverClose = close;
+    activePopoverClose = close; activePopoverTrigger = trigger;
     open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
     document.body.appendChild(pop);
     carrySkin(pop, root); // the host panel's theme + winning scheme, neither of which the cascade can deliver to <body>
@@ -366,7 +378,7 @@ function popover(root: any, trigger: any, pop: any, opts: { width?: number | "ma
     window.addEventListener("scroll", reflow, true); window.addEventListener("resize", reflow);
   };
   const close = () => {
-    if (activePopoverClose === close) activePopoverClose = null;
+    if (activePopoverClose === close) { activePopoverClose = null; activePopoverTrigger = null; }
     // Focus stranded inside the pop (picking an option, loading a preset) returns to the
     // trigger before the node is removed; an outside click that already moved focus keeps it.
     if (pop.contains(document.activeElement)) trigger.focus();
@@ -432,12 +444,18 @@ const measurePill = (container, pill, animate?) => {
 // clip-faded) controls leave the tab order + a11y tree while hidden. Synchronous, so it's
 // correct under reduced-motion too.
 const setCollapsed = (root, toggle, body, c) => { root.classList.toggle("is-collapsed", c); toggle.setAttribute("aria-expanded", String(!c)); body.inert = c; };
-// The index of the button whose (stringified — dataset) value is the active one, or −1.
-const activeIndex = (btns, value) => btns.findIndex((b) => b.dataset.value === String(value));
+// The index of the button whose (stringified — dataset) value is the active one — or,
+// when none matches (a value no option carries), the first button: the group's roving
+// tab stop and keyboard start point. Only an empty group gives −1. A no-match group
+// used to put every button at tabIndex −1 and bail out of its keydown, so it fell out
+// of the tab order entirely.
+const activeIndex = (btns, value) => { const i = btns.findIndex((b) => b.dataset.value === String(value)); return i < 0 && btns.length ? 0 : i; };
 // Reflect a single-select value onto a radio group's buttons: data-active (paint),
 // aria-checked (semantics), and a roving tabindex so Tab lands on the selected one
 // and arrow keys move within the group. Shared by the segmented control + radio grid.
-const setRadioActive = (btns, value) => btns.forEach((b) => { const on = b.dataset.value === String(value); b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = on ? 0 : -1; });
+// Paint + semantics follow the real match (nothing lights up when nothing matches);
+// the tab stop follows activeIndex's fallback.
+const setRadioActive = (btns, value) => { const stop = activeIndex(btns, value); btns.forEach((b, k) => { const on = b.dataset.value === String(value); b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = k === stop ? 0 : -1; }); };
 // A single-select radio button — the segmented pill and the radio-grid cell wire the
 // role + value + click identically; only the class and container differ. onPick(value).
 // _twVal carries the option's real value — dataset stringifies, so a keyboard pick
@@ -593,7 +611,7 @@ export const getControl = (type) => REGISTRY[type];
 export {
   titleCase, clamp, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
-  optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive,
+  optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
   numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE,

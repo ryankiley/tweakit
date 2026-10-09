@@ -87,7 +87,9 @@ function showToast(msg, anchor?) {
 // above its anchor, flipping below when there's no room. Pointer-transparent.
 let hintTip = null, hintTimer = 0, hintAnchor = null;
 const onHintKey = (e) => { if (e.key === "Escape") hideHintNow(); }; // bound only while the tip is open — WCAG 1.4.13, the hover content is dismissable
-const hideHintNow = () => { clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
+// With `owner` given (panel.destroy()), only a tip anchored inside it hides — the tip is
+// one shared node, and tearing down panel A used to dismiss the hint open on panel B.
+const hideHintNow = (owner?: any) => { if (owner && hintAnchor && !owner.contains(hintAnchor)) return; clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
 function showHint(anchor, text) {
   if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); }
   if (!hintTip.isConnected) document.body.appendChild(hintTip); // as the toast: re-home after a body replacement
@@ -108,11 +110,16 @@ function showHint(anchor, text) {
   if (!wasOpen) requestAnimationFrame(function watch() { if (!hintTip.classList.contains("is-open")) return; if (!hintAnchor.isConnected) return hideHintNow(); requestAnimationFrame(watch); });
 }
 function hideHint() { if (hintTip) { clearTimeout(hintTimer); hintTimer = setTimeout(hideHintNow, 80); } } // a short grace, so a pointer crossing marker → tip doesn't flicker it; one pending hide at a time (a leave then a blur queued two, and a re-enter cleared only the second)
+// Every control's label element, by class — the one list behind the hint marker's home
+// AND the per-control reset target (panel.ts wireReset). They drifted once: the reset
+// list lacked .tw-plot-label, so the plot's reset fell back to its whole root and a
+// double-click in the expression input wiped the expression.
+const LABEL_SEL = ".tw-slider-label, .tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label";
 // A control's `hint` becomes a visible ⓘ marker beside its label that reveals the
 // text in the tooltip on hover/focus — discoverable and keyboard-reachable, unlike
 // the old native `title`. Shared by the panel build (registerCond) and enhance().
 function addHintMarker(node: any, hint: string) {
-  const label = node.querySelector(".tw-slider-label, .tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label") || node;
+  const label = node.querySelector(LABEL_SEL) || node;
   // The select-trigger / folder-header / colour-gradient-point trigger wrap their label
   // in a <button>, which can't legally contain interactive content. Inside one, the ⓘ is
   // a decorative, non-focusable marker (still reveals the tip on hover for mouse users)
@@ -150,4 +157,4 @@ async function copyText(text) {
   return ok;
 }
 
-export { toolbarBtn, makeCopyBtn, makeResetBtn, spinReset, showToast, hideHintNow, addHintMarker };
+export { toolbarBtn, makeCopyBtn, makeResetBtn, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL };
