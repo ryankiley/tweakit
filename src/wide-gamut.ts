@@ -17,7 +17,10 @@ const mulMat = (a, b) => {
   for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) o[i][j] = a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j];
   return o;
 };
-export const num = (x) => (x == null || Number.isNaN(x) ? 0 : x);
+// A channel is a finite number or it is 0: null, NaN and ±Infinity all fall to 0. Infinity
+// used to pass (only NaN was caught), and an infinite chroma from `oklch(0.5 1e999 0)` rode
+// into toGamut's bisection, whose ceiling then never came down — a hung tab.
+export const num = (x) => (Number.isFinite(x) ? x : 0);
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
 // ── transfer functions ──
@@ -136,6 +139,10 @@ const deltaEOK = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 export function toGamut(oklch, dest) {
   if (inGamut(oklch, dest)) return convert(oklch, "oklch", dest);
   const L = oklch[0]; if (L >= 1) return [1, 1, 1]; if (L <= 0) return [0, 0, 0];
+  // An unbounded chroma can't be bisected (the ceiling never comes down) — fall to the
+  // achromatic color at this lightness instead of spinning. The parsers clamp chroma
+  // before it gets here; this is the last line, not the first.
+  if (!Number.isFinite(oklch[1])) return clip(convert([L, 0, num(oklch[2])], "oklch", dest));
   const JND = 0.02, EPS = 0.0001; const cur = [oklch[0], oklch[1], oklch[2]];
   let min = 0, max = oklch[1], minIn = true, clipped = clip(convert(cur, "oklch", dest));
   if (deltaEOK(convert(clipped, dest, "oklab"), convert(oklch, "oklch", "oklab")) < JND) return clipped;
@@ -220,7 +227,9 @@ export const modeInterpolation = (mode) => MODE_INTERP[mode] || "oklch";
 // narrow notations; an unknown / absent space falls back to OKLCH, the editor default.
 const INTERP_MODE = Object.assign(Object.create(null), { srgb: "srgb", hsl: "hsl", hwb: "hwb", oklch: "oklch", oklab: "oklab", lch: "lch", lab: "lab", "display-p3": "p3", rec2020: "rec2020" });
 export const interpolationMode = (interp) => INTERP_MODE[interp] || "oklch";
-const MAX_CHROMA = 0.5;
+/** The picker's chroma ceiling — the C field's max, and the cap the color parser
+ * applies to any chroma it reads, so a pathological input can't exceed what the UI shows. */
+export const MAX_CHROMA = 0.5;
 // RGB channel triples: 0–255 display units for the sRGB notations, 0–1 for the wide spaces.
 // Each is shared by two modes (srgb/css, p3/rec2020) and frozen, so a one-mode tweak can't
 // silently leak into its twin.

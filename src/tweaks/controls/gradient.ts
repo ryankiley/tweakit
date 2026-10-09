@@ -1,7 +1,7 @@
 // ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the colour
 // module (reuses its picker body, parseColor, and oklchStr).
 import { el, btn, dragGesture, clamp, popover, triggerRow, registerControl } from "../shared.js";
-import { createPickerBody, parseColor, oklchStr, CHECKER } from "./colour.js";
+import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./colour.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
 
 // ICON_PLUS — adapted from Lucide/Feather `plus` (MIT). See ../../../THIRD-PARTY-NOTICES.md.
@@ -27,11 +27,15 @@ function normalizeStops(value) {
   // Map each entry defensively — a [color, pos] tuple or a { color, pos } object — and
   // drop anything else (a null / garbage element would throw on `.color`); coerce a
   // non-finite pos to 0 and clamp into [0,1] (an out-of-range pos rendered its handle
-  // outside the popover — the drag clamps, so input does too). Fewer than two usable
-  // stops falls back to the default pair.
+  // outside the popover — the drag clamps, so input does too). A stop whose color isn't
+  // a single color token is dropped the same way: stop text goes straight into the
+  // preview's `linear-gradient(…)`, so an unparsed string there could splice in further
+  // background layers (a `url()` — a network fetch from a preset or persisted state).
+  // Fewer than two usable stops falls back to the default pair.
+  const stop = (color, pos) => (isColor(color) ? { color: String(color), pos: clamp(+pos || 0, 0, 1) } : null);
   const out = (arr || []).map((s) => {
-    if (Array.isArray(s)) return { color: String(s[0]), pos: clamp(+s[1] || 0, 0, 1) };
-    if (s && typeof s === "object") return { color: String(s.color), pos: clamp(+s.pos || 0, 0, 1) };
+    if (Array.isArray(s)) return stop(s[0], s[1]);
+    if (s && typeof s === "object") return stop(s.color, s.pos);
     return null;
   }).filter(Boolean);
   return out.length >= 2 ? out : DEF;

@@ -18,15 +18,24 @@ Fixes land on the latest published release. There are no long-term support branc
 
 ## Scope
 
-Tweakit is a **dependency-free, client-side UI library** — it makes no network
-requests, runs no server, and handles no secrets or credentials. The attack surface is
-correspondingly small, but the things worth a careful eye:
+Tweakit is a **dependency-free, client-side UI library** — the kit itself makes no
+network requests, runs no server, and handles no secrets or credentials. The attack
+surface is correspondingly small, but the things worth a careful eye:
 
+- **Values rendered as CSS.** The image and gradient controls paint their values into
+  styles (`url(…)`, `linear-gradient(…)`), and the browser will fetch what a style names.
+  Values restored from presets, persisted storage, or `fromJSON` are therefore treated
+  like any other stored input: image values are escaped as CSS strings, and a gradient
+  stop that isn't a single color token is dropped. Reports of a value that still reaches
+  a style unescaped, or adds a background layer, are in scope.
 - **The plot control's expression evaluator** is a custom, `eval`-free parser with a
-  whitelist, a recursion cap, and an input-length cap (covered by the test suite). Reports
-  of a way to escape it, hang it, or reach arbitrary code are in scope.
+  whitelist and a 512-character input cap, which also bounds its recursion (covered by
+  the test suite). Reports of a way to escape it, hang it, or reach arbitrary code are
+  in scope.
 - **Schema / markup input handling** rejects prototype-polluting keys (e.g. `__proto__`)
-  on the typed-meta and presets paths. Reports of a pollution vector are in scope.
+  on the typed-meta and presets paths, and color parsing clamps its channels so a
+  pathological value (an infinite chroma) can't hang the gamut mapping. Reports of a
+  pollution vector or an input that hangs the panel are in scope.
 - **The docs-site generator** escapes interpolated content; injection through authored
   page content is in scope.
 
