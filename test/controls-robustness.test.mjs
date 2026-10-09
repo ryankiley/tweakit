@@ -83,9 +83,33 @@ test("a malformed verbose control is skipped with a console error, not rendered 
 });
 
 test("a tab titled '' still shows a tab; a point component without a key gets one", () => {
-  const p = tweaks("K", { t: { type: "tabs", pages: { "": { a: 1 } } }, pt: { type: "point", components: [{ label: "X" }, {}] } });
-  assert.equal(p.el.querySelector(".tw-tabs-tab").textContent, "Tab");
-  assert.deepEqual(p.params.pt, { x: 0, c1: 0 });
+  const p = tweaks("K", { t: { type: "tabs", pages: { "": { a: 1 }, "  ": { b: 1 } } }, pt: { type: "point", components: [{ label: "X" }, {}, { label: "" }, { key: "x" }] } });
+  assert.deepEqual([...p.el.querySelectorAll(".tw-tabs-tab")].map((t) => t.textContent), ["Tab", "Tab"]);
+  assert.deepEqual(p.params.pt, { x: 0, c1: 0, c2: 0, "x-2": 0 }, "an empty label falls to the index; a label-derived key dedupes against an explicit one");
+});
+
+test("a folder with a child named `type` is still a folder; only a present-but-unusable form is skipped", async () => {
+  const [p, errors] = await quiet(() => tweaks("F", { marker: { type: "point", size: 3 }, grid: { type: "list", rows: 2 }, bad: { type: "point", components: null } }));
+  assert.deepEqual(p.params.marker, { type: "point", size: 3 });
+  assert.deepEqual(p.params.grid, { type: "list", rows: 2 });
+  assert.equal(p.el.querySelectorAll(".tw-folder").length, 2);
+  assert.ok(!("bad" in p.params));
+  assert.equal(errors.length, 1);
+});
+
+test("a circular object still renders rather than dropping the control", () => {
+  const c = { a: 1 }; c.self = c;
+  const p = tweaks("C", { t: { type: "text", value: c }, l: { type: "list", options: [c, "a"] } });
+  assert.equal(p.el.querySelector(".tw-text").value, "[object Object]");
+  assert.equal(p.el.querySelector(".tw-select-value").textContent, "[object Object]");
+  assert.ok("t" in p.params && "l" in p.params);
+});
+
+test("a fine but representable step keeps its grid", () => {
+  const p = tweaks("G", { s: [0, 0, 1000, 1e-13], iv: [[1, 2], 0, 1e18, 1] });
+  p.set("s", 123.4567);
+  assert.equal(p.params.s, 123.4567);
+  assert.deepEqual(p.params.iv, [1, 2]);
 });
 
 test("odd values show as JSON, never 'undefined' or '[object Object]'", async () => {

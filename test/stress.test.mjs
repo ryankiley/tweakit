@@ -446,6 +446,10 @@ async function runSeed(seed) {
     p = tweaks(`Stress ${seed}`, schema, opts);
     document.body.append(p.el);
     await p.ready;
+    // A control the kit skipped at build (a malformed verbose value) owns no path: a later
+    // set() on its key is the documented bag passthrough, which holds whatever the host
+    // parks, so it's outside the JSON-safe contract the owned paths are checked against.
+    ctx.paths = ctx.paths.filter(({ path }) => { const holder = atPath(p.params, path.slice(0, -1)); return holder != null && typeof holder === "object" && Object.prototype.hasOwnProperty.call(holder, path[path.length - 1]); });
     runFrame();
     checkInvariants(p, ctx, step);
 
