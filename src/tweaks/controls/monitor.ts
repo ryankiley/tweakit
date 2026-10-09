@@ -79,7 +79,8 @@ function createMonitor(meta) {
   const fmt = (v) => (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(meta.decimals ?? 2)) : String(v));
   // Also handed to the panel as the blade's `destroy` — a panel destroyed before it ever
   // connected idles below forever, so it could never clear its own interval on unmount.
-  const stop = () => { if (timer) clearInterval(timer); timer = 0; unwatch(); };
+  let firstFrame = 0;
+  const stop = () => { if (timer) clearInterval(timer); timer = 0; if (firstFrame) cancelAnimationFrame(firstFrame); firstFrame = 0; unwatch(); };
   // "Never mounted yet" (a host appends panel.el after building) idles the tick; only a
   // panel that was mounted and then removed — or a panel.destroy() — stops the poll.
   const poll = (fn) => { timer = setInterval(() => { if (!wrap.isConnected) { if (wasConnected) stop(); return; } wasConnected = true; let v; try { v = get(); } catch { return; } fn(v); }, interval); };
@@ -103,6 +104,9 @@ function createMonitor(meta) {
   const canvas = document.createElement("canvas"); canvas.className = "tw-fps-canvas";
   wrap.append(canvas);
   const ctx = canvas.getContext("2d");
+  // No 2D context (a headless DOM, a blocked canvas) degrades to the text readout; the
+  // poll below still updates it.
+  if (!ctx) { poll((v) => { val.textContent = fmt(v); }); return blade(wrap, stop); }
   const N = 80, samples = new Array(N).fill(NaN);
   let idx = 0, w = 0, h = 0;
   const onResize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
@@ -122,7 +126,7 @@ function createMonitor(meta) {
     strokeSeries(ctx, wrap, w, h, samples, idx, (s) => (s - lo) / span);
   };
   poll((v) => { if (typeof v !== "number") return; samples[idx] = v; idx = (idx + 1) % N; val.textContent = fmt(v); draw(); });
-  requestAnimationFrame(() => { onResize(); draw(); });
+  firstFrame = requestAnimationFrame(() => { firstFrame = 0; onResize(); draw(); }); // held so a destroy() before the first frame cancels it
   return blade(wrap, stop);
 }
 
