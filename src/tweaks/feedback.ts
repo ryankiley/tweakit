@@ -5,16 +5,20 @@
 import { el, btn, carrySkin, placeBelow } from "./shared.js";
 import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 
+/** A toolbar button with its one-shot animation state: the pending timer, the reset
+ *  spin's settle hook and the time of the last click. */
+interface ToolbarBtn extends HTMLButtonElement { _t?: number; _spinSettle?: () => void; _spinT?: number }
+
 // Toolbar buttons shared by the live panel and the markup showcase: one factory
 // (icon button + matching title/aria-label), plus the copy/reset one-shot animations
 // (the copied flash, the reset spin — each stashes its timer on the button as `_t`).
-const toolbarBtn = (cls, icon, label) => { const b = btn("tw-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
+const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => { const b = btn("tw-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
 // Copy: puts `text()` on the clipboard and confirms — the check cross-fades in and a toast
 // (anchored to the panel, so it carries its theme + scheme) names what was copied.
 // Both handlers bail while the button is `disabled` (the panel's lazy window, before its
 // controls exist): a user click never reaches a disabled control, but a synthetic
 // dispatchEvent(click) does, and it must stay as inert as the button reads.
-const makeCopyBtn = (anchor, name, text) => {
+const makeCopyBtn = (anchor: Element, name: string, text: () => string) => {
   const b = toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values");
   b.addEventListener("click", async () => {
     if (b.disabled) return;
@@ -24,8 +28,8 @@ const makeCopyBtn = (anchor, name, text) => {
   return b;
 };
 // Reset: runs `onReset` behind the icon's one-shot spin — motion feedback to match the copy swap.
-const makeResetBtn = (onReset) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
-const flashCopied = (btn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
+const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
+const flashCopied = (btn: ToolbarBtn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
 // Reset spin — an accumulated rotation on --tw-spin, driven by the transform transition
 // (no keyframes): transitions retarget mid-flight, so a second click mid-spin continues
 // smoothly into the next full turn from the current angle instead of snapping back to
@@ -41,7 +45,7 @@ const flashCopied = (btn) => { btn.classList.add("is-copied"); clearTimeout(btn.
 // spin runs ≥500ms from the last click), and the timeout is only a fallback for when no
 // transition runs at all (reduced motion, hidden panel) — it re-arms while one is still
 // live rather than cutting it short.
-const spinReset = (btn) => {
+const spinReset = (btn: ToolbarBtn) => {
   const svg = btn.querySelector("svg");
   if (!btn._spinSettle) {
     btn._spinSettle = () => {
@@ -73,8 +77,8 @@ const spinReset = (btn) => {
 // <body> bottom-centre so it works anywhere the panel is dropped, not only on a host
 // page that happens to have a .toast element. One shared node, tip-style visuals;
 // carries the anchor panel's winning scheme + live theme the way the tip does.
-let toastEl = null, toastTimer = 0;
-function showToast(msg, anchor?) {
+let toastEl: HTMLDivElement | null = null, toastTimer = 0;
+function showToast(msg: string, anchor?: Element) {
   if (!toastEl) { toastEl = el("div", "tw-toast tw-portal"); toastEl.setAttribute("role", "status"); }
   if (!toastEl.isConnected) document.body.appendChild(toastEl); // re-home the singleton after a host replaced <body>'s content (a route change) — every later toast was silent
   toastEl.textContent = msg;
@@ -85,12 +89,12 @@ function showToast(msg, anchor?) {
 // Hint tooltip — one shared, portaled bubble shown by a control's info marker on
 // hover/focus. Portaled to <body> so it clears the panel's overflow clip; sits
 // above its anchor, flipping below when there's no room. Pointer-transparent.
-let hintTip = null, hintTimer = 0, hintAnchor = null;
-const onHintKey = (e) => { if (e.key === "Escape") hideHintNow(); }; // bound only while the tip is open — WCAG 1.4.13, the hover content is dismissable
+let hintTip: HTMLDivElement | null = null, hintTimer = 0, hintAnchor: Element | null = null;
+const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") hideHintNow(); }; // bound only while the tip is open — WCAG 1.4.13, the hover content is dismissable
 // With `owner` given (panel.destroy()), only a tip anchored inside it hides — the tip is
 // one shared node, and tearing down panel A used to dismiss the hint open on panel B.
-const hideHintNow = (owner?: any) => { if (owner && hintAnchor && !owner.contains(hintAnchor)) return; clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
-function showHint(anchor, text) {
+const hideHintNow = (owner?: Element) => { if (owner && hintAnchor && !owner.contains(hintAnchor)) return; clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
+function showHint(anchor: Element, text: string) {
   if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); }
   if (!hintTip.isConnected) document.body.appendChild(hintTip); // as the toast: re-home after a body replacement
   clearTimeout(hintTimer);
@@ -118,7 +122,7 @@ const LABEL_SEL = ".tw-slider-label, .tw-row-label, .tw-select-label, .tw-trigge
 // A control's `hint` becomes a visible ⓘ marker beside its label that reveals the
 // text in the tooltip on hover/focus — discoverable and keyboard-reachable, unlike
 // the old native `title`. Shared by the panel build (registerCond) and enhance().
-function addHintMarker(node: any, hint: string) {
+function addHintMarker(node: Element, hint: string) {
   const label = node.querySelector(LABEL_SEL) || node;
   if (label === node && node.classList.contains("tw-separator")) return; // a divider has no label to carry a marker; one used to sit as a stray ⓘ on the line
   // The select-trigger / folder-header / colour-gradient-point trigger wrap their label
@@ -146,7 +150,7 @@ function addHintMarker(node: any, hint: string) {
   mark.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }); // and (inside a control button) mustn't toggle the parent
   label.appendChild(mark);
 }
-async function copyText(text) {
+async function copyText(text: string) {
   try { await navigator.clipboard.writeText(text); return true; } catch {}
   // Fallback when the clipboard API is blocked (no user activation): the same
   // textarea + execCommand path copy.js uses, so values copy byte-identically.

@@ -11,7 +11,9 @@ import { metaFor, valueChanged, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createControl } from "./controls/basic.js";
 import { addHintMarker } from "./feedback.js";
-import type { SchemaValue, MountOptions, MountedControl, ColorPickerOptions, ColorPicker, ColorMode } from "./types.js";
+import type { SchemaValue, MountOptions, MountedControl, ColorPickerOptions, ColorPicker, ColorMode, Control } from "./types.js";
+import type { Meta } from "./schema.js";
+import type { PickerBody, PickerOptions } from "./controls/colour.js";
 
 // The wrapper a standalone piece lives in. Outside a .tw-panel the cascade delivers none
 // of the kit's tokens, and the controls size and paint from them (a slider track is
@@ -19,12 +21,12 @@ import type { SchemaValue, MountOptions, MountedControl, ColorPickerOptions, Col
 // .tw-portal, the token scope the stylesheet already keeps for nodes that live outside a
 // panel (the popovers, the toast, bare markup hosts): the full token set with its
 // light/dark twins, the font stack, box-sizing, and no panel chrome.
-const scope = (cls) => el("div", `${cls} tw-standalone tw-portal`);
+const scope = (cls: string) => el("div", `${cls} tw-standalone tw-portal`);
 // Run `build` once the lazy module a control needs has landed — synchronously when none
 // is missing (the single build, or a chunk already warm), else behind the returned
 // promise, which rejects if the chunk fails (the handled fork keeps that out of the
 // unhandled-rejection channel for callers that never await it, like panel.ready).
-const whenLoaded = (metas, build, handle) => {
+const whenLoaded = <H>(metas: Array<Pick<Meta, "type">>, build: () => void, handle: H): Promise<H> => {
   const pend = ensureForMetas(metas);
   if (!pend) { build(); return Promise.resolve(handle); }
   const ready = pend.then(build).then(() => handle);
@@ -41,11 +43,11 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
   const valued = !VALUELESS.has(meta.type); // display/action controls carry no value: set/get are inert
   const root = scope("tw-control"); // stable from the start; the control fills it in (on the split build, once its chunk lands)
   host.append(root);
-  let ctrl = null, destroyed = false, last = meta.value, parked, queued = false;
+  let ctrl: Control | null = null, destroyed = false, last: unknown = meta.value, parked: unknown, queued = false;
   // The change path: the control's own emits and the handle's set() both land here, gated
   // the way the panel gates notify() — a same-value set() (a consumer mirroring values
   // back) stays silent instead of echoing.
-  const emit = (v) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v, key); };
+  const emit = (v: unknown) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v, key); };
   const build = () => {
     if (destroyed) return; // destroy() before the chunk landed — nothing to mount
     ctrl = createControl(meta, valued ? emit : () => {});
@@ -71,11 +73,11 @@ export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
   // A wrapper of the kit's own, so the handle's `el` is stable across both builds: on the
   // code-split build the body fills it in once the colour chunk lands.
   const root = scope("tw-color-picker");
-  let body = null, destroyed = false, last = opts.value, parked, queued = false, parkedMode: ColorMode = null;
-  const emit = (v) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v); };
+  let body: PickerBody | null = null, destroyed = false, last = opts.value, parked: string, queued = false, parkedMode: ColorMode = null;
+  const emit = (v: string) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v); };
   const build = () => {
     if (destroyed) return;
-    const make = getControl("colorpicker"); // the picker body, registered by the colour module beside its control
+    const make = getControl<PickerBody, PickerOptions>("colorpicker"); // the picker body, registered by the colour module beside its control
     if (!make) return;
     body = make({ value: opts.value, mode: opts.mode }, emit);
     last = body.get();

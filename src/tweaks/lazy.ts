@@ -2,6 +2,10 @@
  * the schema scan that preloads whatever lazy modules a panel (or an enhance pass)
  * needs before it assembles. */
 import { getControl } from "./shared.js";
+import type { Meta } from "./schema.js";
+
+/** What the preload scan reads off a meta: its type, and the metas nested under it. */
+type MetaNode = Pick<Meta, "type" | "children" | "pages">;
 
 // ── Lazy controls — each maps to a dynamic import of its module, which registers
 // its constructor(s) into the shared registry on load. ensure() kicks the import
@@ -26,8 +30,8 @@ const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
   plot: () => import("./controls/plot.js"),
 } : {};
 const loading: Record<string, Promise<unknown>> = {};
-const ensure = (type) => (getControl(type) || !LAZY_IMPORT[type]) ? null : (loading[type] ||= LAZY_IMPORT[type]().catch((e) => { delete loading[type]; console.error(`[tweaks] control chunk "${type}" failed to load:`, e); throw e; })); // a rejection isn't cached — a later panel retries the chunk
-const scanTypes = (metas, set = new Set()) => {
+const ensure = (type: string) => (getControl(type) || !LAZY_IMPORT[type]) ? null : (loading[type] ||= LAZY_IMPORT[type]().catch((e) => { delete loading[type]; console.error(`[tweaks] control chunk "${type}" failed to load:`, e); throw e; })); // a rejection isn't cached — a later panel retries the chunk
+const scanTypes = (metas: MetaNode[], set = new Set<string>()) => {
   for (const m of metas) {
     if (!m) continue;
     if (LAZY_IMPORT[m.type]) set.add(m.type);
@@ -38,7 +42,7 @@ const scanTypes = (metas, set = new Set()) => {
 };
 // Returns a Promise once all lazy modules a schema needs are loaded, or null if
 // none are missing (the synchronous fast path: monolith, or already warmed up).
-const ensureForMetas = (metas) => {
+const ensureForMetas = (metas: MetaNode[]) => {
   const pend = [...scanTypes(metas)].map(ensure).filter(Boolean);
   return pend.length ? Promise.all(pend) : null;
 };
