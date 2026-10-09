@@ -51,3 +51,22 @@ test("a plot expression that doesn't parse flags aria-invalid on its input", asy
     assert.equal(input.getAttribute("aria-invalid"), "true");
   } finally { p.destroy(); }
 });
+
+test("option controls ignore a set() value that matches no option", () => {
+  const p = tweaks("O", { l: ["a", "b"], r: { type: "radiogrid", options: ["x", "y"] }, s: { type: "segmented", options: ["low", "high"] } });
+  p.set("l", -Infinity); p.set("r", { stiffness: NaN }); p.set("s", NaN);
+  assert.equal(p.params.l, "a"); assert.equal(p.params.r, "x"); assert.equal(p.params.s, "low");
+  p.set("l", "b"); assert.equal(p.params.l, "b");
+});
+
+test("the image control ignores a non-string value and clears on null", () => {
+  const p = tweaks("I", { i: { type: "image", value: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" } });
+  p.set("i", new Date(0)); assert.equal(typeof p.params.i, "string");
+  p.set("i", null); assert.equal(p.params.i, "");
+});
+
+test("a soft slider keeps a huge finite set() finite", () => {
+  const p = tweaks("S", { x: { type: "slider", value: 2, min: 0, max: 10, step: 0.5, soft: true } });
+  p.set("x", 1e308);
+  assert.ok(Number.isFinite(p.params.x), `got ${p.params.x}`);
+});

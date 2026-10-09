@@ -29,7 +29,8 @@ const stepPrecision = (step) => {
 const roundToStep = (v, min, step) => {
   if (!(step > 0)) return v;
   const p = stepPrecision(step), a = Number((+min).toFixed(p));
-  return Number((a + Math.round((v - a) / step) * step).toFixed(p));
+  const n = Math.round((v - a) / step); if (!Number.isFinite(n)) return v; // a huge finite value (a soft slider's set(1e308)) divided by a small step overflows; the raw value is still finite, so keep it
+  return Number((a + n * step).toFixed(p));
 };
 // The reachable ends of a [min, max] step grid: the first grid point at or above min and the
 // last at or below max. Clamping to an off-grid bound (max 14.45 on a step-1 grid) left a
@@ -490,7 +491,7 @@ function createSegmented(options, value, onChange, ariaLabel) {
   // with tabs via measurePill (reduced-motion skips the stretch).
   const measure = (animate?) => measurePill(seg, pill, animate);
   const reflect = () => { setRadioActive(btns, value); measure(true); };
-  const set = (v, fire = true) => { value = v; reflect(); if (fire) onChange(v); };
+  const set = (v, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null/undefined clear the selection (a snapshot writes undefined as null); any other value matching no segment (a stale restore, a stray set()) is ignored, like an out-of-range slider value is clamped
   seg.addEventListener("keydown", (e) => {
     const i = activeIndex(btns, value); if (i < 0) return;
     const j = navIndex(e.key, i, btns.length); if (j < 0) return;

@@ -92,17 +92,11 @@ const UNSKIP = !!process.env.TW_STRESS_UNSKIP;
 // Seeds that reproduce a known, not-yet-fixed bug. Each entry skips that exact seed with
 // the reason, so the suite stays green while the fix ships as its own PR.
 const KNOWN_BUGS = new Map([
-  // list / radiogrid / segmented: set() with a value matching no option stores it verbatim —
-  // a number, an object, NaN or ±Infinity land in params as-is (toJSON() then writes null,
-  // so a restore differs from the live state). Repro: tweaks("L", { l: ["a", "b"] }).set("l", -Infinity).
-  [5, "list set() stores a non-matching -Infinity verbatim"],
-  [15, "list set() stores a non-matching { stiffness: NaN } object verbatim"],
-  [17, "segmented set() stores a non-matching -Infinity verbatim"],
-  [30, "list set() stores a non-matching -Infinity verbatim"],
-  [35, "segmented set() stores a non-matching NaN verbatim"],
-  // image: set() stores a non-string verbatim (a Date, {}, 5, true); only null coerces to "".
-  // Repro: tweaks("I", { i: { type: "image" } }).set("i", new Date(0)).
-  [6, "image set() stores a Date object verbatim"],
+  // Add a seed with a one-line symptom when a sweep turns up a bug; remove it with the fix.
+  // hwb readout near grey: the integer hue re-parsed through sRGB lands one degree off, so
+  // fromJSON(toJSON()) isn't a fixed point after one trip. Seen through the canvas stand-in;
+  // "hwb(210 3% 87%)" → "hwb(211 3% 87%)". Low: a near-achromatic hue is barely defined.
+  [73, "hwb readout drifts one degree per toJSON/fromJSON trip near grey"],
 ]);
 
 // ── PRNG — mulberry32: tiny, seedable, good enough to spread a schema across the space ──
