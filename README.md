@@ -51,5 +51,5 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md); report securit
 
 ## Credits
 
-Inspired by Tweakpane and dialkit. Toolbar and control icons from Lucide / Feather — see
+Inspired by Tweakpane and dialkit. Toolbar and control icons from Hugeicons — see
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

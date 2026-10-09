@@ -11,8 +11,8 @@ import type { Control, GradientStop } from "../types.js";
 /** A stop handle on the rail, carrying the stop it moves. */
 interface StopHandle extends HTMLButtonElement { _stop?: GradientStop }
 
-// ICON_PLUS — adapted from Lucide/Feather `plus` (MIT). See ../../../THIRD-PARTY-NOTICES.md.
-const ICON_PLUS = icon('<path d="M12 5v14M5 12h14"/>', "", 2.5);
+// ICON_PLUS — adapted from Hugeicons `add-01` (MIT), two paths merged. See ../../../THIRD-PARTY-NOTICES.md.
+const ICON_PLUS = icon('<path d="M12 5v14m7-7H5"/>', "", 2.5);
 
 // ── Gradient — a Figma-style editor: the panel shows a swatch-trigger row (the
 // gradient preview + stop count, mirroring the colour row), and clicking it opens a
