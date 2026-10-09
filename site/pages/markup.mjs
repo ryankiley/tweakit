@@ -21,7 +21,9 @@ export const examples = [
     prose: `<p>A <code>.tw-panel</code> shell with <code>[data-tw]</code> hosts inside
       becomes the real thing — collapsible header, copy + reset toolbar operating over
       its controls, the works. Each control writes its live value back onto its host's
-      <code>data-value</code> attribute.</p>`,
+      <code>data-value</code> attribute. A <code>data-key</code> names the control in
+      the toolbar's copied JSON (and stands in for a missing <code>data-label</code>);
+      without one, the label is the key.</p>`,
     html: `
       <div class="tw-panel" data-mode="inline" style="max-width: 300px">
         <div class="tw-header"><span class="tw-title">Static</span></div>
@@ -35,9 +37,17 @@ export const examples = [
   {
     id: "heavy-markup",
     title: "Heavy controls from markup",
-    prose: `<p>The lazy controls work declaratively too — their config flattens into
-      <code>data-*</code> attributes, and their modules load on demand exactly as they
-      do from a schema.</p>`,
+    prose: `<p>Most controls work declaratively — their config flattens into
+      <code>data-*</code> attributes, and the lazy ones load on demand exactly as they
+      do from a schema. Markup understands <code>slider</code>, <code>number</code>,
+      <code>checkbox</code> (with <code>data-options</code> it becomes a radio grid),
+      <code>radiogrid</code>, <code>list</code>, <code>text</code>, <code>color</code>,
+      <code>image</code>, <code>button</code>, <code>buttongroup</code>,
+      <code>separator</code>, <code>interval</code>, <code>spring</code>,
+      <code>cubicbezier</code>, <code>point</code>, <code>plot</code> and
+      <code>fpsgraph</code>, plus the <code>folder</code> wrapper below.
+      <code>gradient</code>, <code>monitor</code>, <code>segmented</code> and
+      <code>tabs</code> are panel-only — a host naming one of those is left untouched.</p>`,
     html: `
       <div class="tw-panel" data-mode="inline" style="max-width: 300px">
         <div class="tw-header"><span class="tw-title">Heavy</span></div>

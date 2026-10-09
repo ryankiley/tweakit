@@ -43,6 +43,9 @@ npm run build
 npm test
 ```
 
+CI runs Node 22. The build works on Node 20+, but the test suite runs under jsdom, which
+needs Node 22.22, 24.15 or newer.
+
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md); report security issues per
 [SECURITY.md](SECURITY.md).
 
