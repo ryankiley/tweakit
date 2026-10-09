@@ -291,6 +291,19 @@
   .tw-toolbar-btn--reset:hover svg { --tw-wind: 22deg; }
 }
 .tw-toolbar-btn--reset.is-spinning svg { transition-duration: 0.5s; transition-timing-function: var(--tw-ease-inout); }
+/* Copy: on hover the two sheets fan apart along the diagonal — the copy peeling off the
+ * original — and settle back together on leave; the click is still the copy ⇄ check swap
+ * above. Presets: on hover the top plate lifts off the base, and it stays lifted while
+ * the menu is open (aria-expanded), so the button reads as "the stack is open". Both
+ * move paths inside the 24-unit viewBox (px here are user units, ~0.58 screen px each at
+ * 14px), on --pop so they land with the same small overshoot as the reset's wind-up. */
+.tw-copy-back, .tw-copy-front, .tw-layer-top { transition: transform 0.3s var(--tw-ease-pop); }
+@media (hover: hover) and (pointer: fine) {
+  .tw-toolbar-btn--swap:hover .tw-copy-back { transform: translate(-1.5px, -1.5px); }
+  .tw-toolbar-btn--swap:hover .tw-copy-front { transform: translate(1.5px, 1.5px); }
+  .tw-toolbar-btn--presets:hover .tw-layer-top { transform: translateY(-2.5px); }
+}
+.tw-toolbar-btn--presets[aria-expanded="true"] .tw-layer-top { transform: translateY(-2.5px); }
 
 /* Focus rings — one accent ring, three insets, every focusable in the kit in one
  * place. Inset (−2): anything inside the controls stack, which is overflow:hidden

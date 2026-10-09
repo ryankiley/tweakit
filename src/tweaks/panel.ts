@@ -128,7 +128,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn: HTMLButtonElement | null = null;
   if (persistKey) {
-    presetsBtn = toolbarBtn("", ICON_PRESETS, "Presets");
+    presetsBtn = toolbarBtn("tw-toolbar-btn--presets", ICON_PRESETS, "Presets");
     presetsBtn.setAttribute("aria-haspopup", "menu"); presetsBtn.setAttribute("aria-expanded", "false");
     toolbar.append(presetsBtn);
   }
