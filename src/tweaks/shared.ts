@@ -182,7 +182,7 @@ const onLive = (owner: Element, targets: Array<[EventTarget, string]>, fn: (e?: 
   // can arrive. Note that mount next frame, so an unmount with no event in between (an SPA
   // route change, no destroy()) still releases on the first event after it, instead of never.
   if (!mounted) requestAnimationFrame(() => { if (owner.isConnected) mounted = true; });
-  const h = (e: Event) => { if (!owner.isConnected) { if (mounted) off(); return; } mounted = true; fn(e); };
+  const h = (e: Event) => { if (!owner.isConnected) { if (mounted || owner.closest("[data-tw-destroyed]")) off(); return; } mounted = true; fn(e); }; // a destroyed panel / standalone wrapper marks itself, so a listener that never saw the owner connected still releases
   const off = () => targets.forEach(([t, ev]) => t.removeEventListener(ev, h));
   targets.forEach(([t, ev]) => t.addEventListener(ev, h));
   return off;

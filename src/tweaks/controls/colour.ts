@@ -49,7 +49,7 @@ const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 
 // convert(), whose space switch matched nothing and handed `undefined` to the XYZ maths:
 // a TypeError thrown straight out of panel.set() / fromJSON() / a persisted restore.
 const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" });
-const SRGB_FN_RE = /^(rgba?|hsla?|hwb)\(\s*([^)]*?)\s*\)$/i; // the sRGB-family functions parseColor handles itself (no nested parens: the gradient-stop gate relies on that)
+const SRGB_FN_RE = /^(rgba?|hsla?|hwb)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i; // the sRGB-family functions (parsed by srgbFn, below parseAngle); no nested parens, so the gradient-stop gate can rely on the shape
 const HEX_RE = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i; // 3/4/6/8 digits only (the hex field's gate) — a 5/7-digit string is junk, not a colour
 // The one scratch 2D context the parser normalizes sRGB-family colors through; null where
 // the DOM has no canvas (jsdom), and that answer is cached too.
@@ -68,11 +68,49 @@ const COLOR_TOKEN = /^(#[0-9a-f]{3,8}|[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
 export function isColor(str: string | null | undefined) {
   str = String(str == null ? "" : str).trim();
   if (!COLOR_TOKEN.test(str)) return false;
-  if (HEX_RE.test(str) || /^(oklch|oklab|lch|lab|color)\(/i.test(str) || SRGB_FN_RE.test(str)) return true;
+  if (HEX_RE.test(str) || /^(oklch|oklab|lch|lab|color)\(/i.test(str)) return true;
+  if (SRGB_FN_RE.test(str)) return srgbFn(str) !== null; // the shape alone is not enough: CSS's grammar decides, or a browser drops the whole gradient
   const c2d = canvas2d(); if (!c2d) return true;
   return ["#000", "#fff"].some((sentinel) => { c2d.fillStyle = sentinel; const before = c2d.fillStyle; c2d.fillStyle = str; return c2d.fillStyle !== before; });
 }
 const parseAngle = (t: string) => { const m = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)(deg|grad|rad|turn)$/i.exec(t); if (!m) return num(parseFloat(t)); const n = parseFloat(m[1]); return m[2].toLowerCase() === "turn" ? n * 360 : m[2].toLowerCase() === "grad" ? n * 0.9 : m[2].toLowerCase() === "rad" ? (n * 180) / Math.PI : n; };
+// The sRGB-family functions, parsed by CSS Color 4's own grammar — modern (space-separated,
+// `/ alpha`) and legacy (comma-separated) syntax, `none`, percentages, angle units — and
+// nothing looser: a colour-SHAPED string that CSS would reject (`rgb(a b c)`, a mixed legacy
+// `rgb(255, 0%, 0)`, a comma hwb) is null here, so the gradient-stop gate refuses it
+// instead of splicing it into a `linear-gradient()` a browser then drops whole. Returns the
+// OKLCH triple + alpha, channels clamped where CSS clamps (so `1e999` is the slot's top,
+// not a zeroed non-finite). Only ASCII whitespace separates tokens, as in CSS.
+const CSS_NUM = "[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?";
+const TOK_NUM = new RegExp("^" + CSS_NUM + "$", "i"), TOK_PCT = new RegExp("^" + CSS_NUM + "%$", "i"), TOK_ANGLE = new RegExp("^" + CSS_NUM + "(?:deg|grad|rad|turn)$", "i"), CSS_WS = /[ \t\n\r\f]+/;
+const cssTrim = (t: string) => t.replace(/^[ \t\n\r\f]+|[ \t\n\r\f]+$/g, "");
+const tokKind = (t: string) => (t === "none" ? "none" : TOK_NUM.test(t) ? "num" : TOK_PCT.test(t) ? "pct" : TOK_ANGLE.test(t) ? "angle" : null);
+function srgbFn(str: string): [Vec3, number] | null {
+  const m = SRGB_FN_RE.exec(str); if (!m) return null;
+  const fn = m[1].toLowerCase().replace(/a$/, "") as "rgb" | "hsl" | "hwb", body = m[2];
+  let ch: string[], alpha: string | undefined, kinds: Array<ReturnType<typeof tokKind>>;
+  const one = (t: string) => !!t && !CSS_WS.test(t); // exactly one token in the slot
+  if (body.includes(",")) { // legacy: rgb()/hsl() only, no `none`, no mixing numbers with percentages
+    if (fn === "hwb") return null;
+    const parts = body.split(",").map(cssTrim);
+    if (parts.length < 3 || parts.length > 4 || !parts.every(one)) return null;
+    ch = parts.slice(0, 3); alpha = parts[3]; kinds = ch.map(tokKind);
+    if (fn === "rgb" ? !(kinds.every((k) => k === "num") || kinds.every((k) => k === "pct")) : !((kinds[0] === "num" || kinds[0] === "angle") && kinds[1] === "pct" && kinds[2] === "pct")) return null;
+    if (alpha !== undefined && tokKind(alpha) !== "num" && tokKind(alpha) !== "pct") return null;
+  } else {
+    const slash = body.split("/"); if (slash.length > 2) return null;
+    ch = slash[0].split(CSS_WS).filter(Boolean); if (ch.length !== 3) return null;
+    if (slash.length === 2) { alpha = cssTrim(slash[1]); const ak = one(alpha) ? tokKind(alpha) : null; if (!ak || ak === "angle") return null; }
+    kinds = ch.map(tokKind);
+    if (fn === "rgb" ? !kinds.every((k) => k && k !== "angle") : !(kinds[0] && kinds[0] !== "pct" && kinds[1] && kinds[1] !== "angle" && kinds[2] && kinds[2] !== "angle")) return null;
+  }
+  const n = (t: string, max: number) => (t === "none" ? 0 : /%$/.test(t) ? (parseFloat(t) / 100) * max : parseFloat(t)); // never NaN (the grammar passed); ±Infinity meets the clamp below
+  const A = alpha === undefined ? 1 : clamp(n(alpha, 1), 0, 1);
+  const k = fn === "rgb"
+    ? convert([clamp(n(ch[0], 255) / 255, 0, 1), clamp(n(ch[1], 255) / 255, 0, 1), clamp(n(ch[2], 255) / 255, 0, 1)], "srgb", "oklch")
+    : convert([kinds[0] === "none" ? 0 : parseAngle(ch[0]), clamp(n(ch[1], 100), 0, 100), clamp(n(ch[2], 100), 0, 100)], fn, "oklch");
+  return [k, A];
+}
 function parseColor(str: string | null | undefined): Oklcha {
   str = String(str == null ? "" : str).trim();
   if (HEX_RE.test(str)) {
@@ -107,22 +145,12 @@ function parseColor(str: string | null | undefined): Oklcha {
     // three layers, so no single path is the only guard.
     return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A]; // hue normalised to [0,360) so a negative input can't strand the strip thumb
   }
-  // rgb() / hsl() / hwb(), modern (space + `/ alpha`) or legacy (commas) syntax, parse by
-  // the engine's own maths: a canvas echoes an 8-bit #rrggbb, which moved a near-grey
-  // hwb's hue a whole degree on every round trip (a stored value never read back as itself).
-  // `none` → 0, `%` scales by the slot (255 for rgb, 100 for the percentage slots), hue
-  // takes angle units, channels clamp where a canvas would have.
-  const sm = str.match(SRGB_FN_RE);
-  if (sm) {
-    const fn = sm[1].toLowerCase().replace(/a$/, "");
-    let parts: string[], aRaw: string | undefined;
-    if (sm[2].includes(",")) { parts = sm[2].split(",").map((t) => t.trim()); aRaw = parts[3]; parts = parts.slice(0, 3); }
-    else { const [body, a] = sm[2].split("/").map((t) => t.trim()); parts = body.split(/\s+/).filter(Boolean); aRaw = a; }
-    const slot = (t: string | undefined, max: number) => (!t || t === "none" ? 0 : /%$/.test(t) ? (num(parseFloat(t)) / 100) * max : num(parseFloat(t)));
-    const A = aRaw ? clamp(slot(aRaw, 1), 0, 1) : 1;
-    const k = fn === "rgb"
-      ? convert([clamp(slot(parts[0], 255) / 255, 0, 1), clamp(slot(parts[1], 255) / 255, 0, 1), clamp(slot(parts[2], 255) / 255, 0, 1)], "srgb", "oklch")
-      : convert([parseAngle(parts[0] || "0"), clamp(slot(parts[1], 100), 0, 100), clamp(slot(parts[2], 100), 0, 100)], fn as Space, "oklch");
+  // rgb() / hsl() / hwb() by CSS's own grammar (srgbFn, above): a colour-shaped string the
+  // grammar rejects is junk, and parses as black like any other junk — a canvas used to
+  // echo an 8-bit #rrggbb for these, which moved a near-grey hwb's hue a degree per trip.
+  if (SRGB_FN_RE.test(str)) {
+    const sf = srgbFn(str); if (!sf) return [0, 0, 0, 1];
+    const [k, A] = sf;
     return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A];
   }
   // Named colours and `transparent`: normalise via a canvas — its
