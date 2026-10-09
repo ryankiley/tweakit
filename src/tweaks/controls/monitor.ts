@@ -32,7 +32,7 @@ function createFps(meta) {
   const wrap = el("div", "tw-fps");
   const val = txt("span", "tw-fps-val", "—");
   const canvas = document.createElement("canvas"); canvas.className = "tw-fps-canvas";
-  wrap.append(txt("span", "tw-fps-label", meta.label || "FPS"), val, canvas);
+  wrap.append(txt("span", "tw-fps-label", meta.label ?? "FPS"), val, canvas); // ??: an explicit "" label renders none
   const ctx = canvas.getContext("2d");
   const N = 80, samples = new Array(N).fill(0), MAX = 120;
   let i = 0, last = 0, raf = 0, w = 0, h = 0, wasConnected = false, stopped = false;
@@ -73,7 +73,7 @@ function createMonitor(meta) {
 
   const wrap = el("div", "tw-fps tw-monitor");
   const val = txt("span", "tw-fps-val", "—");
-  wrap.append(txt("span", "tw-fps-label", meta.label || "Monitor"), val);
+  wrap.append(txt("span", "tw-fps-label", meta.label ?? "Monitor"), val);
 
   let timer = 0, unwatch = () => {}, wasConnected = false;
   const fmt = (v) => (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(meta.decimals ?? 2)) : String(v));

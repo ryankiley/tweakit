@@ -53,14 +53,24 @@ const radiogridMeta = (v, key, label) => Array.isArray(v.options) && { type: "ra
 // lives on the meta (not only in the picker's own fallback) so reset() restores it rather
 // than handing the control `undefined`, which parsed as black.
 const DEFAULT_COLOR = "#7c5cff";
-// The verbose range bounds (slider + interval): min/max default to 0/1, step to the inferred grain.
-const rangeOf = (v) => { const min = v.min ?? 0, max = v.max ?? 1; return { min, max, step: v.step ?? inferStep(min, max) }; };
+// The verbose range bounds (slider + interval): an absent min/max derives from the value(s)
+// the range must contain, the way the bare-number shorthand does (defaultRange) — so
+// `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`, and an interval's ends each
+// widen it. (Both used to default to 0–1 and clamp a 50 to 1.) Step defaults to the grain.
+const rangeOf = (v, ...seeds) => {
+  const ranges = (seeds.length ? seeds : [0]).map((s) => defaultRange(Number.isFinite(+s) ? +s : 0));
+  const min = v.min ?? Math.min(...ranges.map((r) => r[0])), max = v.max ?? Math.max(...ranges.map((r) => r[1]));
+  return { min, max, step: v.step ?? inferStep(min, max) };
+};
+// A verbose form's own `label` wins over the title-cased key — `??` semantics, so an
+// explicit "" (= no label) survives where `||` fell back to the key.
+const ownLabel = (v, label) => (v.label == null ? label : String(v.label));
 // Typed against the public SchemaObject union, so tsc itself flags a control type
 // added to types.ts but missing here (or a stray key with no public form). "button"
 // is the one exception — it has no handler because the `{ action }` shorthand
 // inference below already covers the verbose form.
 const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: string, label: string, depth?: number) => any> = {
-  slider: (v, key, label) => { const r = rangeOf(v); return { type: "slider", key, label, value: v.value ?? r.min, ...r, soft: v.soft }; },
+  slider: (v, key, label) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { type: "slider", key, label, value: v.value ?? r.min, ...r, soft: v.soft }; },
   number: (v, key, label) => ({ type: "number", key, label, value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
   checkbox: (v, key, label) => ({ type: "checkbox", key, label, value: !!v.value }),
   // "segmented" is kept as an alias: picking one of a list renders as the radio
@@ -68,10 +78,9 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: 
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
   list: (v, key, label) => Array.isArray(v.options) && { type: "list", key, label, options: v.options, value: v.value ?? optValue(v.options[0]) },
-  // An explicit colour with a custom label: { type: "color", value: "#hex", label: "Background" }.
-  color: (v, key, label) => ({ type: "color", key, label: v.label || label, value: v.value ?? DEFAULT_COLOR }),
+  color: (v, key, label) => ({ type: "color", key, label, value: v.value ?? DEFAULT_COLOR }),
   text: (v, key, label) => ({ type: "text", key, label, value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
-  interval: (v, key, label) => { const r = rangeOf(v); return { type: "interval", key, label, value: (Array.isArray(v.value) ? v.value : [r.min, r.max]).map(Number), ...r }; },
+  interval: (v, key, label) => { const r = rangeOf(v, ...(Array.isArray(v.value) ? v.value : [])); return { type: "interval", key, label, value: (Array.isArray(v.value) ? v.value : [r.min, r.max]).map(Number), ...r }; },
   // The config reads off the top level or a nested `value: {…}` — both published forms.
   // Physics (stiffness/damping/mass) is always normalised; the perceptual time pair
   // (visualDuration/bounce) and an explicit mode ride along only when present, so the
@@ -95,7 +104,7 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, key: 
       xMin: v.xMin ?? v.min ?? -10, xMax: v.xMax ?? v.max ?? 10,
       yMin: v.yMin, yMax: v.yMax, samples: v.samples, editable: v.editable };
   },
-  fpsgraph: (v, key, label) => ({ type: "fpsgraph", key, label: v.label || label }),
+  fpsgraph: (v, key, label) => ({ type: "fpsgraph", key, label }),
   monitor: (v, key, label) => ({ type: "monitor", key, label, get: v.get, value: v.value, graph: v.graph, view: v.view, min: v.min, max: v.max, interval: v.interval, rows: v.rows, decimals: v.decimals }),
   buttongroup: (v, key, label) => ({ type: "buttongroup", key, label, buttons: v.buttons }),
   separator: (v, key, label) => ({ type: "separator", key, label }),
@@ -119,8 +128,11 @@ function baseMetaFor(key, value, depth = 0) {
     // A handler that THROWS on a malformed shape (a null components entry, pages: { A: null })
     // degrades to skipping that control — not a TypeError out of tweaks() that drops the whole
     // panel. (A falsy return still falls through to shorthand inference, as documented above.)
+    // The label is resolved here, once, so every verbose form honors `{ label }` (only the
+    // colour and FPS handlers used to read it); a plain folder object is not a verbose form,
+    // so its `label` key stays a child control.
     let meta;
-    try { meta = TYPED_META[value.type](value, key, label, depth); }
+    try { meta = TYPED_META[value.type](value, key, ownLabel(value, label), depth); }
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
     if (meta) return meta;
   }
@@ -148,7 +160,7 @@ function baseMetaFor(key, value, depth = 0) {
   if (typeof value === "boolean") return { type: "checkbox", key, label, value };
   if (Array.isArray(value)) return { type: "list", key, label, options: value, value: optValue(value[0]) };
   if (isObj(value) && typeof value.action === "function")
-    return { type: "button", key, label: value.label || label, action: value.action };
+    return { type: "button", key, label: ownLabel(value, label), action: value.action };
   if (isObj(value) && Array.isArray(value.options))
     return { type: "list", key, label, options: value.options, value: value.value ?? optValue(value.options[0]) };
   if (isColorStr(value)) return { type: "color", key, label, value };
@@ -170,7 +182,7 @@ const VALUELESS = new Set(["button", "fpsgraph", "monitor", "buttongroup", "sepa
 // Partial over the same public union: every markup type must be a real control type
 // (tsc flags a typo'd key), but not every control needs a markup form.
 const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: any, host: any, label: string) => any>> = {
-  slider: (d) => ({ value: num(d.value), min: num(d.min) ?? 0, max: num(d.max) ?? 100, step: num(d.step), soft: flag(d.soft) }),
+  slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft) }), // absent bounds derive from the value in the verbose handler, as on the schema path (this table used to pin 0–100)
   // A list of options is a single-select → radio grid; a bare checkbox is boolean.
   checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
   radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
@@ -182,14 +194,14 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: any, host: any, label
   number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step) }),
   text: (d) => ({ value: d.value ?? "", placeholder: d.placeholder, rows: num(d.rows) }),
   image: (d) => ({ value: d.value }),
-  fpsgraph: (d) => ({ label: d.label || "FPS" }),
+  fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
   interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
   spring: (d) => ({ stiffness: num(d.stiffness), damping: num(d.damping), mass: num(d.mass), visualDuration: num(d.visualDuration), bounce: num(d.bounce), mode: d.mode }),
   cubicbezier: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined }),
   point: (d) => {
     const vals = (d.value || "").split(",").map((s) => parseFloat(s));
     return {
-      components: splitList(d.components || "X,Y").map((lab, i) => ({ key: lab.toLowerCase(), label: lab, value: isNaN(vals[i]) ? 0 : vals[i], step: num(d.step) ?? 1, min: num(d.min), max: num(d.max) })),
+      components: splitList(d.components || "X,Y").map((lab, i) => ({ key: lab.toLowerCase(), label: lab, value: isNaN(vals[i]) ? 0 : vals[i], step: num(d.step), min: num(d.min), max: num(d.max) })), // an absent step lets the control derive a continuous one from its range
       pad: flag(d.pad), invertY: d.invertY === "true",
     };
   },
@@ -201,11 +213,13 @@ const splitList = (s) => (s || "").split(",").map((t) => t.trim()).filter(Boolea
 const dataMeta = (host) => {
   const d = host.dataset, type = d.tw;
   if (!hasOwn(DATA_VALUE, type)) return null;
-  const label = d.label || titleCase(d.key || type);
+  const label = d.label ?? titleCase(d.key || type); // an explicit data-label="" means no label, like the schema's `label: ""`
   const v = DATA_VALUE[type](d, host, label);
-  const meta = metaFor("v", { type, ...v }); // v spreads after `type`, so a parser that re-routes (checkbox + options → radiogrid) wins
-  if (meta) meta.label = v.label || label; // metaFor derived "V" from the key — the dataset's label (or the type's default) is the real one
-  return meta;
+  // The dataset's label rides the verbose value, where metaFor honors it like any schema
+  // `{ type, label }` (the placeholder key would title-case to "V"). v spreads after, so a
+  // parser that re-routes (checkbox + options → radiogrid) or carries its own default
+  // label (the FPS graph) wins.
+  return metaFor("v", { type, label, ...v });
 };
 
 export { metaFor, dataMeta, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS, TYPED_META, DATA_VALUE };

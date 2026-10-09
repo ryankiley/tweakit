@@ -18,6 +18,9 @@ export type Get = (key: string) => unknown;
 
 /** Per-control extras that can ride on any object-form value. */
 export interface ControlOptions {
+  /** The label shown for this control, in place of the title-cased key; `""` shows no label.
+   *  Honored by every verbose `{ type }` form (in a plain folder object, `label` is a child). */
+  label?: string;
   /** Show/hide this control based on other values. */
   render?: (get: Get) => boolean;
   /** Grey-out + lock this control (static, or derived from other values). */
@@ -33,15 +36,15 @@ export type SchemaObject =
   | { type: "checkbox"; value?: boolean }
   | { type: "list"; options: Option[]; value?: string }
   | { type: "radiogrid" | "segmented"; options: Option[]; value?: string; cols?: number }
-  | { type: "color"; value?: string; label?: string }
+  | { type: "color"; value?: string }
   | { type: "text"; value?: string; rows?: number; placeholder?: string }
   | { type: "interval"; value?: [number, number]; min?: number; max?: number; step?: number }
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
   | { type: "cubicbezier"; value?: [number, number, number, number] }
   | { type: "point"; components: Array<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
-  | { type: "gradient"; value?: { stops: GradientStop[]; interpolation?: GradientInterpolation } | Array<GradientStop | [string, number]> }
-  | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean }
-  | { type: "fpsgraph"; label?: string }
+  | { type: "gradient"; value?: { stops: GradientStop[]; interpolation?: GradientInterpolation } | Array<GradientStop | [string, number]>; stops?: Array<GradientStop | [string, number]> }
+  | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
+  | { type: "fpsgraph" }
   | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }
   | { type: "image"; value?: string }
   | { type: "button"; action: () => void; label?: string }
@@ -51,7 +54,7 @@ export type SchemaObject =
 
 /** A schema value — a shorthand, a verbose `{ type }` object, or a nested folder. */
 export type SchemaValue =
-  | number                                          // bare number → slider (0…3×)
+  | number                                          // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative mirrors that below zero)
   | boolean                                         // → checkbox
   | string                                          // a label, or a colour string → colour picker
   | [number] | [number, number] | [number, number, number] | [number, number, number, number] // [value, min?, max?, step?] → slider

@@ -46,7 +46,7 @@ function createGradient(meta, onChange) {
 
   // ── Trigger row — a gradient preview + stop count that opens the editor (the
   // shared modal-trigger row the colour control uses). ──
-  const { root, trigger, right } = triggerRow("tw-gradient", meta.label || "Gradient");
+  const { root, trigger, right } = triggerRow("tw-gradient", meta.label ?? "Gradient"); // ??: an explicit "" label renders none
   const countEl = el("span", "tw-gradient-count");
   const preview = el("span", "tw-trigger-chip tw-gradient-preview");
   right.append(countEl, preview);
