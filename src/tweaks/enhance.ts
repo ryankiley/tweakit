@@ -89,6 +89,7 @@ export async function enhance(root: Document | Element = document): Promise<void
     const emit = (v) => { if (!valueChanged(last, v)) return; last = v; announce(host, key, v); };
     const ctrl = createControl(meta, emit);
     if (!ctrl) continue;
+    if (!host.closest(".tw-panel, .tw-portal")) host.classList.add("tw-portal"); // a bare host outside any panel gets the token scope, else the control has no row height, no surface and no type
     host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint);
     // raw = the markup's value, def = the form the control opened on — the panel's entries hold the same pair for reset (restoreDefault).
     const def = ctrl.get(); last = def;

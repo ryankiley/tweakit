@@ -6,7 +6,10 @@
  * framework-free. Uses the system UI font (San Francisco / Segoe UI / Roboto),
  * with tabular figures on the value readouts so the live numbers hold their column.
  */
-.tw-panel {
+/* The design tokens, declared once for the panel and for every node that lives outside
+ * one: portaled popovers, menus, tips and toasts, standalone controls, and bare [data-tw]
+ * hosts enhanced in page markup — all carry .tw-portal. */
+.tw-panel, .tw-portal {
   /* Surfaces — controls float on faint films over the base. A quieter, slightly wider
    * ramp than before so the kit reads as its own design rather than mirroring another. */
   --tw-surface: rgba(255, 255, 255, 0.04);
@@ -90,9 +93,10 @@
   line-height: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  width: 248px;
   box-sizing: border-box;
+}
+.tw-panel {
+  width: 248px;
   background: var(--tw-base);
   /* No flat outline — the layered shadow (with its 1px ring + lit top edge) carries
    * the panel's definition instead. */
@@ -643,23 +647,10 @@
  * there, so they ALL carry the dark defaults themselves — one block, no per-surface
  * var() fallbacks (the tip and toast used to keep their own fallback copies, which
  * had already drifted from these values). Every portaled node carries .tw-portal (the
- * JS adds it as it builds them), so that one class addresses the whole set here, in
- * the color-scheme rule above, and in the light twin at the foot of the file. */
+ * JS adds it as it builds them), so that one class addresses the whole set: the token
+ * block at the top of the file, the color-scheme rule, and the light twin at the foot. */
 .tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu {
   line-height: normal; /* same pin as .tw-panel — these portal to <body>, so the host's global line-height would inflate their text metrics (the tip + toast pin their own 1.4 instead) */
-}
-.tw-portal {
-  --tw-surface: rgba(255, 255, 255, 0.04); --tw-surface-hover: rgba(255, 255, 255, 0.075);
-  --tw-surface-active: rgba(255, 255, 255, 0.13);
-  --tw-text-label: rgba(255, 255, 255, 0.64); --tw-text-primary: rgba(255, 255, 255, 0.92);
-  --tw-text-focus: #ffffff; --tw-text-tertiary: rgba(255, 255, 255, 0.5);
-  --tw-border: rgba(255, 255, 255, 0.045); --tw-border-hover: rgba(255, 255, 255, 0.11); --tw-selection: rgba(255, 255, 255, 0.22);
-  --tw-dropdown-bg: #292929; --tw-base: #242424; --tw-radius: 8px; --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
-  --tw-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  /* The portaled popovers live on <body>, outside .tw-panel — carry the motion tokens too. */
-  --tw-ease-out: cubic-bezier(0.25, 1, 0.5, 1); --tw-ease-spring: cubic-bezier(0.22, 1, 0.36, 1); --tw-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
-  font-family: var(--tw-font-sans); -webkit-font-smoothing: antialiased;
-  box-sizing: border-box; /* on <body> now, so it doesn't inherit .tw-panel's */
 }
 .tw-portal *, .tw-portal *::before, .tw-portal *::after { box-sizing: border-box; }
 
@@ -970,7 +961,7 @@
  * the attribute-forced twin from it (each :not([data-tw-scheme="dark"] …) guard maps
  * to its positive [data-tw-scheme="light"] … form), so the two can never drift. */
 @media (prefers-color-scheme: light) {
-  .tw-panel:where(:not([data-tw-scheme="dark"]):not([data-tw-scheme="dark"] *)) {
+  .tw-panel:where(:not([data-tw-scheme="dark"]):not([data-tw-scheme="dark"] *)), .tw-portal:where(:not([data-tw-scheme="dark"]):not([data-tw-scheme="dark"] *)) {
     /* Mirrors dark mode's tonal logic: an off-white base with item containers a step
      * brighter (white), rather than darker films on white. Items go lighter than the
      * base, same gentle step as dark. Hover/active stay subtle darkenings so fills and
@@ -1005,15 +996,6 @@
   /* Portaled popovers carry their own tokens — flip them to light too. (The scheme
    * attribute, when present, sits on the portal root itself — copied at open; the
    * hint tooltip gets the same carry, else it would keep its dark fallbacks.) */
-  .tw-portal:where(:not([data-tw-scheme="dark"])) {
-    --tw-surface: rgba(255, 255, 255, 0.82); --tw-surface-hover: rgba(0, 0, 0, 0.04);
-    --tw-surface-active: rgba(0, 0, 0, 0.1);
-    --tw-text-label: rgba(0, 0, 0, 0.58); --tw-text-primary: rgba(0, 0, 0, 0.88);
-    --tw-text-focus: #000000; --tw-text-tertiary: rgba(0, 0, 0, 0.54);
-    --tw-border: rgba(0, 0, 0, 0.045); --tw-border-hover: rgba(0, 0, 0, 0.1); --tw-selection: rgba(0, 0, 0, 0.14);
-    --tw-dropdown-bg: #f6f6f6; --tw-base: #f3f3f3; --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.14);
-    color-scheme: light;
-  }
 }
 /* Value readouts — the proportional UI font (same as the labels) plus tabular
  * figures, so every digit keeps a fixed column and the live readouts (FPS, slider
