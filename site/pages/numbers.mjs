@@ -17,8 +17,9 @@ export const examples = [
     title: "Slider",
     prose: `<p>The workhorse. <code>[value, min, max, step]</code> as shorthand, or
       <code>{ type: "slider" }</code> for options. Drag anywhere on the track, scrub with
-      arrow keys (⇧ for coarse steps), or hover the value and click to type
-      (double-click resets). With six or fewer stops the track snaps and shows rule
+      arrow keys (⇧ for coarse steps), or hover the value and click to type — or press
+      Enter on the focused track (double-click or Alt+Backspace resets). With six or
+      fewer stops the track snaps and shows rule
       lines. <code>soft: true</code> lets a typed or scripted value run past
       <code>min</code>/<code>max</code>; dragging stays within them.</p>`,
     target: `<div class="num-tile"></div>`,

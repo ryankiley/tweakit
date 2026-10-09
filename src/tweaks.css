@@ -302,7 +302,7 @@
  * ring — quietFocus (shared.ts) marks pointer-origin focus; Tab still rings. */
 .tw-trigger:focus-visible, .tw-select-trigger:focus-visible, .tw-button:focus-visible,
 .tw-seg-btn:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
-.tw-slider:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
+.tw-slider:focus-visible, .tw-pad:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
 .tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
@@ -730,6 +730,10 @@
 .tw-gradient-rail { position: absolute; left: 0; right: 0; bottom: -5px; height: 14px; pointer-events: none; }
 .tw-gradient-stop { position: absolute; top: 0; width: 13px; height: 13px; padding: 0; transform: translateX(-50%); border-radius: calc(var(--tw-radius) - 4px); background: var(--stop); border: 2px solid var(--tw-dropdown-bg); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 1px 3px rgba(0, 0, 0, 0.4); cursor: ew-resize; touch-action: none; pointer-events: auto; transition: opacity 0.12s ease, transform 0.16s var(--tw-ease-spring), box-shadow 0.16s; }
 .tw-gradient-stop[data-sel="true"] { box-shadow: 0 0 0 2px var(--tw-accent, var(--tw-text-focus)), 0 1px 3px rgba(0, 0, 0, 0.4); z-index: 1; }
+/* Hit targets — the 13px stop and the 14px bezier handle keep their size on screen but
+ * take a press from ~21px around: an invisible padded pseudo-element (it inherits the
+ * cursor, and events on it target the button, so every handler sees the stop/handle). */
+.tw-gradient-stop::before, .tw-bezier-handle::before { content: ""; position: absolute; inset: -4px; border-radius: inherit; }
 /* Hovered stop lifts, so the swatch you're about to grab reads as pickable. */
 @media (hover: hover) and (pointer: fine) {
   .tw-gradient-stop:hover { transform: translateX(-50%) scale(1.22); }
@@ -912,6 +916,17 @@
 .tw-field .tw-num-wrap { background: var(--tw-base); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 3px 4px; gap: 2px; transition: border-color 0.15s; }
 /* Focused field lifts its border — the same cue the plot field + colour channels give, now on Spring / Point / Bezier / colour-channel fields too. */
 .tw-field .tw-num-wrap:focus-within { border-color: var(--tw-border-hover); }
+/* Keyboard focus rings the whole boxed field — grab handle and input are one control — not
+ * the input alone inside it (the ring sat off-center, hugging the digits). Pointer focus
+ * (.tw-focus-quiet) keeps the border lift only, like the bare text rows. */
+.tw-field .tw-num-wrap:has(> .tw-num:focus-visible:not(.tw-focus-quiet)), .tw-field .tw-num-wrap:has(> .tw-color-chan-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -1px; }
+.tw-field .tw-num-wrap > .tw-num:focus-visible, .tw-field .tw-num-wrap > .tw-color-chan-input:focus-visible { outline: none; }
+/* The same rule for the other two boxed editors: the plot's expression field rings its box,
+ * and a slider's inline number field (opened with Enter) rings the track it sits in. */
+.tw-plot-field:has(> .tw-plot-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
+.tw-slider:has(.tw-slider-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
+/* The alpha strip is a keyboard slider with no ring of its own until now; outset, like the handles. */
+.tw-wg-alpha:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
 .tw-field .tw-num { flex: 1; width: auto; min-width: 0; }
 .tw-field .tw-num-grab { width: 10px; }
 
@@ -1023,4 +1038,15 @@
   .tw-panel, .tw-panel *, .tw-portal, .tw-portal * { transition: none !important; } /* also neutralises the reset spin + hold charge, both transitions now — an instant −360° rotation is no visual change at all */
   /* Neutralise the one-shot keyframe entrances too (the transition kill above doesn't touch animations). */
   .tw-tabs-page[data-active="true"], .tw-grab-bubble { animation: none; }
+}
+
+/* Forced colors (Windows High Contrast) — state the kit shows only by background (the
+ * segmented + tabs pill, the active radio-grid cell, the selected gradient stop, the
+ * slider fill) is flattened away with every other background. An outline or border in
+ * the system highlight survives: system color keywords are honored in forced-colors
+ * mode, so these read in whichever palette the user chose. */
+@media (forced-colors: active) {
+  .tw-seg-pill, .tw-tabs-pill, .tw-slider-fill { outline: 2px solid Highlight; outline-offset: -2px; }
+  .tw-radiogrid-btn[data-active="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .tw-gradient-stop[data-sel="true"] { border-color: Highlight; }
 }

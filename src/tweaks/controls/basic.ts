@@ -6,7 +6,7 @@ import {
   el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel,
   popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, numField, blade, setCollapsed,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl,
-  EASE_SPRING, EASE_GLIDE,
+  EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
 } from "../shared.js";
 import { ICON_CHEVRON, chevronIcon } from "../icons.js";
 
@@ -121,8 +121,13 @@ function createSlider(meta, onChange) {
     const ui = toIdx(clamp(cursorVal, min, max));
     const ei = clamp(Math.round(ui + C_COMMIT), 0, STEPS); // eager commit: 30% past the notch
     const tx = sDrag ? ei + C_LEAN * clamp(ui - ei, -0.5, 0.5) : ei; // lean toward the cursor, then settle on the notch
-    let t = dt; const h = 1 / 240;
-    while (t > 1e-4) { const s = Math.min(h, t); t -= s; const a = C_K * (tx - sx) - C_D * sv; sv += a * s; sx += sv * s; if (sx < 0) { sx = 0; sv = 0; } if (sx > STEPS) { sx = STEPS; sv = 0; } }
+    // Reduced motion: no integration — the handle sits on its target every frame (the
+    // lean while dragging, the notch on release), so the release never overshoots and
+    // the settle ends on its first frame. The CSS kill-switch couldn't reach this: the
+    // detent drives left/width from rAF, not a transition. Read live (an OS toggle while
+    // the page is up), guarded for a matchMedia that gives no `matches`.
+    if (REDUCE_MOTION && REDUCE_MOTION.matches) { sx = tx; sv = 0; }
+    else { let t = dt; const h = 1 / 240; while (t > 1e-4) { const s = Math.min(h, t); t -= s; const a = C_K * (tx - sx) - C_D * sv; sv += a * s; sx += sv * s; if (sx < 0) { sx = 0; sv = 0; } if (sx > STEPS) { sx = STEPS; sv = 0; } } }
     pull = (sx - ei) * step / ((max - min) || 1) * trackW; // spring offset from the committed notch, in px
     value = clamp(min + ei * step, min, max); render();
     if (ei !== sPrevEi) { sPrevEi = ei; onChange(q(value)); } // emit once per commit, not per frame
@@ -214,6 +219,7 @@ function createSlider(meta, onChange) {
   onReady(render);
   onLive(track, [[window, "resize"]], render); // self-cleans once the panel leaves the DOM
   track.addEventListener("keydown", (e) => {
+    if (e.target !== track) return; // keys typed into the inline editor (a child of the track) are its own — they used to step the slider underneath, and its Enter would reopen the editor it had just closed
     if (downPos) return; // keys don't steer a pointer drag (a Shift press mid-drag used to cancel the detent's settle and freeze the handle until release)
     const nv = rangeStep(e, value, step, min, max, (max - min) / 10 || step * 10); // the shared range keyboard model (arrows/⇧/Page/Home/End)
     if (nv == null) return;
@@ -232,15 +238,30 @@ function createSlider(meta, onChange) {
     if (e.pointerType && e.pointerType !== "mouse") { valueEl.classList.add("is-editable"); e.stopPropagation(); }
     else if (valueEl.classList.contains("is-editable")) e.stopPropagation();
   });
-  valueEl.addEventListener("click", () => {
-    if (!valueEl.classList.contains("is-editable")) return;
-    const input = el("input", "tw-slider-input"); input.type = "text"; input.inputMode = "decimal"; input.value = q(value).toFixed(decimals);
+  // The one inline editor, reached two ways: the armed readout's click, and Enter on the
+  // focused track (the keyboard way to type a value — arrows alone can't reach 37.5 on
+  // a 0–100 track quickly). Enter commits, Escape cancels; both hand focus back to the
+  // track so a keyboard user isn't dropped on <body>. A blur (Tab or click away) commits
+  // and leaves focus where the user sent it.
+  const openEditor = () => {
+    if (valueEl.classList.contains("is-editing")) return;
+    const input = el("input", "tw-slider-input"); input.type = "text"; input.inputMode = "decimal"; quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */ input.value = q(value).toFixed(decimals);
     valueEl.classList.add("is-editing"); valueEl.replaceWith(input); input.focus(); input.select();
-    const commit = () => { const p = parseFloat(input.value); if (!isNaN(p)) set(meta.soft ? p : clamp(p, min, max)); input.replaceWith(valueEl); valueEl.classList.remove("is-editing", "is-editable"); };
+    const restore = () => { input.replaceWith(valueEl); valueEl.classList.remove("is-editing", "is-editable"); };
+    const commit = () => { const p = parseFloat(input.value); if (!isNaN(p)) set(meta.soft ? p : clamp(p, min, max)); restore(); };
     input.addEventListener("pointerdown", (e) => e.stopPropagation());
     input.addEventListener("blur", commit);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); else if (e.key === "Escape") { input.replaceWith(valueEl); valueEl.classList.remove("is-editing", "is-editable"); } });
-  });
+    // Both key paths move focus to the track BEFORE the input leaves the DOM (with the
+    // blur-commit unhooked, so that move doesn't commit twice): removing a focused node
+    // first lets the browser's focus fixup land on <body>, and a focus() call made in
+    // that same task was dropped on the floor.
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { input.removeEventListener("blur", commit); track.focus(); commit(); }
+      else if (e.key === "Escape") { e.stopPropagation(); input.removeEventListener("blur", commit); track.focus(); restore(); } // stopPropagation: an Escape cancelling the edit mustn't also close a popover hosting the slider
+    });
+  };
+  valueEl.addEventListener("click", () => { if (valueEl.classList.contains("is-editable")) openEditor(); });
+  track.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === track && !downPos) { e.preventDefault(); openEditor(); } });
 
   return { el: wrap, set: (v) => set(v, false), get: () => q(value) };
 }
@@ -311,7 +332,8 @@ function createSelect(meta, onChange) {
   });
   // Keyboard: open from the trigger with ↑/↓; once open, roving focus moves through
   // the options (Enter/Space on a focused option selects it natively via click),
-  // Escape closes back to the trigger, and Tab/click away closes the listbox.
+  // Escape closes back to the trigger, and Tab/click away closes the listbox (the
+  // shared shell's focusout rule — every popover closes when focus leaves it).
   trigger.addEventListener("keydown", (e) => {
     if (!pop.isOpen() && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); pop.open(); }
   });
@@ -324,8 +346,6 @@ function createSelect(meta, onChange) {
     else return;
     e.preventDefault(); optButtons[j]?.focus();
   });
-  const onFocusOut = (e) => { if (pop.isOpen() && !root.contains(e.relatedTarget) && !dropdown.contains(e.relatedTarget)) pop.close(); };
-  trigger.addEventListener("focusout", onFocusOut); dropdown.addEventListener("focusout", onFocusOut);
   reflect();
   return { el: root, set: (v) => set(v, false), get: () => value };
 }

@@ -87,6 +87,7 @@ function createPoint(meta, onChange) {
       padThumb.style.left = tx + "%"; padThumb.style.top = ty + "%";
       previewDot.style.left = inset(fx); previewDot.style.top = inset(tyFrac); // mini pad: dot stays in bounds
       padLine.setAttribute("x2", tx); padLine.setAttribute("y2", ty); // origin (x1,y1) is fixed — set once at setup
+      padHost.setAttribute("aria-description", `${comps[0].label ?? comps[0].key} ${fmt(flds[0].get(), rx.step)}, ${comps[1].label ?? comps[1].key} ${fmt(flds[1].get(), ry.step)}`); // the pad's live readout for assistive tech
     };
     const padSet = (e) => {
       const [fx, fy] = boxFrac(e, padHost); const yFrac = meta.invertY ? fy : 1 - fy;
@@ -95,6 +96,24 @@ function createPoint(meta, onChange) {
     };
     // .is-grabbing scales the thumb on press (CSS, spring) — the pad's echo of the slider lift.
     grabSurface(padHost, padSet);
+    // Keyboard: the pad is a focusable group (no ARIA role fits a 2D point; the live
+    // readout rides on aria-description). Arrows move one pad step on the matching axis
+    // (⇧ = ten), inside the pad's own range like a drag; ↑ always moves the thumb up on
+    // screen, so under invertY it lowers Y. Home restores the schema default. Escape is
+    // the popover's (close, focus back on the trigger) — a blur here would close it
+    // through focusout first and strand focus on <body>.
+    padHost.tabIndex = 0; padHost.setAttribute("role", "group");
+    padHost.setAttribute("aria-label", `${meta.label ?? "Point"} pad: ${comps[0].label ?? comps[0].key} and ${comps[1].label ?? comps[1].key}`);
+    padHost.addEventListener("keydown", (e) => {
+      if (e.key === "Home") { e.preventDefault(); comps.forEach((c, k) => flds[k].set(c.value ?? 0)); sync(); emit(); return; }
+      const dx = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, dy = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
+      if (!dx && !dy) return;
+      e.preventDefault();
+      const k = e.shiftKey ? 10 : 1;
+      if (dx) flds[0].set(clamp(flds[0].get() + dx * rx.step * k, minX, maxX));
+      if (dy) flds[1].set(clamp(flds[1].get() + (meta.invertY ? -dy : dy) * ry.step * k, minY, maxY));
+      sync(); emit();
+    });
   }
 
   root.append(pop);

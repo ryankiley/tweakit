@@ -14,6 +14,7 @@ function createBezier(meta, onChange) {
   let v = Array.isArray(meta.value) && meta.value.length === 4 ? meta.value.map(Number) : DEF.slice();
   if (v.some((n) => !Number.isFinite(n))) v = DEF.slice(); // a non-finite init (e.g. data-value="oops") would show "NaN" + a blank curve; set() already guards this
   v = fit(v);
+  const def = v.slice(); // the schema default, fitted — Home on a handle returns to it
 
   const root = el("div", "tw-bezier");
   if (meta.label) root.append(txt("div", "tw-bezier-label", meta.label)); // a caption over the graph (the plot's label idiom); an explicit "" skips it
@@ -36,6 +37,10 @@ function createBezier(meta, onChange) {
   // draw just the curve + handles from v (the fields update separately, so a
   // field edit doesn't recursively re-set itself)
   const drawGraph = () => {
+    // The handles' accessible names carry their coordinates (there is no ARIA role for a
+    // 2D point, so the readout rides on the label) — set before the size guard below, so
+    // they're right even while the graph is unlaid (a hidden tab page).
+    h1.setAttribute("aria-label", `Control point 1, x ${v[0]}, y ${v[1]}`); h2.setAttribute("aria-label", `Control point 2, x ${v[2]}, y ${v[3]}`);
     // Layout px, not getBoundingClientRect (visual px): the handles are positioned with
     // style.left in layout space, so under an ancestor CSS scale the rect-derived sizes
     // sat them off the curve.
@@ -72,6 +77,20 @@ function createBezier(meta, onChange) {
         v[idx * 2] = +x.toFixed(2); v[idx * 2 + 1] = +y.toFixed(2); drawGraph(); syncFields(); onChange(v.slice());
       },
       onEnd: () => { rect = null; handle.classList.remove("is-dragging"); },
+    });
+    // Keyboard: the handles were tab stops that did nothing. Arrows nudge the focused
+    // point by 0.01 (⇧ = 0.1) on the drag's own clamps + 2-decimal grid, Home restores
+    // the schema default for the whole curve, Escape drops focus.
+    handle.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") return handle.blur();
+      if (e.key === "Home") { e.preventDefault(); v = def.slice(); drawGraph(); syncFields(); onChange(v.slice()); return; }
+      const dx = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, dy = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
+      if (!dx && !dy) return;
+      e.preventDefault();
+      const k = e.shiftKey ? 0.1 : 0.01, i = idx * 2;
+      if (dx) v[i] = +clamp(v[i] + dx * k, 0, 1).toFixed(2);
+      if (dy) v[i + 1] = +clamp(v[i + 1] + dy * k, YMIN, YMAX).toFixed(2);
+      drawGraph(); syncFields(); onChange(v.slice());
     });
   };
   drag(h1, 0); drag(h2, 1);
