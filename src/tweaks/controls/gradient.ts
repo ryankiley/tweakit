@@ -80,7 +80,7 @@ function createGradient(meta, onChange) {
   // blend was authored in, and a mode switch repaints the bar + re-emits — unlike the
   // standalone colour control, where a mode switch is formatting-only: here the mode IS
   // the blend, so changing it is a real change to the gradient's output and its value.
-  const body = createPickerBody({ value: selStop.color, mode: interpolationMode(parseInterp(meta.value) || "oklab"), onMode: () => { paint(); emit(); } }, (c) => {
+  const body = createPickerBody({ value: selStop.color, mode: interpolationMode(parseInterp(meta.value) || "oklch"), onMode: () => { paint(); emit(); } }, (c) => { // oklch: the default the docs name, the space colorAt blends new stops in, and the one the default pair is authored in — it opened in OKLab, so a default gradient emitted `interpolation: "oklab"` and an inserted stop sat off its own ramp
     selStop.color = c;
     handleFor(selStop)?.style.setProperty("--stop", c);
     paint(); emit();

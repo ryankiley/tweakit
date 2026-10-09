@@ -46,8 +46,10 @@ const restoreDefault = (ctrl, raw, def) => { ctrl.set(def); ctrl.set(raw); };
 // control's own fields: baseMetaFor stamps `type` (the value's), `key` and `label` on
 // top, and a handler may override any of them (segmented → radiogrid). Adding a control
 // means one entry here (plus its constructor in the registry). A handler returns a falsy
-// value for a malformed shape (e.g. a point without components), which falls through to
-// the shorthand inference — where a plain object still becomes a folder. The explicit
+// value for a malformed shape (e.g. a point without components), and that control is
+// skipped with a console error like a handler that throws — it used to fall through to
+// the shorthand inference, where the plain object became a folder holding a "Type" text
+// control, which read as a bug rather than a degrade. The explicit
 // slider/number/checkbox forms exist so shorthand controls can carry options (render /
 // disabled / hint / step) the array/boolean shorthands can't.
 // "segmented" is kept as an alias: picking one of a list renders as the radio grid (the
@@ -97,7 +99,13 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
     return { value };
   },
   cubicbezier: (v) => ({ value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
-  point: (v) => Array.isArray(v.components) && { components: v.components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(v.components.map((c) => [c.key, c.value ?? 0])) }, // `value` = the default component map, so reset() / double-click-reset can restore it
+  point: (v) => {
+    if (!Array.isArray(v.components) || !v.components.length) return false;
+    // A component without a key takes its label (lower-cased, the markup convention) or its
+    // index — a missing key used to land on params as the literal "undefined".
+    const components = v.components.map((c, k) => ({ ...c, key: c.key ?? (c.label != null ? String(c.label).toLowerCase() : `c${k}`) }));
+    return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c) => [c.key, c.value ?? 0])) }; // `value` = the default component map, so reset() / double-click-reset can restore it
+  },
   gradient: (v) => ({ value: v.value ?? v.stops ?? null }),
   image: (v) => ({ value: v.value || "" }),
   plot: (v) => {
@@ -113,12 +121,12 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
   // Page keys dedupe ("A!" and "A?" both slug to "a") so two pages can't silently share
   // one params subtree (the second used to overwrite the first, losing its values).
   tabs: (v, depth) => {
-    if (!v.pages || typeof v.pages !== "object") return false;
+    if (!v.pages || typeof v.pages !== "object" || !Object.keys(v.pages).length) return false; // no pages is nothing to show, not an empty bar
     const used = new Set();
     return { pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => {
       const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "tab";
       let k = base, n = 2; while (used.has(k)) k = `${base}-${n++}`; used.add(k);
-      return { key: k, title, children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) };
+      return { key: k, title: title || "Tab", children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) }; // an empty title still gets a visible tab
     }) };
   },
 };
@@ -131,14 +139,15 @@ function baseMetaFor(key, value, depth = 0) {
   const meta = (type, fields, lab = label) => ({ type, key, label: lab, ...fields });
   if (isObj(value) && !Array.isArray(value) && hasOwn(TYPED_META, value.type)) { // own key only, so a stray type like "toString" can't hit Object.prototype
     // A handler that THROWS on a malformed shape (a null components entry, pages: { A: null })
-    // degrades to skipping that control — not a TypeError out of tweaks() that drops the whole
-    // panel. (A falsy return still falls through to shorthand inference, as documented above.)
+    // or returns nothing for one (components: null, pages: {}) degrades to skipping that
+    // control — not a TypeError out of tweaks() that drops the whole panel, and not a folder.
     // The label is resolved here, once, so every verbose form honors `{ label }`; a plain
     // folder object is not a verbose form, so its `label` key stays a child control.
     let fields;
     try { fields = TYPED_META[value.type](value, depth); }
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
-    if (fields) return meta(value.type, fields, ownLabel(value, label));
+    if (!fields) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped`); return null; }
+    return meta(value.type, fields, ownLabel(value, label));
   }
   // ── Shorthand inference ──
   // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple.
@@ -209,7 +218,7 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: any, host: any, label
   },
   plot: (d) => ({ expr: d.expr, xMin: num(d.xmin), xMax: num(d.xmax), yMin: num(d.ymin), yMax: num(d.ymax), samples: num(d.samples), editable: d.editable !== "false" }),
 };
-const num = (s) => (s == null ? undefined : +s); // absent attribute → undefined, so the schema default applies
+const num = (s) => { if (s == null || s === "") return undefined; const n = +s; return Number.isFinite(n) ? n : undefined; }; // an absent, empty or non-numeric attribute → undefined, so the schema default applies (a NaN used to survive `??` and collapse an interval's range)
 const flag = (s) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
 const splitList = (s) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
 const dataMeta = (host) => {

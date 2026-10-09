@@ -11,7 +11,7 @@ const isColorStr = (v) => typeof v === "string" && (/^#([0-9a-f]{3,4}|[0-9a-f]{6
 // Capped at 100 — the ceiling toFixed() accepts. A sub-1e-100 step (finite, positive, so
 // it clears every step guard) otherwise produced a digit count that threw RangeError out
 // of roundToStep, which degraded the whole control to "skipped" at construction.
-const MAX_FIXED = 100;
+const MAX_FIXED = 20; // toFixed's own ceiling is 100, but a readout past 20 decimals is noise (a 1e-120 step painted a hundred zeros over its label)
 const stepPrecision = (step) => {
   const t = String(step);
   // Scientific notation (e.g. 1e-7 → 7): String(1e-7) === "1e-7" has no ".", so a plain
@@ -63,7 +63,7 @@ const normalizeRange = (rawMin, rawMax, rawStep, defMin = 0, defMax = null) => {
   if (!Number.isFinite(min)) min = defMin;
   if (!Number.isFinite(max)) max = defMax != null ? defMax : min + 100;
   if (max < min) { const t = min; min = max; max = t; }
-  if (!(step > 0) || step > max - min) step = inferStep(min, max);
+  if (!(step > 0) || step > max - min || (max - min) / step > 1e15) step = inferStep(min, max); // a step the range can't count in (a denormal 5e-324 over 0–10 is 1e325 grid points) is no grid at all
   return { min, max, step };
 };
 // One keyboard model for every 1-D range surface (the slider track, the interval
@@ -104,7 +104,7 @@ const defaultRange = (v) => (v >= 0 ? [0, v <= 1 ? 1 : v * 3 || 100] : [v >= -1 
 // value, labelled by its string form. (Primitives used to fall into the object arm
 // and read `.value` off a number — empty labels, undefined values.)
 const optValue = (o) => (o == null ? undefined : typeof o === "object" ? o.value : o);
-const optLabel = (o) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? String(o.value) : String(o)); // label is optional on { value } options — fall back to the value's string form, not the literal "undefined"
+const optLabel = (o) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : JSON.stringify(o)) : String(o)); // label is optional on { value } options — fall back to the value's string form, and an object with neither to its JSON, never the literal "undefined"
 
 const svgNS = "http://www.w3.org/2000/svg";
 // el/svgEl return `any` on purpose: they're the internal DOM factory, used as div /

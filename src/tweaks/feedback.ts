@@ -120,6 +120,7 @@ const LABEL_SEL = ".tw-slider-label, .tw-row-label, .tw-select-label, .tw-trigge
 // the old native `title`. Shared by the panel build (registerCond) and enhance().
 function addHintMarker(node: any, hint: string) {
   const label = node.querySelector(LABEL_SEL) || node;
+  if (label === node && node.classList.contains("tw-separator")) return; // a divider has no label to carry a marker; one used to sit as a stray ⓘ on the line
   // The select-trigger / folder-header / colour-gradient-point trigger wrap their label
   // in a <button>, which can't legally contain interactive content. Inside one, the ⓘ is
   // a decorative, non-focusable marker (still reveals the tip on hover for mouse users)

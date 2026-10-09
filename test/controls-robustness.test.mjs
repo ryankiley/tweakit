@@ -70,3 +70,60 @@ test("a soft slider keeps a huge finite set() finite", () => {
   p.set("x", 1e308);
   assert.ok(Number.isFinite(p.params.x), `got ${p.params.x}`);
 });
+
+// ── Stress pass 10: the small degrades that read as bugs ──
+const quiet = async (fn) => { const errors = []; const orig = console.error; console.error = (...a) => errors.push(a.join(" ")); try { return [await fn(), errors]; } finally { console.error = orig; } };
+
+test("a malformed verbose control is skipped with a console error, not rendered as a folder", async () => {
+  const [p, errors] = await quiet(() => tweaks("M", { pt: { type: "point", components: null }, t: { type: "tabs", pages: null }, e: { type: "tabs", pages: {} }, ok: 1 }));
+  assert.deepEqual(Object.keys(p.params), ["ok"]);
+  assert.equal(p.el.querySelector(".tw-folder, .tw-tabs"), null);
+  assert.equal(errors.length, 3);
+  assert.match(errors[0], /malformed "point"/);
+});
+
+test("a tab titled '' still shows a tab; a point component without a key gets one", () => {
+  const p = tweaks("K", { t: { type: "tabs", pages: { "": { a: 1 } } }, pt: { type: "point", components: [{ label: "X" }, {}] } });
+  assert.equal(p.el.querySelector(".tw-tabs-tab").textContent, "Tab");
+  assert.deepEqual(p.params.pt, { x: 0, c1: 0 });
+});
+
+test("odd values show as JSON, never 'undefined' or '[object Object]'", async () => {
+  const p = tweaks("J", { l: [["1", "9"], "a"], t: { type: "text", value: { a: 1 } }, m: { type: "monitor", get: () => ({ a: 1 }), view: "text", interval: 30 }, g: { type: "buttongroup", buttons: [{ action() {} }] } });
+  document.body.append(p.el);
+  try {
+    assert.equal(p.el.querySelector(".tw-select-value").textContent, '["1","9"]');
+    assert.equal(p.el.querySelector(".tw-text").value, '{"a":1}');
+    assert.equal(p.el.querySelector(".tw-buttongroup-btn").textContent, "Button");
+    await tick(80);
+    assert.equal(p.el.querySelector(".tw-fps-val").textContent, '{"a":1}');
+  } finally { p.destroy(); }
+});
+
+test("a hint on a separator adds no marker to the divider", () => {
+  const p = tweaks("H", { s: { type: "separator", hint: "x" } });
+  assert.equal(p.el.querySelector(".tw-separator .tw-hint"), null);
+});
+
+test("a markup bound that isn't a number counts as absent", async () => {
+  const { enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
+  const host = document.createElement("div"); host.dataset.tw = "interval"; host.dataset.value = "8,2"; host.dataset.min = "abc";
+  document.body.append(host);
+  try {
+    await enhance(host);
+    assert.deepEqual(host._tw.ctrl.get(), [2, 8]);
+  } finally { host.remove(); }
+});
+
+test("a default gradient blends in oklch, the space new stops are interpolated in", () => {
+  const p = tweaks("G", { g: { type: "gradient" }, h: { type: "gradient", value: [["#000", 0], ["#fff", 1]] } });
+  assert.equal(p.params.g.interpolation, "oklch");
+  assert.equal(p.params.h.interpolation, "oklch");
+});
+
+test("a step the range can't count in falls back to a sane grid", () => {
+  const p = tweaks("T", { s: [5, 0, 10, 1e-120], iv: [[2, 8], 0, 10, 5e-324] });
+  assert.ok(p.el.querySelector(".tw-slider-value").textContent.length < 25, "no hundred-digit readout");
+  assert.deepEqual(p.params.iv, [2, 8]);
+  for (const h of p.el.querySelectorAll(".tw-interval .tw-slider-handle")) assert.doesNotMatch(h.style.left, /NaN/);
+});

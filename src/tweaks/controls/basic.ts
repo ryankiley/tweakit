@@ -342,7 +342,7 @@ function createButtonGroup(meta) {
   const row = el("div", "tw-row tw-buttongroup");
   if (meta.label) row.append(txt("span", "tw-row-label", meta.label));
   const group = el("div", "tw-buttongroup-btns");
-  const list = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label, b.action]) : Object.entries(meta.buttons || {});
+  const list = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label ?? "Button", b.action]) : Object.entries(meta.buttons || {}); // an entry with no label is still a button, not an empty pill
   for (const [lab, fn] of list) {
     const b = txt("button", "tw-buttongroup-btn", lab);
     b.addEventListener("click", () => typeof fn === "function" && fn());
@@ -357,7 +357,10 @@ const createSeparator = () => blade(el("div", "tw-separator"));
 
 // ── String — a labelled text input ──
 function createString(meta, onChange) {
-  let value = meta.value == null ? "" : String(meta.value); // a non-string default (value: 5) holds its string form from the start, so get() and reset() agree with the input
+  // A non-string default (value: 5) holds its string form from the start, so get() and
+  // reset() agree with the input; an object shows its JSON rather than "[object Object]".
+  const str = (v) => (v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
+  let value = str(meta.value);
   // `rows` makes it a multiline textarea: the row
   // grows to fit and aligns its label to the top instead of centring.
   const multi = meta.rows > 0;
@@ -369,7 +372,7 @@ function createString(meta, onChange) {
   if (meta.placeholder) input.placeholder = meta.placeholder;
   input.addEventListener("input", () => { value = input.value; onChange(value); });
   row.append(txt("span", "tw-row-label", meta.label), input);
-  return { el: row, set: (v) => { value = v == null ? "" : String(v); input.value = value; }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
+  return { el: row, set: (v) => { value = str(v); input.value = value; }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
 }
 
 // ── Number — the shared numField engine in its row chrome: a typeable field with a
