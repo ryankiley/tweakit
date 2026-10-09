@@ -56,3 +56,88 @@ test("a preset load queued behind a delete of the same name is refused", async (
   assert.deepEqual(p.presets(), ["a"]);
   p.destroy();
 });
+
+const { tweaks: sync } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const tick = (ms) => new Promise((r) => setTimeout(r, ms));
+const spring = { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } };
+
+test("a listener that destroys the panel on the persisted restore leaves no listener behind", async () => {
+  localStorage.clear(); localStorage.setItem("tw:rf-d", JSON.stringify({ x: 4 }));
+  const counts = { add: 0, remove: 0 };
+  const add = document.addEventListener.bind(document), remove = document.removeEventListener.bind(document);
+  document.addEventListener = (t, fn, o) => { if (t === "keydown") counts.add++; return add(t, fn, o); };
+  document.removeEventListener = (t, fn, o) => { if (t === "keydown") counts.remove++; return remove(t, fn, o); };
+  try {
+    const p = lazy.tweaks("RFD", { x: [1, 0, 10, 1], s: spring }, { persist: "rf-d", undo: true, floating: true });
+    document.body.append(p.el);
+    p.on(() => p.destroy());
+    await p.ready;
+    assert.equal(counts.add, 0, "the undo listener never registered on the panel the restore's listener had destroyed"); // (the hint teardown removes a keydown listener unconditionally, so removes are not a usable count)
+  } finally { document.addEventListener = add; document.removeEventListener = remove; }
+});
+
+test("a resize during the lazy window is applied once the panel is ready", async () => {
+  const w0 = window.innerWidth;
+  const p = lazy.tweaks("RFR", { x: [1, 0, 10, 1], b: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } }, { floating: { x: 900, y: 10 } });
+  document.body.append(p.el);
+  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "in the lazy window");
+  try {
+    window.innerWidth = 500; window.dispatchEvent(new window.Event("resize"));
+    await p.ready;
+    assert.equal(p.el.style.left, "492px", "clamped into the narrowed viewport at ready");
+  } finally { window.innerWidth = w0; p.destroy(); }
+});
+
+test("a build that throws is reported and leaves the API inert, like a chunk that fails", async () => {
+  const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(String(a[0]));
+  try {
+    const p = lazy.tweaks("RFT", { x: [1, 0, 10, 1], pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } }, { undo: true });
+    const loop = {}; loop.self = loop; p.params.loop = loop; // a bag value no snapshot can take, parked before ready
+    await assert.rejects(p.ready, TypeError);
+    assert.equal(p.savePreset("ghost"), false);
+    p.set("x", 5);
+    assert.equal(p.params.x, 1, "the controls had built before the throw; the refused set never applied");
+    assert.ok(warns.some((m) => m.includes("failed to load")) && warns.some((m) => m.includes("call ignored")), "the failure and the refused call both say so");
+    p.destroy();
+  } finally { console.warn = warn; }
+});
+
+test("a destroyed panel says nothing when its chunk later fails", async () => {
+  const { mkdtemp, cp, readdir, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const dir = await mkdtemp(path.join(tmpdir(), "tw-broken-"));
+  await cp(new URL("../dist/tweaks/", import.meta.url), dir, { recursive: true });
+  for (const f of await readdir(dir)) if (/^plot-.*\.js$/.test(f)) await rm(path.join(dir, f));
+  const { tweaks: broken } = await import(path.join(dir, "core.js"));
+  const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(String(a[0]));
+  const errs = []; const err = console.error; console.error = (...a) => errs.push(String(a[0]));
+  try {
+    const p = broken("Gone", { x: [1, 0, 10, 1], pl: { type: "plot", expr: "x" } });
+    p.destroy();
+    await assert.rejects(p.ready);
+    assert.ok(!warns.some((m) => m.includes("inert")), "no inert warning for a panel the host already tore down");
+  } finally { console.warn = warn; console.error = err; await rm(dir, { recursive: true, force: true }); }
+});
+
+test("a setMany() batch isolates a key whose change check throws", () => {
+  const p = sync("RFB", { x: [1, 0, 10, 1] });
+  let calls = 0; p.on(() => calls++);
+  p.params.bag = { a: 1 };
+  const loop = {}; loop.self = loop;
+  const errs = []; const err = console.error; console.error = (...a) => errs.push(String(a[0]));
+  try { p.setMany({ x: 5, bag: loop }); } finally { console.error = err; }
+  assert.equal(p.params.x, 5); assert.equal(calls, 1, "the good key still notifies");
+  assert.ok(errs.some((m) => m.includes('setMany("bag")')));
+  p.destroy();
+});
+
+test("a preset saved under a number loads under its string name before ready, as it does after", async () => {
+  localStorage.clear();
+  const p = lazy.tweaks("RFN", { x: [1, 0, 10, 1], t: { type: "tabs", pages: { A: { a: 1 } } } }, { persist: "rf-n" });
+  assert.equal(p.savePreset(5), true);
+  assert.equal(p.loadPreset("5"), true);
+  await p.ready;
+  assert.deepEqual(p.presets(), ["5"]);
+  p.destroy();
+});

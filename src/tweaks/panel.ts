@@ -49,7 +49,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const queue: Array<() => void> = [];
   const presetOps = new Map<string, "save" | "delete">(); // the last preset op a lazy-window call queued per name: a loadPreset() behind a save is accepted, one behind a delete refused; cleared once the queue has replayed
   let failed = false; // flipped when the lazy chunks fail to load: the panel can never be built, so the queue would only grow
-  const later = (fn: () => void) => { if (destroyed || failed) return; assembled ? fn() : queue.push(fn); };
+  const later = (fn: () => void) => { if (destroyed) return; if (failed) { console.warn("[tweaks] call ignored — the panel's lazy controls failed to load"); return; } assembled ? fn() : queue.push(fn); }; // a refused call says so, like every other refusal here
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
   // The values snapshot — persist, presets, undo, toJSON and copy all read it: params minus
   // its `_last` channel, with a control holding `undefined` (a list with no matching option,
@@ -511,7 +511,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // assemble(), once the host has had its chance to mount the panel: onLive releases itself
   // on the first event after the owner LEAVES the document, which it can only tell apart from
   // "not mounted yet" if it saw the panel connected first.
-  const watchResize = () => { if (draggable || opts.floating) cleanups.push(onLive(panel, [[window, "resize"]], () => { if (panel.dataset.mode === "floating") { clampPos(); apply(); } })); };
+  const watchResize = () => {
+    if (!(draggable || opts.floating)) return;
+    if (panel.dataset.mode === "floating") { clampPos(); apply(); } // a resize during the lazy window went unheard — clamp once now
+    cleanups.push(onLive(panel, [[window, "resize"]], () => { if (panel.dataset.mode === "floating") { clampPos(); apply(); } }));
+  };
 
   if (presetsBtn) {
     const menu = el("div", "tw-presets-menu");
@@ -640,6 +644,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // returned, so a host that already subscribed must hear the restored values (on the
     // synchronous path nobody is subscribed yet, so the notify is free).
     if (persistKey) applySnapshot(readStore(persistKey));
+    if (destroyed) return; // a listener may have destroyed the panel on that notify — no listener may register on, and no call may reach, a torn-down panel
     undoApi?.arm(); watchResize();
     assembled = true;
     // Replay the API calls queued during the lazy window — after the persisted-session
@@ -706,7 +711,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     setMany(values) {
       if (values == null || typeof values !== "object") return;
       const batch = Object.entries(values); // read now, so a host mutating the object after the call can't change what a lazy-window replay applies
-      later(() => { let changed = false; for (const [k, v] of batch) if (applySet(k, v)) changed = true; if (changed) notify(); });
+      later(() => { let changed = false; for (const [k, v] of batch) { try { if (applySet(k, v)) changed = true; } catch (e) { console.error(`[tweaks] setMany("${k}") failed — key skipped:`, e); } } if (changed) notify(); }); // per-key isolation: a bag value the change check can't compare (circular) costs only its key, and the rest still notify
     },
     reset() { if (assembled && !destroyed) spinReset(resetBtn); later(resetAll); },
     // Whole-panel state — values + UI (open folders, active tabs) as a plain JSON-safe
@@ -728,9 +733,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Presets API (no-ops without opts.persist). Names are arbitrary strings. The list reads
     // storage, which exists already; a save/load/delete made before ready queues like set()
     // does (a save then snapshots the built controls, not an empty panel).
-    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) presetOps.set(nm, "save"); later(() => savePreset(nm)); return true; },
-    loadPreset: (nm) => { const op = presetOps.get(nm); if (destroyed || failed || op === "delete" || !(op === "save" || listPresets()[nm])) return false; later(() => loadPreset(nm)); return true; }, // a stored entry that isn't a snapshot (a hand-edited null) reads as absent, as it always did after ready; a save queued ahead of the load counts as stored, a delete queued ahead as gone
-    deletePreset: (nm) => { if (presetsKey) { if (!assembled) presetOps.set(nm, "delete"); later(() => deletePreset(nm)); } },
+    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) presetOps.set(String(nm), "save"); later(() => savePreset(nm)); return true; },
+    loadPreset: (nm) => { const op = presetOps.get(String(nm)); if (destroyed || failed || op === "delete" || !(op === "save" || listPresets()[nm])) return false; later(() => loadPreset(nm)); return true; }, // a stored entry that isn't a snapshot (a hand-edited null) reads as absent, as it always did after ready; a save queued ahead of the load counts as stored, a delete queued ahead as gone
+    deletePreset: (nm) => { if (presetsKey) { if (!assembled) presetOps.set(String(nm), "delete"); later(() => deletePreset(nm)); } },
     presets: () => (destroyed ? [] : Object.keys(listPresets())),
     undo: () => { if (undoApi) later(undoApi.undo); }, redo: () => { if (undoApi) later(undoApi.redo); }, // no-ops without opts.undo; queued before ready, in order with the value writes
     // Teardown: close this panel's open portaled surfaces, release every global
@@ -753,10 +758,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // (synchronous — the monolith and warmed-up split builds always take this path).
   const pending = ensureForMetas(metas);
   if (pending) {
-    // A chunk that fails to load leaves the panel unbuildable: the queued calls are dropped
-    // (they could only pile up), later calls are refused, and ready rejects for hosts that
-    // await it — the shell stays up with its toolbar inert rather than a silent sink.
-    api.ready = panel.ready = pending.then(assemble, (e) => { failed = true; queue.length = 0; console.error("[tweaks] the panel's lazy controls failed to load — its API is inert:", e); throw e; }).then(() => api);
+    // A chunk that fails to load — or a build that throws — leaves the panel unbuildable: the
+    // queued calls are dropped (they could only pile up), later calls are refused with a
+    // warning, and ready rejects for hosts that await it — the shell stays up with its
+    // toolbar inert rather than a silent sink.
+    const fail = (e: unknown) => { failed = true; queue.length = 0; if (!destroyed) console.warn(`[tweaks] "${name}": its lazy controls failed to load — the API is inert`); throw e; }; // the error itself is logged where the chunk failed (lazy.ts); a destroyed panel has nothing to report
+    api.ready = panel.ready = pending.then(assemble).then(() => api, fail); // fail covers both the chunk and a build that throws (a non-JSON-safe bag value parked before ready, which the undo seed's snapshot can't take)
     api.ready.catch(() => {}); // a handled fork — no unhandled-rejection noise, while ready still rejects for hosts that await it
   }
   else { assemble(); api.ready = panel.ready = Promise.resolve(api); }
