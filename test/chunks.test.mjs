@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks/core.js", import.meta.url));
+const { tweaks, mountControl, enhance } = await import(new URL("../dist/tweaks/core.js", import.meta.url));
 
 test("every lazy control loads from the split build and registers", async () => {
   const p = tweaks("All", {
@@ -39,7 +39,8 @@ test("every lazy control loads from the split build and registers", async () => 
 // controls use) — and core imports only the first, so a basic panel fetches core plus one
 // chunk. A lazy control importing a core-only module (icons, feedback, schema) would
 // mint a fourth, and every basic panel would fetch one more file while the build's size
-// report quietly stopped describing what a basic panel loads.
+// report quietly stopped describing what a basic panel loads. (heavy.ts is also the Number
+// control's lazy entry, so esbuild adds a re-export stub for it beside its chunk.)
 test("the split build has exactly three shared chunks, and core imports exactly one of them", async () => {
   const { readdir, readFile } = await import("node:fs/promises");
   const dir = new URL("../dist/tweaks/", import.meta.url);
@@ -48,4 +49,37 @@ test("the split build has exactly three shared chunks, and core imports exactly 
   const core = await readFile(new URL("core.js", dir), "utf8");
   const staticImports = [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]);
   assert.equal(staticImports.length, 1, `core.js statically imports: ${staticImports.join(", ")}`);
+});
+
+// The budget a basic panel's download is held to: core.js + the shared chunk it statically
+// imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
+// 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
+// finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
+test("a basic panel's code-split download stays under 20 KiB gzip", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { gzipSync } = await import("node:zlib");
+  const dir = new URL("../dist/tweaks/", import.meta.url);
+  const core = await readFile(new URL("core.js", dir));
+  let bytes = gzipSync(core).length;
+  for (const [, c] of String(core).matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)) bytes += gzipSync(await readFile(new URL(c, dir))).length;
+  assert.ok(bytes < 20480, `core + shared chunk is ${bytes} B gzip — over the 20 KiB budget`);
+});
+
+// Number is lazy on the split build (no shorthand infers it): the standalone and markup
+// paths must wait for its chunk the way they do for colour, not skip it.
+test("the split build's number control mounts standalone and from markup once its chunk lands", async () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const h = mountControl(host, { type: "number", value: 3, min: 0, max: 10 });
+  await h.ready;
+  assert.ok(host.querySelector(".tw-num"), "mountControl built the number field");
+  assert.equal(h.get(), 3);
+  h.destroy(); host.remove();
+  const mk = document.createElement("div");
+  mk.dataset.tw = "number"; mk.dataset.key = "n"; mk.dataset.value = "4";
+  document.body.append(mk);
+  await enhance(mk);
+  assert.ok(mk.querySelector(".tw-num"), "a [data-tw=number] host built its field");
+  assert.equal(mk._tw.ctrl.get(), 4);
+  mk.remove();
 });

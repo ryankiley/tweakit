@@ -1,9 +1,13 @@
-/* Tweaks — helpers only the lazy (heavy) controls use: the SVG factory, canvas sizing
- * and accent reads, the plane/pad drag surface, select-on-focus for the hex field, and
- * the modal-trigger row. Kept out of shared.ts so they ride in the lazy chunks instead of
- * the shared chunk every basic panel fetches up front. */
-import { el, btn, txt, clamp, dragGesture, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon } from "./shared.js";
-import type { Built, NumSpec, NumField } from "./shared.js";
+/* Tweaks — what only the lazy (heavy) controls use: the numeric field engine (numField,
+ * its drag-to-scrub and grab guide), the SVG factory, canvas sizing and accent reads, the
+ * plane/pad drag surface, select-on-focus for the hex field, and the modal-trigger row.
+ * Kept out of shared.ts so it rides in a lazy chunk instead of the shared chunk every
+ * basic panel fetches up front. It also registers the Number control — numField in its
+ * row chrome — which no shorthand infers, so the lazy map loads this module for it
+ * directly (one fetch, not a stub chunk that then fetches this one). */
+import { el, btn, txt, clamp, dragGesture, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
+import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
+import type { Meta } from "./schema.js";
 
 const svgNS = "http://www.w3.org/2000/svg";
 // The SVG twin of shared.ts's el().
@@ -71,7 +75,7 @@ const ICON_GRIP = icon('<path d="M6 4v8M10 4v8"/>', "", 1.5, 16);
 
 // Grab guide — a dotted line from the grab point to the cursor
 // plus a floating value bubble, portaled to <body> for the duration of a drag.
-// Shared by createNumber and the numField helper (Spring / Point / Bezier).
+// Shared by every numField (the Number control, Spring / Point / Bezier / the colour channels).
 // The guide node's four parts (line, dot, arrow, bubble) are the spans its innerHTML
 // below sets, addressed by index.
 interface GuideEl extends HTMLDivElement { readonly children: HTMLCollectionOf<HTMLSpanElement> }
@@ -100,7 +104,7 @@ function makeGrabGuide() {
 // Drag-to-scrub on a grab handle: 1px ≈ one step (Shift ×10, Alt ×0.1), re-anchoring
 // on a modifier change so the value never jumps, with the shared grab guide drawn
 // from the field. read() returns the live value, apply(v) commits it, text() the
-// bubble label. Shared by createNumber and the numField building block.
+// bubble label. numField's grab handle.
 function attachScrub(grab: HTMLElement, wrap: HTMLElement, step: number, read: () => number, apply: (v: number) => void, text: () => string) {
   let downX = 0, downV = 0, curK = 1; const gd = makeGrabGuide();
   // The shared press-drag shape — its every end path matters here: capture lost mid-scrub
@@ -153,5 +157,9 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   attachScrub(grab, wrap, step, () => value, set, () => inp.value);
   return { el: root, set: (val: number | string) => set(val, false), get: () => value };
 }
+
+// ── Number — numField in its row chrome: a typeable field with a grab handle (drag to
+// scrub), min-anchored rounding, soft support. ──
+registerControl("number", (meta: Meta, onChange?: OnChange) => numField({ ...meta, row: true }, onChange));
 
 export { numField, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow };

@@ -4,7 +4,7 @@
 // ── Icons for the toolbar ──
 // Inline SVGs adapted from Lucide (https://lucide.dev, ISC) and, upstream, Feather
 // (https://feathericons.com, MIT). A few are lightly modified — two paths merged into
-// one, a radius nudged, a polygon redrawn as a path. ICON_GRIP (shared.ts) is original.
+// one, a radius nudged, a polygon redrawn as a path. ICON_GRIP (heavy.ts) is original.
 // Per-icon origins and the full ISC + MIT notices: ../../THIRD-PARTY-NOTICES.md.
 import { icon } from "./shared.js";
 const ICON_COPY = icon('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', "tw-toolbar-btn__copy");
