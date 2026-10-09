@@ -11,7 +11,7 @@ import { metaFor, valueChanged, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createControl } from "./controls/basic.js";
 import { addHintMarker } from "./feedback.js";
-import type { SchemaValue, MountOptions, MountedControl, ColorPickerOptions, ColorPicker, ColorMode, Control } from "./types.js";
+import type { SchemaValue, MountOptions, MountedControl, ColorPickerOptions, ColorPicker, ColorMode, Control , Get } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { PickerBody, PickerOptions } from "./controls/colour.js";
 
@@ -53,6 +53,15 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     ctrl = createControl(meta, valued ? emit : () => {});
     if (!ctrl) return; // the chunk failed or the constructor threw — degrades to an empty wrapper, the panel's own idiom
     if (meta.hint) addHintMarker(ctrl.el, meta.hint);
+    // The other per-control options a verbose value carries (ControlOptions) are resolved ONCE
+    // at mount: a standalone control has no siblings for a predicate to read, so `get` answers
+    // undefined, and nothing re-evaluates later. A throwing predicate leaves the control as-is.
+    const none: Get = () => undefined;
+    try {
+      if (meta.render && !meta.render(none)) ctrl.el.classList.add("tw-cond-hidden");
+      const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled;
+      if (d) { ctrl.el.classList.add("is-disabled"); ctrl.el.inert = true; }
+    } catch {}
     root.append(ctrl.el);
     if (!valued) return;
     last = ctrl.get(); // the form the control opened on (a hex colour reads back in the picker's own notation)
