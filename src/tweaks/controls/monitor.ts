@@ -36,7 +36,7 @@ function createFps(meta) {
   const ctx = canvas.getContext("2d");
   const N = 80, samples = new Array(N).fill(0), MAX = 120;
   let i = 0, last = 0, raf = 0, w = 0, h = 0, wasConnected = false, stopped = false;
-  const resize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
+  const resize = () => { if (ctx) [w, h] = fitCanvas(canvas, ctx, 2); }; // no 2D context (a headless DOM, a blocked canvas): w stays 0, so draw() is a no-op and the number readout still runs
   const unwatch = watchReflow(resize);
   // Release everything: the rAF loop and its two listeners. Called on a real unmount
   // (below) AND handed to the panel as the blade's `destroy`, so a panel torn down
