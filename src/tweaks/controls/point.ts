@@ -1,5 +1,8 @@
 // ── Point — 2D/3D/4D vector. Lazy.
 import { el, svgEl, numField, grabSurface, boxFrac, clamp, stepPrecision, defaultRange, popover, triggerRow, registerControl } from "../shared.js";
+import type { OnChange, Built } from "../shared.js";
+import type { Meta, PointComponent } from "../schema.js";
+import type { Control } from "../types.js";
 
 // ── Point — a compact trigger row (label + value readout + a mini pad preview) that
 // opens the 2D pad over the component number fields in a portaled popover, the way the
@@ -7,7 +10,7 @@ import { el, svgEl, numField, grabSurface, boxFrac, clamp, stepPrecision, defaul
 // two components; the rest are field-only. Opt out of the pad with `pad: false`.
 // The component fields hold the values — everything else (readout, pad thumb, the
 // emitted map) reads off them, so there's one source of truth. ──
-function createPoint(meta, onChange) {
+function createPoint(meta: Meta, onChange: OnChange): Control {
   const comps = meta.components; // [{ key, label, value, step, min, max }]
 
   // ── Trigger row — label + value + a mini pad preview (the colour swatch's analog). ──
@@ -31,7 +34,7 @@ function createPoint(meta, onChange) {
   // decade at or below range/200, so the pad is continuous — a step of 1 over ±1 only ever
   // yielded −1/0/1, and rounded an authored 0.3 to 0 on build. The fields keep only the
   // authored bounds (unbounded otherwise); the derived range is the pad's mapping.
-  const rangeOf = (c) => {
+  const rangeOf = (c: PointComponent) => {
     const half = defaultRange(Math.abs(Number.isFinite(+c.value) ? +c.value : 0))[1];
     const lo = c.min ?? -half, hi = c.max ?? half;
     const fine = 10 ** Math.floor(Math.log10((hi - lo) / 200));
@@ -40,9 +43,9 @@ function createPoint(meta, onChange) {
   const ranges = comps.map(rangeOf);
   const rx = ranges[0], ry = ranges[1];
   const minX = rx?.lo ?? -1, maxX = rx?.hi ?? 1, minY = ry?.lo ?? -1, maxY = ry?.hi ?? 1;
-  const frac = (v, lo, hi) => (hi > lo ? clamp((v - lo) / (hi - lo), 0, 1) : 0.5);
+  const frac = (v: number, lo: number, hi: number) => (hi > lo ? clamp((v - lo) / (hi - lo), 0, 1) : 0.5);
 
-  let padHost = null, padThumb = null, padLine = null;
+  let padHost: HTMLDivElement | null = null, padThumb: HTMLDivElement | null = null, padLine: Built<SVGLineElement> | null = null;
   if (hasPad) {
     padHost = el("div", "tw-pad");
     padThumb = el("div", "tw-pad-thumb");
@@ -70,7 +73,7 @@ function createPoint(meta, onChange) {
   // the first two on a square (right = +X, up = +Y by default; set invertY for screen-space).
   // Match each component's number field: format to the step's decimal precision, so a
   // value reads "−1.00, −0.46" (steady columns), not "−1, −0.46" (trailing zeros trimmed).
-  const fmt = (v, step) => (+v).toFixed(stepPrecision(step));
+  const fmt = (v: number, step: number) => (+v).toFixed(stepPrecision(step));
   const paintValue = () => { valueEl.textContent = comps.map((c, k) => fmt(flds[k].get(), ranges[k].step)).join(", "); };
   let positionPad = () => { previewDot.style.left = "50%"; previewDot.style.top = "50%"; };
 
@@ -79,7 +82,7 @@ function createPoint(meta, onChange) {
     // fully in bounds at the corners — the slider handle's "ride inside the track" trick /
     // the colour strips' inside(): the centre travels from +2.5px at 0 to −2.5px at 1.
     const DOT = 5;
-    const inset = (f) => `calc(${(f * 100).toFixed(2)}% + ${((0.5 - f) * DOT).toFixed(2)}px)`;
+    const inset = (f: number) => `calc(${(f * 100).toFixed(2)}% + ${((0.5 - f) * DOT).toFixed(2)}px)`;
     positionPad = () => {
       const fx = frac(flds[0].get(), minX, maxX), fyv = frac(flds[1].get(), minY, maxY);
       const tyFrac = meta.invertY ? fyv : 1 - fyv;
@@ -89,7 +92,7 @@ function createPoint(meta, onChange) {
       padLine.setAttribute("x2", tx); padLine.setAttribute("y2", ty); // origin (x1,y1) is fixed — set once at setup
       padHost.setAttribute("aria-description", `${comps[0].label ?? comps[0].key} ${fmt(flds[0].get(), rx.step)}, ${comps[1].label ?? comps[1].key} ${fmt(flds[1].get(), ry.step)}`); // the pad's live readout for assistive tech
     };
-    const padSet = (e) => {
+    const padSet = (e: PointerEvent) => {
       const [fx, fy] = boxFrac(e, padHost); const yFrac = meta.invertY ? fy : 1 - fy;
       flds[0].set(minX + fx * (maxX - minX)); flds[1].set(minY + yFrac * (maxY - minY));
       sync(); emit();
@@ -122,7 +125,7 @@ function createPoint(meta, onChange) {
 
   return {
     el: root,
-    set: (v) => { if (v) comps.forEach((c, k) => { if (v[c.key] != null) flds[k].set(v[c.key]); }); sync(); },
+    set: (v: Record<string, number | string>) => { if (v) comps.forEach((c, k) => { if (v[c.key] != null) flds[k].set(v[c.key]); }); sync(); },
     get: read,
   };
 }

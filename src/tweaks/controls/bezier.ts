@@ -1,17 +1,20 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
 import { el, btn, txt, svgEl, numField, dragGesture, clamp, onReady, onLive, registerControl } from "../shared.js";
+import type { OnChange, Built } from "../shared.js";
+import type { Meta } from "../schema.js";
+import type { Control } from "../types.js";
 
 // ── Cubic bezier — an interactive curve editor: two draggable control points over a
 // unit box, value [x1,y1,x2,y2] like CSS cubic-bezier(). x is clamped to [0,1]; y may
 // overshoot for bounce. ──
-function createBezier(meta, onChange) {
+function createBezier(meta: Meta, onChange: OnChange): Control {
   const DEF = [0.25, 0.1, 0.25, 1];
   const YMIN = -0.25, YMAX = 1.25, RANGE = YMAX - YMIN, PAD = 8;
   // x clamps to [0,1] and y to the editor's range — on build as well as in set(), so an
   // authored [1.5, 0, -0.2, 1] can't reach get() as an invalid cubic-bezier() with its
   // handles clipped by the graph's overflow.
-  const fit = (m) => m.map((n, i) => clamp(n, i % 2 ? YMIN : 0, i % 2 ? YMAX : 1));
-  let v = Array.isArray(meta.value) && meta.value.length === 4 ? meta.value.map(Number) : DEF.slice();
+  const fit = (m: number[]) => m.map((n, i) => clamp(n, i % 2 ? YMIN : 0, i % 2 ? YMAX : 1));
+  let v: number[] = Array.isArray(meta.value) && meta.value.length === 4 ? meta.value.map(Number) : DEF.slice();
   if (v.some((n) => !Number.isFinite(n))) v = DEF.slice(); // a non-finite init (e.g. data-value="oops") would show "NaN" + a blank curve; set() already guards this
   v = fit(v);
   const def = v.slice(); // the schema default, fitted — Home on a handle returns to it
@@ -31,9 +34,9 @@ function createBezier(meta, onChange) {
   root.append(graph, fields);
 
   let W = 0, H = 0;
-  const xPx = (x) => PAD + x * (W - 2 * PAD);
-  const yPx = (y) => (H - PAD) - ((y - YMIN) / RANGE) * (H - 2 * PAD);
-  const setLine = (ln, ax, ay, bx, by) => { ln.setAttribute("x1", ax); ln.setAttribute("y1", ay); ln.setAttribute("x2", bx); ln.setAttribute("y2", by); };
+  const xPx = (x: number) => PAD + x * (W - 2 * PAD);
+  const yPx = (y: number) => (H - PAD) - ((y - YMIN) / RANGE) * (H - 2 * PAD);
+  const setLine = (ln: Built<SVGLineElement>, ax: number, ay: number, bx: number, by: number) => { ln.setAttribute("x1", ax); ln.setAttribute("y1", ay); ln.setAttribute("x2", bx); ln.setAttribute("y2", by); };
   // draw just the curve + handles from v (the fields update separately, so a
   // field edit doesn't recursively re-set itself)
   const drawGraph = () => {
@@ -63,8 +66,8 @@ function createBezier(meta, onChange) {
   });
   const syncFields = () => flds.forEach((fld, k) => fld.set(v[SPECS[k].i]));
 
-  const drag = (handle, idx) => {
-    let rect = null, gw = 0, gh = 0, scale = 1;
+  const drag = (handle: HTMLButtonElement, idx: number) => {
+    let rect: DOMRect | null = null, gw = 0, gh = 0, scale = 1;
     dragGesture(handle, {
       // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px) —
       // interval's valFromX correction. preventDefault suppresses click-to-focus on the
@@ -97,7 +100,7 @@ function createBezier(meta, onChange) {
 
   onReady(drawGraph);
   onLive(root, [[window, "resize"], [window, "tw-reflow"]], drawGraph); // tw-reflow: a tab page revealing this control re-measures it (it built at 0×0 while hidden); self-cleans once the panel is gone
-  return { el: root, set: (nv) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() }; // the same clamp as the build, so get() agrees with the handles + fields
+  return { el: root, set: (nv: unknown) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() }; // the same clamp as the build, so get() agrees with the handles + fields
 }
 
 registerControl("cubicbezier", createBezier);

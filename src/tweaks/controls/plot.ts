@@ -1,5 +1,13 @@
 // ── Plot — graph y=f(x) with a safe expression evaluator (compileExpr). Lazy.
 import { el, txt, svgEl, clamp, onReady, onLive, quietFocus, registerControl } from "../shared.js";
+import type { OnChange, Built } from "../shared.js";
+import type { Meta } from "../schema.js";
+import type { Control } from "../types.js";
+
+/** A compiled expression: y for an x. */
+type Expr = (x: number) => number;
+/** The tokens the expression lexer emits. */
+type Tok = { t: "num"; v: number } | { t: "id" | "op"; v: string } | { t: "lp" | "rp" | "comma"; v?: undefined };
 
 // ── A tiny, safe expression evaluator for the plot control. ──────────────────
 // Compiles "sin(x)/x" → a closure (x) => number. It is a hand-rolled
@@ -11,18 +19,18 @@ import { el, txt, svgEl, clamp, onReady, onLive, quietFocus, registerControl } f
 // `name in PLOT_CONSTS`, and a plain object's prototype chain let "constructor" /
 // "toString" parse as valid identifiers (no escape — but they violated the whitelist
 // and "compiled" to garbage that silently plotted nothing).
-const PLOT_FUNCS = Object.assign(Object.create(null), {
+const PLOT_FUNCS: Record<string, (...args: number[]) => number> = Object.assign(Object.create(null), {
   sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos,
   atan: Math.atan, atan2: Math.atan2, sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
   sqrt: Math.sqrt, cbrt: Math.cbrt, abs: Math.abs, exp: Math.exp, log: Math.log, ln: Math.log,
   log10: Math.log10, log2: Math.log2, floor: Math.floor, ceil: Math.ceil, round: Math.round,
   sign: Math.sign, trunc: Math.trunc, min: Math.min, max: Math.max, pow: Math.pow, hypot: Math.hypot,
-  mod: (a, b) => a % b, clamp: (v, lo, hi) => Math.min(Math.max(v, lo), hi),
+  mod: (a: number, b: number) => a % b, clamp: (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi),
 });
-const PLOT_CONSTS = Object.assign(Object.create(null), { pi: Math.PI, e: Math.E, tau: Math.PI * 2, phi: (1 + Math.sqrt(5)) / 2 });
-export function compileExpr(src) {
+const PLOT_CONSTS: Record<string, number> = Object.assign(Object.create(null), { pi: Math.PI, e: Math.E, tau: Math.PI * 2, phi: (1 + Math.sqrt(5)) / 2 });
+export function compileExpr(src: unknown): Expr | null {
   if (typeof src !== "string" || !src.trim() || src.length > 512) return null; // the length cap also bounds recursion depth, so an absurdly nested formula can't overflow the stack mid-parse (a RangeError past the "null on parse error" contract — and the init call in createPlot is unguarded)
-  const s = src, toks = [];
+  const s = src, toks: Tok[] = [];
   const numRe = /\d*\.?\d+(?:[eE][+-]?\d+)?/y, idRe = /[A-Za-z_]\w*/y;
   let i = 0;
   while (i < s.length) {
@@ -45,8 +53,8 @@ export function compileExpr(src) {
   if (!toks.length) return null;
   let p = 0;
   const peek = () => toks[p];
-  const eat = (t) => { const tok = toks[p]; if (!tok || (t && tok.t !== t)) return null; p++; return tok; };
-  const add = () => {
+  const eat = (t?: Tok["t"]) => { const tok = toks[p]; if (!tok || (t && tok.t !== t)) return null; p++; return tok; };
+  const add = (): Expr | null => {
     let a = mul(); if (!a) return null;
     while (peek() && peek().t === "op" && (peek().v === "+" || peek().v === "-")) {
       const op = eat("op").v, b = mul(); if (!b) return null; const aa = a;
@@ -54,7 +62,7 @@ export function compileExpr(src) {
     }
     return a;
   };
-  const mul = () => {
+  const mul = (): Expr | null => {
     let a = unary(); if (!a) return null;
     while (peek() && peek().t === "op" && (peek().v === "*" || peek().v === "/" || peek().v === "%")) {
       const op = eat("op").v, b = unary(); if (!b) return null; const aa = a;
@@ -62,19 +70,19 @@ export function compileExpr(src) {
     }
     return a;
   };
-  const unary = () => {
+  const unary = (): Expr | null => {
     if (peek() && peek().t === "op" && (peek().v === "-" || peek().v === "+")) {
       const op = eat("op").v, a = unary(); if (!a) return null;
       return op === "-" ? (x) => -a(x) : a;
     }
     return pow();
   };
-  const pow = () => {
+  const pow = (): Expr | null => {
     const a = atom(); if (!a) return null;
     if (peek() && peek().t === "op" && peek().v === "^") { eat("op"); const b = unary(); if (!b) return null; return (x) => Math.pow(a(x), b(x)); }
     return a;
   };
-  const atom = () => {
+  const atom = (): Expr | null => {
     const tok = peek(); if (!tok) return null;
     if (tok.t === "num") { eat("num"); return () => tok.v; }
     if (tok.t === "lp") { eat("lp"); const e = add(); if (!e || !eat("rp")) return null; return e; }
@@ -82,7 +90,7 @@ export function compileExpr(src) {
       eat("id"); const name = tok.v.toLowerCase();
       if (peek() && peek().t === "lp") {
         const fn = PLOT_FUNCS[name]; if (!fn) return null;
-        eat("lp"); const argv = [];
+        eat("lp"); const argv: Expr[] = [];
         if (peek() && peek().t !== "rp") { do { const a = add(); if (!a) return null; argv.push(a); } while (eat("comma")); }
         if (!eat("rp")) return null;
         return (x) => fn(...argv.map((a) => a(x)));
@@ -101,7 +109,7 @@ export function compileExpr(src) {
 // The formula is parsed by compileExpr (no eval), so typing is safe. Pass `fn`
 // for a fixed JS function instead of an editable string. Y auto-ranges unless
 // yMin/yMax are given; the line breaks across asymptotes (non-finite samples). ──
-function createPlot(meta, onChange) {
+function createPlot(meta: Meta, onChange: OnChange): Control {
   // Domain guard: non-finite bounds take the defaults, an inverted pair swaps, and an
   // equal pair pads out — xMin === xMax used to divide the x-mapping into an all-NaN
   // path (a silently blank plot). Same for a pinned y-range: equal/inverted falls back
@@ -124,7 +132,7 @@ function createPlot(meta, onChange) {
   const axisX = svgEl("line", "tw-plot-axis"), axisY = svgEl("line", "tw-plot-axis"), curve = svgEl("path", "tw-plot-curve");
   svg.append(axisX, axisY, curve); graph.append(svg); root.append(graph);
 
-  let input = null;
+  let input: HTMLInputElement | null = null;
   if (editable) {
     const field = el("div", "tw-plot-field");
     input = el("input", "tw-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
@@ -141,10 +149,10 @@ function createPlot(meta, onChange) {
     if (input) input.setAttribute("aria-invalid", editable && !ok ? "true" : "false");
     const r = graph.getBoundingClientRect(), W = r.width, H = r.height; if (W < 2) return;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    const ys = []; let yLo = Infinity, yHi = -Infinity;
+    const ys: number[] = []; let yLo = Infinity, yHi = -Infinity;
     if (ok) for (let k = 0; k < samples; k++) {
       const x = xMin + (xMax - xMin) * (k / (samples - 1));
-      let y; try { y = compiled(x); } catch { y = NaN; }
+      let y: number; try { y = compiled(x); } catch { y = NaN; }
       ys.push(y);
       if (Number.isFinite(y)) { if (y < yLo) yLo = y; if (y > yHi) yHi = y; }
     }
@@ -153,9 +161,9 @@ function createPlot(meta, onChange) {
       if (!Number.isFinite(yLo) || yLo === yHi) { const c = Number.isFinite(yLo) ? yLo : 0; lo = c - 1; hi = c + 1; }
       else { const pad = (yHi - yLo) * 0.12; lo = yLo - pad; hi = yHi + pad; }
     }
-    const xPx = (x) => PAD + ((x - xMin) / (xMax - xMin)) * (W - 2 * PAD);
-    const yPx = (y) => (H - PAD) - ((y - lo) / (hi - lo)) * (H - 2 * PAD);
-    const axis = (ln, ax, ay, bx, by, show) => { ln.style.display = show ? "" : "none"; if (show) { ln.setAttribute("x1", ax); ln.setAttribute("y1", ay); ln.setAttribute("x2", bx); ln.setAttribute("y2", by); } };
+    const xPx = (x: number) => PAD + ((x - xMin) / (xMax - xMin)) * (W - 2 * PAD);
+    const yPx = (y: number) => (H - PAD) - ((y - lo) / (hi - lo)) * (H - 2 * PAD);
+    const axis = (ln: Built<SVGLineElement>, ax: number, ay: number, bx: number, by: number, show: boolean) => { ln.style.display = show ? "" : "none"; if (show) { ln.setAttribute("x1", ax); ln.setAttribute("y1", ay); ln.setAttribute("x2", bx); ln.setAttribute("y2", by); } };
     axis(axisX, PAD, yPx(0), W - PAD, yPx(0), lo <= 0 && hi >= 0);
     axis(axisY, xPx(0), PAD, xPx(0), H - PAD, xMin <= 0 && xMax >= 0);
     let d = "", pen = false;
@@ -179,7 +187,7 @@ function createPlot(meta, onChange) {
   return {
     el: root,
     get: () => expr,
-    set: (v) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!meta.fn) compiled = compileExpr(expr); draw(); }, // an invalid expression nulls compiled + flags is-invalid via draw — same contract as typing, never silently keeps plotting the old one
+    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!meta.fn) compiled = compileExpr(expr); draw(); }, // an invalid expression nulls compiled + flags is-invalid via draw — same contract as typing, never silently keeps plotting the old one
   };
 }
 
