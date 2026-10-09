@@ -37,7 +37,7 @@ function createImage(meta, onChange) {
   trigger.addEventListener("dragleave", () => { trigger.dataset.over = "false"; });
   trigger.addEventListener("drop", (e) => { e.preventDefault(); trigger.dataset.over = "false"; if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
   render();
-  return { el: root, set: (v) => { value = v || ""; render(); }, get: () => value };
+  return { el: root, set: (v) => { if (v != null && typeof v !== "string") return; value = v || ""; render(); }, get: () => value };
 }
 
 registerControl("image", createImage);
