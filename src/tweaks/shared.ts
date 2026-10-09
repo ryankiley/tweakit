@@ -206,20 +206,6 @@ const quietFocus = (input: HTMLElement) => {
   input.addEventListener("focus", () => input.classList.toggle("tw-focus-quiet", pointerModality));
   input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
 };
-// Press-drag on a node: onDown fires on pointerdown (pointer captured), onMove on
-// each move; it ends on pointerup/cancel/lost capture or when the button releases off
-// the node (buttons===0), then onEnd runs. The shape behind the colour plane/strips,
-// the point pad, the bezier handles, the gradient stops, the interval, and the number
-// scrub — only the slider (its spring detent) and the panel header (its click-vs-drag
-// threshold) keep bespoke loops.
-function dragGesture(node: HTMLElement, { onDown, onMove, onEnd }: { onDown?: (e: PointerEvent) => void; onMove?: (e: PointerEvent) => void; onEnd?: (e: PointerEvent) => void } = {}) {
-  let activeId: number | null = null; // the one captured pointer — a second finger / other-button press can't hijack or fork the drag
-  const end = (e: PointerEvent) => { if (activeId === null || e.pointerId !== activeId) return; activeId = null; onEnd && onEnd(e); };
-  node.addEventListener("pointerdown", (e) => { if (e.button !== 0 || activeId !== null) return; activeId = e.pointerId; try { node.setPointerCapture(e.pointerId); } catch {} onDown && onDown(e); });
-  node.addEventListener("pointermove", (e) => { if (e.pointerId !== activeId) return; if (e.buttons === 0) return end(e); onMove && onMove(e); });
-  node.addEventListener("pointerup", end); node.addEventListener("pointercancel", end);
-  node.addEventListener("lostpointercapture", end); // implicit capture loss (the popover unmounting mid-drag) ends the gesture too, so grab state can't strand
-}
 // Place a portaled popover under its trigger — flipping above when it won't fit below —
 // clamped into the viewport. width:"match" sizes it to the trigger; a number is the
 // fallback width to use before layout; align:"end" lines up the right edges instead
@@ -560,7 +546,7 @@ export {
   titleCase, clamp, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
-  wireHoverClass, dragGesture, popover, closeActivePopover,
+  wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
   blade, quietFocus, measurePill, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
 };

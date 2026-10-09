@@ -293,9 +293,20 @@
  * will-change keeps it on its compositor layer across hover/spin — same Safari fix. */
 .tw-toolbar-btn--reset svg { --tw-spin: 0deg; --tw-wind: 0deg; will-change: transform; transform: rotate(calc(var(--tw-spin) + var(--tw-wind))); transition: transform 0.34s cubic-bezier(0.34, 1.55, 0.5, 1); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-toolbar-btn--reset:hover svg { --tw-wind: 22deg; }
+  .tw-toolbar-btn--reset:not(:disabled):hover svg { --tw-wind: 22deg; }
 }
 .tw-toolbar-btn--reset.is-spinning svg { transition-duration: 0.5s; transition-timing-function: var(--tw-ease-inout); }
+/* Copy and presets move parts of their icon on hover (icons.ts): the copy's sheets fan
+ * apart along the diagonal, the presets' top plate lifts, and stays lifted while its menu
+ * is open. The button sets the distances; the parts read them (px = viewBox units here). */
+.tw-copy-back { transform: translate(calc(-1 * var(--tw-fan, 0px)), calc(-1 * var(--tw-fan, 0px))); }
+.tw-copy-front { transform: translate(var(--tw-fan, 0px), var(--tw-fan, 0px)); }
+.tw-layer-top { transform: translateY(calc(-1 * var(--tw-lift, 0px))); }
+.tw-copy-back, .tw-copy-front, .tw-layer-top { transition: transform 0.3s var(--tw-ease-pop); }
+@media (hover: hover) and (pointer: fine) {
+  .tw-toolbar-btn:not(:disabled):hover { --tw-fan: 1px; --tw-lift: 1.75px; } /* a disabled button (the lazy window) holds still */
+}
+.tw-toolbar-btn[aria-expanded="true"] { --tw-lift: 1.75px; }
 
 /* Focus rings — one accent ring, three insets, every focusable in the kit in one
  * place. Inset (−2): anything inside the controls stack, which is overflow:hidden

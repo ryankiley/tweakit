@@ -1,60 +1,36 @@
 # Third-party notices
 
 Tweakit ships **no runtime dependencies**. Its toolbar and control icons,
-however, are inline SVGs adapted from the **Lucide** icon set and, upstream of
-Lucide, the **Feather** icon set. They were hand-inlined as SVG template literals
-and in a few cases lightly modified (two paths merged into one `d`, a radius nudged,
-a polygon redrawn as a path), but they remain derivative works and are redistributed
-here under the original licenses reproduced below.
+however, are inline SVGs adapted from the free **Hugeicons** set (stroke-rounded
+style). They were hand-inlined as SVG template literals and lightly modified (path
+data compacted to relative commands at one decimal, circles redrawn as arcs, most
+icons' separate paths merged into one `d`, stroke widths set by the kit), but they
+remain derivative works and are redistributed here under the original license
+reproduced below.
 
 | Icon constant | Origin | License |
 | --- | --- | --- |
-| `ICON_CHECK` | Lucide `check` (← Feather) | MIT |
-| `ICON_CHEVRON` | Lucide `chevron-down` (← Feather) | MIT |
-| `ICON_INFO` | Lucide `info` (← Feather) | MIT |
-| `ICON_X` | Lucide `x` (← Feather), two paths merged | MIT |
-| `ICON_PLUS` | Lucide `plus` (← Feather), two paths merged | MIT |
-| `ICON_SEARCH` | Lucide `search` (← Feather), radius nudged | MIT |
-| `ICON_COPY` | Feather `copy` | MIT |
-| `ICON_PRESETS` | Feather `layers`, redrawn as a path | MIT |
-| `ICON_RESET` | Lucide `rotate-ccw` | ISC |
+| `ICON_CHECK` | Hugeicons `tick-02` | MIT |
+| `ICON_CHEVRON` | Hugeicons `arrow-down-01` | MIT |
+| `ICON_INFO` | Hugeicons `information-circle`, two paths merged | MIT |
+| `ICON_X` | Hugeicons `cancel-01` | MIT |
+| `ICON_PLUS` | Hugeicons `add-01`, two paths merged | MIT |
+| `ICON_SEARCH` | Hugeicons `search-01`, two paths merged | MIT |
+| `ICON_COPY` | Hugeicons `copy-01`, back sheet's ends trimmed | MIT |
+| `ICON_PRESETS` | Hugeicons `layer` | MIT |
+| `ICON_RESET` | Hugeicons `undo` | MIT |
 | `ICON_GRIP` | original to this project | — |
 
-- Lucide — <https://lucide.dev> — © Lucide Icons and Contributors (ISC)
-- Feather — <https://feathericons.com> — © 2013–present Cole Bemis (MIT)
+- Hugeicons — <https://hugeicons.com> — © 2025 Hugeicons (MIT), from the
+  `@hugeicons/core-free-icons` package
 
-The verbatim Lucide `LICENSE` follows; it bundles the ISC notice (for Lucide originals
-such as `rotate-ccw`) and the Feather MIT notice (© Cole Bemis). That MIT notice covers
-every Feather-derived icon above — including `copy` and `layers`, which come straight
-from Feather rather than via Lucide's enumerated list.
+The verbatim license from that package follows.
 
 ---
 
-ISC License
+MIT License
 
-Copyright (c) 2026 Lucide Icons and Contributors
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
----
-
-The following Lucide icons are derived from the Feather project:
-
-airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
-
-The MIT License (MIT) (for the icons listed above)
-
-Copyright (c) 2013-present Cole Bemis
+Copyright (c) 2025 Hugeicons
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

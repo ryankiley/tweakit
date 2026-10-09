@@ -1,11 +1,11 @@
 /* Tweaks — what only the lazy (heavy) controls use: the numeric field engine (numField,
- * its drag-to-scrub and grab guide), the SVG factory, canvas sizing and accent reads, the
- * plane/pad drag surface, select-on-focus for the hex field, and the modal-trigger row.
- * Kept out of shared.ts so it rides in a lazy chunk instead of the shared chunk every
- * basic panel fetches up front. It also registers the Number control — numField in its
- * row chrome — which no shorthand infers, so the lazy map loads this module for it
- * directly (one fetch, not a stub chunk that then fetches this one). */
-import { el, btn, txt, clamp, dragGesture, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
+ * its drag-to-scrub and grab guide), the press-drag gesture and the plane/pad drag
+ * surface built on it, the SVG factory, canvas sizing and accent reads, select-on-focus
+ * for the hex field, and the modal-trigger row. Kept out of shared.ts so it rides in a
+ * lazy chunk instead of the shared chunk every basic panel fetches up front. It also
+ * registers the Number control — numField in its row chrome — which no shorthand infers,
+ * so the lazy map loads this module for it directly. */
+import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -38,6 +38,20 @@ const selectAllOnFocus = (input: HTMLInputElement) => {
     if (e.button === 0 && document.activeElement === input && input.selectionStart === 0 && input.selectionEnd === input.value.length) e.preventDefault();
   });
 };
+// Press-drag on a node: onDown fires on pointerdown (pointer captured), onMove on
+// each move; it ends on pointerup/cancel/lost capture or when the button releases off
+// the node (buttons===0), then onEnd runs. The shape behind the colour plane/strips,
+// the point pad, the bezier handles, the gradient stops, the interval, and the number
+// scrub — only the slider (its spring detent) and the panel header (its click-vs-drag
+// threshold) keep bespoke loops.
+function dragGesture(node: HTMLElement, { onDown, onMove, onEnd }: { onDown?: (e: PointerEvent) => void; onMove?: (e: PointerEvent) => void; onEnd?: (e: PointerEvent) => void } = {}) {
+  let activeId: number | null = null; // the one captured pointer — a second finger / other-button press can't hijack or fork the drag
+  const end = (e: PointerEvent) => { if (activeId === null || e.pointerId !== activeId) return; activeId = null; onEnd && onEnd(e); };
+  node.addEventListener("pointerdown", (e) => { if (e.button !== 0 || activeId !== null) return; activeId = e.pointerId; try { node.setPointerCapture(e.pointerId); } catch {} onDown && onDown(e); });
+  node.addEventListener("pointermove", (e) => { if (e.pointerId !== activeId) return; if (e.buttons === 0) return end(e); onMove && onMove(e); });
+  node.addEventListener("pointerup", end); node.addEventListener("pointercancel", end);
+  node.addEventListener("lostpointercapture", end); // implicit capture loss (the popover unmounting mid-drag) ends the gesture too, so grab state can't strand
+}
 // Press-drag that flags .is-grabbing on the surface for the gesture's run (the thumb-lift
 // CSS keys off it) — the colour plane/strips and the point pad share this exact shape.
 // (Spring/bezier keep their own dragGesture: they use .is-dragging and capture a rect on down.)
@@ -70,7 +84,7 @@ const triggerRow = (cls: string, label: string) => {
   return { root, trigger, right };
 };
 
-// ICON_GRIP — original 2-bar drag handle, not from an icon set (Lucide's grip is dots).
+// ICON_GRIP — original 2-bar drag handle, not from an icon set (the icon sets' grips are dots).
 const ICON_GRIP = icon('<path d="M6 4v8M10 4v8"/>', "", 1.5, 16);
 
 // Grab guide — a dotted line from the grab point to the cursor
@@ -162,4 +176,4 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
 // scrub), min-anchored rounding, soft support. ──
 registerControl("number", (meta: Meta, onChange?: OnChange) => numField({ ...meta, row: true }, onChange));
 
-export { numField, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow };
+export { numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow };
