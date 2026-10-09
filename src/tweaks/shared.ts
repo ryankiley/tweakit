@@ -63,7 +63,7 @@ const normalizeRange = (rawMin, rawMax, rawStep, defMin = 0, defMax = null) => {
   if (!Number.isFinite(min)) min = defMin;
   if (!Number.isFinite(max)) max = defMax != null ? defMax : min + 100;
   if (max < min) { const t = min; min = max; max = t; }
-  if (!(step > 0) || step > max - min || (max - min) / step > 1e15) step = inferStep(min, max); // a step the range can't count in (a denormal 5e-324 over 0–10 is 1e325 grid points) is no grid at all
+  if (!(step > 0) || step > max - min) step = inferStep(min, max); // a step too fine to count in (a denormal) is harmless downstream: roundToStep keeps the raw value when the grid index overflows, and readouts cap at MAX_FIXED decimals
   return { min, max, step };
 };
 // One keyboard model for every 1-D range surface (the slider track, the interval
@@ -104,7 +104,10 @@ const defaultRange = (v) => (v >= 0 ? [0, v <= 1 ? 1 : v * 3 || 100] : [v >= -1 
 // value, labelled by its string form. (Primitives used to fall into the object arm
 // and read `.value` off a number — empty labels, undefined values.)
 const optValue = (o) => (o == null ? undefined : typeof o === "object" ? o.value : o);
-const optLabel = (o) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : JSON.stringify(o)) : String(o)); // label is optional on { value } options — fall back to the value's string form, and an object with neither to its JSON, never the literal "undefined"
+// An object's readable form for a label or readout: its JSON, or String() when it can't
+// be stringified (a circular value) — never a throw out of a build, never "[object Object]".
+const json = (v) => { try { return JSON.stringify(v); } catch { return String(v); } };
+const optLabel = (o) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : json(o)) : String(o)); // label is optional on { value } options — fall back to the value's string form, and an object with neither to its JSON, never the literal "undefined"
 
 const svgNS = "http://www.w3.org/2000/svg";
 // el/svgEl return `any` on purpose: they're the internal DOM factory, used as div /
@@ -655,7 +658,7 @@ export const getControl = (type) => REGISTRY[type];
 export {
   titleCase, clamp, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
-  optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive, requestReflow,
+  optValue, optLabel, json, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
   numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,

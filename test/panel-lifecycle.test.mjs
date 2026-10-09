@@ -74,6 +74,20 @@ test("the click that ends a drag is swallowed once; the next title click still c
   p.destroy();
 });
 
+test("draggable: false pins a floating panel too", () => {
+  const p = tweaks("Pinned", { a: 1 }, { floating: { x: 40, y: 50 }, draggable: false }); document.body.append(p.el);
+  const header = p.el.querySelector(".tw-header");
+  header.setPointerCapture = header.releasePointerCapture = () => {};
+  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
+  header.dispatchEvent(ptr("pointermove", { clientX: 200, clientY: 110 }));
+  header.dispatchEvent(ptr("pointerup", { clientX: 200, clientY: 110, buttons: 0 }));
+  assert.deepEqual([p.el.style.left, p.el.style.top], ["40px", "50px"], "the press moved nothing");
+  assert.ok(!p.el.classList.contains("is-grabbing"));
+  p.el.querySelector(".tw-header-toggle").click();
+  assert.ok(p.el.classList.contains("is-collapsed"), "the title still collapses");
+  p.destroy();
+});
+
 test("the floating panel touched last sits above the others", () => {
   const a = tweaks("A", { a: 1 }, { floating: true }), b = tweaks("B", { b: 1 }, { floating: true });
   document.body.append(a.el, b.el);

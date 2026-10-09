@@ -102,8 +102,15 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
   point: (v) => {
     if (!Array.isArray(v.components) || !v.components.length) return false;
     // A component without a key takes its label (lower-cased, the markup convention) or its
-    // index — a missing key used to land on params as the literal "undefined".
-    const components = v.components.map((c, k) => ({ ...c, key: c.key ?? (c.label != null ? String(c.label).toLowerCase() : `c${k}`) }));
+    // index — a missing key used to land on params as the literal "undefined" — and keys
+    // dedupe like tab pages do, so two components can't share one param (the second's
+    // field used to write over the first's value).
+    const used = new Set();
+    const components = v.components.map((c, k) => {
+      const base = String(c.key ?? ((c.label ? String(c.label).toLowerCase() : "") || `c${k}`));
+      let key = base, n = 2; while (used.has(key)) key = `${base}-${n++}`; used.add(key);
+      return { ...c, key };
+    });
     return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c) => [c.key, c.value ?? 0])) }; // `value` = the default component map, so reset() / double-click-reset can restore it
   },
   gradient: (v) => ({ value: v.value ?? v.stops ?? null }),
@@ -126,11 +133,14 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
     return { pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => {
       const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "tab";
       let k = base, n = 2; while (used.has(k)) k = `${base}-${n++}`; used.add(k);
-      return { key: k, title: title || "Tab", children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) }; // an empty title still gets a visible tab
+      return { key: k, title: title.trim() ? title : "Tab", children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) }; // an empty title still gets a visible tab
     }) };
   },
 };
 
+// The field each falsy-capable verbose form hinges on — present-but-unusable is malformed,
+// absent means the object was never a verbose form (see baseMetaFor).
+const REQUIRED = Object.assign(Object.create(null), { list: "options", radiogrid: "options", segmented: "options", point: "components", tabs: "pages" });
 function baseMetaFor(key, value, depth = 0) {
   if (depth > 64) return null; // a pathologically deep schema degrades to skipped controls instead of a RangeError out of tweaks()
   const label = titleCase(key);
@@ -146,8 +156,12 @@ function baseMetaFor(key, value, depth = 0) {
     let fields;
     try { fields = TYPED_META[value.type](value, depth); }
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
-    if (!fields) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped`); return null; }
-    return meta(String(value.type), fields, ownLabel(value, label)); // the canonical string: a String object or one-element array coerces through the table lookup but would miss the identity checks downstream (m.type === "tabs", VALUELESS.has)
+    if (fields) return meta(String(value.type), fields, ownLabel(value, label)); // the canonical string: a String object or one-element array coerces through the table lookup but would miss the identity checks downstream (m.type === "tabs", VALUELESS.has)
+    // Nothing back: the shape is malformed if the field the form hinges on is there but
+    // unusable (components: null, pages: {}) — skip it with the error. If that field is
+    // absent, this is a plain folder that happens to hold a child named `type` with a
+    // control's name (`marker: { type: "point", size: 3 }`) — fall through, as documented.
+    if (hasOwn(value, REQUIRED[value.type])) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped`); return null; }
   }
   // ── Shorthand inference ──
   // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple.

@@ -431,7 +431,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // hair off the header, lands elsewhere; heard on the document they still steer or end
     // the press, where header-only listeners left the grabber lit and the drag stranded.
     const listen = (on: boolean) => { for (const [t, fn] of [["pointermove", onMove], ["pointerup", endDrag], ["pointercancel", endDrag]] as Array<[string, (e: any) => void]>) on ? document.addEventListener(t, fn, true) : document.removeEventListener(t, fn, true); };
-    header.addEventListener("pointerdown", (e) => {
+    if (draggable) header.addEventListener("pointerdown", (e) => { // draggable:false pins a floating panel too — it keeps the lift/clamp machinery for its position, never the press
       // Let the toolbar buttons and any inputs work; drag from anywhere else on the header.
       if (e.button !== 0 || dragId !== null || e.target.closest(".tw-toolbar, input, textarea, select")) return;
       dragId = e.pointerId; sx = e.clientX; sy = e.clientY; dragMoved = false;
