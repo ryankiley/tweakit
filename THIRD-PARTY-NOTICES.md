@@ -3,9 +3,10 @@
 Tweakit ships **no runtime dependencies**. Its toolbar and control icons,
 however, are inline SVGs adapted from the free **Hugeicons** set (stroke-rounded
 style). They were hand-inlined as SVG template literals and lightly modified (path
-data rounded to two decimals, an icon's separate paths merged into one `d`, stroke
-widths set by the kit), but they remain derivative works and are redistributed here
-under the original license reproduced below.
+data compacted to relative commands at one decimal, circles redrawn as arcs, most
+icons' separate paths merged into one `d`, stroke widths set by the kit), but they
+remain derivative works and are redistributed here under the original license
+reproduced below.
 
 | Icon constant | Origin | License |
 | --- | --- | --- |
@@ -15,8 +16,8 @@ under the original license reproduced below.
 | `ICON_X` | Hugeicons `cancel-01` | MIT |
 | `ICON_PLUS` | Hugeicons `add-01`, two paths merged | MIT |
 | `ICON_SEARCH` | Hugeicons `search-01`, two paths merged | MIT |
-| `ICON_COPY` | Hugeicons `copy-01`, two paths merged | MIT |
-| `ICON_PRESETS` | Hugeicons `layer`, two paths merged | MIT |
+| `ICON_COPY` | Hugeicons `copy-01`, back sheet's ends trimmed | MIT |
+| `ICON_PRESETS` | Hugeicons `layer` | MIT |
 | `ICON_RESET` | Hugeicons `undo` | MIT |
 | `ICON_GRIP` | original to this project | — |
 
