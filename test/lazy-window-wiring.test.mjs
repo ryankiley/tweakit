@@ -14,6 +14,7 @@ test("a header drag lifts the panel before the lazy chunks have landed", async (
   // spring is lazy, so assemble() waits on panel.ready — this drag happens before it
   const p = tweaks("Early", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
   document.body.append(p.el);
+  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "in the lazy window");
   const header = p.el.querySelector(".tw-header");
   pointer("pointerdown", header, 10, 10);
   pointer("pointermove", header, 40, 30);
@@ -27,8 +28,9 @@ test("a header drag lifts the panel before the lazy chunks have landed", async (
 
 test("the edit-lifecycle hooks fire before the lazy chunks have landed", async () => {
   let started = 0, ended = 0;
-  const p = tweaks("Edit", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } }, { onEditStart: () => started++, onEditEnd: () => ended++ });
+  const p = tweaks("Edit", { x: [1, 0, 10, 1], r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 } }, { onEditStart: () => started++, onEditEnd: () => ended++ }); // interval, not spring: the test above already loaded that chunk, and a loaded type assembles synchronously
   document.body.append(p.el);
+  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "still in the lazy window");
   // The slider is a core control, but nothing is built yet — exercise the hook through the
   // relay the popovers use, the same path a drag on any surface takes once built.
   const fake = document.createElement("div"); fake.className = "tw-slider"; p.el.append(fake);
