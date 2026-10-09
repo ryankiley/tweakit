@@ -9,7 +9,7 @@
  *   • dist/*.html       the docs/examples site (GitHub Pages root) — see site/.
  * TW_SPLIT is an esbuild `define` that picks the split vs inlined code path in core.ts.
  */
-import { mkdir, rm, readFile, writeFile } from "node:fs/promises";
+import { mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -108,6 +108,21 @@ try {
   console.log("emitted .d.ts → dist/types/");
 } catch (e) {
   fail("tsc failed — the declarations would be wrong or partial:\n" + String(e.stdout || e.message || "").trimEnd());
+}
+// tsc emits a declaration per source module, but the package's type surface is only what
+// the public entry reaches (core → panel, enhance, standalone, types): the internal
+// modules' declarations (shared, schema, the controls, wide-gamut) would ship as noise,
+// and read as public API. Keep the reachable set, drop the rest. Paths are kept in the
+// OS-native form readdir() reports, so the keep-set matches on every platform. (Emptied
+// directories are left alone: they never reach the tarball.)
+{
+  const keep = new Set();
+  const walk = async (rel) => {
+    if (keep.has(rel)) return; keep.add(rel);
+    for (const m of (await readFile(p("dist/types", rel), "utf8")).matchAll(/from "(\.[^"]+)"/g)) await walk(path.join(path.dirname(rel), m[1].replace(/\.js$/, ".d.ts")));
+  };
+  await walk(path.join("tweaks", "core.d.ts"));
+  for (const f of await readdir(p("dist/types"), { recursive: true })) if (f.endsWith(".d.ts") && !keep.has(f)) await rm(p("dist/types", f));
 }
 
 // 4b) measured gzip sizes → the docs site fills {{size-split}} / {{size-single}} with
