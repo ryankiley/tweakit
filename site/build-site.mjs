@@ -65,7 +65,7 @@ export async function buildSite({ outDir, esbuild, sizes }) {
     // them for here). A leaked token means buildSite was called without sizes — fail loud
     // rather than ship "{{size-split}}" to a reader.
     let html = renderPage(shell, pages, i);
-    if (sizes) html = html.replaceAll("{{size-split}}", sizes.split).replaceAll("{{size-single}}", sizes.single);
+    if (sizes) for (const [k, v] of Object.entries(sizes)) html = html.replaceAll(`{{size-${k}}}`, v);
     const leak = html.match(/\{\{size-[\w-]+\}\}/);
     if (leak) throw new Error(`pages/${pages[i].meta.slug}.mjs: unsubstituted ${leak[0]} — pass sizes to buildSite()`);
     await writeFile(path.join(outDir, `${pages[i].meta.slug}.html`), html);
