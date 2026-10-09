@@ -907,6 +907,11 @@
 .tw-field .tw-num-wrap { background: var(--tw-base); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 3px 4px; gap: 2px; transition: border-color 0.15s; }
 /* Focused field lifts its border — the same cue the plot field + colour channels give, now on Spring / Point / Bezier / colour-channel fields too. */
 .tw-field .tw-num-wrap:focus-within { border-color: var(--tw-border-hover); }
+/* Keyboard focus rings the whole boxed field — grab handle and input are one control — not
+ * the input alone inside it (the ring sat off-center, hugging the digits). Pointer focus
+ * (.tw-focus-quiet) keeps the border lift only, like the bare text rows. */
+.tw-field .tw-num-wrap:has(> .tw-num:focus-visible:not(.tw-focus-quiet)), .tw-field .tw-num-wrap:has(> .tw-color-chan-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -1px; }
+.tw-field .tw-num-wrap > .tw-num:focus-visible, .tw-field .tw-num-wrap > .tw-color-chan-input:focus-visible { outline: none; }
 .tw-field .tw-num { flex: 1; width: auto; min-width: 0; }
 .tw-field .tw-num-grab { width: 10px; }
 
