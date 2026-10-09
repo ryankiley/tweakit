@@ -47,7 +47,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // a bare nested key minted a top-level orphan while the control kept its default, and a
   // preset save or an undo was silently dropped.
   const queue: Array<() => void> = [];
-  const later = (fn: () => void) => { if (destroyed) return; assembled ? fn() : queue.push(fn); };
+  const pendingSaves = new Set<string>(); // preset names a lazy-window savePreset() has queued, so a loadPreset() queued behind one isn't refused as unknown
+  let failed = false; // flipped when the lazy chunks fail to load: the panel can never be built, so the queue would only grow
+  const later = (fn: () => void) => { if (destroyed || failed) return; assembled ? fn() : queue.push(fn); };
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
   // The values snapshot — persist, presets, undo, toJSON and copy all read it: params minus
   // its `_last` channel, with a control holding `undefined` (a list with no matching option,
@@ -74,7 +76,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   })() : () => {};
   // Each listener runs isolated: a throwing on() callback (or internal listener)
   // can't break the others, skip persist(), or bubble back out through set().
-  const notify = () => { listeners.forEach((fn) => { try { fn(params, params._last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); persist(); };
+  const notify = () => { listeners.forEach((fn) => { try { fn(params, params._last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); if (!destroyed) persist(); }; // a listener may destroy() the panel: the flush cleanup already ran, so no new save may be armed behind it
   // Push a value into a control and mirror what it actually took back onto params — the
   // one write path behind restores and set(). A function/symbol/bigint is no control value
   // (the list control stores any value as-is, and JSON can't carry those: every snapshot
@@ -335,7 +337,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (revealed) requestReflow();
     };
     const exitSearch = () => { panel.classList.remove("is-searching"); searchInput.value = ""; applyFilter(""); };
-    searchBtn.addEventListener("click", () => { if (panel.classList.toggle("is-searching")) { searchInput.focus(); searchInput.select(); } else exitSearch(); });
+    searchBtn.addEventListener("click", () => { if (searchBtn.disabled) return; if (panel.classList.toggle("is-searching")) { searchInput.focus(); searchInput.select(); } else exitSearch(); });
     searchInput.addEventListener("input", () => applyFilter(searchInput.value));
     searchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") { exitSearch(); searchBtn.focus(); } });
   }
@@ -446,7 +448,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // hair off the header, lands elsewhere; heard on the document they still steer or end
     // the press, where header-only listeners left the grabber lit and the drag stranded.
     const listen = (on: boolean) => { for (const [t, fn] of [["pointermove", onMove], ["pointerup", endDrag], ["pointercancel", endDrag]] as Array<[string, (e: PointerEvent) => void]>) on ? document.addEventListener(t, fn, true) : document.removeEventListener(t, fn, true); };
-    header.addEventListener("pointerdown", (e) => {
+    if (draggable) header.addEventListener("pointerdown", (e) => { // draggable:false pins a floating panel too — it keeps the lift/clamp machinery for its position, never the press
       // Let the toolbar buttons and any inputs work; drag from anywhere else on the header.
       if (e.button !== 0 || dragId !== null || (e.target as Element).closest(".tw-toolbar, input, textarea, select")) return;
       dragId = e.pointerId; sx = e.clientX; sy = e.clientY; dragMoved = false;
@@ -503,10 +505,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     };
     header.addEventListener("lostpointercapture", endDrag); // implicit capture loss mid-drag ends it like a release
     cleanups.push(() => listen(false)); // a destroy() mid-press releases the document listeners
-    // Keep a floated panel inside the viewport as the window resizes — self-cleaning
-    // (it used to leak per draggable panel), and released eagerly by destroy().
-    cleanups.push(onLive(panel, [[window, "resize"]], () => { if (panel.dataset.mode === "floating") { clampPos(); apply(); } }));
   }
+  // Keep a floated panel inside the viewport as the window resizes — self-cleaning (it used
+  // to leak per draggable panel), and released eagerly by destroy(). Registered by
+  // assemble(), once the host has had its chance to mount the panel: onLive releases itself
+  // on the first event after the owner LEAVES the document, which it can only tell apart from
+  // "not mounted yet" if it saw the panel connected first.
+  const watchResize = () => { if (draggable || opts.floating) cleanups.push(onLive(panel, [[window, "resize"]], () => { if (panel.dataset.mode === "floating") { clampPos(); apply(); } })); };
 
   if (presetsBtn) {
     const menu = el("div", "tw-presets-menu");
@@ -593,14 +598,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // used to swallow it there and kill the field's edit undo).
     const inTextField = (t: HTMLElement | null) => !!(t && t.matches && (t.matches("input, textarea") || t.isContentEditable));
     // Self-cleaning (the listener used to hold the whole panel + history alive forever),
-    // and released eagerly by destroy().
-    cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => {
+    // and released eagerly by destroy(). Registered by assemble() with the history seed —
+    // see watchResize for why a global listener waits for the build.
+    const onKey = (e: KeyboardEvent) => {
       if (!focused() || !(e.metaKey || e.ctrlKey) || inTextField(e.target as HTMLElement)) return;
       const k = e.key.toLowerCase();
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
-    }));
-    return { undo, redo, seed: () => { history = [snapshot()]; histIdx = 0; } };
+    };
+    return { undo, redo, arm: () => { history = [snapshot()]; histIdx = 0; cleanups.push(onLive(panel, [[document, "keydown"]], onKey)); } };
   })() : null;
 
   // Build the controls, then everything that needs them built: the conditionals' first
@@ -634,12 +640,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // returned, so a host that already subscribed must hear the restored values (on the
     // synchronous path nobody is subscribed yet, so the notify is free).
     if (persistKey) applySnapshot(readStore(persistKey));
-    undoApi?.seed();
+    undoApi?.arm(); watchResize();
     assembled = true;
     // Replay the API calls queued during the lazy window — after the persisted-session
     // restore above, so an explicit host set() wins over a stored value the way it wins
     // over the schema default.
-    for (const fn of queue.splice(0)) fn();
+    // A listener may destroy() the panel mid-replay: the rest of the queue is dropped, not
+    // applied to a torn-down panel. Each call runs isolated, as a listener does — one that
+    // throws costs only itself, never the calls behind it, ready's resolution or the toolbar.
+    for (const fn of queue.splice(0)) { if (destroyed) break; try { fn(); } catch (e) { console.error("[tweaks] a call queued before ready failed:", e); } }
     for (const b of toolbarBtns) b.disabled = false; // the controls exist now
   };
 
@@ -688,7 +697,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const api = {
     el: panel, params,
     on(fn) { if (destroyed) return () => {}; listeners.add(fn); return () => listeners.delete(fn); },
-    set(key, v) { later(() => { if (applySet(key, v)) notify(); }); },
+    set(key, v) { const k = String(key); later(() => { if (applySet(k, v)) notify(); }); }, // the key resolves at the call: one that can't stringify throws here, not out of the replay
     // Batch write — apply a flat map of (possibly dotted) keys, e.g.
     // setMany({ "shadow.radius": 28, blur: 48 }), firing listeners + persist ONCE for the
     // whole batch rather than per key as a set() loop would. Same path resolution and
@@ -701,22 +710,26 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     reset() { if (assembled && !destroyed) spinReset(resetBtn); later(resetAll); },
     // Whole-panel state — values + UI (open folders, active tabs) as a plain JSON-safe
     // object, independent of localStorage. `JSON.stringify(panel)` works too (this is the
-    // standard toJSON hook). Before ready the values are only what set() has parked so far
-    // (the controls, and so their defaults, don't exist yet). fromJSON applies a
+    // standard toJSON hook). Before ready there are no values yet: the controls, and so their
+    // defaults, don't exist, and the queued writes haven't applied. fromJSON applies a
     // previously-saved object back: values where their path still exists (missing ones
     // skipped, like a preset load — one notify), then the UI state, silently (not a value
     // change, and outside undo so a ⌘Z reverts values without thrashing folders/tabs).
     toJSON() { return destroyed ? { values: {}, ui: {} } : { values: snapshot(), ui: collectUI() }; },
-    fromJSON(state) { if (state && typeof state === "object") later(() => { if (state.values) applySnapshot(state.values); applyUI(state.ui); }); },
+    fromJSON(state) {
+      if (!state || typeof state !== "object") return;
+      const values = state.values && typeof state.values === "object" ? { ...state.values } : state.values, ui = state.ui && typeof state.ui === "object" ? { ...state.ui } : state.ui; // read now, like setMany (one level): a host re-pointing a key after the call can't change what a lazy-window replay applies
+      later(() => { if (values) applySnapshot(values); applyUI(ui); });
+    },
     // Live theming — re-applies --tw-* vars to the panel (and future popovers). Clears
     // the prior theme first, so setTheme(null) reverts to the default monochrome look.
     setTheme(theme) { if (destroyed) return; if (themeVars) for (const k in themeVars) panel.style.removeProperty(k); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
     // Presets API (no-ops without opts.persist). Names are arbitrary strings. The list reads
     // storage, which exists already; a save/load/delete made before ready queues like set()
     // does (a save then snapshots the built controls, not an empty panel).
-    savePreset: (nm) => { if (destroyed || !presetsKey || !nm) return false; later(() => savePreset(nm)); return true; },
-    loadPreset: (nm) => { if (destroyed || !listPresets()[nm]) return false; later(() => loadPreset(nm)); return true; }, // a stored entry that isn't a snapshot (a hand-edited null) reads as absent, as it always did after ready
-    deletePreset: (nm) => { if (presetsKey) later(() => deletePreset(nm)); },
+    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) pendingSaves.add(nm); later(() => { pendingSaves.delete(nm); savePreset(nm); }); return true; },
+    loadPreset: (nm) => { if (destroyed || failed || !(listPresets()[nm] || pendingSaves.has(nm))) return false; later(() => loadPreset(nm)); return true; }, // a stored entry that isn't a snapshot (a hand-edited null) reads as absent, as it always did after ready; a save queued ahead of the load counts as stored
+    deletePreset: (nm) => { if (presetsKey) { pendingSaves.delete(nm); later(() => deletePreset(nm)); } },
     presets: () => (destroyed ? [] : Object.keys(listPresets())),
     undo: () => { if (undoApi) later(undoApi.undo); }, redo: () => { if (undoApi) later(undoApi.redo); }, // no-ops without opts.undo; queued before ready, in order with the value writes
     // Teardown: close this panel's open portaled surfaces, release every global
@@ -739,8 +752,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // (synchronous — the monolith and warmed-up split builds always take this path).
   const pending = ensureForMetas(metas);
   if (pending) {
-    api.ready = panel.ready = pending.then(assemble).then(() => api);
-    api.ready.catch(() => {}); // a handled fork — no unhandled-rejection noise when a chunk fails, while ready still rejects for hosts that await it
+    // A chunk that fails to load leaves the panel unbuildable: the queued calls are dropped
+    // (they could only pile up), later calls are refused, and ready rejects for hosts that
+    // await it — the shell stays up with its toolbar inert rather than a silent sink.
+    api.ready = panel.ready = pending.then(assemble, (e) => { failed = true; queue.length = 0; console.error("[tweaks] the panel's lazy controls failed to load — its API is inert:", e); throw e; }).then(() => api);
+    api.ready.catch(() => {}); // a handled fork — no unhandled-rejection noise, while ready still rejects for hosts that await it
   }
   else { assemble(); api.ready = panel.ready = Promise.resolve(api); }
   return api as Panel;

@@ -3,7 +3,7 @@
  * wrapper every builder calls. Statically imported by the entry, unlike the lazy
  * siblings in this directory, so basic panels build synchronously. */
 import {
-  el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel,
+  el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel, json,
   popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, numField, blade, setCollapsed,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl,
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
@@ -382,7 +382,7 @@ const createSeparator = () => blade(el("div", "tw-separator"));
 function createString(meta: Meta, onChange: OnChange): Control {
   // A non-string default (value: 5) holds its string form from the start, so get() and
   // reset() agree with the input; an object shows its JSON rather than "[object Object]".
-  const str = (v: unknown) => (v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
+  const str = (v: unknown) => (v == null ? "" : typeof v === "object" ? json(v) : String(v));
   let value = str(meta.value);
   // `rows` makes it a multiline textarea: the row
   // grows to fit and aligns its label to the top instead of centring.

@@ -98,7 +98,7 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, defM
   if (!Number.isFinite(min)) min = defMin;
   if (!Number.isFinite(max)) max = defMax != null ? defMax : min + 100;
   if (max < min) { const t = min; min = max; max = t; }
-  if (!(step > 0) || step > max - min || (max - min) / step > 1e15) step = inferStep(min, max); // a step the range can't count in (a denormal 5e-324 over 0–10 is 1e325 grid points) is no grid at all
+  if (!(step > 0) || step > max - min) step = inferStep(min, max); // a step too fine to count in (a denormal) is harmless downstream: roundToStep keeps the raw value when the grid index overflows, and readouts cap at MAX_FIXED decimals
   return { min, max, step };
 };
 // One keyboard model for every 1-D range surface (the slider track, the interval
@@ -139,7 +139,10 @@ const defaultRange = (v: number): [number, number] => (v >= 0 ? [0, v <= 1 ? 1 :
 // value, labelled by its string form. (Primitives used to fall into the object arm
 // and read `.value` off a number — empty labels, undefined values.)
 const optValue = (o: Option) => (o == null ? undefined : typeof o === "object" ? o.value : o);
-const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : JSON.stringify(o)) : String(o)); // label is optional on { value } options — fall back to the value's string form, and an object with neither to its JSON, never the literal "undefined"
+// An object's readable form for a label or readout: its JSON, or String() when it can't
+// be stringified (a circular value) — never a throw out of a build, never "[object Object]".
+const json = (v: unknown) => { try { return JSON.stringify(v); } catch { return String(v); } };
+const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : json(o)) : String(o)); // label is optional on { value } options — fall back to the value's string form, and an object with neither to its JSON, never the literal "undefined"
 
 const svgNS = "http://www.w3.org/2000/svg";
 // el/svgEl are the internal DOM factory, typed by tag the way createElement is (so a
@@ -372,7 +375,7 @@ let activePopoverClose: null | (() => void) = null, activePopoverTrigger: HTMLEl
 // close runs only when the open popover's trigger lives inside it (destroying panel A
 // used to dismiss the menu or picker open on panel B). No owner closes whichever is up.
 const closeActivePopover = (owner?: Element) => { if (activePopoverClose && (!owner || owner.contains(activePopoverTrigger))) activePopoverClose(); };
-function popover(root: HTMLElement, trigger: HTMLElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
+function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
   let open = false, schemeObs: MutationObserver | null = null;
   pop.classList.add("tw-portal"); // the reduced-motion kill-switch + portal-wide rules key off this
   // Relay pointerdowns to the host panel's edit-lifecycle hook (capture, ahead of the
@@ -451,7 +454,7 @@ function popover(root: HTMLElement, trigger: HTMLElement, pop: HTMLElement, opts
     window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; }
     setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
   };
-  trigger.addEventListener("click", () => (open ? close() : openPop()));
+  trigger.addEventListener("click", () => { if (trigger.disabled) return; open ? close() : openPop(); }); // a disabled trigger (the presets button before the panel is built) stays inert to a synthetic click, as the toolbar buttons do
   return { open: openPop, close, isOpen: () => open, reflow };
 }
 
@@ -693,7 +696,7 @@ export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, 
 export {
   titleCase, clamp, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
-  optValue, optLabel, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive, requestReflow,
+  optValue, optLabel, json, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
   numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,

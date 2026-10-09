@@ -395,7 +395,7 @@
   font-size: 12px; font-weight: 500; color: var(--tw-text-label);
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.tw-interval .tw-slider-label { max-width: calc(100% - 112px); } /* the dual readout ("0.100 – 0.900") is wider than a slider's single value */
+.tw-interval .tw-slider-label { max-width: calc(100% - 112px); } /* the dual readout is wider than a slider's single value; the control measures the real readout on render and tightens this inline */
 .tw-slider-value {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   font-size: 12px; font-weight: 500; font-family: var(--tw-font-sans);
@@ -517,8 +517,11 @@
  * margin (the row's 10px right padding, less the 4px target gap) pulls them to sit 4px
  * off the right too, so the group is evenly inset on all three sides rather than carrying
  * a 10px gap on the right against a 4px gap top/bottom. */
-.tw-buttongroup-btns { display: flex; gap: 4px; flex: 1; min-width: 0; margin-right: -6px; }
-.tw-buttongroup-btn { flex: 1 1 0; min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface-active); border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-pop); }
+/* Many buttons wrap onto further lines rather than squeezing to blank pills: each keeps
+ * room for a few characters, and the row grows to hold the lines. */
+.tw-buttongroup { height: auto; min-height: var(--tw-row-height); }
+.tw-buttongroup-btns { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; margin-right: -6px; }
+.tw-buttongroup-btn { flex: 1 1 0; min-width: 6ch; padding: 5px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface-active); border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
   .tw-buttongroup-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
@@ -554,8 +557,8 @@
 }
 .tw-select-trigger:active { transform: scale(0.985); transition: background 0.15s, transform 0.08s ease-out; }
 .tw-select.is-open .tw-select-trigger { background: var(--tw-surface-active); }
-.tw-select-label { font-weight: 500; flex-shrink: 0; }
-.tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tw-select-label { font-weight: 500; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* the trigger row's rule: the label takes what the value leaves, down to a stub — a rigid label took the chevron out of the panel */
+.tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 .tw-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The chevron glyph sits ~25% (4.5px) inside its 18px box, so pull it out by that
  * side-bearing — its visible edge then clears the right edge by the same 12px the
@@ -629,12 +632,17 @@
 }
 .tw-trigger:active { transform: scale(0.985); transition: background 0.15s, transform 0.08s ease-out; }
 .is-open > .tw-trigger { background: var(--tw-surface-active); }
-.tw-trigger-label { flex: 0 1 auto; min-width: 5ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* yields to the readout, down to a stub, so a translucent colour keeps its alpha on screen */
-.tw-trigger-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* Room in a trigger row: the label takes whatever the right cluster leaves (a zero basis,
+ * so it never pushes the cluster), down to a 5ch stub; the cluster keeps its natural width
+ * up to the rest of the row, and past that only the readout ellipsises. Shrink weights
+ * can't do this — proportional shrinking shaved a fraction of a pixel off the readout and
+ * drew an ellipsis over a value that fit; a rigid cluster pushed out of the panel. */
+.tw-trigger-label { flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* text-align: the label box now fills the row, and a <button> centres its text by default */
+.tw-trigger-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 /* word-spacing widens the gaps in a multi-part readout (e.g. "60% 0.23 286") to a
  * full mono-width space, so the parts read as distinct columns. Visual only —
  * the underlying value string (and what Copy emits) keeps single spaces. */
-.tw-trigger-value { font-family: var(--tw-font-sans); word-spacing: 0.14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; max-width: 20ch; } /* tighter word-spacing keeps the colour readout — with its alpha ("60% 0.23 286 / 0.5") — fitting the narrow row on wider system fonts, without truncating; the label yields first */
+.tw-trigger-value { font-family: var(--tw-font-sans); word-spacing: 0.1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 20ch; } /* tighter word-spacing keeps the colour readout — with its alpha ("60% 0.23 286 / 0.5") — fitting the narrow row on wider system fonts, without truncating; the label yields first, then this ellipsises */
 /* The 18px preview chip — colour swatch / gradient strip / mini point pad. It pops a
  * touch on hover (and while the popover's open) — the preview leads the eye in. */
 .tw-trigger-chip { height: 18px; flex-shrink: 0; border-radius: calc(var(--tw-radius) - 4px); box-shadow: inset 0 0 0 1px var(--tw-border-hover); transition: transform 0.2s var(--tw-ease-spring); }

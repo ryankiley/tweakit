@@ -55,6 +55,10 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     // the text stays legible.
     const trackW = wrap.offsetWidth;
     if (trackW) {
+      // The label's room is whatever the dual readout leaves: measured, since "1234.567 –
+      // 9876.543" is far wider than the stylesheet's fixed reserve (which stays as the
+      // pre-layout fallback). 12px label inset + 8px gap + the readout's own right inset.
+      labelEl.style.maxWidth = Math.max(0, trackW - valueEl.offsetWidth - 12 - 8 - 10) + "px";
       const dodges = (pct: number) => overlapsText(labelEl, valueEl, (pct / 100) * trackW - 1.5, 3);
       hLo.classList.toggle("is-dodge", dodges(pctOf(lo)));
       hHi.classList.toggle("is-dodge", dodges(pctOf(hi)));
