@@ -1,11 +1,11 @@
 // ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the colour
 // module (reuses its picker body, parseColor, and oklchStr).
-import { el, btn, dragGesture, clamp, popover, triggerRow, registerControl } from "../shared.js";
+import { el, btn, dragGesture, clamp, popover, triggerRow, registerControl, icon } from "../shared.js";
 import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./colour.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
 
 // ICON_PLUS — adapted from Lucide/Feather `plus` (MIT). See ../../../THIRD-PARTY-NOTICES.md.
-const ICON_PLUS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`;
+const ICON_PLUS = icon('<path d="M12 5v14M5 12h14"/>', "", 2.5);
 
 // ── Gradient — a Figma-style editor: the panel shows a swatch-trigger row (the
 // gradient preview + stop count, mirroring the colour row), and clicking it opens a
