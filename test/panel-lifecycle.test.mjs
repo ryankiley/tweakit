@@ -103,6 +103,7 @@ test("presets and undo called before a lazy panel is ready replay in order", asy
   localStorage.clear();
   const spring = { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } }; // lazy, so assemble waits on ready
   const p = lazy.tweaks("LazyPresets", { x: [1, 0, 10, 1], s: spring }, { persist: "lp" });
+  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "in the lazy window");
   p.set("x", 4);
   assert.equal(p.savePreset("four"), true, "queued, not dropped");
   p.set("x", 9);
@@ -113,7 +114,8 @@ test("presets and undo called before a lazy panel is ready replay in order", asy
   assert.equal(p.params.x, 4, "the preset captured the value at its point in the queue");
   p.destroy();
   localStorage.setItem("tw:lp2:presets", JSON.stringify({ seven: { x: 7 } }));
-  const q = lazy.tweaks("LazyLoad", { x: [1, 0, 10, 1], s: spring }, { persist: "lp2" });
+  const q = lazy.tweaks("LazyLoad", { x: [1, 0, 10, 1], b: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } }, { persist: "lp2" }); // spring is registered by now — a type the process has not loaded keeps this in the lazy window
+  assert.ok(q.el.querySelector(".tw-toolbar-btn--reset").disabled, "still in the lazy window");
   assert.equal(q.loadPreset("seven"), true, "a stored preset is loadable before ready");
   assert.equal(q.loadPreset("missing"), false);
   await q.ready;

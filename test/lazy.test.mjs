@@ -7,10 +7,16 @@ import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 
 const { tweaks } = await import(new URL("../dist/tweaks/core.js", import.meta.url));
+// The control registry is process-wide: once a test has loaded a lazy chunk, the next panel
+// that needs only that type assembles synchronously and the window these tests exercise is
+// gone. Each test therefore needs a lazy type no earlier test loaded, and asserts the window
+// is open — the toolbar stays disabled until assemble() runs.
+const inLazyWindow = (p) => p.el.querySelector(".tw-toolbar-btn--reset").disabled;
 
 test("set() during the lazy window replays once ready", async () => {
   // interval is a lazy control, so assemble defers behind panel.ready
   const p = tweaks("Lazy", { folder: { r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 }, y: [1, 0, 10, 1] } });
+  assert.ok(inLazyWindow(p));
   p.set("folder.y", 7); // dotted — used to warn + drop
   p.set("r", [3, 6]);   // bare nested — used to mint a top-level orphan
   await p.ready;
@@ -23,6 +29,7 @@ test("during the lazy window, a later fromJSON() beats an earlier set() (replay 
   // spring is a lazy control unused above, so assemble() defers behind ready — set() and
   // fromJSON() both queue, and must replay in the order they were called (last write wins).
   const p = tweaks("Order", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+  assert.ok(inLazyWindow(p));
   p.set("x", 4);                     // queued first
   p.fromJSON({ values: { x: 9 } });  // queued later → must win
   await p.ready;
@@ -30,9 +37,10 @@ test("during the lazy window, a later fromJSON() beats an earlier set() (replay 
 });
 
 test("during the lazy window, setMany() replays as ONE batch — a single notify", async () => {
-  // spring is lazy → assemble() defers; the whole setMany batch queues as one tagged entry
-  // and must replay as a single setMany (one notify), not one set() per key.
-  const p = tweaks("Batch", { a: [1, 0, 10, 1], b: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+  // cubicbezier is lazy (spring was loaded by the test above) → assemble() defers; the whole
+  // setMany batch queues as one entry and must replay as a single setMany (one notify).
+  const p = tweaks("Batch", { a: [1, 0, 10, 1], b: [1, 0, 10, 1], c: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } });
+  assert.ok(inLazyWindow(p));
   let calls = 0, lastKey;
   p.on((params, last) => { calls++; lastKey = last; });
   p.setMany({ a: 5, b: 7 });
@@ -47,13 +55,15 @@ test("reset() during the lazy window replays, in order with the sets around it",
   // Regression: reset() forwarded to the toolbar button, and the toolbar is disabled until
   // assemble() — .click() is a no-op on a disabled control, so every reset() made in the
   // lazy window vanished silently while set()/setMany()/fromJSON() all queued.
-  const p = tweaks("Reset", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+  const p = tweaks("Reset", { x: [1, 0, 10, 1], pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } });
+  assert.ok(inLazyWindow(p));
   p.set("x", 7);
   p.reset();      // queued after the set → must win
   await p.ready;
   assert.equal(p.params.x, 1, "the queued reset replayed after the set it followed");
 
-  const q = tweaks("Reset2", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+  const q = tweaks("Reset2", { x: [1, 0, 10, 1], pl: { type: "plot", expr: "x" } });
+  assert.ok(inLazyWindow(q));
   q.reset();
   q.set("x", 7);  // queued after the reset → must win
   await q.ready;
