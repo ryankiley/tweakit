@@ -57,11 +57,8 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     // at mount: a standalone control has no siblings for a predicate to read, so `get` answers
     // undefined, and nothing re-evaluates later. A throwing predicate leaves the control as-is.
     const none: Get = () => undefined;
-    try {
-      if (meta.render && !meta.render(none)) ctrl.el.classList.add("tw-cond-hidden");
-      const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled;
-      if (d) setDisabled(ctrl.el, true);
-    } catch {}
+    try { if (meta.render && !meta.render(none)) ctrl.el.classList.add("tw-cond-hidden"); } catch {}
+    try { const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled; if (d) setDisabled(ctrl.el, true); } catch {} // each predicate fails on its own
     root.append(ctrl.el);
     if (!valued) return;
     last = ctrl.get(); // the form the control opened on (a hex colour reads back in the picker's own notation)
@@ -71,7 +68,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     el: root,
     set: (v) => { if (destroyed || !valued) return; if (ctrl) { ctrl.set(v); emit(ctrl.get()); } else { parked = v; queued = true; } },
     get: () => (!valued ? undefined : ctrl ? ctrl.get() : queued ? parked : meta.value),
-    destroy: () => { destroyed = true; if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy(); root.remove(); },
+    destroy: () => { destroyed = true; if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy(); root.dataset.twDestroyed = ""; root.remove(); }, // the mark lets the control's global listeners (onLive) release on their next event
     ready: null,
   };
   handle.ready = whenLoaded([meta], build, handle);

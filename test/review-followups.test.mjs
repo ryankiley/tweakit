@@ -88,16 +88,16 @@ test("a resize during the lazy window is applied once the panel is ready", async
   } finally { window.innerWidth = w0; p.destroy(); }
 });
 
-test("a build that throws is reported and leaves the API inert, like a chunk that fails", async () => {
+test("a bag value no snapshot can take doesn't break the build; snapshots carry the controls' values", async () => {
   const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(String(a[0]));
   try {
-    const p = lazy.tweaks("RFT", { x: [1, 0, 10, 1], pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } }, { undo: true });
-    const loop = {}; loop.self = loop; p.params.loop = loop; // a bag value no snapshot can take, parked before ready
-    await assert.rejects(p.ready, TypeError);
-    assert.equal(p.savePreset("ghost"), false);
+    const p = lazy.tweaks("RFT", { x: [1, 0, 10, 1], pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } }, { undo: true, persist: "rf-t" });
+    const loop = {}; loop.self = loop; p.params.loop = loop; // parked before ready; the undo seed, the persist timer and toJSON all snapshot it
+    await p.ready;
     p.set("x", 5);
-    assert.equal(p.params.x, 1, "the controls had built before the throw; the refused set never applied");
-    assert.ok(warns.some((m) => m.includes("failed to load")) && warns.some((m) => m.includes("call ignored")), "the failure and the refused call both say so");
+    assert.equal(p.params.x, 5, "the panel works");
+    assert.deepEqual(p.toJSON().values.x, 5, "toJSON carries the controls' values");
+    assert.equal(warns.filter((m) => m.includes("can't be serialised")).length, 1, "said once");
     p.destroy();
   } finally { console.warn = warn; }
 });

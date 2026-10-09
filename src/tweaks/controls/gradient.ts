@@ -41,7 +41,7 @@ function normalizeStops(value: any): GradientStop[] {
   // preview's `linear-gradient(…)`, so an unparsed string there could splice in further
   // background layers (a `url()` — a network fetch from a preset or persisted state).
   // Fewer than two usable stops falls back to the default pair.
-  const stop = (color: string, pos: unknown): GradientStop | null => (isColor(color) ? { color: String(color), pos: clamp(+pos || 0, 0, 1) } : null);
+  const stop = (color: string, pos: unknown): GradientStop | null => (isColor(color) ? { color: String(color).trim(), pos: clamp(+pos || 0, 0, 1) } : null); // trimmed as the gate trims it: a non-ASCII space, which the CSS tokeniser reads as part of a name, must not ride into the gradient
   const out = (arr || []).map((s: any) => {
     if (Array.isArray(s)) return stop(s[0], s[1]);
     if (s && typeof s === "object") return stop(s.color, s.pos);

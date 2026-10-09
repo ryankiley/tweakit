@@ -88,7 +88,7 @@ function hslToSrgb(hsl: Vec3): Vec3 {
 }
 function srgbHue(rgb: Vec3) {
   const max = Math.max(...rgb), min = Math.min(...rgb), d = max - min;
-  if (d === 0) return NaN;
+  if (d < 1e-9) return NaN; // a grey — including one back from an OKLCH trip, where the channels differ by float noise and the hue would be noise too
   let h: number; if (max === rgb[0]) h = (rgb[1] - rgb[2]) / d + (rgb[1] < rgb[2] ? 6 : 0); else if (max === rgb[1]) h = (rgb[2] - rgb[0]) / d + 2; else h = (rgb[0] - rgb[1]) / d + 4;
   return h * 60;
 }
@@ -295,7 +295,7 @@ export function gamutLabel(oklch: Vec3, mode: ColorMode) {
 export function readout(oklch: Vec3, mode: ColorMode) {
   if (mode === "hex") return oklchToHex(oklch[0], oklch[1], oklch[2]);
   const chans = MODE_CHANNELS[mode], v = channelValues(oklch, mode);
-  const s = (i: number) => v[i].toFixed(digitsFor(chans[i].step));
+  const s = (i: number) => { const t = v[i].toFixed(digitsFor(chans[i].step)); return chans[i].k === "H" && +t === 360 ? (0).toFixed(digitsFor(chans[i].step)) : t; }; // a hue that rounds to 360 is 0 — the readout re-parses to the same colour either way, but only 0 reads back as itself
   if (mode === "css") return `${s(0)}, ${s(1)}, ${s(2)}`;
   if (mode === "oklch" || mode === "oklab" || mode === "lch" || mode === "lab") return `${s(0)}% ${s(1)} ${s(2)}`;
   if (mode === "hsl" || mode === "hwb") return `${s(0)} ${s(1)}% ${s(2)}%`;
