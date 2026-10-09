@@ -6,7 +6,7 @@
  * like a panel: they exist synchronously, `set()` runs the change callback, `destroy()`
  * tears down, and `ready` resolves once a lazily-loaded control has built (immediately
  * on the single-file build, where every control is inlined). */
-import { el, getControl, onReady } from "./shared.js";
+import { el, getControl, onReady, setDisabled } from "./shared.js";
 import { metaFor, valueChanged, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createControl } from "./controls/basic.js";
@@ -58,7 +58,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     // undefined, and nothing re-evaluates later. A throwing predicate leaves the control as-is.
     const none: Get = () => undefined;
     try { if (meta.render && !meta.render(none)) ctrl.el.classList.add("tw-cond-hidden"); } catch {}
-    try { const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled; if (d) { ctrl.el.classList.add("is-disabled"); ctrl.el.inert = true; } } catch {} // each predicate fails on its own
+    try { const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled; if (d) setDisabled(ctrl.el, true); } catch {} // each predicate fails on its own
     root.append(ctrl.el);
     if (!valued) return;
     last = ctrl.get(); // the form the control opened on (a hex colour reads back in the picker's own notation)

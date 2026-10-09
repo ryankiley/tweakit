@@ -513,6 +513,11 @@ const measurePill = (container: Element, pill: HTMLElement, animate?: boolean) =
 // CSS folds on, the toggle's aria-expanded, and `inert` on the body so its (still mounted,
 // clip-faded) controls leave the tab order + a11y tree while hidden. Synchronous, so it's
 // correct under reduced-motion too.
+// Disable a control row: greyed + locked. `inert` goes on the row's children, not the row —
+// an inert element hit-tests like pointer-events:none, so an inert row would pass the pointer
+// through to the panel and never show its not-allowed cursor. The children still drop out of
+// focus, keyboard and the a11y tree; the row stays a pointer target for the cursor alone.
+const setDisabled = (node: HTMLElement, d: boolean) => { node.classList.toggle("is-disabled", d); for (const c of node.children) (c as HTMLElement).inert = d; };
 const setCollapsed = (root: Element, toggle: Element, body: HTMLElement, c: boolean) => { root.classList.toggle("is-collapsed", c); toggle.setAttribute("aria-expanded", String(!c)); body.inert = c; };
 // The index of the button whose (stringified — dataset) value is the active one — or,
 // when none matches (a value no option carries), the first button: the group's roving
@@ -702,7 +707,7 @@ export {
   normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
-  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
+  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
   numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };

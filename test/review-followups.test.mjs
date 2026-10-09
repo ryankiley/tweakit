@@ -15,7 +15,7 @@ test("mountControl honours disabled and render on a verbose value, resolved once
   const c = mountControl(host, { type: "slider", value: 1, min: 0, max: 10, render: () => false });
   const d = mountControl(host, { type: "slider", value: 1, min: 0, max: 10, disabled: () => { throw new Error("boom"); } });
   await Promise.all([a.ready, b.ready, c.ready, d.ready]);
-  for (const h of [a, b]) { const el = h.el.firstElementChild; assert.ok(el.classList.contains("is-disabled") && el.inert, "disabled control is greyed and inert"); }
+  for (const h of [a, b]) { const el = h.el.firstElementChild; assert.ok(el.classList.contains("is-disabled") && !el.inert && [...el.children].every((c) => c.inert), "disabled control is greyed, its contents inert, the row still a cursor target"); }
   assert.ok(c.el.firstElementChild.classList.contains("tw-cond-hidden"), "render:false hides it");
   assert.ok(!d.el.firstElementChild.classList.contains("is-disabled"), "a throwing predicate leaves the control as-is");
   for (const h of [a, b, c, d]) h.destroy();

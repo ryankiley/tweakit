@@ -243,6 +243,10 @@
 /* When collapsed the header is the whole panel — drop its separator padding so
  * the top/bottom padding around the title is even (the panel pads 12 all round). */
 .tw-panel.is-collapsed .tw-header { margin-bottom: 0; padding-bottom: 0; border-color: transparent; }
+/* A folder brings its own spacing (its title is centred in a row-height header), so when
+ * one opens the panel the header's 8px gap would stack on it and sit the title low under
+ * the divider. Drop the gap there, so the first folder title sits between rules like the rest. */
+.tw-header:has(+ .tw-body > .tw-controls > .tw-folder:first-child) { margin-bottom: 0; }
 .tw-toolbar-btn {
   position: relative; display: flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; padding: 0; flex-shrink: 0;
@@ -252,7 +256,8 @@
   transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+.tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+.tw-toolbar-btn:disabled { cursor: default; } /* the lazy-chunk window: "not yet", not "never", so a plain arrow rather than not-allowed */
 }
 /* Press dips deep + quick; release springs back through --pop so the button feels physical.
  * The dip shrinks the box ~1.7px per side, so a cursor parked near the edge would lose
@@ -332,7 +337,7 @@
 /* Conditional render (render:(get)=>bool) hides the control; disabled greys + locks it. */
 .tw-cond-hidden { display: none !important; }
 .is-disabled { opacity: 0.4; cursor: not-allowed; }
-.is-disabled * { pointer-events: none; } /* children are inert to the pointer, but the row itself stays a target so it shows the not-allowed cursor */
+.is-disabled * { pointer-events: none; } /* children are inert (setDisabled), but the row itself stays a target so it shows the not-allowed cursor */
 /* Per-control reset target (double-click a label/readout). touch-action: manipulation
  * drops the double-tap-to-zoom gesture on it, so a double-tap reliably lands on the
  * reset handler on touch instead of zooming the page. */
