@@ -3,7 +3,7 @@
  * undo, the filter, floating drag, and the lazy-window queue all live here. */
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, setCollapsed,
-  applyThemeVars, resolveTheme, carryScheme, onLive, requestReflow, quietFocus, fuzzyMatch,
+  applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, fuzzyMatch,
   REDUCE_MOTION, getControl,
 } from "./shared.js";
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
@@ -640,7 +640,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
           // rather than aborting construction or the whole notify() pass.
           try {
             if (m.render) { const hide = !m.render(getVal); if (!hide && node.classList.contains("tw-cond-hidden")) revealed = true; node.classList.toggle("tw-cond-hidden", hide); }
-            if (m.disabled != null) { const d = typeof m.disabled === "function" ? m.disabled(getVal) : m.disabled; node.classList.toggle("is-disabled", !!d); node.inert = !!d; } // inert blocks keyboard + focus too, not just the CSS pointer-events
+            if (m.disabled != null) { const d = typeof m.disabled === "function" ? m.disabled(getVal) : m.disabled; setDisabled(node, !!d); }
           } catch {}
         }
         if (revealed) requestReflow(); // a control built behind a false render condition measured 0×0 (blank canvas/SVG, a stuck pill) — once shown, let it re-measure, as a tab page does
