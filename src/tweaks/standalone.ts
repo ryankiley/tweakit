@@ -17,10 +17,9 @@ import type { SchemaValue, MountOptions, MountedControl, ColorPickerOptions, Col
 // of the kit's tokens, and the controls size and paint from them (a slider track is
 // `height: var(--tw-row-height)`, a surface `var(--tw-surface)`) — so the wrapper carries
 // .tw-portal, the token scope the stylesheet already keeps for nodes that live outside a
-// panel (the popovers, the toast): the full palette with its light/dark twins, the font
-// stack, box-sizing, and no panel chrome. That scope was cut for popover surfaces, which
-// have no rows, so the row height rides inline until the stylesheet carries it too.
-const scope = (cls) => { const n = el("div", `${cls} tw-standalone tw-portal`); n.style.setProperty("--tw-row-height", "32px"); return n; };
+// panel (the popovers, the toast, bare markup hosts): the full token set with its
+// light/dark twins, the font stack, box-sizing, and no panel chrome.
+const scope = (cls) => el("div", `${cls} tw-standalone tw-portal`);
 // Run `build` once the lazy module a control needs has landed — synchronously when none
 // is missing (the single build, or a chunk already warm), else behind the returned
 // promise, which rejects if the chunk fails (the handled fork keeps that out of the
