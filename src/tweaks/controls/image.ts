@@ -6,6 +6,12 @@ import { el, triggerRow, registerControl } from "../shared.js";
 // point, so the WHOLE row is the target — minus the popover: a click opens the file
 // dialog and the row is also the drop zone. Drag an image on, or click to choose. No
 // inner pill — the thumbnail rides the shared trigger-chip, like the color swatch.
+// Escape a value for a CSS string literal: the quote that would close it, the backslash
+// that escapes it, and control characters (a raw newline ends a CSS string). The value
+// is still shown as a URL — that's what an image control legitimately holds — but the
+// string ends where we say, so a stored `a.png"), url("https://x/p.png` is one (broken)
+// image, not a second background layer and a fetch.
+const cssString = (s) => String(s).replace(/[\\"]/g, "\\$&").replace(/[\x00-\x1f\x7f]/g, (c) => "\\" + c.charCodeAt(0).toString(16) + " ");
 function createImage(meta, onChange) {
   let value = meta.value || "";
   const { root, trigger, right } = triggerRow("tw-image", meta.label);
@@ -18,7 +24,7 @@ function createImage(meta, onChange) {
   root.append(input);
   const render = () => {
     thumb.dataset.set = value ? "true" : "false";
-    thumb.style.backgroundImage = value ? `url("${value}")` : "";
+    thumb.style.backgroundImage = value ? `url("${cssString(value)}")` : "";
     text.textContent = value ? "Replace" : "Drop or choose";
   };
   const load = (file) => { if (!file || !file.type.startsWith("image/")) return; const fr = new FileReader(); fr.onload = () => { value = String(fr.result); render(); onChange(value); }; fr.readAsDataURL(file); };

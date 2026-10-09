@@ -1,7 +1,7 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
 import { el, txt, clamp, rangeStep, grabSurface, boxFrac, numField, popover, triggerRow, quietFocus, selectAllOnFocus, registerControl } from "../shared.js";
-import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
+import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 
 // ── Colour — one module: a row that opens a dropdown OKLCH picker. Ported from
 // Ryan's wide-gamut colour plugin (the real engine; see wide-gamut.js): an
@@ -38,6 +38,27 @@ const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 
 // a TypeError thrown straight out of panel.set() / fromJSON() / a persisted restore.
 const COLOR_FN_SPACES = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" });
 const HEX_RE = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i; // 3/4/6/8 digits only (the hex field's gate) — a 5/7-digit string is junk, not a colour
+// The one scratch 2D context the parser normalizes sRGB-family colors through; null where
+// the DOM has no canvas (jsdom), and that answer is cached too.
+let c2dCache;
+const canvas2d = () => (c2dCache === undefined ? (c2dCache = document.createElement("canvas").getContext("2d")) : c2dCache);
+// Is `str` one CSS color token and nothing more? The gate a gradient stop passes before
+// its text is concatenated into a `linear-gradient()`: a stored stop of
+// `red 0%), url(https://x/p.png), linear-gradient(red` used to splice extra background
+// layers (and a fetch) into the preview. Shape first — a hex, a bare keyword, or a single
+// function whose arguments carry only channel characters (no parens, quotes, or a nested
+// url() can ride inside) — then the parse: the engine's own functions always parse, and
+// the sRGB-family forms are put to the canvas against two sentinels, so a legitimate
+// `black` isn't mistaken for the "junk leaves fillStyle unchanged" echo. Without a canvas
+// to ask, the shape gate alone stands.
+const COLOR_TOKEN = /^(#[0-9a-f]{3,8}|[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
+export function isColor(str) {
+  str = String(str == null ? "" : str).trim();
+  if (!COLOR_TOKEN.test(str)) return false;
+  if (HEX_RE.test(str) || /^(oklch|oklab|lch|lab|color)\(/i.test(str)) return true;
+  const c2d = canvas2d(); if (!c2d) return true;
+  return ["#000", "#fff"].some((sentinel) => { c2d.fillStyle = sentinel; const before = c2d.fillStyle; c2d.fillStyle = str; return c2d.fillStyle !== before; });
+}
 const parseAngle = (t) => { const m = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)(deg|grad|rad|turn)$/i.exec(t); if (!m) return num(parseFloat(t)); const n = parseFloat(m[1]); return m[2].toLowerCase() === "turn" ? n * 360 : m[2].toLowerCase() === "grad" ? n * 0.9 : m[2].toLowerCase() === "rad" ? (n * 180) / Math.PI : n; };
 function parseColor(str) {
   str = String(str == null ? "" : str).trim();
@@ -67,13 +88,19 @@ function parseColor(str) {
       : fn === "oklab" ? [clamp(ch(toks[0], 0.01), 0, 1), ch(toks[1], 0.004), ch(toks[2], 0.004)]                // L% → 0–1; a/b 100% ↔ ±0.4
       : [clamp(ch(toks[0], 0.01), 0, 1), Math.max(0, ch(toks[1], 0.004)), parseAngle(toks[2] || "0")];           // oklch
     const k = space === "oklch" ? c : convert(c, space, "oklch");
-    return [num(k[0]), num(k[1]), ((num(k[2]) % 360) + 360) % 360, A]; // hue normalised to [0,360) so a negative input can't strand the strip thumb
+    // Chroma is capped at the picker's own ceiling on every functional path (oklch, oklab,
+    // lab, lch, color()): `oklch(0.5 1e999 0)` parsed to C = Infinity and hung the gamut
+    // map's bisection. num() zeroes a non-finite channel too, and toGamut bails on one —
+    // three layers, so no single path is the only guard.
+    return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A]; // hue normalised to [0,360) so a negative input can't strand the strip thumb
   }
   // sRGB-family (rgb / hsl / hwb / named / transparent): normalise via a canvas — its
   // fillStyle getter returns "#rrggbb" (opaque) or "rgba(r,g,b,a)" for these, then parse
   // that. Wide colours never reach here (handled above); an unrecognised echo or plain
   // junk parses as black, matching the old "junk leaves fillStyle at #000" behaviour.
-  const c2d = ((parseColor as any)._c2d ||= document.createElement("canvas").getContext("2d"));
+  // No 2D canvas at all (a headless DOM) degrades the same way, rather than throwing out
+  // of the control's build.
+  const c2d = canvas2d(); if (!c2d) return [0, 0, 0, 1];
   c2d.fillStyle = "#000"; c2d.fillStyle = str;
   const norm = c2d.fillStyle;
   if (HEX_RE.test(norm)) return parseColor(norm); // opaque → the hex branch above (gated on the hex shape, so the recursion is bounded even if a canvas echoed something else back)
