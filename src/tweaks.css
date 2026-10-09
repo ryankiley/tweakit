@@ -243,6 +243,10 @@
 /* When collapsed the header is the whole panel — drop its separator padding so
  * the top/bottom padding around the title is even (the panel pads 12 all round). */
 .tw-panel.is-collapsed .tw-header { margin-bottom: 0; padding-bottom: 0; border-color: transparent; }
+/* A folder brings its own spacing (its title is centred in a row-height header), so when
+ * one opens the panel the header's 8px gap would stack on it and sit the title low under
+ * the divider. Drop the gap there, so the first folder title sits between rules like the rest. */
+.tw-header:has(+ .tw-body > .tw-controls > .tw-folder:first-child) { margin-bottom: 0; }
 .tw-toolbar-btn {
   position: relative; display: flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; padding: 0; flex-shrink: 0;
