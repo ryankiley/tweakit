@@ -139,9 +139,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
   for (const b of toolbarBtns) b.disabled = true;
   // A header drag (floating mode) sets this so the click ending the drag doesn't collapse.
-  let dragMoved = false;
+  // The swallow lives on the header, not the title: once the header holds pointer capture
+  // the browser dispatches that click to the header (the common ancestor of the press and
+  // the release), so a title-level guard never saw it and ate the NEXT real click instead.
+  let dragMoved = false, swallowClick = false;
+  header.addEventListener("click", (e) => { if (swallowClick) { swallowClick = false; e.preventDefault(); e.stopPropagation(); } }, true);
   titleBtn.addEventListener("click", () => {
-    if (dragMoved) { dragMoved = false; return; }
     setCollapsed(panel, titleBtn, body, !panel.classList.contains("is-collapsed"));
     // A bottom-parked floating panel grows past the viewport when it expands — re-clamp
     // once the 0.25s body collapse has settled and the height is real.
@@ -464,10 +467,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const raise = () => { if (topFloating && topFloating !== panel) topFloating.style.zIndex = ""; panel.style.zIndex = "99991"; topFloating = panel; };
 
     let dragId = null, sx = 0, sy = 0, ox = 0, oy = 0;
+    // The move/release listeners sit on the document for the press's duration (capture
+    // phase, so the panel's own pointer-stop can't hide them). Capture is only taken once
+    // the drag passes its threshold — taking it on the press would retarget a plain click
+    // away from the title button — so until then a fast flick's first move, or a release a
+    // hair off the header, lands elsewhere; heard on the document they still steer or end
+    // the press, where header-only listeners left the grabber lit and the drag stranded.
+    const listen = (on: boolean) => { for (const [t, fn] of [["pointermove", onMove], ["pointerup", endDrag], ["pointercancel", endDrag]] as Array<[string, (e: any) => void]>) on ? document.addEventListener(t, fn, true) : document.removeEventListener(t, fn, true); };
     header.addEventListener("pointerdown", (e) => {
       // Let the toolbar buttons and any inputs work; drag from anywhere else on the header.
       if (e.button !== 0 || dragId !== null || e.target.closest(".tw-toolbar, input, textarea, select")) return;
       dragId = e.pointerId; sx = e.clientX; sy = e.clientY; dragMoved = false;
+      listen(true);
       panel.classList.add("is-grabbing"); // press feedback: brighten the grabber the instant it's grabbed, before any move — matters on touch, where there's no hover to reveal it first
       // Regrab mid–edge-snap: pick the panel up where it visually is (the eased,
       // in-flight position), not the parked target px/py already hold — clearing the
@@ -478,15 +489,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         panel.style.transition = ""; apply(); // …and drop the snap transition, so the grab is 1:1
       }
     });
-    header.addEventListener("pointermove", (e) => {
+    const onMove = (e) => {
       if (e.pointerId !== dragId) return;
-      // Released where we never hear it — the press hadn't crossed the 4px threshold yet,
-      // so no pointer was captured and a pointerup just off the header (a hair of drift
-      // onto the body, or the page scrolling out from under a held button) never reaches
-      // endDrag. The button is up but dragId is still ours, so the NEXT plain hover across
-      // the header would pass the threshold against the stale origin and lift the panel
-      // into a drag with nothing pressed. Bail the same way every other drag surface in
-      // the kit does (the slider, the interval, dragGesture).
+      // Released where no pointerup reached us (the window lost the pointer): the button
+      // is up but dragId is still ours, so bail the way every other drag surface in the
+      // kit does (the slider, the interval, dragGesture) rather than steer with nothing pressed.
       if (e.buttons === 0) { endDrag(e); return; }
       const dx = e.clientX - sx, dy = e.clientY - sy;
       if (!dragMoved) {
@@ -497,11 +504,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       }
       const { maxX, maxY } = bounds();
       px = clamp(ox + dx, MARGIN, maxX); py = clamp(oy + dy, MARGIN, maxY); apply();
-    });
+    };
     const endDrag = (e) => {
       if (e.pointerId !== dragId) return;
       try { header.releasePointerCapture(dragId); } catch {}
-      dragId = null;
+      dragId = null; listen(false);
+      // The click that ends a real drag follows the release in the same input task; swallow
+      // exactly that one (the header's capture-phase click listener), and let the flag
+      // lapse right after in case no click comes (a pointercancel, a release off-window).
+      swallowClick = dragMoved;
+      if (swallowClick) setTimeout(() => { swallowClick = false; }, 0);
       if (dragMoved) {
         // Edge magnetism: a drop near a side eases the rest of the way to the margin, so the
         // panel parks cleanly against the edge instead of hovering a few px off it.
@@ -517,9 +529,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       }
       panel.classList.remove("is-dragging", "is-grabbing");
     };
-    header.addEventListener("pointerup", endDrag);
-    header.addEventListener("pointercancel", endDrag);
     header.addEventListener("lostpointercapture", endDrag); // implicit capture loss mid-drag ends it like a release
+    cleanups.push(() => listen(false)); // a destroy() mid-press releases the document listeners
     // Keep a floated panel inside the viewport as the window resizes — self-cleaning
     // (it used to leak per draggable panel), and released eagerly by destroy().
     cleanups.push(onLive(panel, [[window, "resize"]], () => { if (panel.dataset.mode === "floating") { clampPos(); apply(); } }));
