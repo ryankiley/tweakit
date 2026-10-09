@@ -193,6 +193,7 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--tw-text-root);
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; /* a long name truncates on one line instead of wrapping under the toolbar */
 }
 .tw-header-toggle {
   display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
@@ -236,7 +237,7 @@
  * rubber-banding past its end (up to MAX_STRETCH px) shows in the panel's 12px
  * padding rather than being clipped. Must be `clip`, not `hidden`: a `hidden` on
  * either axis forces the other (`visible`) to compute to `auto`. */
-.tw-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; }
+.tw-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; }
 .tw-panel.is-collapsed .tw-body { grid-template-rows: 0fr; }
 .tw-header { transition: margin-bottom 0.25s, padding-bottom 0.25s, border-color 0.25s; }
 /* When collapsed the header is the whole panel — drop its separator padding so
@@ -312,6 +313,11 @@
 
 /* ── Controls stack ── */
 .tw-controls { display: flex; flex-direction: column; gap: 6px; }
+/* A flex item's floor is its min-content width, and the stack sits in a grid track that
+ * grows to fit it — so one nowrap child (a long selected option, a wide tab bar, an
+ * eight-button group) used to widen every row past the panel and over its neighbours.
+ * Zero floors let the children shrink and their own ellipsis rules do the truncating. */
+.tw-controls > * { min-width: 0; }
 /* Conditional render (render:(get)=>bool) hides the control; disabled greys + locks it. */
 .tw-cond-hidden { display: none !important; }
 .is-disabled { opacity: 0.4; cursor: not-allowed; }
@@ -389,6 +395,7 @@
   font-size: 12px; font-weight: 500; color: var(--tw-text-label);
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.tw-interval .tw-slider-label { max-width: calc(100% - 112px); } /* the dual readout ("0.100 – 0.900") is wider than a slider's single value */
 .tw-slider-value {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   font-size: 12px; font-weight: 500; font-family: var(--tw-font-sans);
@@ -522,7 +529,7 @@
 
 /* ── Tabs — paged controls with a sliding pill ── */
 .tw-tabs { display: flex; flex-direction: column; gap: 8px; }
-.tw-tabs-bar { position: relative; display: flex; gap: 2px; padding: 2px; background: var(--tw-surface); border-radius: var(--tw-radius); }
+.tw-tabs-bar { position: relative; display: flex; gap: 2px; padding: 2px; min-width: 0; background: var(--tw-surface); border-radius: var(--tw-radius); }
 .tw-tabs-pill { position: absolute; top: 2px; bottom: 2px; left: 0; width: 0; background: var(--tw-surface-active); border-radius: calc(var(--tw-radius) - 2px); z-index: 0; transition: left 0.24s var(--tw-ease-out), width 0.24s var(--tw-ease-out); }
 .tw-tabs-tab { position: relative; z-index: 1; flex: 1; min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.15s, transform 0.2s var(--tw-ease-pop); }
 .tw-tabs-tab[data-active="true"] { color: var(--tw-text-primary); }
@@ -536,7 +543,7 @@
 /* ── Select ── */
 .tw-select { position: relative; }
 .tw-select-trigger {
-  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; /* the gap holds once the value can shrink to the label */
   height: var(--tw-row-height); padding: 0 12px;
   font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label);
   background: var(--tw-surface); border: none; border-radius: var(--tw-radius);
@@ -549,7 +556,7 @@
 .tw-select.is-open .tw-select-trigger { background: var(--tw-surface-active); }
 .tw-select-label { font-weight: 500; flex-shrink: 0; }
 .tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.tw-select-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The chevron glyph sits ~25% (4.5px) inside its 18px box, so pull it out by that
  * side-bearing — its visible edge then clears the right edge by the same 12px the
  * label clears the left, instead of looking ~4.5px more inset. */
@@ -622,12 +629,12 @@
 }
 .tw-trigger:active { transform: scale(0.985); transition: background 0.15s, transform 0.08s ease-out; }
 .is-open > .tw-trigger { background: var(--tw-surface-active); }
-.tw-trigger-label { flex-shrink: 0; }
+.tw-trigger-label { flex: 0 1 auto; min-width: 5ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* yields to the readout, down to a stub, so a translucent colour keeps its alpha on screen */
 .tw-trigger-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
 /* word-spacing widens the gaps in a multi-part readout (e.g. "60% 0.23 286") to a
  * full mono-width space, so the parts read as distinct columns. Visual only —
  * the underlying value string (and what Copy emits) keeps single spaces. */
-.tw-trigger-value { font-family: var(--tw-font-sans); word-spacing: 0.14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15ch; } /* tighter word-spacing keeps the 3-part colour readout (e.g. "60% 0.23 286") fitting the narrow row on wider system fonts, without truncating */
+.tw-trigger-value { font-family: var(--tw-font-sans); word-spacing: 0.14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; max-width: 20ch; } /* tighter word-spacing keeps the colour readout — with its alpha ("60% 0.23 286 / 0.5") — fitting the narrow row on wider system fonts, without truncating; the label yields first */
 /* The 18px preview chip — colour swatch / gradient strip / mini point pad. It pops a
  * touch on hover (and while the popover's open) — the preview leads the eye in. */
 .tw-trigger-chip { height: 18px; flex-shrink: 0; border-radius: calc(var(--tw-radius) - 4px); box-shadow: inset 0 0 0 1px var(--tw-border-hover); transition: transform 0.2s var(--tw-ease-spring); }
@@ -792,7 +799,8 @@
 
 /* ── Number grab handle (drag to scrub) ── */
 .tw-num-wrap { display: flex; align-items: center; gap: 4px; }
-.tw-num-wrap .tw-num { flex: 0 0 auto; width: 6ch; }
+.tw-num-wrap .tw-num { flex: 0 0 auto; width: 6ch; text-overflow: ellipsis; } /* a value wider than the field ("0.123456", "1e+21") shows it is cut rather than looking like a shorter number */
+.tw-row > .tw-num-wrap .tw-num { width: 9ch; } /* the Number control's own row has the room a three-up field grid lacks */
 .tw-num-grab { display: flex; align-items: center; justify-content: center; width: 12px; height: 18px; flex-shrink: 0; color: var(--tw-text-tertiary); cursor: ew-resize; touch-action: none; transition: color 0.15s, transform 0.18s var(--tw-ease-spring); }
 .tw-num-grab svg { width: 12px; height: 12px; display: block; }
 /* The grip brightens and swells when you reach for it / while scrubbing — it reads as the live handle. */
@@ -819,6 +827,7 @@
  * or a parent folder's) and the last (against the panel padding) drop their outer rule. */
 .tw-folder { display: flex; flex-direction: column; border-top: 1px solid var(--tw-border); border-bottom: 1px solid var(--tw-border); }
 .tw-folder + .tw-folder { border-top: none; margin-top: -6px; } /* cancel the 6px stack gap so the two rules merge into one shared divider */
+.tw-folder .tw-folder { margin-left: 10px; } /* a nested folder steps in, so the nesting is visible (every level used to sit flush) */
 .tw-controls > .tw-folder:first-child { border-top: none; }
 .tw-folder:last-child { border-bottom: none; }
 .tw-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: var(--tw-row-height); padding: 0 2px; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
@@ -846,7 +855,7 @@
  * rubber-band past its end without the folder's collapse-clip cutting it off. */
 /* The row-height header already gives the top separation; the body just needs a little
  * room below its last control before the closing rule. */
-.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; padding-bottom: 8px; opacity: 1; transition: opacity 0.35s var(--tw-ease-fold), padding-bottom 0.35s var(--tw-ease-fold); }
+.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding-bottom: 8px; opacity: 1; transition: opacity 0.35s var(--tw-ease-fold), padding-bottom 0.35s var(--tw-ease-fold); }
 /* Collapse that padding too, so a collapsed group is exactly its header — the title sits
  * centred in its row between the two rules, matching the open state. */
 .tw-folder.is-collapsed .tw-folder-body > .tw-controls { opacity: 0; padding-bottom: 0; }
