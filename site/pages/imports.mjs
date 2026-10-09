@@ -14,6 +14,7 @@ export const intro = `
   <tr><th>Entry</th><th>Size</th><th>Loading</th></tr>
   <tr><td><code>tweakit</code></td><td>{{size-single}} gzip</td><td>one self-contained file; every control inlined, fully synchronous</td></tr>
   <tr><td><code>tweakit/core</code></td><td>{{size-split}} gzip</td><td>code-split; color engine and heavy controls dynamic-import on first use</td></tr>
+  <tr><td><code>tweakit/css</code></td><td>{{size-css}} gzip</td><td>the stylesheet, the same for both builds — add it to either figure for the full weight on the wire</td></tr>
 </table>
 <p>Pick the monolith for drop-in simplicity (it's also the no-bundler choice — copy
 <code>dist/tweaks.js</code> anywhere). Pick <code>/core</code> when panels are part of a

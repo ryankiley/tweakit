@@ -125,8 +125,8 @@ try {
   for (const f of await readdir(p("dist/types"), { recursive: true })) if (f.endsWith(".d.ts") && !keep.has(f)) await rm(p("dist/types", f));
 }
 
-// 4b) measured gzip sizes → the docs site fills {{size-split}} / {{size-single}} with
-// these, so the figures can't drift from the build. Split = the core entry + the shared
+// 4b) measured gzip sizes → the docs site fills {{size-split}} / {{size-single}} / {{size-css}}
+// with these, so the figures can't drift from the build. Split = the core entry + the shared
 // chunk it statically imports (what a basic panel fetches); single = the inlined drop-in.
 // Heavy controls dynamic-import (kind "dynamic-import") and aren't counted.
 const gz = async (rel) => gzipSync(await readFile(p(rel))).length;
@@ -135,8 +135,8 @@ const sharedChunks = (splitBuild.metafile.outputs[coreOut].imports || []).filter
 let splitBytes = await gz(coreOut);
 for (const c of sharedChunks) splitBytes += await gz(c);
 const kb = (b) => `~${Math.round(b / 1024)} KB`;
-const sizes = { split: kb(splitBytes), single: kb(await gz("dist/tweaks.js")) };
-console.log(`sizes (gzip): code-split ${sizes.split} (core + shared chunk) · single ${sizes.single}`);
+const sizes = { split: kb(splitBytes), single: kb(await gz("dist/tweaks.js")), css: kb(await gz("dist/tweaks.css")) };
+console.log(`sizes (gzip): code-split ${sizes.split} (core + shared chunk) · single ${sizes.single} · css ${sizes.css}`);
 
 // 5) docs site → dist/*.html + site.css/site.js (GitHub Pages serves dist/). The
 // generator imports site/pages/*.mjs raw — they never pass through esbuild (each
