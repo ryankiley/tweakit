@@ -144,24 +144,16 @@ const optValue = (o: Option) => (o == null ? undefined : typeof o === "object" ?
 const json = (v: unknown) => { try { return JSON.stringify(v); } catch { return String(v); } };
 const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : json(o)) : String(o)); // label is optional on { value } options — fall back to the value's string form, and an object with neither to its JSON, never the literal "undefined"
 
-const svgNS = "http://www.w3.org/2000/svg";
-// el/svgEl are the internal DOM factory, typed by tag the way createElement is (so a
-// div / input / canvas / svg each read back as their own element) — see Built above for
+// el is the internal DOM factory, typed by tag the way createElement is (so a
+// div / input / canvas each read back as their own element; svgEl in heavy.ts is its SVG twin) — see Built above for
 // the one allowance they add. The public API (types.ts) is fully typed.
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string): Built<HTMLElementTagNameMap[K]> => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
-const svgEl = <K extends keyof SVGElementTagNameMap>(tag: K, cls?: string): Built<SVGElementTagNameMap[K]> => { const n = document.createElementNS(svgNS, tag); if (cls) n.setAttribute("class", cls); return n; };
 // The two element shapes the kit builds everywhere: a non-submitting button (every
 // <button> here is type="button" — inside a host's <form>, the default "submit" would
 // post the page), and a text-bearing node (textContent, never innerHTML — labels are
 // host data). txt("button", …) is the text-labelled button, so it carries the same type.
 const btn = (cls: string, html?: string) => { const b = el("button", cls, html); b.type = "button"; return b; };
 const txt = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text: string) => { const n = el(tag, cls); n.textContent = text; if (tag === "button") (n as HTMLButtonElement).type = "button"; return n; };
-// A resolved custom property off a node; accentColor picks the panel accent and
-// falls back to the primary text colour then white (canvas strokes need a literal).
-const cssVar = (node: Element, name: string) => getComputedStyle(node).getPropertyValue(name).trim();
-// Resolve the computed style once and read both custom props off it — cssVar would call
-// getComputedStyle a second time on the fallback, and accentColor runs in the FPS draw loop.
-const accentColor = (node: Element) => { const r = getComputedStyle(node); const v = (n: string) => r.getPropertyValue(n).trim(); return v("--tw-accent") || v("--tw-text-primary") || "#fff"; };
 // Stop a node's pointer events leaking to the page behind it (the panel + the
 // popovers portaled to <body>, which sit outside the panel's own pointer-stop).
 const stopPointerLeak = (node: EventTarget) => ["pointerdown", "pointermove", "pointerup"].forEach((t) => node.addEventListener(t, (e) => e.stopPropagation()));
@@ -214,26 +206,6 @@ const quietFocus = (input: HTMLElement) => {
   input.addEventListener("focus", () => input.classList.toggle("tw-focus-quiet", pointerModality));
   input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
 };
-// Select the whole value when a text field takes focus, so a click into it replaces the
-// value on the first keystroke instead of inserting at the caret (the hex field: you
-// paste or type a new colour, never edit one digit). Browsers collapse a focus-time
-// selection on the click's own mouseup, so the first primary-button mouseup after a
-// pointer-initiated focus is swallowed while the whole value is still selected — its only
-// default is that caret placement (a middle button's mouseup carries the X11 paste, so it
-// is left alone, and a press that ended elsewhere leaves nothing to protect). Keyboard
-// focus selects natively, and a later click inside an already-focused field places the
-// caret as usual. As with any select-on-focus field, a drag on that first press moves the
-// selected text rather than selecting a range; the second press drag-selects natively.
-const selectAllOnFocus = (input: HTMLInputElement) => {
-  let swallowUp = false;
-  input.addEventListener("pointerdown", (e) => { swallowUp = e.button === 0 && document.activeElement !== input; });
-  input.addEventListener("focus", () => input.select());
-  input.addEventListener("mouseup", (e) => {
-    if (!swallowUp) return;
-    swallowUp = false;
-    if (e.button === 0 && document.activeElement === input && input.selectionStart === 0 && input.selectionEnd === input.value.length) e.preventDefault();
-  });
-};
 // Press-drag on a node: onDown fires on pointerdown (pointer captured), onMove on
 // each move; it ends on pointerup/cancel/lost capture or when the button releases off
 // the node (buttons===0), then onEnd runs. The shape behind the colour plane/strips,
@@ -248,26 +220,6 @@ function dragGesture(node: HTMLElement, { onDown, onMove, onEnd }: { onDown?: (e
   node.addEventListener("pointerup", end); node.addEventListener("pointercancel", end);
   node.addEventListener("lostpointercapture", end); // implicit capture loss (the popover unmounting mid-drag) ends the gesture too, so grab state can't strand
 }
-// Press-drag that flags .is-grabbing on the surface for the gesture's run (the thumb-lift
-// CSS keys off it) — the colour plane/strips and the point pad share this exact shape.
-// (Spring/bezier keep their own dragGesture: they use .is-dragging and capture a rect on down.)
-const grabSurface = (surface: HTMLElement, set: (e: PointerEvent) => void) => dragGesture(surface, {
-  onDown: (e) => { surface.classList.add("is-grabbing"); set(e); },
-  onMove: set,
-  onEnd: () => surface.classList.remove("is-grabbing"),
-});
-// Pointer position inside a box as [x, y] fractions in 0–1 — read off the box's own
-// rect (the colour plane/strips and the point pad).
-const boxFrac = (e: MouseEvent, box: Element): [number, number] => { const r = box.getBoundingClientRect(); return [clamp((e.clientX - r.left) / r.width, 0, 1), clamp((e.clientY - r.top) / r.height, 0, 1)]; };
-// Size a canvas to its CSS box × devicePixelRatio (capped at maxDpr) and scale the
-// context to draw in CSS pixels; returns [cssW, cssH]. The fps + monitor graphs.
-const fitCanvas = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, maxDpr = Infinity): [number, number] => {
-  const r = canvas.getBoundingClientRect();
-  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
-  canvas.width = r.width * dpr; canvas.height = r.height * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return [r.width, r.height];
-};
 // Place a portaled popover under its trigger — flipping above when it won't fit below —
 // clamped into the viewport. width:"match" sizes it to the trigger; a number is the
 // fallback width to use before layout; align:"end" lines up the right edges instead
@@ -580,102 +532,6 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
   onLive(seg, [[window, "tw-reflow"]], () => measure());
   return { el: seg, set: (v: unknown) => set(v, false), get: () => value };
 }
-// The modal-trigger row shared by the colour, gradient, and point controls: a
-// full-width row button — label left, a preview cluster (`right`) the caller fills —
-// that opens the control's popover. The caller appends its pop and wires popover().
-const triggerRow = (cls: string, label: string) => {
-  const root = el("div", cls);
-  const trigger = btn("tw-trigger"); trigger.setAttribute("aria-expanded", "false");
-  const right = el("span", "tw-trigger-right");
-  trigger.append(txt("span", "tw-trigger-label", label), right);
-  root.append(trigger);
-  return { root, trigger, right };
-};
-
-// Grab guide — a dotted line from the grab point to the cursor
-// plus a floating value bubble, portaled to <body> for the duration of a drag.
-// Shared by createNumber and the numField helper (Spring / Point / Bezier).
-// The guide node's four parts (line, dot, arrow, bubble) are the spans its innerHTML
-// below sets, addressed by index.
-interface GuideEl extends HTMLDivElement { readonly children: HTMLCollectionOf<HTMLSpanElement> }
-function makeGrabGuide() {
-  let g: GuideEl | null = null, y = 0, x0 = 0, bx = 0;
-  return {
-    show(x: number, atY: number, bubbleX: number | undefined, anchor: Element) {
-      g = el("div", "tw-grab-guide tw-portal") as GuideEl;
-      g.innerHTML = `<span class="tw-grab-line"></span><span class="tw-grab-dot"></span><span class="tw-grab-arrow"></span><span class="tw-grab-bubble"></span>`;
-      y = atY; x0 = x; bx = bubbleX ?? x; // bubble anchors over the field centre, not the cursor
-      g.children[1].style.cssText = `left:${x}px;top:${y}px`;
-      carrySkin(g, anchor); // the anchor panel's theme + winning scheme, like every portal (a light-pinned panel's guide used to follow the OS scheme)
-      document.body.appendChild(g);
-    },
-    move(x: number, text: string) {
-      if (!g) return;
-      g.children[0].style.cssText = `left:${Math.min(x0, x)}px;top:${y}px;width:${Math.abs(x - x0)}px`;
-      g.children[2].style.cssText = `left:${x}px;top:${y}px;transform:translate(-50%,-50%) scaleX(${x >= x0 ? 1 : -1})`; // arrowhead at the cursor, pointing in the drag direction
-      // bubble holds its place centred over the field, so the readout doesn't slide away with the cursor
-      g.children[3].style.cssText = `left:${bx}px;top:${y - 16}px`; g.children[3].textContent = text;
-    },
-    hide() { if (g) { g.remove(); g = null; } },
-  };
-}
-
-// Drag-to-scrub on a grab handle: 1px ≈ one step (Shift ×10, Alt ×0.1), re-anchoring
-// on a modifier change so the value never jumps, with the shared grab guide drawn
-// from the field. read() returns the live value, apply(v) commits it, text() the
-// bubble label. Shared by createNumber and the numField building block.
-function attachScrub(grab: HTMLElement, wrap: HTMLElement, step: number, read: () => number, apply: (v: number) => void, text: () => string) {
-  let downX = 0, downV = 0, curK = 1; const gd = makeGrabGuide();
-  // The shared press-drag shape — its every end path matters here: capture lost mid-scrub
-  // (the popover hosting the field closing) must still hide the full-screen guide, whose
-  // singleton ref is overwritten on the next show and would otherwise orphan the node.
-  dragGesture(grab, {
-    onDown: (e) => { e.preventDefault(); downX = e.clientX; downV = read(); curK = 1; grab.classList.add("is-dragging"); const br = wrap.getBoundingClientRect(); gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2, wrap); gd.move(e.clientX, text()); },
-    // Shift = coarse (×10), Alt = fine (×0.1); re-anchor on a modifier change so the value doesn't jump.
-    onMove: (e) => { const k = e.shiftKey ? 10 : e.altKey ? 0.1 : 1; if (k !== curK) { curK = k; downX = e.clientX; downV = read(); } apply(downV + (e.clientX - downX) * step * k); gd.move(e.clientX, text()); },
-    onEnd: () => { grab.classList.remove("is-dragging"); gd.hide(); },
-  });
-}
-
-// ── The labelled numeric field — ONE numeric engine for the kit: a sanitized step,
-// min-anchored round-to-step, optional `soft` (typed/scripted values may exceed the
-// clamp), a text input committing on change/Enter, and the grab handle (drag to
-// scrub). Two chromes off the same engine: the boxed field (uppercase caption over
-// the input — Spring, Point, Cubic-bezier, the colour channels) and, with
-// `spec.row`, the labelled row that IS the Number control. ──
-function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
-  // A 0/negative/non-finite step breaks round-to-step (NaN out of Infinity, inverted
-  // scrub + keyboard from a negative — reachable via a point component's user-supplied
-  // step); a non-finite seed shows literal "NaN". Default both to sane values.
-  const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1;
-  const bound = (b: unknown) => (b == null ? NaN : +b); // absent/null/garbage → NaN → unbounded (a null max coerced to 0 and swapped in as the floor)
-  let min = bound(spec.min), max = bound(spec.max);
-  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
-  const anchor = Number.isFinite(min) ? min : 0, decimals = stepPrecision(step); // min-anchored, like the slider — the value grid starts at the floor
-  const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor); // the value never leaves the grid, so fit(fit(x)) === fit(x): reset() and fromJSON(toJSON()) hold still
-  const fit = (val: number) => { const n = roundToStep(val, anchor, step); return spec.soft ? n : clamp(n, lo, hi); };
-  let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
-  const root = el("div", spec.row ? "tw-row" : "tw-field");
-  const wrap = el("div", "tw-num-wrap");
-  const grab = el("span", "tw-num-grab", ICON_GRIP); grab.setAttribute("aria-hidden", "true"); grab.title = "Drag to adjust";
-  const inp = el("input", "tw-num"); inp.type = "text"; inp.inputMode = "decimal"; inp.setAttribute("aria-label", spec.label); inp.value = value.toFixed(decimals);
-  quietFocus(inp); // click-to-edit stays ringless; Tab rings
-  wrap.append(grab, inp); root.append(txt("span", spec.row ? "tw-row-label" : "tw-field-label", spec.label), wrap);
-  const set = (val: number | string, fire = true) => { val = +val; if (!Number.isFinite(val)) return; value = fit(val); inp.value = value.toFixed(decimals); if (fire && onChange) onChange(value); };
-  inp.addEventListener("change", () => { const p = parseFloat(inp.value); set(isNaN(p) ? value : p); });
-  // Enter commits (blur → change). ↑/↓ step the value in place (⇧ = ×10), the keyboard
-  // twin of the grab handle's scrub — off a half-typed value, so a typed "4" then ↑ reads
-  // 5, not the committed value plus one.
-  inp.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") return inp.blur();
-    const d = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0; if (!d) return;
-    e.preventDefault();
-    const p = parseFloat(inp.value);
-    set((isNaN(p) ? value : p) + d * step * (e.shiftKey ? 10 : 1));
-  });
-  attachScrub(grab, wrap, step, () => value, set, () => inp.value);
-  return { el: root, set: (val: number | string) => set(val, false), get: () => value };
-}
 
 // One stroke-icon shell for every inline SVG in the kit (icons.ts holds the chrome set;
 // the gradient's + and the grip below use it too): the body is the path data, the class
@@ -684,8 +540,6 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
 // lazy chunk import must sit in the module that is already the shared chunk, or esbuild
 // hoists the whole module into a third chunk every basic panel has to fetch.
 const icon = (body: string, cls = "", width = 2, box = 24) => `<svg${cls ? ` class="${cls}"` : ""} viewBox="0 0 ${box} ${box}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
-// ICON_GRIP — original 2-bar drag handle, not from an icon set (Lucide's grip is dots).
-const ICON_GRIP = icon('<path d="M6 4v8M10 4v8"/>', "", 1.5, 16);
 
 // The handle a display/action control returns — buttons, separators, monitors, the
 // FPS graph. No value: the panel build skips entry/reset/persist wiring for them.
@@ -705,10 +559,10 @@ export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, 
 export {
   titleCase, clamp, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
-  optValue, optLabel, json, el, btn, txt, svgEl, cssVar, accentColor, stopPointerLeak, onReady, onLive, requestReflow,
-  wireHoverClass, dragGesture, boxFrac, fitCanvas, popover, closeActivePopover,
-  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented, triggerRow,
-  numField, blade, quietFocus, selectAllOnFocus, measurePill, grabSurface, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
+  optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
+  wireHoverClass, dragGesture, popover, closeActivePopover,
+  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
+  blade, quietFocus, measurePill, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };
 

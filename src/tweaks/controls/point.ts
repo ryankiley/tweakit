@@ -1,5 +1,6 @@
 // ── Point — 2D/3D/4D vector. Lazy.
-import { el, svgEl, numField, grabSurface, boxFrac, clamp, stepPrecision, defaultRange, popover, triggerRow, registerControl } from "../shared.js";
+import { el, clamp, stepPrecision, defaultRange, popover, registerControl } from "../shared.js";
+import { numField, svgEl, grabSurface, boxFrac, triggerRow } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta, PointComponent } from "../schema.js";
 import type { Control } from "../types.js";

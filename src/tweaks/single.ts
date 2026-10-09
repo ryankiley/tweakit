@@ -3,6 +3,7 @@
  * dynamic-import map is empty, so esbuild inlines the whole kit into one self-contained,
  * synchronous file — a drop-in that needs no bundler. The code-split build uses core.ts
  * directly (TW_SPLIT=true) and loads these controls on demand instead. */
+import "./controls/number.js";
 import "./controls/colour.js";
 import "./controls/gradient.js";
 import "./controls/interval.js";

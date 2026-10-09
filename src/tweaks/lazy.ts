@@ -17,6 +17,7 @@ type MetaNode = Pick<Meta, "type" | "children" | "pages">;
 // empty so esbuild drops the import()s and the whole kit inlines, synchronous.
 declare const TW_SPLIT: boolean;
 const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
+  number: () => import("./controls/number.js"),
   interval: () => import("./controls/interval.js"),
   color: () => import("./controls/colour.js"),
   gradient: () => import("./controls/gradient.js"),

@@ -1,6 +1,7 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/
 // bounce) mode, over one settle-curve preview. Lazy. ──
-import { el, txt, numField, onReady, onLive, cssVar, accentColor, clamp, dragGesture, createSegmented, registerControl } from "../shared.js";
+import { el, txt, onReady, onLive, clamp, dragGesture, createSegmented, registerControl } from "../shared.js";
+import { numField, cssVar, accentColor } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";

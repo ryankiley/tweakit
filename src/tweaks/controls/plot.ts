@@ -1,5 +1,6 @@
 // ── Plot — graph y=f(x) with a safe expression evaluator (compileExpr). Lazy.
-import { el, txt, svgEl, clamp, onReady, onLive, quietFocus, registerControl } from "../shared.js";
+import { el, txt, clamp, onReady, onLive, quietFocus, registerControl } from "../shared.js";
+import { svgEl } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";

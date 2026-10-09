@@ -10,6 +10,7 @@ const { tweaks } = await import(new URL("../dist/tweaks/core.js", import.meta.ur
 
 test("every lazy control loads from the split build and registers", async () => {
   const p = tweaks("All", {
+    number: { type: "number", value: 1 },
     interval: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 },
     color: "#7c5cff",
     gradient: { type: "gradient", value: [["#000", 0], ["#fff", 1]] },
@@ -25,7 +26,7 @@ test("every lazy control loads from the split build and registers", async () => 
   document.body.append(p.el);
   try {
     await p.ready;
-    for (const key of ["interval", "color", "gradient", "image", "spring", "bezier", "point", "plot", "tabs"]) assert.ok(key in p.params, `${key} built`);
+    for (const key of ["number", "interval", "color", "gradient", "image", "spring", "bezier", "point", "plot", "tabs"]) assert.ok(key in p.params, `${key} built`);
     for (const cls of ["tw-plot", "tw-monitor", "tw-fps", "tw-tabs"]) assert.ok(p.el.querySelector("." + cls), `${cls} rendered`);
   } finally {
     p.destroy(); // the monitor loops would otherwise outlive a failed assertion and pin the process open
@@ -33,16 +34,17 @@ test("every lazy control loads from the split build and registers", async () => 
 });
 
 // esbuild splits per module: a module imported by the core entry AND by a lazy control is
-// hoisted into its own shared chunk. The kit keeps exactly two — shared.ts (core + every
-// control) and the colour engine (colour + gradient) — so a basic panel fetches core plus
-// one chunk. A lazy control importing a core-only module (icons, feedback, schema) would
-// mint a third, and every basic panel would fetch one more file while the build's size
+// hoisted into its own shared chunk. The kit keeps exactly three — shared.ts (core + every
+// control), the colour engine (colour + gradient) and heavy.ts (the helpers only lazy
+// controls use) — and core imports only the first, so a basic panel fetches core plus one
+// chunk. A lazy control importing a core-only module (icons, feedback, schema) would
+// mint a fourth, and every basic panel would fetch one more file while the build's size
 // report quietly stopped describing what a basic panel loads.
-test("the split build has exactly two shared chunks, and core imports exactly one of them", async () => {
+test("the split build has exactly three shared chunks, and core imports exactly one of them", async () => {
   const { readdir, readFile } = await import("node:fs/promises");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const chunks = (await readdir(dir)).filter((f) => /^chunk-[\w-]+\.js$/.test(f));
-  assert.equal(chunks.length, 2, `shared chunks: ${chunks.join(", ")} — a core-only module is being imported from a lazy control`);
+  assert.equal(chunks.length, 3, `shared chunks: ${chunks.join(", ")} — a core-only module is being imported from a lazy control`);
   const core = await readFile(new URL("core.js", dir), "utf8");
   const staticImports = [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]);
   assert.equal(staticImports.length, 1, `core.js statically imports: ${staticImports.join(", ")}`);

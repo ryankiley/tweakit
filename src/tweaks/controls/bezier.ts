@@ -1,5 +1,6 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
-import { el, btn, txt, svgEl, numField, dragGesture, clamp, onReady, onLive, registerControl } from "../shared.js";
+import { el, btn, txt, dragGesture, clamp, onReady, onLive, registerControl } from "../shared.js";
+import { numField, svgEl } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
