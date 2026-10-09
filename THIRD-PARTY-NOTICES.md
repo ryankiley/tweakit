@@ -16,7 +16,7 @@ under the original license reproduced below.
 | `ICON_PLUS` | Hugeicons `add-01`, two paths merged | MIT |
 | `ICON_SEARCH` | Hugeicons `search-01`, two paths merged | MIT |
 | `ICON_COPY` | Hugeicons `copy-01`, two paths merged | MIT |
-| `ICON_PRESETS` | Hugeicons `layers-01`, three paths merged | MIT |
+| `ICON_PRESETS` | Hugeicons `layer`, two paths merged | MIT |
 | `ICON_RESET` | Hugeicons `undo` | MIT |
 | `ICON_GRIP` | original to this project | — |
 
