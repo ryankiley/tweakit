@@ -47,7 +47,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // a bare nested key minted a top-level orphan while the control kept its default, and a
   // preset save or an undo was silently dropped.
   const queue: Array<() => void> = [];
-  const pendingSaves = new Set<string>(); // preset names a lazy-window savePreset() has queued, so a loadPreset() queued behind one isn't refused as unknown
+  const presetOps = new Map<string, "save" | "delete">(); // the last preset op a lazy-window call queued per name: a loadPreset() behind a save is accepted, one behind a delete refused; cleared once the queue has replayed
   let failed = false; // flipped when the lazy chunks fail to load: the panel can never be built, so the queue would only grow
   const later = (fn: () => void) => { if (destroyed || failed) return; assembled ? fn() : queue.push(fn); };
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
@@ -649,6 +649,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // applied to a torn-down panel. Each call runs isolated, as a listener does — one that
     // throws costs only itself, never the calls behind it, ready's resolution or the toolbar.
     for (const fn of queue.splice(0)) { if (destroyed) break; try { fn(); } catch (e) { console.error("[tweaks] a call queued before ready failed:", e); } }
+    presetOps.clear();
     for (const b of toolbarBtns) b.disabled = false; // the controls exist now
   };
 
@@ -727,9 +728,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Presets API (no-ops without opts.persist). Names are arbitrary strings. The list reads
     // storage, which exists already; a save/load/delete made before ready queues like set()
     // does (a save then snapshots the built controls, not an empty panel).
-    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) pendingSaves.add(nm); later(() => { pendingSaves.delete(nm); savePreset(nm); }); return true; },
-    loadPreset: (nm) => { if (destroyed || failed || !(listPresets()[nm] || pendingSaves.has(nm))) return false; later(() => loadPreset(nm)); return true; }, // a stored entry that isn't a snapshot (a hand-edited null) reads as absent, as it always did after ready; a save queued ahead of the load counts as stored
-    deletePreset: (nm) => { if (presetsKey) { pendingSaves.delete(nm); later(() => deletePreset(nm)); } },
+    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) presetOps.set(nm, "save"); later(() => savePreset(nm)); return true; },
+    loadPreset: (nm) => { const op = presetOps.get(nm); if (destroyed || failed || op === "delete" || !(op === "save" || listPresets()[nm])) return false; later(() => loadPreset(nm)); return true; }, // a stored entry that isn't a snapshot (a hand-edited null) reads as absent, as it always did after ready; a save queued ahead of the load counts as stored, a delete queued ahead as gone
+    deletePreset: (nm) => { if (presetsKey) { if (!assembled) presetOps.set(nm, "delete"); later(() => deletePreset(nm)); } },
     presets: () => (destroyed ? [] : Object.keys(listPresets())),
     undo: () => { if (undoApi) later(undoApi.undo); }, redo: () => { if (undoApi) later(undoApi.redo); }, // no-ops without opts.undo; queued before ready, in order with the value writes
     // Teardown: close this panel's open portaled surfaces, release every global

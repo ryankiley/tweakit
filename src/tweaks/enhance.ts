@@ -61,7 +61,7 @@ export async function enhance(root: Document | Element = document): Promise<void
       // with the same label and no data-key at all) — suffix the duplicates instead of
       // letting the later one overwrite the earlier and drop a value from the copy.
       const values = () => {
-        const vals: Record<string, unknown> = {};
+        const vals: Record<string, unknown> = Object.create(null); // a data-key of "__proto__" is an ordinary key here, not a prototype assignment that drops the value from the copy
         for (const t of live()) {
           let k = t.key, n = 2; while (hasOwn(vals, k)) k = `${t.key}-${n++}`;
           vals[k] = t.ctrl.get();
