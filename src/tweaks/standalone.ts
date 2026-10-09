@@ -6,7 +6,7 @@
  * like a panel: they exist synchronously, `set()` runs the change callback, `destroy()`
  * tears down, and `ready` resolves once a lazily-loaded control has built (immediately
  * on the single-file build, where every control is inlined). */
-import { el, getControl, onReady } from "./shared.js";
+import { el, getControl, onReady, setDisabled } from "./shared.js";
 import { metaFor, valueChanged, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createControl } from "./controls/basic.js";
@@ -60,7 +60,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     try {
       if (meta.render && !meta.render(none)) ctrl.el.classList.add("tw-cond-hidden");
       const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled;
-      if (d) { ctrl.el.classList.add("is-disabled"); ctrl.el.inert = true; }
+      if (d) setDisabled(ctrl.el, true);
     } catch {}
     root.append(ctrl.el);
     if (!valued) return;

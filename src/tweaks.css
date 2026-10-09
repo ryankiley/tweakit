@@ -252,7 +252,8 @@
   transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+.tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+.tw-toolbar-btn:disabled { cursor: not-allowed; } /* the lazy-chunk window, before the controls exist */
 }
 /* Press dips deep + quick; release springs back through --pop so the button feels physical.
  * The dip shrinks the box ~1.7px per side, so a cursor parked near the edge would lose
@@ -321,7 +322,7 @@
 /* Conditional render (render:(get)=>bool) hides the control; disabled greys + locks it. */
 .tw-cond-hidden { display: none !important; }
 .is-disabled { opacity: 0.4; cursor: not-allowed; }
-.is-disabled * { pointer-events: none; } /* children are inert to the pointer, but the row itself stays a target so it shows the not-allowed cursor */
+.is-disabled * { pointer-events: none; } /* children are inert (setDisabled), but the row itself stays a target so it shows the not-allowed cursor */
 /* Per-control reset target (double-click a label/readout). touch-action: manipulation
  * drops the double-tap-to-zoom gesture on it, so a double-tap reliably lands on the
  * reset handler on touch instead of zooming the page. */
