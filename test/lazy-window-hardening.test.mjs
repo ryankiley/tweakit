@@ -34,15 +34,19 @@ test("a key that can't stringify throws at the call; the panel still becomes rea
 });
 
 test("a queued call that throws costs only itself", async () => {
-  const p = tweaks("T", { x: [1, 0, 10, 1], pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } });
-  document.body.append(p.el);
-  const off = p.on(() => { throw new Error("listener boom"); }); // thrown inside notify() is isolated already; make the queued call itself throw instead
-  off();
-  p.fromJSON({ get values() { throw new Error("hostile state"); } });
-  p.set("x", 7);
-  await p.ready;
-  assert.equal(p.params.x, 7);
-  p.destroy();
+  // A throwing opts.onReset inside a queued reset() used to throw out of the replay: ready
+  // rejected, the writes behind it were lost, and the toolbar stayed disabled for good.
+  const errors = []; const err = console.error; console.error = (...a) => errors.push(String(a[0]));
+  try {
+    const p = tweaks("T", { x: [1, 0, 10, 1], pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } }, { onReset: () => { throw new Error("onReset boom"); } });
+    document.body.append(p.el);
+    p.set("x", 5); p.reset(); p.set("x", 7);
+    await p.ready;
+    assert.equal(p.params.x, 7, "the write behind the throwing reset still applied");
+    assert.equal(p.el.querySelector(".tw-toolbar-btn--reset").disabled, false, "the toolbar came live");
+    assert.ok(errors.some((m) => m.includes("queued before ready failed")), "the throw was reported");
+    p.destroy();
+  } finally { console.error = err; }
 });
 
 test("the disabled presets and filter triggers stay inert to a synthetic click before ready", async () => {
