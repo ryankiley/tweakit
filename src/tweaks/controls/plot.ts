@@ -166,8 +166,7 @@ function createPlot(meta, onChange) {
   };
 
   if (editable) input.addEventListener("input", () => {
-    expr = input.value; const c = compileExpr(expr);
-    if (c) compiled = c; else compiled = null;
+    expr = input.value; compiled = compileExpr(expr); // null on a parse error → draw flags is-invalid
     draw(); onChange(expr);
   });
 

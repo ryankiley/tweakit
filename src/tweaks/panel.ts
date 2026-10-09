@@ -2,14 +2,14 @@
  * returns the live API (params/on/set/reset/toJSON/…). Persistence, presets,
  * undo, the filter, floating drag, and the lazy-window replay all live here. */
 import {
-  el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak,
+  el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, setCollapsed,
   applyThemeVars, resolveTheme, carryScheme, onLive, quietFocus, fuzzyMatch,
   REDUCE_MOTION, getControl,
 } from "./shared.js";
-import { metaFor, valueChanged, hasOwn, VALUELESS } from "./schema.js";
+import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, toolbarBtn, flashCopied, spinReset, showToast, hideHintNow, addHintMarker, copyText } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNow, addHintMarker } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params } from "./types.js";
 
@@ -27,6 +27,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const preSets: Array<[string | symbol, any]> = []; // set()/setMany()/fromJSON() calls from the lazy window, replayed once assemble() has built the controls — a dotted/nested set before then used to warn-and-drop, and a bare nested key minted a top-level orphan while the control kept its default
   let liftSlot = null; // the placeholder a lifted panel leaves in its host slot — removed on destroy()
   let persist = () => {}; // reassigned below when opts.persist is set (debounced localStorage save)
+  // The values snapshot — persist, presets, undo, toJSON and copy all read it: params minus
+  // its `_last` channel, with a control holding `undefined` (a list with no matching option,
+  // a set(key, undefined)) written as null — JSON has no undefined, so the key silently
+  // dropped out, and a null → undefined edit was invisible to undo (redo left the null behind).
+  // A replacer function, not an arrow: `this` is the holder, so only the top-level
+  // changed-key strips — a folder child legitimately keyed "_last" survives.
+  const replacer = function (k, v) { return k === "_last" && this === params ? undefined : v === undefined ? null : typeof v === "bigint" ? String(v) : v; }; // a bigint (a host-parked bag value) would otherwise throw out of every snapshot — the debounced persist and undo timers uncaught
+  const snapshot = () => JSON.parse(JSON.stringify(params, replacer));
   // Assigned by assemble() below. Declared here so the API returned synchronously can
   // forward to them even on the lazy path, where assemble() runs after modules load.
   let listPresets: () => Record<string, any> = () => ({}), savePreset: (nm?: string) => boolean = () => false, loadPreset: (nm?: string) => boolean = () => false, deletePreset: (nm?: string) => void = () => {};
@@ -36,13 +44,19 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // returns the live values (no UI state yet); fromJSON enqueues onto preSets (tagged), so it
   // replays interleaved with set()/setMany() in call order, after the persist/preset restore.
   const FROMJSON = Symbol("fromJSON"), SETMANY = Symbol("setMany"), RESET = Symbol("reset");
-  let doToJSON: () => any = () => { const v = JSON.parse(JSON.stringify(params)); delete v._last; return { values: v, ui: {} }; };
+  let doToJSON: () => any = () => ({ values: snapshot(), ui: {} });
   let doFromJSON: (state: any) => void = (state) => { preSets.push([FROMJSON, state]); };
   // Each listener runs isolated: a throwing on() callback (or internal listener)
   // can't break the others, skip persist(), or bubble back out through set().
   const notify = () => { listeners.forEach((fn) => { try { fn(params, params._last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); persist(); };
-  // Persistence + presets storage keys — opt-in via opts.persist (a string key, or
-  // `true` to key by the panel name). null disables both (existing callers unaffected).
+  // Push a value into a control and mirror what it actually took back onto params — the
+  // one write path behind restores and set(). A function/symbol/bigint is no control value
+  // (the list control stores any value as-is, and JSON can't carry those: every snapshot
+  // silently dropped the key) — set() warns first; the restore paths' per-entry catch logs it.
+  const notAValue = (v) => typeof v === "function" || typeof v === "symbol" || typeof v === "bigint";
+  const assign = (e, v) => { if (notAValue(v)) throw new TypeError(`a ${typeof v} is not a control value`); e.set(v); e.target[e.key] = e.get(); };
+  // …and the reset write: the opened form, then the authored value (restoreDefault).
+  const assignDefault = (e) => { restoreDefault(e, e.raw, e.def); e.target[e.key] = e.get(); };
   // The reset itself, independent of the toolbar button — so api.reset() can run it
   // directly (the button is `disabled` until assemble(), and .click() is a no-op on a
   // disabled control, which silently swallowed every reset() made in the lazy window)
@@ -50,7 +64,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const doReset = () => {
     if (typeof opts.onReset === "function") return opts.onReset();
     for (const e of entries) {
-      try { e.set(e.def); e.target[e.key] = e.get(); }
+      try { assignDefault(e); }
       catch (err) { console.error(`[tweaks] resetting "${e.path.join(".")}" failed — control skipped:`, err); }
     }
     params._last = undefined; notify();
@@ -73,10 +87,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   titleBtn.setAttribute("aria-expanded", "true");
   titleBtn.append(txt("span", "tw-title", name));
   const toolbar = el("div", "tw-toolbar");
-  // Copy uses the site's contextual icon swap — copy ⇄ check cross-fade (both
-  // icons stacked, opacity+scale+blur transitioned), not an innerHTML cut.
-  const copyBtn = makeCopyBtn();
-  const resetBtn = makeResetBtn();
+  // Copy emits the values snapshot; reset restores every default (or runs opts.onReset).
+  // feedback.ts owns their click feedback (the copy ⇄ check swap, the reset spin).
+  const copyBtn = makeCopyBtn(panel, name, () => JSON.stringify(params, replacer, 2));
+  const resetBtn = makeResetBtn(doReset);
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn = null;
   if (persistKey) {
@@ -101,16 +115,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   header.append(titleBtn);
   if (filterOn) header.append(searchInput);
   if (opts.toolbar !== false) header.append(toolbar); // opts.toolbar:false → a bare panel (no copy/reset/presets), e.g. an embedded single-control demo
-  // The toolbar's handlers wire up in assemble() — until then (the lazy-chunk window on
-  // the split build) the buttons are honestly inert rather than silently dead.
-  for (const b of [copyBtn, resetBtn, presetsBtn, searchBtn]) if (b) b.disabled = true;
+  // The buttons act on controls that only exist once assemble() has built them — until
+  // then (the lazy-chunk window on the split build) they're honestly inert rather than
+  // silently dead.
+  const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
+  for (const b of toolbarBtns) b.disabled = true;
   // A header drag (floating mode) sets this so the click ending the drag doesn't collapse.
   let dragMoved = false;
   titleBtn.addEventListener("click", () => {
     if (dragMoved) { dragMoved = false; return; }
-    const collapsed = panel.classList.toggle("is-collapsed");
-    titleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    body.inert = collapsed; // same a11y reason as the folder: a collapsed panel's controls leave the tab order + a11y tree
+    setCollapsed(panel, titleBtn, body, !panel.classList.contains("is-collapsed"));
     // A bottom-parked floating panel grows past the viewport when it expands — re-clamp
     // once the 0.25s body collapse has settled and the height is real.
     if (panel.dataset.mode === "floating") setTimeout(() => { if (panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } }, 270);
@@ -148,7 +162,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Per-control reset: double-click a control's label (or the slider's value
   // readout — its label is a pointer-events:none overlay) to revert just that
   // control to the default it was built with. Complements the whole-panel reset.
-  const resetEntry = (e) => { e.set(e.def); e.target[e.key] = e.get(); params._last = e.key; notify(); };
+  const resetEntry = (e) => { assignDefault(e); params._last = e.key; notify(); };
   const wireReset = (root, entry) => {
     const t = root.querySelector(".tw-slider-value")
       || root.querySelector(".tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label")
@@ -199,7 +213,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const filterItems = [], filterFolders = []; // searchable index (opts.filter) keyed on each control's real label
   const folderEls: any[] = [], tabsCtrls: any[] = []; // folder + tabs handles keyed by path — read/restored as UI state by toJSON/fromJSON
 
-  // Build controls into a container, recursing into folders (nested params).
   // A control that runs its own loop (the monitor's poll, the FPS graph's rAF) hands back
   // a `destroy`; take it into the panel's cleanups so destroy() releases it. Those loops
   // otherwise only stop on unmount, and they deliberately idle through the "built but not
@@ -228,19 +241,29 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         build(f.body, m.children, sub, [...basePath, m.key], fi); registerCond(f.el, m); container.append(f.el);
         continue;
       }
-      if (VALUELESS.has(m.type)) { const ctrl = createControl(m, () => {}); if (ctrl) { adopt(ctrl); if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); registerCond(ctrl.el, m); container.append(ctrl.el); } continue; }
-      const ctrl = createControl(m, (v) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; params._last = m.key; notify(); }); // same-value emits (a discrete drag inside one detent, a re-entrant echo) don't notify
+      // Display/action controls (VALUELESS) carry no value: no entry, so no reset/persist wiring.
+      const valued = !VALUELESS.has(m.type);
+      const ctrl = createControl(m, valued ? (v) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; params._last = m.key; notify(); } : () => {}); // same-value emits (a discrete drag inside one detent, a re-entrant echo) don't notify
       if (!ctrl) continue;
       adopt(ctrl);
-      // A value a host parked on params directly before assemble ran (the lazy-load
-      // window on the split build) wins over the schema default — apply it to the
-      // control rather than clobbering it back with ctrl.get(). (API set() calls from
-      // that window queue in preSets and replay after the build instead.)
-      if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
-      target[m.key] = ctrl.get();
-      const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, def: m.value, path: [...basePath, m.key] };
-      entries.push(entry); wireReset(ctrl.el, entry); registerCond(ctrl.el, m);
-      if (filterOn) filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem });
+      if (valued) {
+        // reset() restores the schema value (`raw`) over the form the control OPENED on (`def`,
+        // its own get() at build, read before the parked value below applies) — see
+        // restoreDefault: the raw value alone left a control set() can't take it on where it
+        // was (a numeric text, a NaN number, a spring's explicit mode), and the opened form
+        // alone re-parsed a colour from its rounded readout string.
+        const def = ctrl.get();
+        // A value a host parked on params directly before assemble ran (the lazy-load
+        // window on the split build) wins over the schema default — apply it to the
+        // control rather than clobbering it back with ctrl.get(). (API set() calls from
+        // that window queue in preSets and replay after the build instead.)
+        if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
+        target[m.key] = ctrl.get();
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key] };
+        entries.push(entry); wireReset(ctrl.el, entry);
+      }
+      registerCond(ctrl.el, m);
+      if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); // every control is searchable by label except the (valueless) separator
       container.append(ctrl.el);
     }
   };
@@ -296,8 +319,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The live values save to localStorage (debounced) and restore on build; presets
   // are named snapshots under "<key>:presets". Path-aware so folders round-trip.
   const atPath = (obj, path) => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
-  const stripLast = function (k, v) { return k === "_last" && this === params ? undefined : v; }; // function, not arrow: `this` is the holder, so only the top-level changed-key channel strips — a folder child legitimately keyed "_last" survives
-  const snapshot = () => JSON.parse(JSON.stringify(params, stripLast));
   // Per-entry isolation, the kit-wide degrade idiom (createControl, metaFor, notify,
   // applyConditionals all do the same): a control whose set() throws on hostile stored
   // data — a corrupt localStorage snapshot, a hand-edited preset, a fromJSON from
@@ -308,7 +329,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (!snap || typeof snap !== "object") return;
     for (const e of entries) {
       const v = atPath(snap, e.path); if (v === undefined) continue;
-      try { e.set(v); e.target[e.key] = e.get(); }
+      try { assign(e, v); }
       catch (err) { console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err); }
     }
     params._last = undefined; if (fire) notify();
@@ -400,8 +421,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (panel.style.transition) {
         const cur = getComputedStyle(panel);
         px = parseFloat(cur.left) || px; py = parseFloat(cur.top) || py;
-        panel.style.transition = ""; apply();
-      } else panel.style.transition = ""; // clear any leftover snap transition so the grab is 1:1
+        panel.style.transition = ""; apply(); // …and drop the snap transition, so the grab is 1:1
+      }
     });
     header.addEventListener("pointermove", (e) => {
       if (e.pointerId !== dragId) return;
@@ -454,7 +475,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const menu = el("div", "tw-presets-menu");
     const saveRow = el("div", "tw-presets-save");
     const input = el("input", "tw-presets-input"); input.type = "text"; input.placeholder = "Preset name…"; input.spellcheck = false; input.setAttribute("aria-label", "New preset name"); quietFocus(input);
-    const saveBtn = txt("button", "tw-presets-savebtn", "Save"); saveBtn.type = "button";
+    const saveBtn = txt("button", "tw-presets-savebtn", "Save");
     saveRow.append(input, saveBtn);
     const list = el("div", "tw-presets-list");
     menu.append(saveRow, list);
@@ -464,7 +485,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (!names.length) return list.append(txt("div", "tw-presets-empty", "No presets yet"));
       for (const nm of names) {
         const row = el("div", "tw-presets-row");
-        const load = txt("button", "tw-presets-load", nm); load.type = "button";
+        const load = txt("button", "tw-presets-load", nm);
         load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); showToast(`Loaded “${nm}”`, panel); });
         const del = btn("tw-presets-del", ICON_X); del.setAttribute("aria-label", `Delete preset ${nm}`);
         del.addEventListener("click", (e) => { e.stopPropagation(); deletePreset(nm); renderList(); });
@@ -482,16 +503,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     saveBtn.addEventListener("click", doSave);
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") doSave(); });
   }
-
-  copyBtn.addEventListener("click", async () => {
-    const ok = await copyText(JSON.stringify(params, stripLast, 2));
-    if (ok) { flashCopied(copyBtn); showToast(`${name} values copied`, panel); }
-    else showToast("Copy failed", panel);
-  });
-  // A host can supply its own reset (e.g. restore real app defaults + rebuild);
-  // otherwise reset each control to the default it was built with. The icon spins
-  // once on click — motion feedback to match the copy swap.
-  resetBtn.addEventListener("click", () => { spinReset(resetBtn); doReset(); });
 
   // ── Edit lifecycle (opts.onEditStart / onEditEnd) — fired when a drag/scrub on any
   // in-panel control begins and ends, so a host can pause expensive work during a
@@ -554,7 +565,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // over the schema default. Each replays through api.set, so paths resolve against
   // the real entries and listeners hear the changes.
   for (const [k, v] of preSets.splice(0)) { if (k === FROMJSON) doFromJSON(v); else if (k === SETMANY) api.setMany(v); else if (k === RESET) doReset(); else api.set(k as string, v); } // tagged fromJSON/setMany entries replay through their assembled impls (one notify each); the shared queue preserves set/setMany/fromJSON call order
-  for (const b of [copyBtn, resetBtn, presetsBtn, searchBtn]) if (b) b.disabled = false; // the toolbar's handlers are live now
+  for (const b of toolbarBtns) b.disabled = false; // the controls exist now
   }; // end assemble
 
   // The API is built + returned synchronously. on/set/reset/setTheme operate on the
@@ -564,8 +575,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // free bag key, apply it, and report whether the resolved leaf actually changed. The
   // shared core of set()/setMany(): it never notifies, so a batch can fire one notify at
   // the end (a set() loop would re-run every listener + persist per key).
-  const RESERVED = (p) => p === "__proto__" || p === "constructor" || p === "prototype";
-  const reservedKey = (key) => { if (String(key).split(".").some(RESERVED)) { console.warn(`[tweaks] set("${key}") ignored — reserved key`); return true; } return false; }; // params is an object-as-map; never write through to the prototype — shared by applySet + the lazy-window queue paths
+  const reservedKey = (key) => { if (String(key).split(".").some(isReservedKey)) { console.warn(`[tweaks] set("${key}") ignored — reserved key`); return true; } return false; }; // params is an object-as-map; never write through to the prototype — shared by applySet + the lazy-window queue paths
   const applySet = (key, v) => {
     if (reservedKey(key)) return false;
     const parts = String(key).split(".");
@@ -589,7 +599,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Same isolation as applySnapshot: a control that throws on a hostile value degrades
     // to "that key didn't take" instead of throwing out of set() — and, in setMany's loop,
     // instead of abandoning the rest of the batch and its single notify.
-    if (e) { try { e.set(v); target[leaf] = e.get(); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; } }
+    if (e && notAValue(v)) { console.warn(`[tweaks] set("${key}") ignored — a ${typeof v} is not a control value`); return false; } // assign() would throw; the API path warns like its other refusals (bag keys stay free: hosts park what they like)
+    if (e) { try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; } }
     else if (subTrees.has(params[key])) { console.warn(`[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead`); return false; } // overwriting the subtree would silently orphan every child value
     else params[key] = v; // bag passthrough — hosts park free keys on params
     if (!valueChanged(prev, target[leaf])) return false; // a no-change set doesn't notify — the guard that keeps a store-sync listener from echoing forever

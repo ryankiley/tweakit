@@ -3,8 +3,8 @@
  * wrapper every builder calls. Statically imported by the entry, unlike the lazy
  * siblings in this directory, so basic panels build synchronously. */
 import {
-  el, btn, txt, clamp, stepPrecision, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel,
-  popover, radioButton, setRadioActive, navIndex, createSegmented, numField, blade,
+  el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel,
+  popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, numField, blade, setCollapsed,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl,
   EASE_SPRING, EASE_GLIDE,
 } from "../shared.js";
@@ -17,7 +17,13 @@ function createSlider(meta, onChange) {
   // Normalise the range before anything reads it (normalizeRange, shared with the
   // interval) — every slider source (schema shorthand, verbose form, [data-tw]
   // markup) funnels through it.
-  const { min, max, step } = normalizeRange(meta.min, meta.max, meta.step);
+  let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step);
+  // A hard slider's range is its reachable grid: the ends move in to the first/last grid
+  // point (an off-grid max — [5, 0, 14.6, 1] — reported 15 from the track's end; a min
+  // finer than the step's decimals is rounded to them), so the notch physics, hashmarks,
+  // keyboard ends, aria bounds and the emitted value all agree on one lattice. A soft
+  // slider keeps its authored range (its values may leave it anyway).
+  if (!meta.soft) [min, max] = gridEnds(min, max, step);
   const snap = (max - min) / step <= 6; // snap + show rule lines only for a handful of stops; past ~6, snapping at every step felt notchy ("too many places"), so those run continuous
   const seed = Number.isFinite(+meta.value) ? +meta.value : min; // non-finite seed → min, so a NaN value / garbage data-value can't reach the readout or param
   let value = meta.soft && !snap ? seed : clamp(seed, min, max), pull = 0; // a soft slider keeps an out-of-range default — the seed is a scripted value, so it follows set()'s soft rule (only the snap slider always clamps, also like set()); pull = the discrete detent's tension offset (read by render(), called below at construction)
@@ -44,7 +50,7 @@ function createSlider(meta, onChange) {
 
   // Rule lines (hashmarks) live only on the discrete slider — one per step. The
   // continuous slider has none.
-  const q = (v) => roundToStep(v, min, step);
+  const q = (v) => roundToStep(v, min, step); // min and max sit on the grid (above), so a clamped value rounds to a value inside the range
   const marks = snap ? Array.from({ length: Math.max(0, Math.round((max - min) / step) - 1) }, (_, i) => ((i + 1) * step) / (max - min) * 100) : [];
   for (const pct of marks) { const m = el("div", "tw-slider-hashmark"); m.style.left = pct + "%"; hashes.append(m); }
 
@@ -62,16 +68,12 @@ function createSlider(meta, onChange) {
     valueEl.textContent = qvText;
     track.setAttribute("aria-valuenow", String(qv));
     track.setAttribute("aria-valuetext", qvText);
-    // Value-dodge: the handle yields only when it actually overlaps the
-    // label (left) or value (right) text — comparing the handle's real pixel span
-    // (it renders at pct% − 9px, 3px wide) against each text's measured edge, so it
-    // dims right as it reaches the number, not a fixed fraction early.
+    // Value-dodge: the handle yields only while it actually overlaps the label (left) or
+    // value (right) text — its real pixel span (it renders at pct% − 9px, 3px wide) tested
+    // against each text's live-measured edge (overlapsText, shared with the interval), so it
+    // dims right as it reaches the number and re-shows the instant it clears.
     const trackW = wrap.offsetWidth;
     if (trackW) {
-      // Dodge tracks the handle's *actual* span: the hairline renders at pct%−9px
-      // (3px wide), tested for pure overlap against the live-measured label/value
-      // spans (overlapsText, shared with the interval) — the handle dims only while
-      // it truly covers the text and re-shows the instant it clears.
       const hx = Math.max(5, (pct / 100) * trackW + pull - 9);
       track.classList.toggle("is-dodge", overlapsText(labelEl, valueEl, hx, 3));
     }
@@ -212,10 +214,11 @@ function createSlider(meta, onChange) {
   onReady(render);
   onLive(track, [[window, "resize"]], render); // self-cleans once the panel leaves the DOM
   track.addEventListener("keydown", (e) => {
-    if (snap) { springStop(); pull = 0; } // keyboard steps are instant — cancel any in-flight settle + its offset
+    if (downPos) return; // keys don't steer a pointer drag (a Shift press mid-drag used to cancel the detent's settle and freeze the handle until release)
     const nv = rangeStep(e, value, step, min, max, (max - min) / 10 || step * 10); // the shared range keyboard model (arrows/⇧/Page/Home/End)
     if (nv == null) return;
     e.preventDefault();
+    if (snap) { springStop(); pull = 0; track.classList.remove("is-active"); } // keyboard steps are instant — cancel any in-flight settle + its offset, and the active styling that settle would have dropped (a key landing mid-settle used to leave the track lit until the next press)
     set(clamp(nv, min, max));
   });
 
@@ -267,7 +270,7 @@ function createRadiogrid(meta, onChange) {
   // Arrow keys roam the grid: ←/→ step linearly (wrapping), ↑/↓ jump a row (by
   // the column count, clamped at the edges); Home/End to the ends.
   grid.addEventListener("keydown", (e) => {
-    const i = btns.findIndex((b) => b.dataset.value === String(value)); if (i < 0) return;
+    const i = activeIndex(btns, value); if (i < 0) return;
     const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
     e.preventDefault(); if (j !== i) { set(btns[j]._twVal); btns[j].focus(); } // _twVal, not dataset.value — same reason as the segmented control
   });
@@ -328,7 +331,7 @@ function createSelect(meta, onChange) {
 }
 
 function createButton(meta) {
-  const b = txt("button", "tw-button", meta.label); b.type = "button";
+  const b = txt("button", "tw-button", meta.label);
   b.addEventListener("click", () => meta.action && meta.action());
   return blade(b);
 }
@@ -341,7 +344,7 @@ function createButtonGroup(meta) {
   const group = el("div", "tw-buttongroup-btns");
   const list = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label, b.action]) : Object.entries(meta.buttons || {});
   for (const [lab, fn] of list) {
-    const b = txt("button", "tw-buttongroup-btn", lab); b.type = "button";
+    const b = txt("button", "tw-buttongroup-btn", lab);
     b.addEventListener("click", () => typeof fn === "function" && fn());
     group.append(b);
   }
@@ -354,7 +357,7 @@ const createSeparator = () => blade(el("div", "tw-separator"));
 
 // ── String — a labelled text input ──
 function createString(meta, onChange) {
-  let value = meta.value ?? "";
+  let value = meta.value == null ? "" : String(meta.value); // a non-string default (value: 5) holds its string form from the start, so get() and reset() agree with the input
   // `rows` makes it a multiline textarea: the row
   // grows to fit and aligns its label to the top instead of centring.
   const multi = meta.rows > 0;
@@ -383,13 +386,10 @@ function createFolder(meta) {
   const body = el("div", "tw-folder-body");
   const inner = el("div", "tw-controls"); body.append(inner);
   root.append(header, body);
-  // inert on the collapsed body takes its (still-mounted, clip-faded) controls out of the
-  // tab order + a11y tree — otherwise a keyboard/SR user lands on invisible zero-height rows
-  // that aria-expanded="false" claims are hidden. Synchronous, so it's correct under reduced-motion.
-  const setCollapsed = (c) => { root.classList.toggle("is-collapsed", c); header.setAttribute("aria-expanded", c ? "false" : "true"); body.inert = c; };
-  header.addEventListener("click", () => setCollapsed(!root.classList.contains("is-collapsed")));
+  const collapse = (c) => setCollapsed(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
+  header.addEventListener("click", () => collapse(!root.classList.contains("is-collapsed")));
   // setCollapsed lets the panel read + restore the open/closed state (toJSON/fromJSON).
-  return { el: root, body: inner, setCollapsed };
+  return { el: root, body: inner, setCollapsed: collapse };
 }
 // One bad control constructor must not abort the whole panel build — degrade to
 // skipping just that control (every caller null-checks). Constructors come from

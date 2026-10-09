@@ -1,6 +1,6 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, rangeStep, grabSurface, boxFrac, numField, popover, triggerRow, quietFocus, registerControl } from "../shared.js";
+import { el, txt, clamp, rangeStep, grabSurface, boxFrac, numField, popover, triggerRow, quietFocus, selectAllOnFocus, registerControl } from "../shared.js";
 import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 
 // ── Colour — one module: a row that opens a dropdown OKLCH picker. Ported from
@@ -37,10 +37,11 @@ const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 
 // convert(), whose space switch matched nothing and handed `undefined` to the XYZ maths:
 // a TypeError thrown straight out of panel.set() / fromJSON() / a persisted restore.
 const COLOR_FN_SPACES = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" });
+const HEX_RE = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i; // 3/4/6/8 digits only (the hex field's gate) — a 5/7-digit string is junk, not a colour
 const parseAngle = (t) => { const m = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)(deg|grad|rad|turn)$/i.exec(t); if (!m) return num(parseFloat(t)); const n = parseFloat(m[1]); return m[2].toLowerCase() === "turn" ? n * 360 : m[2].toLowerCase() === "grad" ? n * 0.9 : m[2].toLowerCase() === "rad" ? (n * 180) / Math.PI : n; };
 function parseColor(str) {
   str = String(str == null ? "" : str).trim();
-  if (/^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(str)) { // 3/4/6/8 digits only (the hex field's gate) — a 5/7-digit string is junk, not a colour
+  if (HEX_RE.test(str)) {
     let hx = str.replace("#", ""), A = 1;
     if (hx.length === 4) { A = parseInt(hx[3] + hx[3], 16) / 255; hx = hx.slice(0, 3); }
     else if (hx.length === 8) { A = parseInt(hx.slice(6, 8), 16) / 255; hx = hx.slice(0, 6); }
@@ -75,7 +76,7 @@ function parseColor(str) {
   const c2d = ((parseColor as any)._c2d ||= document.createElement("canvas").getContext("2d"));
   c2d.fillStyle = "#000"; c2d.fillStyle = str;
   const norm = c2d.fillStyle;
-  if (norm[0] === "#") return parseColor(norm); // opaque → the hex branch above
+  if (HEX_RE.test(norm)) return parseColor(norm); // opaque → the hex branch above (gated on the hex shape, so the recursion is bounded even if a canvas echoed something else back)
   const rm = norm.match(/^rgba?\(([^)]*)\)/i);
   const cm = ((rm ? rm[1] : "").match(/-?[\d.]+(?:e[+-]?\d+)?/gi) || [0, 0, 0]).map(Number);
   const k = convert([cm[0] / 255, cm[1] / 255, cm[2] / 255], "srgb", "oklch");
@@ -154,23 +155,18 @@ function createPickerBody(meta, onChange) {
     }
     paintedHue = H;
   };
-  // Hue-strip lightness — the strip raster and the hue-thumb fill both use it, so the
-  // filled ring matches the strip column behind it seamlessly.
+  // The strip's full-vibrancy colour at a hue: the sRGB chroma ceiling at a fixed
+  // lightness, so every hue shows at its most saturated displayable form (the wide-gamut
+  // plugin's look) rather than a flat, washed-out low chroma. One computation paints the
+  // strip raster column by column AND fills the hue thumb's ring, so the two are seamless.
   const STRIP_L = 0.7;
+  const vividHue = (hue) => { const rgb = convert([STRIP_L, chromaCeil(oklchGamutProbe(hue, "srgb"), STRIP_L), hue], "oklch", "srgb"); return `rgb(${clamp(rgb[0] * 255, 0, 255) | 0},${clamp(rgb[1] * 255, 0, 255) | 0},${clamp(rgb[2] * 255, 0, 255) | 0})`; };
   let hueW = 0;
   const renderHue = () => {
     const r = hueBar.getBoundingClientRect(); const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height)); if (w < 2) return;
     if (w === hueW && hueCanvas.width === w) return; // the strip only depends on width — cache it (re-placing on scroll/resize won't re-rasterise)
     hueW = w; hueCanvas.width = w; hueCanvas.height = h;
-    // Full-vibrancy hue: each column rides the sRGB chroma ceiling for its hue at a
-    // fixed lightness, so every hue shows at its most saturated displayable form
-    // (the wide-gamut plugin's look) rather than a flat, washed-out low chroma.
-    const Lh = STRIP_L;
-    for (let x = 0; x < w; x++) {
-      const hue = (x / (w - 1)) * 360;
-      const rgb = convert([Lh, chromaCeil(oklchGamutProbe(hue, "srgb"), Lh), hue], "oklch", "srgb");
-      hctx.fillStyle = `rgb(${clamp(rgb[0] * 255, 0, 255) | 0},${clamp(rgb[1] * 255, 0, 255) | 0},${clamp(rgb[2] * 255, 0, 255) | 0})`; hctx.fillRect(x, 0, 1, h);
-    }
+    for (let x = 0; x < w; x++) { hctx.fillStyle = vividHue((x / (w - 1)) * 360); hctx.fillRect(x, 0, 1, h); }
   };
   const positionThumbs = () => {
     const ceil = chromaCurve ? sampleCurve(chromaCurve, L) : 0.4; // thumb x is C as a fraction of the row's ceiling
@@ -194,10 +190,7 @@ function createPickerBody(meta, onChange) {
     // full-vibrancy hue at this H, matched to the strip raster so the fill is seamless.
     areaThumb.style.background = `oklch(${L} ${C} ${H})`;
     alphaThumb.style.background = `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), var(--tw-dropdown-bg)`;
-    if (H !== hueRingH) { // ring depends only on H (STRIP_L is const) — skip the probe + bisect + convert when only L/C/A moved
-      const hueRgb = convert([STRIP_L, chromaCeil(oklchGamutProbe(H, "srgb"), STRIP_L), H], "oklch", "srgb");
-      hueRingBg = `rgb(${clamp(hueRgb[0] * 255, 0, 255) | 0} ${clamp(hueRgb[1] * 255, 0, 255) | 0} ${clamp(hueRgb[2] * 255, 0, 255) | 0})`; hueRingH = H;
-    }
+    if (H !== hueRingH) { hueRingBg = vividHue(H); hueRingH = H; } // ring depends only on H (STRIP_L is const) — skip the probe + bisect + convert when only L/C/A moved
     hueThumb.style.background = hueRingBg;
   };
   const refresh = () => {
@@ -210,14 +203,16 @@ function createPickerBody(meta, onChange) {
   // renderArea self-guards on width (a detached/hidden body bails at getBoundingClientRect),
   // so no `open` flag is needed — when the body is offscreen the repaint is a cheap no-op.
   const sync = (repaint) => { if (repaint && H !== paintedHue) renderArea(); positionThumbs(); refresh(); };
+  const commit = (repaint) => { sync(repaint); emit(); }; // a user edit: re-render, then notify
 
   const renderChannels = () => {
     channels.replaceChildren(); chanFields = [];
     if (mode === "hex") {
       channels.classList.add("tw-color-channels--hex");
       const wrap = el("div", "tw-color-chan");
-      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp);
-      inp.addEventListener("change", () => { const v = inp.value.trim(); if (/^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) { [L, C, H, A] = parseColor(v); sync(true); emit(); } });
+      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp); selectAllOnFocus(inp); // a click into the hex takes the whole value — you replace a colour, not a digit
+      inp.addEventListener("change", () => { const v = inp.value.trim(); if (HEX_RE.test(v)) { [L, C, H, A] = parseColor(v); commit(true); } });
+      inp.addEventListener("blur", refresh); // a tap on the plane/strips while the field is focused commits before the browser blurs it, and refresh() skips a focused field — catch up on the way out (change fires before blur, so a typed edit is already in)
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
       wrap.append(txt("span", "tw-color-chan-label", "HEX"), inp); channels.append(wrap);
     } else {
@@ -226,7 +221,8 @@ function createPickerBody(meta, onChange) {
       channels.classList.remove("tw-color-channels--hex");
       const vals = channelValues([L, C, H], mode);
       MODE_CHANNELS[mode].forEach((ch, i) => {
-        const f = numField({ label: ch.k, value: vals[i], min: ch.min, max: ch.max, step: ch.step }, (v) => { [L, C, H] = withChannel([L, C, H], mode, i, clamp(v, ch.min, ch.max)); sync(true); emit(); });
+        const f = numField({ label: ch.k, value: vals[i], min: ch.min, max: ch.max, step: ch.step }, (v) => { [L, C, H] = withChannel([L, C, H], mode, i, clamp(v, ch.min, ch.max)); commit(true); });
+        f.el.addEventListener("focusout", refresh); // as the hex field: a focused channel skipped the refresh a plane tap triggered
         chanFields.push(f); channels.append(f.el);
       });
     }
@@ -236,26 +232,28 @@ function createPickerBody(meta, onChange) {
   // Grab feedback: grabSurface flags .is-grabbing for the drag's run so the thumb scales up
   // (CSS, spring-eased) the moment you press — the picker's echo of the slider handle's lift.
   const areaXY = (e) => boxFrac(e, area);
-  const setArea = (e) => { const [fx, fy] = areaXY(e); L = 1 - fy; C = fx * (chromaCurve ? sampleCurve(chromaCurve, L) : 0.4); positionThumbs(); refresh(); emit(); };
+  const setArea = (e) => { const [fx, fy] = areaXY(e); L = 1 - fy; C = fx * (chromaCurve ? sampleCurve(chromaCurve, L) : 0.4); commit(false); };
   grabSurface(area, setArea);
   const hueAt = (e) => boxFrac(e, hueBar)[0] * 360;
-  const setHue = (e) => { H = hueAt(e); sync(true); emit(); };
+  const setHue = (e) => { H = hueAt(e); commit(true); };
   grabSurface(hueBar, setHue);
   const alphaAt = (e) => boxFrac(e, alphaBar)[0];
-  const setAlpha = (e) => { A = alphaAt(e); positionThumbs(); refresh(); emit(); };
+  const setAlpha = (e) => { A = alphaAt(e); commit(false); };
   grabSurface(alphaBar, setAlpha);
   alphaBar.addEventListener("keydown", (e) => {
     const nv = rangeStep(e, A, 0.01, 0, 1); // the shared range keyboard model (arrows/⇧ coarse/Home/End)
     if (nv == null) return;
-    e.preventDefault(); A = clamp(nv, 0, 1); positionThumbs(); refresh(); emit();
+    e.preventDefault(); A = clamp(nv, 0, 1); commit(false);
   });
 
-  // A mode switch is formatting-only: re-render the fields/plane/thumbs and let the host
-  // repaint its trigger row (meta.onMode), but never emit — notifying would push a
-  // no-op change into undo and rewrite a gradient's stored stop strings. positionThumbs
-  // runs after renderArea because sRGB↔wide modes re-stretch the plane (the thumb's
-  // chroma fraction is stale against the new ceiling).
-  modeSel.addEventListener("change", () => { mode = modeSel.value; renderChannels(); renderArea(); positionThumbs(); meta.onMode && meta.onMode(); }); // renderArea self-guards when the body is offscreen
+  // A mode switch is formatting-only: re-render the fields, re-stretch the plane (sRGB↔wide
+  // modes change its gamut; renderArea self-guards offscreen), then re-place the thumbs
+  // against the new chroma ceiling — but never emit: notifying would push a no-op change
+  // into undo and rewrite a gradient's stored stop strings. The dropdown also lets the
+  // host repaint its trigger row (meta.onMode); setMode below is the host pushing a mode
+  // in, so it fires neither.
+  const remode = (m) => { mode = m; modeSel.value = m; renderChannels(); renderArea(); positionThumbs(); };
+  modeSel.addEventListener("change", () => { remode(modeSel.value); meta.onMode && meta.onMode(); });
 
   renderChannels();
 
@@ -267,10 +265,8 @@ function createPickerBody(meta, onChange) {
     get: () => colorStr(),
     // The current edit mode, and a setter for it — the gradient reads the mode to choose
     // its blend space, and re-points the body's mode when a host pushes in a stored ramp.
-    // setMode mirrors the dropdown's own handler (re-render fields + plane + thumbs) but
-    // never emits or fires onMode: the caller drives the repaint, an external set mustn't echo.
     mode: () => mode,
-    setMode: (m) => { if (m === mode || !EDIT_MODES.includes(m)) return; mode = m; modeSel.value = m; renderChannels(); renderArea(); positionThumbs(); },
+    setMode: (m) => { if (m !== mode && EDIT_MODES.includes(m)) remode(m); },
     reflow,
     // The host paints its own trigger from these — the body carries no swatch/value of its own.
     swatchCss: () => `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), ${CHECKER}`,

@@ -1,11 +1,11 @@
 /* Markup-driven enhancement — enhance() turns [data-tw] hosts into live controls
  * (the showcase path), sharing the panel's meta derivation via dataMeta. Imported
  * for its side effect too: it auto-runs over the document on load. */
-import { el, btn } from "./shared.js";
-import { dataMeta, hasOwn } from "./schema.js";
+import { el, btn, setCollapsed } from "./shared.js";
+import { dataMeta, restoreDefault, hasOwn } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, flashCopied, spinReset, showToast, copyText, addHintMarker } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
 
 // Echo a control's value back onto its host's data-value, in the comma form the parsers
 // in schema.ts read (interval / cubicbezier / point all split data-value on ","). An array
@@ -31,34 +31,27 @@ export async function enhance(root: Document | Element = document): Promise<void
     if (!toggle && title) { toggle = btn("tw-header-toggle"); title.replaceWith(toggle); toggle.append(title); }
     if (!toggle) return;
     toggle.setAttribute("aria-expanded", "true");
-    toggle.addEventListener("click", () => { const c = panel.classList.toggle("is-collapsed"); toggle.setAttribute("aria-expanded", c ? "false" : "true"); body.inert = c; });
+    toggle.addEventListener("click", () => setCollapsed(panel, toggle, body, !panel.classList.contains("is-collapsed")));
     // Copy + reset are part of the component, so the static samples carry them too —
     // the same toolbar tweaks() builds, operating over this panel's own [data-tw]
     // controls (gathered lazily at click time; they're created in the pass below).
     if (!header.querySelector(".tw-toolbar")) {
       const name = (title && title.textContent) || "Panel";
-      const toolbar = el("div", "tw-toolbar");
-      const copyBtn = makeCopyBtn();
-      const resetBtn = makeResetBtn();
-      toolbar.append(copyBtn, resetBtn); header.append(toolbar);
       const live = () => [...panel.querySelectorAll("[data-tw]")].map((h: any) => h._tw).filter((t: any) => t && t.ctrl.get() !== undefined);
-      copyBtn.addEventListener("click", async () => {
-        // Two controls can legitimately share a key (a data-key repeated, or two hosts
-        // with the same label and no data-key at all) — suffix the duplicates instead of
-        // letting the later one overwrite the earlier and drop a value from the copy.
+      // Two controls can legitimately share a key (a data-key repeated, or two hosts
+      // with the same label and no data-key at all) — suffix the duplicates instead of
+      // letting the later one overwrite the earlier and drop a value from the copy.
+      const values = () => {
         const vals = {};
         for (const t of live()) {
           let k = t.key, n = 2; while (hasOwn(vals, k)) k = `${t.key}-${n++}`;
           vals[k] = t.ctrl.get();
         }
-        const ok = await copyText(JSON.stringify(vals, null, 2));
-        if (ok) { flashCopied(copyBtn); showToast(`${name} values copied`, panel); }
-        else showToast("Copy failed", panel);
-      });
-      resetBtn.addEventListener("click", () => {
-        spinReset(resetBtn);
-        for (const t of live()) { t.ctrl.set(t.def); writeDataValue(t.host, t.ctrl.get()); }
-      });
+        return JSON.stringify(vals, null, 2);
+      };
+      const reset = () => { for (const t of live()) { restoreDefault(t.ctrl, t.raw, t.def); writeDataValue(t.host, t.ctrl.get()); } };
+      const toolbar = el("div", "tw-toolbar");
+      toolbar.append(makeCopyBtn(panel, name, values), makeResetBtn(reset)); header.append(toolbar);
     }
   });
   // Folders first: build the collapsible chrome and move child [data-tw] hosts into it.
@@ -79,7 +72,8 @@ export async function enhance(root: Document | Element = document): Promise<void
   if (pend) await pend.catch(() => {}); // a failed chunk degrades to skipping its controls (createControl finds no constructor), not an unhandled rejection out of the auto-run
   for (const { host, meta } of hosts) {
     const ctrl = createControl(meta, (v) => writeDataValue(host, v));
-    if (ctrl) { host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint); host._tw = { ctrl, def: meta.value, key: host.dataset.key || meta.label, host }; }
+    // raw = the markup's value, def = the form the control opened on — the panel's entries hold the same pair for reset (restoreDefault).
+    if (ctrl) { host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint); host._tw = { ctrl, raw: meta.value, def: ctrl.get(), key: host.dataset.key || meta.label, host }; }
   }
 }
 

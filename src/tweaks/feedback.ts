@@ -9,8 +9,22 @@ import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 // (icon button + matching title/aria-label), plus the copy/reset one-shot animations
 // (the copied flash, the reset spin — each stashes its timer on the button as `_t`).
 const toolbarBtn = (cls, icon, label) => { const b = btn("tw-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
-const makeCopyBtn = () => toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values");
-const makeResetBtn = () => toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset");
+// Copy: puts `text()` on the clipboard and confirms — the check cross-fades in and a toast
+// (anchored to the panel, so it carries its theme + scheme) names what was copied.
+// Both handlers bail while the button is `disabled` (the panel's lazy window, before its
+// controls exist): a user click never reaches a disabled control, but a synthetic
+// dispatchEvent(click) does, and it must stay as inert as the button reads.
+const makeCopyBtn = (anchor, name, text) => {
+  const b = toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values");
+  b.addEventListener("click", async () => {
+    if (b.disabled) return;
+    if (await copyText(text())) { flashCopied(b); showToast(`${name} values copied`, anchor); }
+    else showToast("Copy failed", anchor);
+  });
+  return b;
+};
+// Reset: runs `onReset` behind the icon's one-shot spin — motion feedback to match the copy swap.
+const makeResetBtn = (onReset) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
 const flashCopied = (btn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
 // Reset spin — an accumulated rotation on --tw-spin, driven by the transform transition
 // (no keyframes): transitions retarget mid-flight, so a second click mid-spin continues
@@ -61,7 +75,8 @@ const spinReset = (btn) => {
 // carries the anchor panel's winning scheme + live theme the way the tip does.
 let toastEl = null, toastTimer = 0;
 function showToast(msg, anchor?) {
-  if (!toastEl) { toastEl = el("div", "tw-toast tw-portal"); toastEl.setAttribute("role", "status"); document.body.appendChild(toastEl); }
+  if (!toastEl) { toastEl = el("div", "tw-toast tw-portal"); toastEl.setAttribute("role", "status"); }
+  if (!toastEl.isConnected) document.body.appendChild(toastEl); // re-home the singleton after a host replaced <body>'s content (a route change) — every later toast was silent
   toastEl.textContent = msg;
   carrySkin(toastEl, anchor); // the anchor panel's theme + winning scheme, tip-style
   toastEl.classList.add("is-open");
@@ -74,7 +89,8 @@ let hintTip = null, hintTimer = 0, hintAnchor = null;
 const onHintKey = (e) => { if (e.key === "Escape") hideHintNow(); }; // bound only while the tip is open — WCAG 1.4.13, the hover content is dismissable
 const hideHintNow = () => { clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
 function showHint(anchor, text) {
-  if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); document.body.appendChild(hintTip); }
+  if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); }
+  if (!hintTip.isConnected) document.body.appendChild(hintTip); // as the toast: re-home after a body replacement
   clearTimeout(hintTimer);
   hintTip.textContent = text;
   carrySkin(hintTip, anchor); // theme + winning scheme, resolved at show time (setTheme may have run since build)
@@ -91,7 +107,7 @@ function showHint(anchor, text) {
   // otherwise strand the open tip on screen. One rAF per frame, only while open.
   if (!wasOpen) requestAnimationFrame(function watch() { if (!hintTip.classList.contains("is-open")) return; if (!hintAnchor.isConnected) return hideHintNow(); requestAnimationFrame(watch); });
 }
-function hideHint() { if (hintTip) hintTimer = setTimeout(() => { hintTip.classList.remove("is-open"); document.removeEventListener("keydown", onHintKey); }, 80); }
+function hideHint() { if (hintTip) { clearTimeout(hintTimer); hintTimer = setTimeout(hideHintNow, 80); } } // a short grace, so a pointer crossing marker → tip doesn't flicker it; one pending hide at a time (a leave then a blur queued two, and a re-enter cleared only the second)
 // A control's `hint` becomes a visible ⓘ marker beside its label that reveals the
 // text in the tooltip on hover/focus — discoverable and keyboard-reachable, unlike
 // the old native `title`. Shared by the panel build (registerCond) and enhance().
@@ -134,4 +150,4 @@ async function copyText(text) {
   return ok;
 }
 
-export { toolbarBtn, makeCopyBtn, makeResetBtn, flashCopied, spinReset, showToast, hideHintNow, addHintMarker, copyText };
+export { toolbarBtn, makeCopyBtn, makeResetBtn, spinReset, showToast, hideHintNow, addHintMarker };
