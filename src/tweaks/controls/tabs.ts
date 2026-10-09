@@ -1,17 +1,22 @@
 // ── Tabs — group controls into pages. Lazy; build() recurses its page bodies
 // after the module has loaded (ensured before the panel assembles).
 import { el, txt, onReady, measurePill, navIndex, registerControl } from "../shared.js";
+import type { Meta } from "../schema.js";
+
+/** The tabs handle: a page body per tab for build() to fill, and the active tab for
+ *  the panel's UI state (toJSON/fromJSON). */
+export interface TabsControl { el: HTMLDivElement; bodies: HTMLDivElement[]; activate(i: number): void; active(): number }
 
 // ── Tabs — group controls into pages; a pill slides to the active tab. Each page
 // body is a .tw-controls that build() fills. ──
 let tabsSeq = 0; // unique ids for the tab ↔ tabpanel aria pairing
-function createTabs(meta) {
+function createTabs(meta: Meta): TabsControl {
   const uid = `tw-tabs-${++tabsSeq}`;
   const root = el("div", "tw-tabs");
   const bar = el("div", "tw-tabs-bar"); bar.setAttribute("role", "tablist");
   const pill = el("div", "tw-tabs-pill"); bar.append(pill);
   const pagesWrap = el("div", "tw-tabs-pages");
-  const bodies = [];
+  const bodies: HTMLDivElement[] = [];
   const tabs = meta.pages.map((page, i) => {
     const tab = txt("button", "tw-tabs-tab", page.title); tab.setAttribute("role", "tab");
     tab.dataset.active = String(i === 0); tab.setAttribute("aria-selected", String(i === 0));
@@ -24,8 +29,8 @@ function createTabs(meta) {
     bar.append(tab); return tab;
   });
   root.append(bar, pagesWrap);
-  const measure = (animate?) => measurePill(bar, pill, animate); // slide the pill to the active tab; liquid stretch on a real move (shared with the segmented control)
-  function activate(i) {
+  const measure = (animate?: boolean) => measurePill(bar, pill, animate); // slide the pill to the active tab; liquid stretch on a real move (shared with the segmented control)
+  function activate(i: number) {
     tabs.forEach((b, k) => { b.dataset.active = String(k === i); b.setAttribute("aria-selected", String(k === i)); b.tabIndex = k === i ? 0 : -1; });
     bodies.forEach((b, k) => (b.dataset.active = String(k === i)));
     measure(true);

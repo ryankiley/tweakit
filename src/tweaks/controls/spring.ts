@@ -1,14 +1,26 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/
 // bounce) mode, over one settle-curve preview. Lazy. ──
 import { el, txt, numField, onReady, onLive, cssVar, accentColor, clamp, dragGesture, createSegmented, registerControl } from "../shared.js";
+import type { OnChange, NumField } from "../shared.js";
+import type { Meta } from "../schema.js";
+import type { Control } from "../types.js";
+
+type SpringMode = "time" | "physics";
+/** The physics triple every emitted value carries. */
+interface Phys { stiffness: number; damping: number; mass: number }
+type PhysKey = keyof Phys;
+/** The perceptual pair the time mode edits. */
+interface SpringTime { visualDuration: number; bounce: number }
+/** What set() accepts: any subset of the physics, the time pair and an explicit mode. */
+type SpringValue = Partial<Phys & SpringTime & { mode: SpringMode }>;
 
 // Closed-form step response of a damped harmonic oscillator (under/critical/over). ──
-function springCurve(k, d, m, N = 64) {
+function springCurve(k: number, d: number, m: number, N = 64) {
   const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m));
   const T = Math.min(2.2, 9 / Math.max(z * w0, 0.5));
-  const out = [];
+  const out: number[] = [];
   for (let i = 0; i < N; i++) {
-    const t = (i / (N - 1)) * T; let x;
+    const t = (i / (N - 1)) * T; let x: number;
     if (z < 1 - 1e-4) { const wd = w0 * Math.sqrt(1 - z * z); x = 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t)); }
     else if (z <= 1 + 1e-4) { x = 1 - Math.exp(-w0 * t) * (1 + w0 * t); }
     else { const s = Math.sqrt(z * z - 1), a = w0 * (z + s), b = w0 * (z - s); x = 1 - (a * Math.exp(-b * t) - b * Math.exp(-a * t)) / (a - b); }
@@ -17,14 +29,14 @@ function springCurve(k, d, m, N = 64) {
   return out;
 }
 
-function createSpring(meta, onChange) {
+function createSpring(meta: Meta, onChange: OnChange): Control {
   // Clamp the config to the same floors the fields enforce (stiffness ≥1, damping ≥0.5,
   // mass ≥0.1), dropping non-finite values to the defaults — so a degenerate stiffness/
   // mass:0 can't divide the settle curve to NaN (a blank preview) and .get() agrees with
   // what the fields display.
-  const cl = (v, lo, def) => (Number.isFinite(+v) ? Math.max(lo, +v) : def);
-  const clampS = (o) => ({ stiffness: cl(o.stiffness, 1, 300), damping: cl(o.damping, 0.5, 26), mass: cl(o.mass, 0.1, 1) });
-  const has = (x) => Number.isFinite(+x);
+  const cl = (v: unknown, lo: number, def: number) => (Number.isFinite(+v) ? Math.max(lo, +v) : def);
+  const clampS = (o: { stiffness?: unknown; damping?: unknown; mass?: unknown }): Phys => ({ stiffness: cl(o.stiffness, 1, 300), damping: cl(o.damping, 0.5, 26), mass: cl(o.mass, 0.1, 1) });
+  const has = (x: unknown) => Number.isFinite(+x);
 
   // Two authoring modes over the SAME physics model. PHYSICS edits stiffness/damping/mass
   // directly. TIME edits a perceptual visualDuration + bounce (Motion's spring shorthand),
@@ -32,19 +44,19 @@ function createSpring(meta, onChange) {
   //   stiffness = (2π / visualDuration)²,  ζ = 1 − bounce,  damping = 2ζ·√(k·m),  mass = 1.
   // Each mode keeps its own cache, so toggling back and forth restores its prior edits.
   const DUR_MIN = 0.1, DUR_MAX = 1;
-  const clampDur = (v) => clamp(has(v) ? +v : 0.5, DUR_MIN, DUR_MAX);
-  const clampBounce = (v) => clamp(has(v) ? +v : 0.2, 0, 1);
-  const timeToPhysics = (t) => { const k = (2 * Math.PI / t.visualDuration) ** 2, z = 1 - t.bounce, m = 1; return { stiffness: k, damping: 2 * z * Math.sqrt(k * m), mass: m }; };
+  const clampDur = (v: unknown) => clamp(has(v) ? +v : 0.5, DUR_MIN, DUR_MAX);
+  const clampBounce = (v: unknown) => clamp(has(v) ? +v : 0.2, 0, 1);
+  const timeToPhysics = (t: SpringTime): Phys => { const k = (2 * Math.PI / t.visualDuration) ** 2, z = 1 - t.bounce, m = 1; return { stiffness: k, damping: 2 * z * Math.sqrt(k * m), mass: m }; };
 
   // Initial config — accept top-level props (the inline shorthand
   // `{ type:"spring", visualDuration:0.3, bounce:0.2 }` or `{ …, stiffness, damping, mass }`)
   // as well as the legacy `value:{…}` form, with value taking precedence. Mode is explicit
   // (on the value, or `meta.mode`) or inferred from which keys are present — time wins
   // when either is given.
-  const explicit = (m) => (m === "time" || m === "physics" ? m : null);
+  const explicit = (m: unknown): SpringMode | null => (m === "time" || m === "physics" ? m : null);
   const init = { stiffness: meta.stiffness, damping: meta.damping, mass: meta.mass, visualDuration: meta.visualDuration, bounce: meta.bounce, ...(meta.value || {}) };
-  let mode = explicit(init.mode) ?? explicit(meta.mode) ?? ((has(init.visualDuration) || has(init.bounce)) ? "time" : "physics");
-  const time = { visualDuration: clampDur(init.visualDuration), bounce: clampBounce(init.bounce) };
+  let mode: SpringMode = explicit(init.mode) ?? explicit(meta.mode) ?? ((has(init.visualDuration) || has(init.bounce)) ? "time" : "physics");
+  const time: SpringTime = { visualDuration: clampDur(init.visualDuration), bounce: clampBounce(init.bounce) };
   let phys = clampS({ stiffness: init.stiffness, damping: init.damping, mass: init.mass });
 
   const root = el("div", "tw-spring");
@@ -65,8 +77,8 @@ function createSpring(meta, onChange) {
     // Sample ~one point per device pixel so fast oscillations stay smooth, not angular.
     const pts = springCurve(s.stiffness, s.damping, s.mass, Math.max(160, Math.round(w * dpr)));
     const peak = Math.max(1.05, ...pts), pad = 8; // matches the bezier editor's PAD (bezier.ts) — the two curve previews inset their plot identically
-    const X = (i) => pad + (i / (pts.length - 1)) * (w - 2 * pad);
-    const Y = (v) => h - pad - (v / peak) * (h - 2 * pad);
+    const X = (i: number) => pad + (i / (pts.length - 1)) * (w - 2 * pad);
+    const Y = (v: number) => h - pad - (v / peak) * (h - 2 * pad);
     ctx.strokeStyle = cssVar(root, "--tw-surface-active") || "rgba(255,255,255,0.1)"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pad, Y(1)); ctx.lineTo(w - pad, Y(1)); ctx.stroke(); // target (=1)
     ctx.strokeStyle = accentColor(root); ctx.lineWidth = 1.5; ctx.lineJoin = ctx.lineCap = "round";
@@ -76,11 +88,11 @@ function createSpring(meta, onChange) {
   // a Motion runtime) PLUS visualDuration/bounce in time mode, which carry the authoring mode
   // through persistence/presets — set() infers TIME from their presence on the way back. One
   // definition feeds both emit() and get(), so the two can never drift.
-  const resolvedValue = () => (mode === "time" ? { ...resolved(), visualDuration: time.visualDuration, bounce: time.bounce } : resolved());
+  const resolvedValue = (): Phys & Partial<SpringTime> => (mode === "time" ? { ...resolved(), visualDuration: time.visualDuration, bounce: time.bounce } : resolved());
   const emit = () => onChange(resolvedValue());
 
-  const flds: any = {};
-  [["stiffness", "Stiffness", 1], ["damping", "Damping", 0.5], ["mass", "Mass", 0.1]].forEach(([key, lab, step]: any) => {
+  const flds: Partial<Record<PhysKey, NumField>> = {};
+  ([["stiffness", "Stiffness", 1], ["damping", "Damping", 0.5], ["mass", "Mass", 0.1]] as const).forEach(([key, lab, step]) => {
     flds[key] = numField({ label: lab, value: phys[key], step, min: step }, (v) => { phys[key] = v; draw(); emit(); });
     physFields.append(flds[key].el);
   });
@@ -89,7 +101,7 @@ function createSpring(meta, onChange) {
   timeFields.append(durFld.el, bounceFld.el);
 
   const showMode = () => { timeFields.style.display = mode === "time" ? "" : "none"; physFields.style.display = mode === "physics" ? "" : "none"; };
-  const switchMode = (m) => { if ((m !== "time" && m !== "physics") || m === mode) return; mode = m; showMode(); draw(); emit(); };
+  const switchMode = (m: unknown) => { if ((m !== "time" && m !== "physics") || m === mode) return; mode = m; showMode(); draw(); emit(); };
   const modeToggle = createSegmented([{ value: "time", label: "Time" }, { value: "physics", label: "Physics" }], mode, switchMode, "Spring mode");
   // The mode switch reuses the panel's row idiom (label left, segmented pill right) — the
   // same shape as the Off/On toggle and enum selectors — rather than a bespoke full-width pill.
@@ -106,8 +118,8 @@ function createSpring(meta, onChange) {
   // bouncier). The fields stay the precise / keyboard path; this is the direct-manipulation
   // companion (the bezier/point pattern).
   const ST_MIN = 1, ST_MAX = 500, DA_MIN = 1, DA_MAX = 40;
-  let vizRect: any = null;
-  const fromPointer = (e) => {
+  let vizRect: DOMRect | null = null;
+  const fromPointer = (e: PointerEvent) => {
     if (!vizRect) return;
     const px = clamp((e.clientX - vizRect.left) / vizRect.width, 0, 1);
     const py = clamp((e.clientY - vizRect.top) / vizRect.height, 0, 1);
@@ -139,7 +151,7 @@ function createSpring(meta, onChange) {
   // A host flipping [data-tw-scheme] re-themes the SVG controls through CSS alone; the
   // canvas needs a redraw. Watches the document for the attribute, like the popovers do,
   // and lets go once the control has been mounted and removed (or on destroy()).
-  let schemeObs = null, wasMounted = false;
+  let schemeObs: MutationObserver | null = null, wasMounted = false;
   if (typeof MutationObserver === "function") {
     schemeObs = new MutationObserver(() => {
       if (canvas.isConnected) { wasMounted = true; draw(); }
@@ -153,7 +165,7 @@ function createSpring(meta, onChange) {
     // Programmatic set / restore — infer the mode from the value's keys (time wins when
     // visualDuration/bounce are present), update the matching cache + fields, and redraw
     // without emitting (set() is the silent path; the panel stamps + notifies itself).
-    set: (v) => {
+    set: (v: SpringValue) => {
       if (!v || typeof v !== "object") return;
       const ex = explicit(v.mode), hasTime = has(v.visualDuration) || has(v.bounce), hasPhys = has(v.stiffness) || has(v.damping) || has(v.mass);
       if (!hasTime && !hasPhys && !ex) return;

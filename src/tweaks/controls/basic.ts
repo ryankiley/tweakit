@@ -9,10 +9,13 @@ import {
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
 } from "../shared.js";
 import { ICON_CHEVRON, chevronIcon } from "../icons.js";
+import type { OnChange } from "../shared.js";
+import type { Meta } from "../schema.js";
+import type { Control, Option } from "../types.js";
 
 // ── Slider control ──
 const CLICK_THRESHOLD = 3, DEAD_ZONE = 32, MAX_CURSOR_RANGE = 200, MAX_STRETCH = 8;
-function createSlider(meta, onChange) {
+function createSlider(meta: Meta, onChange: OnChange): Control {
   const label = meta.label;
   // Normalise the range before anything reads it (normalizeRange, shared with the
   // interval) — every slider source (schema shorthand, verbose form, [data-tw]
@@ -50,7 +53,7 @@ function createSlider(meta, onChange) {
 
   // Rule lines (hashmarks) live only on the discrete slider — one per step. The
   // continuous slider has none.
-  const q = (v) => roundToStep(v, min, step); // min and max sit on the grid (above), so a clamped value rounds to a value inside the range
+  const q = (v: number) => roundToStep(v, min, step); // min and max sit on the grid (above), so a clamped value rounds to a value inside the range
   const marks = snap ? Array.from({ length: Math.max(0, Math.round((max - min) / step) - 1) }, (_, i) => ((i + 1) * step) / (max - min) * 100) : [];
   for (const pct of marks) { const m = el("div", "tw-slider-hashmark"); m.style.left = pct + "%"; hashes.append(m); }
 
@@ -80,7 +83,7 @@ function createSlider(meta, onChange) {
   };
   render();
 
-  let rect = null, scale = 1, downPos = null, isClick = true, snapTimer, fineAnchor = null, downId = null;
+  let rect: DOMRect | null = null, scale = 1, downPos: { x: number; y: number } | null = null, isClick = true, snapTimer: number, fineAnchor: { x: number; v: number } | null = null, downId: number | null = null;
   const GLIDE_FILL = `width 0.34s ${EASE_GLIDE}`;
   const GLIDE_HANDLE = `left 0.34s ${EASE_GLIDE}, opacity 0.15s, transform 0.2s ${EASE_SPRING}`;
   // Discrete detent — an eager spring-commit (the "snap sooner" model picked in the slider
@@ -91,27 +94,27 @@ function createSlider(meta, onChange) {
   // `pull` carries the spring's px offset from the committed notch (read by render()).
   // Only FINE_GAIN survives from the old tanh model.
   const FINE_GAIN = 0.2;
-  const valFromX = (clientX) => {
+  const valFromX = (clientX: number) => {
     if (!rect) return value;
     const native = wrap.offsetWidth || rect.width;
     const pct = clamp((clientX - rect.left) / scale / native, 0, 1);
     return clamp(min + pct * (max - min), min, max);
   };
-  const rubber = (clientX) => {
+  const rubber = (clientX: number) => {
     let s = 0;
     if (clientX < rect.left) s = -MAX_STRETCH * Math.sqrt(Math.min(Math.max(0, rect.left - clientX - DEAD_ZONE) / MAX_CURSOR_RANGE, 1));
     else if (clientX > rect.right) s = MAX_STRETCH * Math.sqrt(Math.min(Math.max(0, clientX - rect.right - DEAD_ZONE) / MAX_CURSOR_RANGE, 1));
     track.style.width = `calc(100% + ${Math.abs(s)}px)`;
     track.style.transform = s < 0 ? `translateX(${s}px)` : "";
   };
-  const set = (v, fire = true) => { v = +v; if (!Number.isFinite(v)) return; value = snap ? clamp(q(v), min, max) : (meta.soft ? v : clamp(v, min, max)); render(); if (fire) onChange(q(value)); }; // non-finite (NaN/±∞ from a stray .set()/restore) is ignored; soft: typed/scripted values may exceed [min,max] (drag stays bounded via valFromX)
+  const set = (v: number | string, fire = true) => { v = +v; if (!Number.isFinite(v)) return; value = snap ? clamp(q(v), min, max) : (meta.soft ? v : clamp(v, min, max)); render(); if (fire) onChange(q(value)); }; // non-finite (NaN/±∞ from a stray .set()/restore) is ignored; soft: typed/scripted values may exceed [min,max] (drag stays bounded via valFromX)
 
   // ── Spring-commit detent (snap sliders) ──
   // Physics in step-index space (notches at integers): a cursor spring pulls the handle
   // toward the finger while the value commits at 30% of the gap. Tuned in the lab.
   const STEPS = Math.max(1, Math.round((max - min) / step));
   const C_COMMIT = 0.2, C_LEAN = 0.3, C_K = 520, C_D = 27; // C_COMMIT = 0.5 − 0.30 (commit fraction)
-  const toIdx = (v) => (v - min) / step;
+  const toIdx = (v: number) => (v - min) / step;
   let sx = 0, sv = 0, sRAF = 0, sDrag = false, sPrevEi: number | null = null, cursorVal = value, sPrevT = 0;
   const springStop = () => { if (sRAF) cancelAnimationFrame(sRAF); sRAF = 0; sPrevT = 0; };
   const springFrame = (now: number) => {
@@ -142,7 +145,7 @@ function createSlider(meta, onChange) {
     e.preventDefault();
     track.focus({ focusVisible: false }); // restore click-to-focus (preventDefault suppressed it) so click-then-arrow-keys works — but WITHOUT the keyboard focus ring: a mouse press shouldn't draw :focus-visible (programmatic focus otherwise reads as keyboard to the browser). Keyboard Tab still rings. Option is ignored on browsers that lack it (no regression).
     downId = e.pointerId;
-    try { e.target.setPointerCapture(e.pointerId); } catch {}
+    try { (e.target as Element).setPointerCapture(e.pointerId); } catch {}
     clearTimeout(snapTimer); track.style.transition = "";
     downPos = { x: e.clientX, y: e.clientY }; isClick = true;
     track.classList.add("is-active");
@@ -176,7 +179,7 @@ function createSlider(meta, onChange) {
       } else {
         // Alt = fine scrub: drop into a low-gain relative drag, re-anchored the moment Alt
         // engages, so a continuous slider can be tuned sub-pixel. Shift = coarse on the keyboard.
-        let raw;
+        let raw: number;
         if (e.altKey) {
           if (!fineAnchor) fineAnchor = { x: e.clientX, v: value };
           const native = wrap.offsetWidth || rect.width;
@@ -190,7 +193,7 @@ function createSlider(meta, onChange) {
     }
     if (e.clientX >= rect.left && e.clientX <= rect.right) { track.style.width = ""; track.style.transform = ""; }
   });
-  const up = (e?) => {
+  const up = (e?: PointerEvent) => {
     if (!downPos || (e && e.pointerId !== downId)) return;
     if (snap) {
       // Let the spring settle onto the committed notch — springFrame clears the pull,
@@ -229,7 +232,7 @@ function createSlider(meta, onChange) {
   });
 
   // value: hover 800ms → editable; click → inline input (ported)
-  let hoverTimer;
+  let hoverTimer: number;
   valueEl.addEventListener("mouseenter", () => { hoverTimer = setTimeout(() => valueEl.classList.add("is-editable"), 800); });
   valueEl.addEventListener("mouseleave", () => { clearTimeout(hoverTimer); if (!valueEl.classList.contains("is-editing")) valueEl.classList.remove("is-editable"); });
   valueEl.addEventListener("pointerdown", (e) => {
@@ -263,23 +266,23 @@ function createSlider(meta, onChange) {
   valueEl.addEventListener("click", () => { if (valueEl.classList.contains("is-editable")) openEditor(); });
   track.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === track && !downPos) { e.preventDefault(); openEditor(); } });
 
-  return { el: wrap, set: (v) => set(v, false), get: () => q(value) };
+  return { el: wrap, set: (v: number | string) => set(v, false), get: () => q(value) };
 }
 
-function createToggle(meta, onChange) {
+function createToggle(meta: Meta, onChange: OnChange): Control {
   const row = el("div", "tw-row");
   // A boolean, shown as a two-segment Off/On pill that slides — the segmented control
   // IS the state (one source of truth); this just maps boolean ↔ "on"/"off" at the rim.
   const seg = createSegmented([{ value: "off", label: "Off" }, { value: "on", label: "On" }], meta.value ? "on" : "off", (v) => onChange(v === "on"), meta.label);
   row.append(txt("span", "tw-row-label", meta.label), seg.el);
-  return { el: row, set: (v) => seg.set(v ? "on" : "off"), get: () => seg.get() === "on" };
+  return { el: row, set: (v: unknown) => seg.set(v ? "on" : "off"), get: () => seg.get() === "on" };
 }
 
 // ── Radio grid — a segmented control wrapped into a 2- or 3-column grid, for a
 // small set of short presets (10/25/50/100%, ratios, sizes) that won't fit
 // inline on one row. Single-select; columns clamp to 2–3 (default by count). ──
-function createRadiogrid(meta, onChange) {
-  const options = meta.options || [];
+function createRadiogrid(meta: Meta, onChange: OnChange): Control {
+  const options: Option[] = meta.options || [];
   const cols = Math.min(3, Math.max(2, meta.cols || (options.length <= 3 ? options.length : options.length === 4 ? 2 : 3)));
   const row = el("div", "tw-radiogrid");
   const grid = el("div", "tw-radiogrid-grid"); grid.style.setProperty("--tw-rg-cols", cols);
@@ -287,7 +290,7 @@ function createRadiogrid(meta, onChange) {
   let value = meta.value ?? optValue(options[0]);
   const btns = options.map((o) => { const b = radioButton("tw-radiogrid-btn", o, (v) => set(v)); grid.append(b); return b; }); // lazy `set` — it's declared below
   const reflect = () => setRadioActive(btns, value);
-  const set = (v, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null/undefined clear the selection (a snapshot writes undefined as null); any other value matching no option is ignored (a stale restore used to land in params verbatim)
+  const set = (v: unknown, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null/undefined clear the selection (a snapshot writes undefined as null); any other value matching no option is ignored (a stale restore used to land in params verbatim)
   // Arrow keys roam the grid: ←/→ step linearly (wrapping), ↑/↓ jump a row (by
   // the column count, clamped at the edges); Home/End to the ends.
   grid.addEventListener("keydown", (e) => {
@@ -297,12 +300,12 @@ function createRadiogrid(meta, onChange) {
   });
   reflect();
   row.append(txt("span", "tw-radiogrid-label", meta.label), grid);
-  return { el: row, set: (v) => set(v, false), get: () => value };
+  return { el: row, set: (v: unknown) => set(v, false), get: () => value };
 }
 
 // ── Select ──
 const CHEVRON = chevronIcon("tw-select-chevron"); // the shared chevron shape, in the select's own class
-function createSelect(meta, onChange) {
+function createSelect(meta: Meta, onChange: OnChange): Control {
   let value = meta.value;
   const opts = meta.options.map((o) => ({ value: optValue(o), label: optLabel(o) }));
   const root = el("div", "tw-select");
@@ -319,8 +322,8 @@ function createSelect(meta, onChange) {
     dropdown.append(b); return b;
   });
   root.append(trigger, dropdown);
-  const reflect = () => { valEl.textContent = (opts.find((o) => o.value === value) || {}).label ?? value; optButtons.forEach((b) => { const sel = b.dataset.value === String(value); b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); }; // String(value): dataset stringifies, so numeric option values never matched (no selected/aria state)
-  const set = (v, fire = true) => { if (v != null && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null/undefined clear the selection (a snapshot writes undefined as null); any other value matching no option is ignored (a stale restore used to land in params verbatim, then persist as null)
+  const reflect = () => { valEl.textContent = (opts.find((o) => o.value === value) || ({} as { label?: string })).label ?? value; optButtons.forEach((b) => { const sel = b.dataset.value === String(value); b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); }; // String(value): dataset stringifies, so numeric option values never matched (no selected/aria state)
+  const set = (v: unknown, fire = true) => { if (v != null && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null/undefined clear the selection (a snapshot writes undefined as null); any other value matching no option is ignored (a stale restore used to land in params verbatim, then persist as null)
   // The shared popover shell portals the dropdown to <body> (never clipped by the
   // panel's overflow or a transformed ancestor), themes + places it, and closes on
   // outside-press / Esc-back-to-trigger / scroll-away — the same machinery as the
@@ -338,7 +341,7 @@ function createSelect(meta, onChange) {
     if (!pop.isOpen() && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); pop.open(); }
   });
   dropdown.addEventListener("keydown", (e) => {
-    const i = optButtons.indexOf(document.activeElement); let j = i;
+    const i = optButtons.indexOf(document.activeElement as HTMLButtonElement); let j = i;
     if (e.key === "ArrowDown") j = i < 0 ? 0 : Math.min(optButtons.length - 1, i + 1);
     else if (e.key === "ArrowUp") j = i < 0 ? optButtons.length - 1 : Math.max(0, i - 1);
     else if (e.key === "Home") j = 0;
@@ -347,10 +350,10 @@ function createSelect(meta, onChange) {
     e.preventDefault(); optButtons[j]?.focus();
   });
   reflect();
-  return { el: root, set: (v) => set(v, false), get: () => value };
+  return { el: root, set: (v: unknown) => set(v, false), get: () => value };
 }
 
-function createButton(meta) {
+function createButton(meta: Meta) {
   const b = txt("button", "tw-button", meta.label);
   b.addEventListener("click", () => meta.action && meta.action());
   return blade(b);
@@ -358,11 +361,11 @@ function createButton(meta) {
 
 // ── Button group — a row of compact actions under one label, the action sibling
 // to the radio grid. `buttons` is { label: fn } or [{label, action}]. ──
-function createButtonGroup(meta) {
+function createButtonGroup(meta: Meta) {
   const row = el("div", "tw-row tw-buttongroup");
   if (meta.label) row.append(txt("span", "tw-row-label", meta.label));
   const group = el("div", "tw-buttongroup-btns");
-  const list = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label ?? "Button", b.action]) : Object.entries(meta.buttons || {}); // an entry with no label is still a button, not an empty pill
+  const list: [string, () => void][] = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label ?? "Button", b.action]) : Object.entries(meta.buttons || {}); // an entry with no label is still a button, not an empty pill
   for (const [lab, fn] of list) {
     const b = txt("button", "tw-buttongroup-btn", lab);
     b.addEventListener("click", () => typeof fn === "function" && fn());
@@ -376,32 +379,32 @@ function createButtonGroup(meta) {
 const createSeparator = () => blade(el("div", "tw-separator"));
 
 // ── String — a labelled text input ──
-function createString(meta, onChange) {
+function createString(meta: Meta, onChange: OnChange): Control {
   // A non-string default (value: 5) holds its string form from the start, so get() and
   // reset() agree with the input; an object shows its JSON rather than "[object Object]".
-  const str = (v) => (v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
+  const str = (v: unknown) => (v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
   let value = str(meta.value);
   // `rows` makes it a multiline textarea: the row
   // grows to fit and aligns its label to the top instead of centring.
   const multi = meta.rows > 0;
   const row = el("div", multi ? "tw-row tw-row-multiline" : "tw-row");
   const input = el(multi ? "textarea" : "input", multi ? "tw-text tw-textarea" : "tw-text");
-  if (multi) input.rows = meta.rows; else input.type = "text";
+  if (multi) (input as HTMLTextAreaElement).rows = meta.rows; else (input as HTMLInputElement).type = "text";
   input.value = value;
   quietFocus(input); // click-to-type stays ringless; Tab rings
   if (meta.placeholder) input.placeholder = meta.placeholder;
   input.addEventListener("input", () => { value = input.value; onChange(value); });
   row.append(txt("span", "tw-row-label", meta.label), input);
-  return { el: row, set: (v) => { value = str(v); input.value = value; }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
+  return { el: row, set: (v: unknown) => { value = str(v); input.value = value; }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
 }
 
 // ── Number — the shared numField engine in its row chrome: a typeable field with a
 // grab handle (drag to scrub), min-anchored rounding, soft support. ──
-const createNumber = (meta, onChange) => numField({ ...meta, row: true }, onChange);
+const createNumber = (meta: Meta, onChange: OnChange) => numField({ ...meta, row: true }, onChange);
 
 // ── Folder — a collapsible titled group. Returns its inner
 // container as `body` so the caller fills it; collapse reuses the grid-rows trick. ──
-function createFolder(meta) {
+function createFolder(meta: { label: string }) {
   const root = el("div", "tw-folder");
   const header = btn("tw-folder-header"); header.setAttribute("aria-expanded", "true");
   header.append(txt("span", "tw-folder-title", meta.label));
@@ -409,7 +412,7 @@ function createFolder(meta) {
   const body = el("div", "tw-folder-body");
   const inner = el("div", "tw-controls"); body.append(inner);
   root.append(header, body);
-  const collapse = (c) => setCollapsed(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
+  const collapse = (c: boolean) => setCollapsed(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
   header.addEventListener("click", () => collapse(!root.classList.contains("is-collapsed")));
   // setCollapsed lets the panel read + restore the open/closed state (toJSON/fromJSON).
   return { el: root, body: inner, setCollapsed: collapse };
@@ -417,7 +420,7 @@ function createFolder(meta) {
 // One bad control constructor must not abort the whole panel build — degrade to
 // skipping just that control (every caller null-checks). Constructors come from
 // the registry: core ones registered below, lazy ones once their module loads.
-function createControl(meta, onChange) {
+function createControl(meta: Meta, onChange: OnChange): Control | null {
   const make = getControl(meta.type);
   if (!make) return null;
   try { return make(meta, onChange); }

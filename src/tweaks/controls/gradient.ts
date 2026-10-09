@@ -3,6 +3,13 @@
 import { el, btn, dragGesture, clamp, popover, triggerRow, registerControl, icon } from "../shared.js";
 import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./colour.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
+import type { Oklcha } from "./colour.js";
+import type { OnChange } from "../shared.js";
+import type { Meta } from "../schema.js";
+import type { Control, GradientStop } from "../types.js";
+
+/** A stop handle on the rail, carrying the stop it moves. */
+interface StopHandle extends HTMLButtonElement { _stop?: GradientStop }
 
 // ICON_PLUS — adapted from Lucide/Feather `plus` (MIT). See ../../../THIRD-PARTY-NOTICES.md.
 const ICON_PLUS = icon('<path d="M12 5v14M5 12h14"/>', "", 2.5);
@@ -20,9 +27,11 @@ const ICON_PLUS = icon('<path d="M12 5v14M5 12h14"/>', "", 2.5);
 // editor exactly. Value: { stops: [{ color, pos }], interpolation }. ──
 // Pull the blend space out of a value: an explicit `interpolation` on the object form,
 // else null (the array shorthand and legacy `{ stops }` carry none → OKLCH default).
-const parseInterp = (value) => (value && !Array.isArray(value) && typeof value.interpolation === "string" ? value.interpolation : null);
-function normalizeStops(value) {
-  const DEF = [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }];
+// `value` is the host's gradient value — the object form, a stop array, or anything a
+// restore hands over — inspected field by field, so the two normalizers take it as `any`.
+const parseInterp = (value: any): string | null => (value && !Array.isArray(value) && typeof value.interpolation === "string" ? value.interpolation : null);
+function normalizeStops(value: any): GradientStop[] {
+  const DEF: GradientStop[] = [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }];
   const arr = Array.isArray(value) ? value : (value && Array.isArray(value.stops) ? value.stops : null);
   // Map each entry defensively — a [color, pos] tuple or a { color, pos } object — and
   // drop anything else (a null / garbage element would throw on `.color`); coerce a
@@ -32,15 +41,15 @@ function normalizeStops(value) {
   // preview's `linear-gradient(…)`, so an unparsed string there could splice in further
   // background layers (a `url()` — a network fetch from a preset or persisted state).
   // Fewer than two usable stops falls back to the default pair.
-  const stop = (color, pos) => (isColor(color) ? { color: String(color), pos: clamp(+pos || 0, 0, 1) } : null);
-  const out = (arr || []).map((s) => {
+  const stop = (color: string, pos: unknown): GradientStop | null => (isColor(color) ? { color: String(color), pos: clamp(+pos || 0, 0, 1) } : null);
+  const out = (arr || []).map((s: any) => {
     if (Array.isArray(s)) return stop(s[0], s[1]);
     if (s && typeof s === "object") return stop(s.color, s.pos);
     return null;
   }).filter(Boolean);
   return out.length >= 2 ? out : DEF;
 }
-function createGradient(meta, onChange) {
+function createGradient(meta: Meta, onChange: OnChange): Control {
   let stops = normalizeStops(meta.value);
   let selStop = stops[0];
 
@@ -75,7 +84,7 @@ function createGradient(meta, onChange) {
   const value = () => ({ stops: sorted().map((s) => ({ color: s.color, pos: +s.pos.toFixed(4) })), interpolation: interp() });
   const emit = () => onChange(value());
 
-  const handleFor = (s) => [...rail.children].find((h: any) => h._stop === s);
+  const handleFor = (s: GradientStop) => [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s); // the rail holds only stop handles
   // The picker body edits whichever stop is selected. It opens in the mode the stored
   // blend was authored in, and a mode switch repaints the bar + re-emits — unlike the
   // standalone colour control, where a mode switch is formatting-only: here the mode IS
@@ -90,12 +99,12 @@ function createGradient(meta, onChange) {
 
   // A stop's accessible name carries its position and whether it's the selected one —
   // the state the ring shows sighted users. Refreshed on every select + move.
-  const labelStop = (h) => h.setAttribute("aria-label", `Colour stop at ${Math.round(h._stop.pos * 100)}%${h._stop === selStop ? ", selected" : ""}`);
-  const reflectSel = () => { for (const h of rail.children) { h.dataset.sel = String(h._stop === selStop); labelStop(h); } };
+  const labelStop = (h: StopHandle) => h.setAttribute("aria-label", `Colour stop at ${Math.round(h._stop.pos * 100)}%${h._stop === selStop ? ", selected" : ""}`);
+  const reflectSel = () => { for (const h of rail.children as HTMLCollectionOf<StopHandle>) { h.dataset.sel = String(h._stop === selStop); labelStop(h); } };
   const renderHandles = () => {
     rail.replaceChildren();
     for (const s of stops) {
-      const h = btn("tw-gradient-stop"); h._stop = s;
+      const h: StopHandle = btn("tw-gradient-stop"); h._stop = s;
       h.style.left = s.pos * 100 + "%"; h.style.setProperty("--stop", s.color);
       h.dataset.sel = String(s === selStop); labelStop(h);
       // Focus is selection: tabbing onto a stop points the picker at it and makes it the
@@ -135,29 +144,29 @@ function createGradient(meta, onChange) {
   // handle element stays live; full re-render happens on add / remove / external set.
   // body.set runs before selStop switches: re-pointing blurs a dirty channel field,
   // and its commit must land on the stop the user was editing, not the new one.
-  const select = (s, rerender) => { if (s !== selStop) { body.set(s.color); selStop = s; } rerender ? renderHandles() : reflectSel(); };
+  const select = (s: GradientStop, rerender: boolean) => { if (s !== selStop) { body.set(s.color); selStop = s; } rerender ? renderHandles() : reflectSel(); };
 
   // Stop drag rides the shared dragGesture (pointer capture + automatic pointercancel
   // cleanup), wired per handle in renderHandles — so a touch-drag the browser interrupts
   // with a scroll can't leak a document listener or strand the drag. (.tw-gradient-stop is
   // touch-action:none, like every other drag surface, so it drags cleanly on touch.)
-  const posFromX = (x) => { const r = rail.getBoundingClientRect(); return clamp((x - r.left) / (r.width || 1), 0, 1); };
+  const posFromX = (x: number) => { const r = rail.getBoundingClientRect(); return clamp((x - r.left) / (r.width || 1), 0, 1); };
 
   // Colour for a new stop: interpolate the two bracketing stops in OKLCH (short-way hue).
-  const colorAt = (pos) => {
+  const colorAt = (pos: number) => {
     const ss = sorted(); let lo = ss[0], hi = ss[ss.length - 1];
     for (let k = 0; k < ss.length - 1; k++) if (pos >= ss[k].pos && pos <= ss[k + 1].pos) { lo = ss[k]; hi = ss[k + 1]; break; }
     const t = hi.pos > lo.pos ? clamp((pos - lo.pos) / (hi.pos - lo.pos), 0, 1) : 0; // clamped: a pos outside the outermost stops takes the nearest stop exactly, never extrapolates
     const a = parseColor(lo.color), b = parseColor(hi.color);
     // CSS missing-hue handling for `in oklch`: a ~zero-chroma stop carries no hue of
     // its own, so the other stop's hue holds across the segment (white→red stays red).
-    const ach = (c) => c[1] < 1e-4;
+    const ach = (c: Oklcha) => c[1] < 1e-4;
     let dh = b[2] - a[2]; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
     if (ach(a) || ach(b)) dh = 0;
     const H = ((((ach(a) && !ach(b) ? b[2] : a[2]) + dh * t) % 360) + 360) % 360; // normalise to [0,360) so the picker reads it cleanly
     return oklchStr(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, H, a[3] + (b[3] - a[3]) * t);
   };
-  const removeStop = (s) => {
+  const removeStop = (s: GradientStop) => {
     if (stops.length <= 2) return;
     const i = stops.indexOf(s); if (i < 0) return; // a stale reference (rebuilt via set) must not splice(-1)
     stops.splice(i, 1);
@@ -173,7 +182,7 @@ function createGradient(meta, onChange) {
   // Insert a stop at `pos`, coloured by sampling the gradient exactly there — so it lands
   // invisibly on the existing ramp — and select it. Shared by the + button (a computed
   // midpoint) and double-click on the bar (the clicked position).
-  const insertStopAt = (pos) => {
+  const insertStopAt = (pos: number) => {
     const s = { color: colorAt(pos), pos: clamp(pos, 0, 1) };
     stops.push(s); paint(); select(s, true); reflectCount(); emit();
     return s;
@@ -201,7 +210,7 @@ function createGradient(meta, onChange) {
   // a stop removal). Lives on the popover, where the stop handles + picker now sit.
   pop.tabIndex = -1;
   pop.addEventListener("keydown", (e) => {
-    if ((e.key === "Delete" || e.key === "Backspace") && !e.altKey && !/^(input|textarea|select)$/i.test(e.target.tagName) && stops.length > 2) { e.preventDefault(); removeStop(selStop); }
+    if ((e.key === "Delete" || e.key === "Backspace") && !e.altKey && !/^(input|textarea|select)$/i.test((e.target as Element).tagName) && stops.length > 2) { e.preventDefault(); removeStop(selStop); }
   });
 
   // Open the editor under the trigger; reflow the picker body once it's at real size.
@@ -212,7 +221,7 @@ function createGradient(meta, onChange) {
   renderHandles(); paint(); reflectCount();
   return {
     el: root,
-    set: (v) => {
+    set: (v: unknown) => {
       // Re-point the blend if the incoming value names one (mirror-backs from on() carry
       // the same interpolation we emitted, so this is usually a no-op); absent → leave the
       // mode as the user left it, never silently reset it to OKLCH on a stops-only set.
