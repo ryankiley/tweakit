@@ -278,7 +278,7 @@ function createPickerBody(meta, onChange) {
 // in a portaled popover. A thin wrapper: the body does the editing, this paints the
 // row and drives open/close through the shared popover() shell. ──
 function createColor(meta, onChange) {
-  const { root, trigger, right } = triggerRow("tw-color", meta.label || "Colour");
+  const { root, trigger, right } = triggerRow("tw-color", meta.label ?? "Colour"); // ??: an explicit "" label renders none (the stylesheet hides the empty element)
   const swatch = el("span", "tw-trigger-chip tw-color-swatch");
   const valueEl = el("span", "tw-trigger-value");
   right.append(swatch, valueEl);

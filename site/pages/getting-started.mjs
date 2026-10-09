@@ -81,7 +81,7 @@ export const examples = [
       const log = target.querySelector(".gs-log");
       const panel = tweaks("State", {
         size: [40, 0, 100, 1],
-        speed: 1.5,                 // a bare number works too: slider, 0–3×value
+        speed: 1.5,                 // a bare number works too: slider, 0–1 for a value ≤ 1, else 0–3×value
         mode: ["calm", "wild"],
       });
       mount.append(panel.el);

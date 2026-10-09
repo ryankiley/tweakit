@@ -1,5 +1,5 @@
 // ── Point — 2D/3D/4D vector. Lazy.
-import { el, svgEl, numField, grabSurface, boxFrac, clamp, stepPrecision, popover, triggerRow, registerControl } from "../shared.js";
+import { el, svgEl, numField, grabSurface, boxFrac, clamp, stepPrecision, defaultRange, popover, triggerRow, registerControl } from "../shared.js";
 
 // ── Point — a compact trigger row (label + value readout + a mini pad preview) that
 // opens the 2D pad over the component number fields in a portaled popover, the way the
@@ -11,7 +11,7 @@ function createPoint(meta, onChange) {
   const comps = meta.components; // [{ key, label, value, step, min, max }]
 
   // ── Trigger row — label + value + a mini pad preview (the colour swatch's analog). ──
-  const { root, trigger, right } = triggerRow("tw-point", meta.label || "Point");
+  const { root, trigger, right } = triggerRow("tw-point", meta.label ?? "Point"); // ??: an explicit "" label renders none
   const valueEl = el("span", "tw-trigger-value");
   const preview = el("div", "tw-trigger-chip tw-point-preview");
   const previewDot = el("div", "tw-point-preview-dot");
@@ -25,8 +25,21 @@ function createPoint(meta, onChange) {
   pop.append(body);
 
   const hasPad = meta.pad !== false && comps.length >= 2;
-  const cx = comps[0], cy = comps[1];
-  const minX = cx?.min ?? -1, maxX = cx?.max ?? 1, minY = cy?.min ?? -1, maxY = cy?.max ?? 1;
+  // Each component's pad range + step. An absent bound defaults to the unit range widened
+  // to hold the value (the slider's defaultRange rule, mirrored about the origin: a value
+  // of 5 spans ±15 rather than pinning the thumb to the edge of ±1). An absent step is the
+  // decade at or below range/200, so the pad is continuous — a step of 1 over ±1 only ever
+  // yielded −1/0/1, and rounded an authored 0.3 to 0 on build. The fields keep only the
+  // authored bounds (unbounded otherwise); the derived range is the pad's mapping.
+  const rangeOf = (c) => {
+    const half = defaultRange(Math.abs(Number.isFinite(+c.value) ? +c.value : 0))[1];
+    const lo = c.min ?? -half, hi = c.max ?? half;
+    const fine = 10 ** Math.floor(Math.log10((hi - lo) / 200));
+    return { lo, hi, step: c.step ?? (fine > 0 && Number.isFinite(fine) ? fine : 1) }; // a degenerate/garbage range (hi ≤ lo, NaN bounds) keeps the old step of 1
+  };
+  const ranges = comps.map(rangeOf);
+  const rx = ranges[0], ry = ranges[1];
+  const minX = rx?.lo ?? -1, maxX = rx?.hi ?? 1, minY = ry?.lo ?? -1, maxY = ry?.hi ?? 1;
   const frac = (v, lo, hi) => (hi > lo ? clamp((v - lo) / (hi - lo), 0, 1) : 0.5);
 
   let padHost = null, padThumb = null, padLine = null;
@@ -47,8 +60,8 @@ function createPoint(meta, onChange) {
   body.append(fields);
   const sync = () => { positionPad(); paintValue(); };
   const emit = () => onChange(read());
-  const flds = comps.map((c) => {
-    const fld = numField({ label: c.label, value: c.value ?? 0, step: c.step ?? 1, min: c.min, max: c.max }, () => { sync(); emit(); });
+  const flds = comps.map((c, k) => {
+    const fld = numField({ label: c.label, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max }, () => { sync(); emit(); });
     fields.append(fld.el); return fld;
   });
   const read = () => Object.fromEntries(comps.map((c, k) => [c.key, flds[k].get()])); // the emitted map, straight off the fields
@@ -57,8 +70,8 @@ function createPoint(meta, onChange) {
   // the first two on a square (right = +X, up = +Y by default; set invertY for screen-space).
   // Match each component's number field: format to the step's decimal precision, so a
   // value reads "−1.00, −0.46" (steady columns), not "−1, −0.46" (trailing zeros trimmed).
-  const fmt = (v, step) => (+v).toFixed(stepPrecision(step ?? 1));
-  const paintValue = () => { valueEl.textContent = comps.map((c, k) => fmt(flds[k].get(), c.step)).join(", "); };
+  const fmt = (v, step) => (+v).toFixed(stepPrecision(step));
+  const paintValue = () => { valueEl.textContent = comps.map((c, k) => fmt(flds[k].get(), ranges[k].step)).join(", "); };
   let positionPad = () => { previewDot.style.left = "50%"; previewDot.style.top = "50%"; };
 
   if (hasPad) {

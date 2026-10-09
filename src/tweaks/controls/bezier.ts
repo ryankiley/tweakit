@@ -1,16 +1,22 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
-import { el, btn, svgEl, numField, dragGesture, clamp, onReady, onLive, registerControl } from "../shared.js";
+import { el, btn, txt, svgEl, numField, dragGesture, clamp, onReady, onLive, registerControl } from "../shared.js";
 
 // ── Cubic bezier — an interactive curve editor: two draggable control points over a
 // unit box, value [x1,y1,x2,y2] like CSS cubic-bezier(). x is clamped to [0,1]; y may
 // overshoot for bounce. ──
 function createBezier(meta, onChange) {
   const DEF = [0.25, 0.1, 0.25, 1];
+  const YMIN = -0.25, YMAX = 1.25, RANGE = YMAX - YMIN, PAD = 8;
+  // x clamps to [0,1] and y to the editor's range — on build as well as in set(), so an
+  // authored [1.5, 0, -0.2, 1] can't reach get() as an invalid cubic-bezier() with its
+  // handles clipped by the graph's overflow.
+  const fit = (m) => m.map((n, i) => clamp(n, i % 2 ? YMIN : 0, i % 2 ? YMAX : 1));
   let v = Array.isArray(meta.value) && meta.value.length === 4 ? meta.value.map(Number) : DEF.slice();
   if (v.some((n) => !Number.isFinite(n))) v = DEF.slice(); // a non-finite init (e.g. data-value="oops") would show "NaN" + a blank curve; set() already guards this
-  const YMIN = -0.25, YMAX = 1.25, RANGE = YMAX - YMIN, PAD = 8;
+  v = fit(v);
 
   const root = el("div", "tw-bezier");
+  if (meta.label) root.append(txt("div", "tw-bezier-label", meta.label)); // a caption over the graph (the plot's label idiom); an explicit "" skips it
   const graph = el("div", "tw-bezier-graph");
   const svg = svgEl("svg", "tw-bezier-svg"); svg.setAttribute("preserveAspectRatio", "none");
   const unitBot = svgEl("line", "tw-bezier-guide"), unitTop = svgEl("line", "tw-bezier-guide");
@@ -72,7 +78,7 @@ function createBezier(meta, onChange) {
 
   onReady(drawGraph);
   onLive(root, [[window, "resize"], [window, "tw-reflow"]], drawGraph); // tw-reflow: a tab page revealing this control re-measures it (it built at 0×0 while hidden); self-cleans once the panel is gone
-  return { el: root, set: (nv) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = m.map((n, i) => clamp(n, SPECS[i].lo, SPECS[i].hi)); drawGraph(); syncFields(); } }, get: () => v.slice() }; // clamp each to its field range so get() agrees with the handles + fields
+  return { el: root, set: (nv) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() }; // the same clamp as the build, so get() agrees with the handles + fields
 }
 
 registerControl("cubicbezier", createBezier);

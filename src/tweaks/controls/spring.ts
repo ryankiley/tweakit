@@ -95,6 +95,9 @@ function createSpring(meta, onChange) {
   // same shape as the Off/On toggle and enum selectors — rather than a bespoke full-width pill.
   const modeRow = el("div", "tw-row");
   modeRow.append(txt("span", "tw-row-label", "Mode"), modeToggle.el);
+  // A caption over the preview, the plot's label idiom — so two springs in one panel can be
+  // told apart and the filter matches on text that is actually shown. An explicit "" skips it.
+  if (meta.label) root.append(txt("div", "tw-spring-label", meta.label));
   root.append(viz, modeRow, physFields, timeFields);
 
   // Draggable preview — drag anywhere in the curve area to tune by feel. PHYSICS: horizontal

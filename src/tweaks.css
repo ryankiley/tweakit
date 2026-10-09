@@ -414,6 +414,10 @@
   /* Shrink + truncate a long label instead of shoving the control out of the row. */
   min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* An explicit `label: ""` renders no label: the empty element hides (so it takes no gap),
+ * and the control that sat beside it keeps the row's right edge. */
+.tw-slider-label:empty, .tw-row-label:empty, .tw-select-label:empty, .tw-radiogrid-label:empty, .tw-trigger-label:empty, .tw-fps-label:empty { display: none; }
+.tw-row-label:empty + *, .tw-select-label:empty + *, .tw-trigger-label:empty + * { margin-left: auto; }
 
 /* ── Segmented control (also the Off/On toggle) ── */
 .tw-seg { position: relative; display: flex; gap: 2px; padding: 2px; border-radius: var(--tw-radius); }
@@ -934,7 +938,7 @@
 
 /* Plot — a function graph with an editable, safely-parsed expression. */
 .tw-plot { display: flex; flex-direction: column; gap: 6px; }
-.tw-plot-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0 12px; } /* 12px left → caption on the shared label gridline, over the full-width graph (the slider's label-over-track idiom) */
+.tw-plot-label, .tw-spring-label, .tw-bezier-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0 12px; } /* 12px left → caption on the shared label gridline, over the full-width graph (the slider's label-over-track idiom); the spring + bezier previews caption the same way */
 .tw-plot-graph { position: relative; width: 100%; height: 140px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); }
 .tw-plot-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .tw-plot-axis { stroke: var(--tw-border); stroke-width: 1; }
