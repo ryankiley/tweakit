@@ -14,7 +14,7 @@ const lazy = await import(new URL("../dist/tweaks/core.js", import.meta.url));
 const near = (a, b, msg) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-9, `${msg}: [${i}] ${v} vs ${b[i]}`));
 
 test("the stop gate follows CSS's grammar: shape alone no longer passes", () => {
-  for (const s of ["rgb(a b c)", "rgb(1 2)", "rgb(1 2 3 4 5)", "hwb(120, 0%, 0%)", "rgb(255, 0%, 0)", "rgb(255, none, 0)", "hsl(120, 100, 50)", "hsl(50% 100% 50%)", "rgb(255 0 0 0.5)", "rgb(255, 0, 0 / 0.5)", "rgb(255,0,0,)", "rgb(255 0 0 /)", "rgb(255 0 0 / 0.5 / 0.2)", "rgb(255 0 0 / 50 %)", "rgb(1 2 3)"]) assert.ok(!isColor(s), `refused: ${s}`);
+  for (const s of ["rgb(a b c)", "rgb(1 2)", "rgb(1 2 3 4 5)", "hwb(120, 0%, 0%)", "rgb(255, 0%, 0)", "rgb(255, none, 0)", "hsl(120, 100, 50)", "hsl(50% 100% 50%)", "rgb(255 0 0 0.5)", "rgb(255, 0, 0 / 0.5)", "rgb(255,0,0,)", "rgb(255 0 0 /)", "rgb(255 0 0 / 0.5 / 0.2)", "rgb(255 0 0 / 50 %)", "rgb(1\u00a02 3)"]) assert.ok(!isColor(s), `refused: ${s}`);
   for (const s of ["rgb(255 0 0 / none)", "RGB(1 2 3)", "hsla(120deg, 100%, 50%, 0.5)", "hwb(120 0% 0%)", "rgb(100%, 0%, 0%)", "hsl(120 100 50)", "rgb(1e2 0 0)", "rgb( 1 , 2 , 3 )", "rgb(1\t2\n3)"]) assert.ok(isColor(s), `accepted: ${s}`);
   const p = tweaks("G", { g: { type: "gradient", value: [["rgb(a b c)", 0], ["#000", 0.5], ["#fff", 1]] } });
   assert.equal(p.params.g.stops.length, 2, "the invalid stop never reaches the gradient");
