@@ -49,6 +49,7 @@ const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 
 // convert(), whose space switch matched nothing and handed `undefined` to the XYZ maths:
 // a TypeError thrown straight out of panel.set() / fromJSON() / a persisted restore.
 const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" });
+const SRGB_FN_RE = /^(rgba?|hsla?|hwb)\(\s*([^)]*?)\s*\)$/i; // the sRGB-family functions parseColor handles itself (no nested parens: the gradient-stop gate relies on that)
 const HEX_RE = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i; // 3/4/6/8 digits only (the hex field's gate) — a 5/7-digit string is junk, not a colour
 // The one scratch 2D context the parser normalizes sRGB-family colors through; null where
 // the DOM has no canvas (jsdom), and that answer is cached too.
@@ -67,7 +68,7 @@ const COLOR_TOKEN = /^(#[0-9a-f]{3,8}|[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
 export function isColor(str: string | null | undefined) {
   str = String(str == null ? "" : str).trim();
   if (!COLOR_TOKEN.test(str)) return false;
-  if (HEX_RE.test(str) || /^(oklch|oklab|lch|lab|color)\(/i.test(str)) return true;
+  if (HEX_RE.test(str) || /^(oklch|oklab|lch|lab|color)\(/i.test(str) || SRGB_FN_RE.test(str)) return true;
   const c2d = canvas2d(); if (!c2d) return true;
   return ["#000", "#fff"].some((sentinel) => { c2d.fillStyle = sentinel; const before = c2d.fillStyle; c2d.fillStyle = str; return c2d.fillStyle !== before; });
 }
@@ -106,9 +107,27 @@ function parseColor(str: string | null | undefined): Oklcha {
     // three layers, so no single path is the only guard.
     return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A]; // hue normalised to [0,360) so a negative input can't strand the strip thumb
   }
-  // sRGB-family (rgb / hsl / hwb / named / transparent): normalise via a canvas — its
+  // rgb() / hsl() / hwb(), modern (space + `/ alpha`) or legacy (commas) syntax, parse by
+  // the engine's own maths: a canvas echoes an 8-bit #rrggbb, which moved a near-grey
+  // hwb's hue a whole degree on every round trip (a stored value never read back as itself).
+  // `none` → 0, `%` scales by the slot (255 for rgb, 100 for the percentage slots), hue
+  // takes angle units, channels clamp where a canvas would have.
+  const sm = str.match(SRGB_FN_RE);
+  if (sm) {
+    const fn = sm[1].toLowerCase().replace(/a$/, "");
+    let parts: string[], aRaw: string | undefined;
+    if (sm[2].includes(",")) { parts = sm[2].split(",").map((t) => t.trim()); aRaw = parts[3]; parts = parts.slice(0, 3); }
+    else { const [body, a] = sm[2].split("/").map((t) => t.trim()); parts = body.split(/\s+/).filter(Boolean); aRaw = a; }
+    const slot = (t: string | undefined, max: number) => (!t || t === "none" ? 0 : /%$/.test(t) ? (num(parseFloat(t)) / 100) * max : num(parseFloat(t)));
+    const A = aRaw ? clamp(slot(aRaw, 1), 0, 1) : 1;
+    const k = fn === "rgb"
+      ? convert([clamp(slot(parts[0], 255) / 255, 0, 1), clamp(slot(parts[1], 255) / 255, 0, 1), clamp(slot(parts[2], 255) / 255, 0, 1)], "srgb", "oklch")
+      : convert([parseAngle(parts[0] || "0"), clamp(slot(parts[1], 100), 0, 100), clamp(slot(parts[2], 100), 0, 100)], fn as Space, "oklch");
+    return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A];
+  }
+  // Named colours and `transparent`: normalise via a canvas — its
   // fillStyle getter returns "#rrggbb" (opaque) or "rgba(r,g,b,a)" for these, then parse
-  // that. Wide colours never reach here (handled above); an unrecognised echo or plain
+  // that. Every functional form is handled above; an unrecognised echo or plain
   // junk parses as black, matching the old "junk leaves fillStyle at #000" behaviour.
   // No 2D canvas at all (a headless DOM) degrades the same way, rather than throwing out
   // of the control's build.
