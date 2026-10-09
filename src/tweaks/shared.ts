@@ -679,7 +679,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
 // lazy chunk import must sit in the module that is already the shared chunk, or esbuild
 // hoists the whole module into a third chunk every basic panel has to fetch.
 const icon = (body: string, cls = "", width = 2, box = 24) => `<svg${cls ? ` class="${cls}"` : ""} viewBox="0 0 ${box} ${box}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
-// ICON_GRIP — original 2-bar drag handle, not from an icon set (Lucide's grip is dots).
+// ICON_GRIP — original 2-bar drag handle, not from an icon set (the icon sets' grips are dots).
 const ICON_GRIP = icon('<path d="M6 4v8M10 4v8"/>', "", 1.5, 16);
 
 // The handle a display/action control returns — buttons, separators, monitors, the

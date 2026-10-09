@@ -46,7 +46,7 @@ await esbuild.build({
   // The single file is the one people copy into a project, so it carries the notices
   // the MIT and ISC licenses require in every copy (the split build is installed, and
   // the package ships THIRD-PARTY-NOTICES.md next to it).
-  banner: { js: "/* tweakit — MIT © Ryan Kiley. Toolbar and control icons from Lucide (ISC) and Feather (MIT); see THIRD-PARTY-NOTICES.md in the tweakit package. */" },
+  banner: { js: "/* tweakit — MIT © Ryan Kiley. Toolbar and control icons from Hugeicons (MIT); see THIRD-PARTY-NOTICES.md in the tweakit package. */" },
 });
 
 // 3) minified panel CSS → dist/tweaks.css. The light palette must exist twice —
