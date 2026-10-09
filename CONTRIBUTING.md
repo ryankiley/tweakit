@@ -13,7 +13,7 @@ npm test           # build, then the suite (Node's runner + jsdom)
 npm run serve      # build + serve the docs site on :4330
 ```
 
-Node 20+. There are no runtime dependencies and only three dev ones (esbuild, jsdom,
+Node 22 (what CI runs; the build itself works on 20+, but the jsdom test suite needs 22.22, 24.15 or newer). There are no runtime dependencies and only three dev ones (esbuild, jsdom,
 typescript).
 
 ## Where things live
