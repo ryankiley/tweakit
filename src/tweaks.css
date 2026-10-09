@@ -299,11 +299,11 @@
  * 14px), on --pop so they land with the same small overshoot as the reset's wind-up. */
 .tw-copy-back, .tw-copy-front, .tw-layer-top { transition: transform 0.3s var(--tw-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-toolbar-btn--swap:hover .tw-copy-back { transform: translate(-1.5px, -1.5px); }
-  .tw-toolbar-btn--swap:hover .tw-copy-front { transform: translate(1.5px, 1.5px); }
-  .tw-toolbar-btn--presets:hover .tw-layer-top { transform: translateY(-2.5px); }
+  .tw-toolbar-btn--swap:hover .tw-copy-back { transform: translate(-1px, -1px); }
+  .tw-toolbar-btn--swap:hover .tw-copy-front { transform: translate(1px, 1px); }
+  .tw-toolbar-btn--presets:hover .tw-layer-top { transform: translateY(-1.75px); }
 }
-.tw-toolbar-btn--presets[aria-expanded="true"] .tw-layer-top { transform: translateY(-2.5px); }
+.tw-toolbar-btn--presets[aria-expanded="true"] .tw-layer-top { transform: translateY(-1.75px); }
 
 /* Focus rings — one accent ring, three insets, every focusable in the kit in one
  * place. Inset (−2): anything inside the controls stack, which is overflow:hidden
