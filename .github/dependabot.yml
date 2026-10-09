@@ -1,0 +1,9 @@
+# Keep the SHA-pinned actions and the three dev dependencies current.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: monthly }
