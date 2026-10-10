@@ -8,6 +8,7 @@
  * Plus the controls on their own, without panel chrome:
  *   • mountControl(host, value, opts) — one control from a schema value, into your element
  *   • createColorPicker(opts)         — the colour editor surface alone, for your own swatch
+ *   • gradientCss(value, angle?)      — a gradient value as CSS, its easing expanded into stops
  *
  * Schema shorthands:
  *   [default, min, max, step?] → slider     true|false → checkbox
@@ -23,10 +24,12 @@
  *   lazy.ts            — the dynamic-import map for the code-split build
  *   heavy.ts           — helpers only the lazy controls use (numField, svgEl, …)
  *   standalone.ts      — mountControl() + createColorPicker(), the controls without a panel
+ *   easing.ts          — the gradient's easing parser + samplers, and the value → CSS templating
  */
 export { tweaks } from "./panel.js";
 export { enhance } from "./enhance.js";
 export { mountControl, createColorPicker } from "./standalone.js";
+export { gradientCss, gradientStops } from "./easing.js";
 // Re-export the public types so `import type { Schema, Panel } from "tweakit"`
 // works from either entry (single.ts re-exports this module) — they erase at build time.
 export type * from "./types.js";

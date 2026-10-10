@@ -747,6 +747,12 @@
 
 /* the gradient editor popover — wider than the colour pop to give the bar room */
 .tw-gradient-pop { width: 260px; }
+/* The gradient's mode row carries a second select (easing) beside the mode, then the gamut tag.
+   Native selects size to their widest option, so at the shared 10/26px padding "OKLCH · Ease
+   in-out · sRGB" runs 3–4px past the 238px row; 2px off each side of both selects and a 6px
+   gap leaves ~8px spare, with the text still 6px clear of the chevron. */
+.tw-gradient-pop .tw-color-mode-row { gap: 6px; }
+.tw-gradient-pop .tw-color-mode { padding-left: 8px; padding-right: 24px; }
 .tw-gradient-bar-row { display: flex; align-items: stretch; gap: 6px; }
 .tw-gradient-bar-row > .tw-gradient-bar { flex: 1; min-width: 0; }
 .tw-gradient-bar { position: relative; width: 100%; height: 28px; border-radius: var(--tw-radius); box-shadow: inset 0 0 0 1px var(--tw-border); background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }

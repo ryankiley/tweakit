@@ -69,10 +69,10 @@ export const examples = [
     prose: `<p>Everything the package ships, by import path. Types ride along with both
       entries.</p>`,
     code: `
-      import { tweaks, enhance } from "tweakit";        // monolith
-      import { tweaks, enhance } from "tweakit/core";   // code-split
-      import "tweakit/css";                             // panel styles
+      import { tweaks, enhance, gradientCss } from "tweakit";        // monolith
+      import { tweaks, enhance, gradientCss } from "tweakit/core";   // code-split
+      import "tweakit/css";                                          // panel styles
 
-      import type { Schema, Panel, Theme, TweaksOptions } from "tweakit";`,
+      import type { Schema, Panel, Theme, TweaksOptions, GradientValue } from "tweakit";`,
   },
 ];

@@ -289,7 +289,13 @@ export const examples = [
       <code>&lt;input type="color"&gt;</code> won't accept — feed that only hex. Both handles
       exist synchronously, and <code>el</code> is a wrapper that carries the kit's tokens, so
       the control renders outside any panel; on the code-split build a control whose chunk
-      hasn't loaded yet fills it in behind <code>ready</code>.</p>`,
+      hasn't loaded yet fills it in behind <code>ready</code>.</p>
+      <p><code>gradientCss(value, angle?)</code> turns a gradient control's value into its CSS —
+      <code>linear-gradient(in &lt;interpolation&gt; &lt;angle&gt;, …)</code> with the value's
+      easing expanded into sampled stops — and <code>gradientStops(value)</code> is the stop
+      list alone, for a conic or radial gradient. The editor's own preview draws through the
+      same function, so this is the one way to get exactly what it shows. Pure string work:
+      it runs anywhere, with no control mounted.</p>`,
     code: `
       import { mountControl, createColorPicker } from "tweakit";
 
@@ -304,7 +310,10 @@ export const examples = [
         onChange: (c) => swatch.style.background = c,
       });
       myPopover.append(picker.el);
-      swatch.addEventListener("click", () => { openPopover(); picker.reflow(); });`,
+      swatch.addEventListener("click", () => { openPopover(); picker.reflow(); });
+
+      import { gradientCss } from "tweakit";
+      panel.on((p) => hero.style.background = gradientCss(p.ramp, 135));`,
   },
   {
     title: "The rest of the options",

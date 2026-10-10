@@ -4,10 +4,11 @@ import { el, btn, clamp, popover, registerControl, icon } from "../shared.js";
 import { dragGesture, triggerRow } from "../heavy.js";
 import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./colour.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
+import { gradientCss, parseEasing, easingName, easingAt } from "../easing.js";
 import type { Oklcha } from "./colour.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
-import type { Control, GradientStop } from "../types.js";
+import type { Control, GradientStop, GradientEasing } from "../types.js";
 
 /** A stop handle on the rail, carrying the stop it moves. */
 interface StopHandle extends HTMLButtonElement { _stop?: GradientStop }
@@ -25,12 +26,20 @@ const ICON_PLUS = icon('<path d="M12 5v14m7-7H5"/>', "", 2.5);
 // and the ramp blends through sRGB (muddy, but honest); OKLCH gives a true wide-gamut
 // ramp no sRGB picker makes. That chosen space rides along in the value as `interpolation`
 // (a CSS `<color-interpolation-method>`) so a host's `linear-gradient(in … )` matches the
-// editor exactly. Value: { stops: [{ color, pos }], interpolation }. ──
-// Pull the blend space out of a value: an explicit `interpolation` on the object form,
-// else null (the array shorthand and legacy `{ stops }` carry none → OKLCH default).
+// editor exactly. The same goes for `easing` — linear (CSS's own straight blend) or a CSS
+// easing sampled into stops, picked beside the mode; the bar and preview draw the eased
+// ramp through the exported gradientCss(), so a host templating through it gets the same
+// pixels. Value: { stops: [{ color, pos }], interpolation, easing }. ──
+// Pull the blend space / easing out of a value: an explicit string on the object form,
+// else null (the array shorthand and legacy `{ stops }` carry none → OKLCH / linear default).
 // `value` is the host's gradient value — the object form, a stop array, or anything a
-// restore hands over — inspected field by field, so the two normalizers take it as `any`.
-const parseInterp = (value: any): string | null => (value && !Array.isArray(value) && typeof value.interpolation === "string" ? value.interpolation : null);
+// restore hands over — inspected field by field, so the normalizers take it as `any`.
+const field = (value: any, key: string): string | null => (value && !Array.isArray(value) && typeof value[key] === "string" ? value[key] : null);
+const parseInterp = (value: any) => field(value, "interpolation");
+const parseEase = (value: any) => field(value, "easing");
+// The easing menu: CSS's keywords, labelled. A stored cubic-bezier() that isn't one of
+// them shows as a "Custom" option that exists only while it's the value.
+const EASINGS: Array<[GradientEasing, string]> = [["linear", "Linear"], ["ease", "Ease"], ["ease-in", "Ease in"], ["ease-out", "Ease out"], ["ease-in-out", "Ease in-out"]];
 function normalizeStops(value: any): GradientStop[] {
   const DEF: GradientStop[] = [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }];
   const arr = Array.isArray(value) ? value : (value && Array.isArray(value.stops) ? value.stops : null);
@@ -53,6 +62,7 @@ function normalizeStops(value: any): GradientStop[] {
 function createGradient(meta: Meta, onChange: OnChange): Control {
   let stops = normalizeStops(meta.value);
   let selStop = stops[0];
+  let easing = easingName(parseEase(meta.value)); // anything unrecognised reads as linear, as the CSS helper treats it
 
   // ── Trigger row — a gradient preview + stop count that opens the editor (the
   // shared modal-trigger row the colour control uses). ──
@@ -73,16 +83,16 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   barRow.append(bar, addBtn);
 
   const sorted = () => [...stops].sort((a, b) => a.pos - b.pos);
-  const cssStops = () => sorted().map((s) => `${s.color} ${(s.pos * 100).toFixed(1)}%`).join(", ");
   // The blend space tracks the editor's mode (the picked colour technology); body.mode()
   // is the single source of truth, so the bar, the trigger preview, and the emitted
   // `interpolation` can never drift apart. (Stops keep their own per-stop notation — CSS
   // lets a `linear-gradient(in srgb …)` carry `oklch()` stops, only the blend is sRGB.)
   const interp = () => modeInterpolation(body.mode());
-  const gradientCss = () => `linear-gradient(in ${interp()} to right, ${cssStops()})`;
-  const paint = () => { const css = gradientCss(); grad.style.background = css; preview.style.background = `${css}, ${CHECKER}`; };
+  const value = () => ({ stops: sorted().map((s) => ({ color: s.color, pos: +s.pos.toFixed(4) })), interpolation: interp(), easing });
+  // The bar and the trigger preview draw gradientCss(value()) — the exported helper, fed
+  // the emitted value — so the editor can't show a ramp a host templating through it won't get.
+  const paint = () => { const css = gradientCss(value()); grad.style.background = css; preview.style.background = `${css}, ${CHECKER}`; };
   const reflectCount = () => { countEl.textContent = `${stops.length} stop${stops.length === 1 ? "" : "s"}`; };
-  const value = () => ({ stops: sorted().map((s) => ({ color: s.color, pos: +s.pos.toFixed(4) })), interpolation: interp() });
   const emit = () => onChange(value());
 
   const handleFor = (s: GradientStop) => [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s); // the rail holds only stop handles
@@ -95,6 +105,20 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     handleFor(selStop)?.style.setProperty("--stop", c);
     paint(); emit();
   });
+  // Easing sits beside the mode in the body's mode row: both are "how the ramp blends",
+  // one the space, the other the curve. Styled as the mode select; the picker's gamut tag
+  // keeps the row's far end.
+  const easeSel = el("select", "tw-color-mode tw-gradient-ease"); easeSel.setAttribute("aria-label", "Easing between stops"); easeSel.title = "How the ramp blends between stops";
+  for (const [v, label] of EASINGS) { const o = document.createElement("option"); o.value = v; o.textContent = label; easeSel.append(o); }
+  const reflectEase = () => {
+    let custom = easeSel.querySelector<HTMLOptionElement>("option[data-custom]");
+    if (EASINGS.some(([v]) => v === easing)) custom?.remove();
+    else { if (!custom) { custom = document.createElement("option"); custom.dataset.custom = ""; custom.textContent = "Custom"; easeSel.append(custom); } custom.value = easing; }
+    easeSel.value = easing;
+  };
+  easeSel.addEventListener("change", () => { easing = easeSel.value as GradientEasing; reflectEase(); paint(); emit(); }); // reflect: picking a keyword retires the Custom option
+  body.el.querySelector(".tw-color-mode")!.after(easeSel); // after the mode select, before the gamut tag
+  reflectEase();
   pop.append(barRow, body.el);
   root.append(pop);
 
@@ -153,11 +177,13 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   // touch-action:none, like every other drag surface, so it drags cleanly on touch.)
   const posFromX = (x: number) => { const r = rail.getBoundingClientRect(); return clamp((x - r.left) / (r.width || 1), 0, 1); };
 
-  // Colour for a new stop: interpolate the two bracketing stops in OKLCH (short-way hue).
+  // Colour for a new stop: interpolate the two bracketing stops in OKLCH (short-way hue),
+  // at the EASED progress for that position — so with easing on, the new stop still lands
+  // invisibly on the ramp the bar is drawing, not on the straight blend underneath it.
   const colorAt = (pos: number) => {
     const ss = sorted(); let lo = ss[0], hi = ss[ss.length - 1];
     for (let k = 0; k < ss.length - 1; k++) if (pos >= ss[k].pos && pos <= ss[k + 1].pos) { lo = ss[k]; hi = ss[k + 1]; break; }
-    const t = hi.pos > lo.pos ? clamp((pos - lo.pos) / (hi.pos - lo.pos), 0, 1) : 0; // clamped: a pos outside the outermost stops takes the nearest stop exactly, never extrapolates
+    const t = easingAt(parseEasing(easing), hi.pos > lo.pos ? clamp((pos - lo.pos) / (hi.pos - lo.pos), 0, 1) : 0); // clamped: a pos outside the outermost stops takes the nearest stop exactly, never extrapolates
     const a = parseColor(lo.color), b = parseColor(hi.color);
     // CSS missing-hue handling for `in oklch`: a ~zero-chroma stop carries no hue of
     // its own, so the other stop's hue holds across the segment (white→red stays red).
@@ -227,6 +253,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
       // the same interpolation we emitted, so this is usually a no-op); absent → leave the
       // mode as the user left it, never silently reset it to OKLCH on a stops-only set.
       const ip = parseInterp(v); if (ip) body.setMode(interpolationMode(ip));
+      const es = parseEase(v); if (es !== null) { easing = easingName(es); reflectEase(); } // same rule as the blend: named → applied, absent → left as the user set it
       const next = normalizeStops(v).sort((a, b) => a.pos - b.pos);
       if (next.length === stops.length) {
         // Same count — the common case: a host mirroring values back via on(). Update

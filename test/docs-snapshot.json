@@ -25,7 +25,8 @@
               "pos": 1
             }
           ],
-          "interpolation": "oklch"
+          "interpolation": "oklch",
+          "easing": "linear"
         },
         "angle": 90
       },

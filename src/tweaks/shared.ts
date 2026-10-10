@@ -556,4 +556,10 @@ export {
   blade, quietFocus, measurePill, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };
+// easing.ts is re-exported here for the chunking alone: core and the gradient control both
+// import it, and a module only those two reach would become a chunk of its own, while one
+// every control reaches via shared.ts joins the shared chunk (test/chunks.test.mjs holds it
+// to three). Core exports the helpers straight from easing.ts so the .d.ts prune walk
+// doesn't pull shared.ts's internal declarations into the package.
+export { gradientCss, gradientStops } from "./easing.js";
 

@@ -17,7 +17,7 @@
  *     target  HTML injected as the demo surface (optional; run-mode only)
  *     css     page-scoped CSS — use example-unique class names, nothing auto-scopes
  *             (site.css already provides .demo-btn for a demo's own action buttons)
- *     run     ({ tweaks, enhance, mount, target }) => {}  — live example, single source
+ *     run     ({ tweaks, enhance, gradientCss, mount, target }) => {}  — live example, single source
  *     html    string — [data-tw] markup-mode example: injected verbatim AND displayed
  *     code    extra display-only snippet: string (js) or { lang: "js"|"html"|"css"|"sh", text }
  *     noCaption  suppress the mount/target caption (it auto-shows on a page's first run)
@@ -186,9 +186,9 @@ function renderScript(page) {
   if (!runs.length && !hasMarkup) return "";
   // Importing core also auto-runs enhance(document) on DOMContentLoaded — that alone
   // powers the [data-tw] markup-mode examples; run-mode examples wire up below it.
-  let js = `import { tweaks, enhance } from "./tweaks/core.js";\n`;
+  let js = `import { tweaks, enhance, gradientCss } from "./tweaks/core.js";\n`;
   if (runs.length) {
-    js += `const wire = (id, fn) => { const ex = document.getElementById(id); fn({ tweaks, enhance, mount: ex.querySelector(".ex-mount"), target: ex.querySelector(".ex-target") }); };\n`;
+    js += `const wire = (id, fn) => { const ex = document.getElementById(id); fn({ tweaks, enhance, gradientCss, mount: ex.querySelector(".ex-mount"), target: ex.querySelector(".ex-target") }); };\n`;
     for (const ex of runs) {
       const src = ex.run.toString();
       // "</script" closes the inline module; "<!--" flips the parser into the
