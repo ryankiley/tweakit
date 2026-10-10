@@ -491,5 +491,6 @@ a { color: inherit; text-decoration: none; }
   .doc { padding: 24px 18px 72px; }
   .ex { scroll-margin-top: 68px; }
   .ex-live { flex-direction: column; }
+  .ex-target { min-height: 0; padding: 14px 8px; } /* stacked over the panel, the stage hugs its demo — the row layout's 220px floor left a short demo floating in empty space */
   .ex-mount { align-self: center; }
 }
