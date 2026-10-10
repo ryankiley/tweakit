@@ -111,7 +111,7 @@ export const examples = [
       </div>`,
     css: `
       .pa-save { display: flex; flex-direction: column; gap: 10px; width: 100%; align-self: stretch; }
-      .pa-save-row { display: flex; gap: 8px; }
+      .pa-save-row { display: flex; flex-wrap: wrap; gap: 8px; }
       .pa-state { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--demo-well);
                   border: 1px solid var(--demo-well-line); font-size: 11px; line-height: 1.6;
                   color: var(--demo-well-ink); white-space: pre-wrap; max-height: 180px; overflow: auto; }`,
