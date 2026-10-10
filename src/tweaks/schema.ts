@@ -1,9 +1,11 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value
  * (shorthand or verbose `{ type }` form) or a [data-tw] dataset parses into the
  * same control meta the builders consume. Adding a control type means an entry in
- * TYPED_META (and DATA_VALUE for the markup path) beside its constructor module —
- * test/registry.test.mjs cross-checks the tables so they can't drift apart. */
-import { titleCase, isColorStr, inferStep, defaultRange, optValue } from "./shared.js";
+ * TYPED_META (and DATA_VALUE for the markup path) only when the verbose form needs
+ * reshaping before the constructor sees it; a lazy control that reads its own fields
+ * needs no entry — its form passes through. test/registry.test.mjs cross-checks the tables. */
+import { titleCase, isColorStr, inferStep, defaultRange, optValue, getControl } from "./shared.js";
+import { LAZY_IMPORT } from "./lazy.js";
 import { showToast } from "./feedback.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
@@ -31,6 +33,8 @@ interface Meta {
   mode?: "time" | "physics"; stiffness?: number; damping?: number; mass?: number; visualDuration?: number; bounce?: number;
   // Point.
   components?: PointComponent[]; pad?: boolean; invertY?: boolean;
+  // Gradient: the verbose form may say `stops` for `value`.
+  stops?: unknown;
   // Plot.
   expr?: string; fn?: ((x: number) => number) | null; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean;
   // Monitor.
@@ -99,7 +103,6 @@ const radiogridMeta = (v: any): MetaFields => Array.isArray(v.options) && { type
 // The colour a `{ type: "color" }` / [data-tw="color"] opens on when none is given — it
 // lives on the meta (not only in the picker's own fallback) so reset() restores it rather
 // than handing the control `undefined`, which parsed as black.
-const DEFAULT_COLOR = "#7c5cff";
 // The verbose range bounds (slider + interval): an absent min/max derives from the value(s)
 // the range must contain, the way the bare-number shorthand does (defaultRange) — so
 // `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`, and an interval's ends each
@@ -120,16 +123,15 @@ const unitOf = (u: unknown) => (typeof u === "string" && u.trim() ? u.trim().sli
 // inference below already covers the verbose form. (`v` is the host's object form,
 // inspected as metaFor's `value` is.)
 const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"]; // a spring's fields, as the spring and motion controls take them
-const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth: number) => MetaFields> = {
+const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) => MetaFields>> = {
   slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft, unit: unitOf(v.unit) }; },
   number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft, unit: unitOf(v.unit) }),
   checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
   list: (v) => Array.isArray(v.options) && { options: v.options, value: v.value ?? optValue(v.options[0]) },
-  color: (v) => ({ value: v.value ?? DEFAULT_COLOR }),
+
   text: (v) => ({ value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
-  interval: (v) => { const r = rangeOf(v, ...(Array.isArray(v.value) ? v.value : [])); return { value: (Array.isArray(v.value) ? v.value : [r.min, r.max]).map(Number), ...r }; },
   // The config reads off the top level or a nested `value: {…}` — both published forms.
   // Physics (stiffness/damping/mass) is always normalised; the perceptual time pair
   // (visualDuration/bounce) and an explicit mode ride along only when present, so the
@@ -143,7 +145,7 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
     if (mode === "time" || mode === "physics") value.mode = mode; // rides on the value, so the authored default carries it to set() (a reset restores the mode, not only the numbers)
     return { value };
   },
-  cubicbezier: (v) => ({ value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
+
   // Either mode's fields, off the top level or a nested `value: {…}` — or `value` as a bare
   // curve (a keyword or the four numbers), the shapes set() takes; the control infers the
   // mode (spring keys → spring, a curve → easing) and fills the defaults.
@@ -171,24 +173,13 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
     });
     return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) }; // `value` = the default component map, so reset() / double-click-reset can restore it
   },
-  gradient: (v) => ({ value: v.value ?? v.stops ?? null }),
-  // Four sides: `value` in any of the control's forms (a number, an array, a CSS shorthand
-  // string, an object), or the four off the top level — the control's own parser reads any
-  // of top / right / bottom / left off whatever object it gets and fills the rest with 0.
-  sides: (v) => ({ value: v.value ?? v, corners: !!v.corners, unit: unitOf(v.unit), step: v.step, min: v.min, max: v.max }),
-  // A box-shadow: the fields off the top level, a nested `value: {…}`, or a `value` string
-  // in the strict grammar the control parses; the control reads its fields off whatever
-  // object it gets and fills the defaults.
-  shadow: (v) => ({ value: v.value ?? v }),
-  image: (v) => ({ value: v.value || "" }),
-  plot: (v) => {
-    const expr = v.expr != null ? String(v.expr) : (typeof v.fn === "function" ? "" : "sin(x)");
-    return { value: expr, expr, fn: typeof v.fn === "function" ? v.fn : null,
-      xMin: v.xMin ?? v.min ?? -10, xMax: v.xMax ?? v.max ?? 10,
-      yMin: v.yMin, yMax: v.yMax, samples: v.samples, editable: v.editable };
-  },
-  fpsgraph: () => ({}),
-  monitor: (v) => ({ get: v.get, value: v.value, graph: v.graph, view: v.view, min: v.min, max: v.max, interval: v.interval, rows: v.rows, decimals: v.decimals }),
+
+
+
+
+
+
+
   buttongroup: (v) => ({ buttons: v.buttons }),
   separator: () => ({}),
   // Page keys dedupe ("A!" and "A?" both slug to "a") so two pages can't silently share
@@ -220,7 +211,7 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     // The label is resolved here, once, so every verbose form honors `{ label }`; a plain
     // folder object is not a verbose form, so its `label` key stays a child control.
     let fields: MetaFields;
-    try { fields = TYPED_META[value.type as keyof typeof TYPED_META](value, depth); } // own key, per the hasOwn guard above (a guard can't narrow a property of an `any`)
+    try { fields = TYPED_META[value.type as keyof typeof TYPED_META]!(value, depth); } // own key, per the hasOwn guard above (a guard can't narrow a property of an `any`)
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
     if (fields) return meta(String(value.type), fields, ownLabel(value, label)); // the canonical string: a String object or one-element array coerces through the table lookup but would miss the identity checks downstream (m.type === "tabs", VALUELESS.has)
     // Nothing back: the shape is malformed if the field the form hinges on is there but
@@ -228,6 +219,13 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     // absent, this is a plain folder that happens to hold a child named `type` with a
     // control's name (`marker: { type: "point", size: 3 }`) — fall through, as documented.
     if (hasOwn(value, REQUIRED[value.type])) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped`); return null; }
+  }
+  // A lazy control with no handler here reads its own fields off the verbose form as given
+  // (its constructor validates and defaults them, so the registry line it used to need in
+  // core is gone); `type` and `label` are stamped on by meta() as for every verbose form.
+  else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && (LAZY_IMPORT[value.type] || getControl(value.type))) {
+    const { type, label: _l, ...fields } = value;
+    return meta(type, fields, ownLabel(value, label));
   }
   // ── Shorthand inference ──
   // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple.
@@ -279,13 +277,11 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
   radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
   list: (d) => ({ options: splitList(d.options), value: d.value }),
-  color: (d) => ({ value: d.value || DEFAULT_COLOR }),
   button: (d, host, label) => ({ action: () => showToast(`${label} pressed`, host) }),
   buttongroup: (d, host) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab, action: () => showToast(`${lab} pressed`, host) })) }),
   separator: () => ({}),
   number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), unit: d.unit }),
   text: (d) => ({ value: d.value ?? "", placeholder: d.placeholder, rows: num(d.rows) }),
-  image: (d) => ({ value: d.value }),
   fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
   interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
   sides: (d) => ({ value: d.value ?? d, corners: flag(d.corners), unit: d.unit, step: num(d.step), min: num(d.min), max: num(d.max) }), // data-value: "8px 16px"; or data-top / -right / -bottom / -left, which the control reads off the dataset itself (numeric strings parse)
@@ -307,9 +303,10 @@ const flag = (s: string | undefined) => s === "true" || s === "";    // boolean 
 const splitList = (s: string | undefined) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
 const dataMeta = (host: HTMLElement) => {
   const d = host.dataset, type = d.tw;
-  if (!hasOwn(DATA_VALUE, type)) return null;
   const label = d.label ?? titleCase(d.key || type); // an explicit data-label="" means no label, like the schema's `label: ""`
-  const v = DATA_VALUE[type](d, host, label);
+  // A lazy type with no parser here takes the dataset as its fields (colour, image: a `value` string).
+  const v = hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
+  if (!v) return null;
   // The dataset's label rides the verbose value, where metaFor honors it like any schema
   // `{ type, label }` (the placeholder key would title-case to "V"). v spreads after, so a
   // parser that re-routes (checkbox + options → radiogrid) or carries its own default

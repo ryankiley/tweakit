@@ -37,13 +37,16 @@ A few things aren't obvious from the file tree and will trip you up otherwise:
 
 - **One source, two builds.** The same `src/` produces both the code-split chunks and the
   single inlined file via an esbuild `TW_SPLIT` define — don't fork logic per build.
-- **Adding a control** = a `TYPED_META` table entry (typed against `SchemaObject["type"]`,
-  so `types.ts` must declare the type too) + a `registerControl` constructor, and (for a
-  heavy control) a `LAZY_IMPORT` key + a static import in `single.ts`. The
-  schema-shorthand and `[data-tw]` markup paths both derive from the same verbose meta,
-  so a control wired once works on every entry point. `test/registry.test.mjs`
-  cross-checks all of these tables — add your type's minimal fixture there and it will
-  tell you about any table you missed.
+- **Adding a control** = a type in `types.ts` (`SchemaObject`), a `registerControl`
+  constructor, and (for a heavy control) a `LAZY_IMPORT` key + a static import in
+  `single.ts`. A lazy control's verbose form passes through `metaFor` as given, so its
+  constructor reads and validates its own fields off the meta; add a `TYPED_META` entry
+  only when the form needs reshaping before the constructor sees it (a derived `value`
+  for reset, nested metas, a required field whose absence means "this is a folder"), and
+  a `DATA_VALUE` entry when the `[data-tw]` dataset's strings need parsing (numbers,
+  flags, lists). Both entry points derive the same verbose meta, so a control wired once
+  works on every one. `test/registry.test.mjs` cross-checks the tables and the lazy map —
+  add your type's minimal fixture there and it will tell you about any table you missed.
 - **The docs examples are self-verifying.** Each example's `run` function is
   `toString()`-serialized — the exact text is *both* the displayed snippet and the script
   that runs the demo, so they can't drift. Consequences: `site/pages/*.mjs` must never pass

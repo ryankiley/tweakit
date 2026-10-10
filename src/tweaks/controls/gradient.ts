@@ -60,6 +60,7 @@ function normalizeStops(value: any): GradientStop[] {
   return out.length >= 2 ? out : DEF;
 }
 function createGradient(meta: Meta, onChange: OnChange): Control {
+  meta.value ??= meta.stops; // the verbose form's `stops` is an alias for `value` (the markup path has no alias)
   let stops = normalizeStops(meta.value);
   let selStop = stops[0];
   let easing = easingName(parseEase(meta.value)); // anything unrecognised reads as linear, as the CSS helper treats it

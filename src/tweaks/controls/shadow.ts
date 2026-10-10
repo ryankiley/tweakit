@@ -35,7 +35,7 @@ const parseShadow = (s: string): ShadowInput | null => {
 const CHEVRON = icon('<path d="M18 9s-4.4 6-6 6-6-6-6-6"/>', "tw-shadow-chevron", 2.5); // the kit's chevron glyph (icons.ts), built here from the shared helper: a lazy control importing the icons module splits it into a fourth shared chunk
 function createShadow(meta: Meta, onChange: OnChange): Control {
   const read = (v: unknown): ShadowInput | null => (typeof v === "string" ? parseShadow(v) : isObj(v) ? v : null);
-  const init = read(meta.value) || {};
+  const init = read(meta.value ?? meta) || {}; // the fields may sit on the meta itself (the verbose form's top level)
   let inset = !!init.inset, x = num(init.x, DEF.x), y = num(init.y, DEF.y), blur = Math.max(0, num(init.blur, DEF.blur)), spread = num(init.spread, DEF.spread);
 
   // ── Row — label, a chip with the shadow on a small tile (scaled down), a summary. ──
