@@ -413,23 +413,22 @@ a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .ex-copy::after { transition: opacity var(--site-dur-fast) ease; transform: none; }
 }
-/* A folded code block (an example's foldCode): the snippet sits behind a quiet summary. */
+/* A folded code block (an example's foldCode): a quiet toggle, and the body it opens. */
 .ex-fold { margin: 14px 0; }
-.ex-fold > summary {
-  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-  font-size: 13px; color: var(--site-muted); list-style: none;
+.ex-fold-toggle {
+  display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: 13px; color: var(--site-muted); cursor: pointer;
   transition: color var(--site-dur-fast) var(--site-ease-out);
 }
-.ex-fold > summary::-webkit-details-marker { display: none; }
-.ex-fold > summary::before {
+.ex-fold-toggle::before {
   content: ""; width: 6px; height: 6px; margin-top: -2px;
   border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
   transform: rotate(-45deg); transition: transform var(--site-dur-base) var(--site-ease-out);
 }
-.ex-fold[open] > summary::before { transform: rotate(45deg); }
-.ex-fold > summary:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
+.ex-fold-toggle[aria-expanded="true"]::before { transform: rotate(45deg); }
+.ex-fold-toggle:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
 @media (hover: hover) and (pointer: fine) {
-  .ex-fold > summary:hover { color: var(--site-text); }
+  .ex-fold-toggle:hover { color: var(--site-text); }
 }
 .ex-note { font-size: 12.5px; color: var(--site-faint); margin-top: -6px; }
 /* A demo's own action button (the panel-API remotes) — neutral chrome on the --demo-* tokens. */

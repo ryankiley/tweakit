@@ -30,15 +30,18 @@ export const examples = [
         </div>
       </div>`,
     css: `
-      /* One grid for the whole example: the word, the copy and the folded schema stack in the
-       * left column, the pane spans the right. The schema's row takes the pane's spare height,
-       * so its summary sits right under the chips and the code opens down past the pane. */
-      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) 256px; /* the panel's default --tw-width */ grid-template-rows: auto 1fr;
-                     column-gap: clamp(40px, 6vw, 80px); margin: 57px 0 0; } /* the pane's top and the word's cap line meet the top of the nav's current item (101px down: 44 padding + 57) */
+      /* One grid for the whole example. The pane spans the right; the word, the copy and the
+       * schema toggle sit between two equal flexible rows beside it, so the stack centres on the
+       * pane. The schema itself opens in a full-width row under both, so opening it moves
+       * nothing above. */
+      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) 256px; /* the panel's default --tw-width */
+                     grid-template-rows: 1fr auto auto 1fr auto;
+                     column-gap: clamp(40px, 6vw, 80px); margin: 57px 0 0; } /* the pane's top meets the top of the nav's current item (101px down: 44 padding + 57) */
       #ex-specimen .ex-live { display: contents; }
-      #ex-specimen .ex-target { grid-column: 1; grid-row: 1; min-height: 0; padding: 0; display: block; }
-      #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
-      #ex-specimen .ex-fold { grid-column: 1; grid-row: 2; align-self: start; margin: 26px 0 0; min-width: 0; }
+      #ex-specimen .ex-target { grid-column: 1; grid-row: 2; min-height: 0; padding: 0; display: block; }
+      #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / 5; align-self: start; }
+      #ex-specimen .ex-fold { grid-column: 1; grid-row: 3; margin: 26px 0 0; }
+      #ex-specimen .ex-fold-body { grid-column: 1 / -1; grid-row: 5; margin-top: 32px; min-width: 0; }
       .sp-stage { display: flex; flex-direction: column; width: 100%; }
       .doc .sp-text { align-self: flex-start; max-width: 100%; min-width: 1ch; margin: 0 0 30px;
                       text-box: trim-both cap alphabetic; /* the box is the letters: the pane's top meets the cap line */
@@ -49,10 +52,11 @@ export const examples = [
       .doc .sp-about { max-width: 52ch; margin: 0; font-size: 16px; }
       .sp-stage .hero-meta { margin-top: 16px; }
       @media (max-width: 1000px) {
-        #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 32px; margin-top: 8px; }
-        #ex-specimen .ex-mount { grid-column: 1; grid-row: 2; justify-self: center; }
-        #ex-specimen .ex-fold { grid-row: 3; margin: 0; text-align: center; }
-        #ex-specimen .ex-fold .ex-codewrap { text-align: left; }
+        #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 0; margin-top: 8px; }
+        #ex-specimen .ex-target { grid-row: 1; }
+        #ex-specimen .ex-fold { grid-row: 2; margin: 22px 0 0; text-align: center; }
+        #ex-specimen .ex-mount { grid-column: 1; grid-row: 3; justify-self: center; margin-top: 32px; }
+        #ex-specimen .ex-fold-body { grid-row: 4; margin-top: 24px; }
         .doc .sp-about { margin-inline: auto; text-align: center; }
         .sp-stage .hero-meta { justify-content: center; }
       }`,

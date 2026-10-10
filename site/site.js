@@ -32,6 +32,17 @@
     wrap.append(btn);
   });
 
+  // Folded code (an example's foldCode): the toggle shows or hides its body.
+  document.querySelectorAll(".ex-fold-toggle").forEach((btn) => {
+    const body = document.getElementById(btn.getAttribute("aria-controls"));
+    if (!body) return;
+    btn.addEventListener("click", () => {
+      const open = btn.getAttribute("aria-expanded") !== "true";
+      btn.setAttribute("aria-expanded", String(open));
+      body.hidden = !open;
+    });
+  });
+
   // Hover-revealed permalinks on anchored section headings.
   document.querySelectorAll(".ex[id] > h2").forEach((h) => {
     const a = document.createElement("a");
