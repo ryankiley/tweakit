@@ -162,7 +162,7 @@ function renderExample(ex, ids, captioned) {
   }
 
   const note = captioned
-    ? `<p class="ex-note"><code>mount</code> is the panel's slot inside the stage; <code>target</code> is the demo surface it controls. In your own page you'd just <code>document.body.append(panel.el)</code>.</p>`
+    ? `<p class="ex-note"><code>mount</code> is the panel's slot inside the stage${ex.target != null ? "; <code>target</code> is the demo surface it controls" : ""}. In your own page you'd just <code>document.body.append(panel.el)</code>.</p>`
     : "";
   return `<section class="ex"${ex.id ? ` id="ex-${ex.id}"` : ""}>${heading}${ex.prose || ""}${live}${code}${note}</section>`;
 }

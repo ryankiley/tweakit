@@ -25,30 +25,16 @@ export const examples = [
       (↑/↓ lightness, ←/→ chroma, ⇧ for ×10, Page Up/Down for ten lightness steps), the hue
       and alpha strips are sliders (arrows, Home/End), and the channel fields type or
       arrow-step.</p>`,
-    target: `
-      <div class="col-wrap">
-        <svg class="col-blob" viewBox="0 0 200 200" width="170" height="170" aria-hidden="true">
-          <path fill="#7C5CFF" d="M86,0C86,77.4 77.4,86 0,86C-77.4,86 -86,77.4 -86,0C-86,-77.4 -77.4,-86 0,-86C77.4,-86 86,-77.4 86,0Z" transform="translate(100 100)"/>
-        </svg>
-        <code class="col-readout">#7C5CFF</code>
-      </div>`,
     css: `
-      .col-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-      .col-blob path { transition: fill 0.1s; }
-      .col-readout { font-size: 12.5px; color: var(--demo-muted); background: var(--demo-fill);
-                     border: 1px solid var(--demo-line); border-radius: 7px; padding: 3px 10px; }`,
-    run: ({ tweaks, mount, target }) => {
-      const blob = target.querySelector(".col-blob path");
-      const readout = target.querySelector(".col-readout");
+      #ex-color .ex-live { min-height: 200px; transition: background 0.1s; }`,
+    run: ({ tweaks, mount }) => {
       const panel = tweaks("Color", {
         tint: "#7C5CFF",   // or { type: "color", value: "oklch(0.65 0.24 295)" }
       });
       mount.append(panel.el);
 
-      const apply = (p) => {
-        blob.setAttribute("fill", p.tint);
-        readout.textContent = p.tint;
-      };
+      const stage = mount.parentElement;   // the box behind the panel
+      const apply = (p) => { stage.style.background = p.tint; };
       panel.on(apply);
       panel.ready.then(() => apply(panel.params));
     },
