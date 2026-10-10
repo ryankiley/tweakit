@@ -106,6 +106,33 @@
             "y": 0
           }
         },
+        "surface": {
+          "ramp": {
+            "stops": [
+              {
+                "color": "oklch(0.72 0.19 25)",
+                "pos": 0
+              },
+              {
+                "color": "oklch(0.72 0.16 280)",
+                "pos": 1
+              }
+            ],
+            "interpolation": "oklch",
+            "easing": "linear"
+          },
+          "lift": {
+            "inset": false,
+            "x": 0,
+            "y": 8,
+            "blur": 24,
+            "spread": 0,
+            "color": "oklch(0% 0.00 0 / 0.18)",
+            "css": "0px 8px 24px 0px oklch(0% 0.00 0 / 0.18)"
+          },
+          "radius": 12,
+          "tone": "accent"
+        },
         "motion": {
           "press": {
             "mode": "spring",
@@ -125,6 +152,7 @@
       "ui": {
         "folders": {
           "shape": false,
+          "surface": false,
           "motion": false,
           "monitor": false
         }
@@ -387,17 +415,21 @@
   "structure.mjs › folder": [
     {
       "values": {
-        "label": "Stacked",
-        "shadow": {
-          "x": 0,
-          "y": 12,
-          "blur": 32,
-          "alpha": 0.5
+        "label": "Folder",
+        "type": {
+          "size": 15,
+          "tracking": 0,
+          "caps": false
+        },
+        "box": {
+          "padding": 12,
+          "radius": 10
         }
       },
       "ui": {
         "folders": {
-          "shadow": false
+          "type": false,
+          "box": false
         }
       }
     }

@@ -42,6 +42,7 @@
    * raised surface on dark even before the shadow — tonal lift does what a drop shadow
    * can't against a dark backdrop. */
   --tw-base: #242424;
+  --tw-checker: var(--tw-checker); /* the alpha checker under swatches, strips and thumbs (colour.ts, basic.ts) */
   --tw-dropdown-bg: #292929;
   --tw-radius: 8px;
   --tw-row-height: 32px;
@@ -203,11 +204,11 @@
 .tw-panel.is-collapsed .tw-chevron { transform: rotate(-90deg); }
 .tw-toolbar { display: flex; align-items: center; gap: 4px; }
 /* Filter (opts.filter) — the search input replaces the title while searching. */
-.tw-search { display: none; flex: 1; min-width: 0; height: 24px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); outline: none; }
-.tw-search:focus { border-color: var(--tw-border-hover); }
+.tw-search, .tw-rename { display: none; flex: 1; min-width: 0; height: 24px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); outline: none; }
+.tw-search:focus, .tw-rename:focus { border-color: var(--tw-border-hover); }
 .tw-search::placeholder { color: var(--tw-text-tertiary); }
-.tw-panel.is-searching .tw-header-toggle { display: none; }
-.tw-panel.is-searching .tw-search { display: block; }
+.tw-panel:is(.is-searching, .is-renaming) .tw-header-toggle { display: none; } /* either field takes the title's place */
+.tw-panel.is-searching .tw-search, .tw-panel.is-renaming .tw-rename { display: block; }
 .tw-filter-hidden { display: none !important; }
 
 /* Hint marker (ⓘ) — a control's `hint` shows here beside its label; hover/focus
@@ -320,7 +321,7 @@
 .tw-seg-btn:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
 .tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
-.tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
+.tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-rename:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
   outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px;
 }
@@ -728,7 +729,7 @@
 /* The 1D strips share one shape; alpha adds the checkerboard under its
  * transparent→opaque gradient of the colour. */
 .tw-wg-hue, .tw-wg-alpha { position: relative; width: 100%; height: 14px; border-radius: 999px; cursor: ew-resize; touch-action: none; box-shadow: inset 0 0 0 1px var(--tw-border); }
-.tw-wg-alpha { background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 10px 10px; }
+.tw-wg-alpha { background: var(--tw-checker); }
 .tw-wg-hue-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
 /* Circular handle — a white ring riding the strip, the hue/alpha showing through
  * its centre. Matches the area thumb; slightly taller than the 14px strip. */
@@ -739,7 +740,7 @@
 /* ── Gradient — a trigger row (a wide preview chip; the checker shows
  * through any alpha stops) that opens a stop-bar + picker-body editor in a popover. ── */
 .tw-gradient { position: relative; }
-.tw-gradient-preview { width: 72px; background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
+.tw-gradient-preview { width: 72px; background: var(--tw-checker); }
 
 /* the gradient editor popover — wider than the colour pop to give the bar room */
 .tw-gradient-pop { width: 260px; }
@@ -751,7 +752,7 @@
 .tw-gradient-pop .tw-color-mode { padding-left: 8px; padding-right: 24px; }
 .tw-gradient-bar-row { display: flex; align-items: stretch; gap: 6px; }
 .tw-gradient-bar-row > .tw-gradient-bar { flex: 1; min-width: 0; }
-.tw-gradient-bar { position: relative; width: 100%; height: 28px; border-radius: var(--tw-radius); box-shadow: inset 0 0 0 1px var(--tw-border); background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
+.tw-gradient-bar { position: relative; width: 100%; height: 28px; border-radius: var(--tw-radius); box-shadow: inset 0 0 0 1px var(--tw-border); background: var(--tw-checker); }
 .tw-gradient-grad { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
 .tw-gradient-rail { position: absolute; left: 0; right: 0; bottom: -5px; height: 14px; pointer-events: none; }
 .tw-gradient-stop { position: absolute; top: 0; width: 13px; height: 13px; padding: 0; transform: translateX(-50%); border-radius: calc(var(--tw-radius) - 4px); background: var(--stop); border: 2px solid var(--tw-dropdown-bg); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 1px 3px rgba(0, 0, 0, 0.4); cursor: ew-resize; touch-action: none; pointer-events: auto; transition: opacity 0.12s ease, transform 0.16s var(--tw-ease-spring), box-shadow 0.16s; }
@@ -795,9 +796,9 @@
  * `resize: vertical` still does the drag where the platform supports it. */
 .tw-textarea::-webkit-resizer { background: transparent; }
 /* Text past the field's edges fades out over a line rather than cutting (basic.ts clip()). */
-.tw-textarea.is-clip-top { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px); mask-image: linear-gradient(to bottom, transparent, #000 14px); }
-.tw-textarea.is-clip-bottom { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); }
-.tw-textarea.is-clip-top.is-clip-bottom { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 14px), transparent); }
+.tw-textarea:is(.is-clip-top, .is-clip-bottom) { --tw-clip-top: 0px; --tw-clip-bottom: 0px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--tw-clip-top), #000 calc(100% - var(--tw-clip-bottom)), transparent); mask-image: linear-gradient(to bottom, transparent, #000 var(--tw-clip-top), #000 calc(100% - var(--tw-clip-bottom)), transparent); }
+.tw-textarea.is-clip-top { --tw-clip-top: 14px; }
+.tw-textarea.is-clip-bottom { --tw-clip-bottom: 14px; }
 .tw-row-multiline::after {
   content: ""; position: absolute; right: 8px; bottom: 8px; width: 11px; height: 11px;
   pointer-events: none; background-color: var(--tw-text-tertiary);
@@ -814,7 +815,7 @@
 /* The thumbnail chip: trigger-chip gives the 18px height, radius, border + hover pop;
  * this adds the square width and the image (or checkerboard when unset) fill. */
 .tw-image-thumb { width: 18px; background: var(--tw-base) center / cover no-repeat; }
-.tw-image-thumb[data-set="false"] { background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 6px 6px; }
+.tw-image-thumb[data-set="false"] { background: var(--tw-checker); }
 /* Drop affordance is the whole row: a dashed outline + a thumb swell appear only while
  * a file is dragged over it (JS toggles [data-over] on the trigger). */
 .tw-image .tw-trigger[data-over="true"] { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
@@ -913,11 +914,17 @@
  * with the mode toggle + fields sitting bare beneath it. ── */
 /* The shadow control: a chip with the shadow on a small tile (scaled down); in the popover,
  * a preview card, the position switch, the four lengths and the picker body (shadow.ts). */
-.tw-shadow-chip { display: flex; align-items: center; justify-content: center; width: 26px; background: var(--tw-base); overflow: hidden; }
+.tw-shadow-chip, .tw-motion-chip { width: 26px; background: var(--tw-base); overflow: hidden; } /* the two drawn chips: a tile with the shadow, a curve */
+.tw-shadow-chip { display: flex; align-items: center; justify-content: center; }
 .tw-shadow-chip-tile { width: 12px; height: 8px; border-radius: 2px; background: var(--tw-dropdown-bg); }
 .tw-shadow-stage { display: flex; align-items: center; justify-content: center; height: 84px; border-radius: var(--tw-radius); background: var(--tw-base); overflow: hidden; }
 .tw-shadow-card { width: 64px; height: 40px; border-radius: 9px; background: var(--tw-dropdown-bg); }
 .tw-shadow-pop { width: 260px; }
+.tw-shadow-color { width: 100%; } /* the colour row inside the pop: a trigger row that discloses the picker body beneath it */
+.tw-shadow-color .tw-trigger-right, .tw-shadow-color .tw-trigger-value { max-width: none; } /* the row has the pop's full width: show the whole readout */
+.tw-shadow-pop .tw-color-body[hidden] { display: none; } /* the body's own display: flex would beat the hidden attribute */
+.tw-shadow-chevron { flex-shrink: 0; width: 12px; height: 12px; color: var(--tw-text-tertiary); transition: transform 0.2s var(--tw-ease-pop); }
+.tw-shadow-color[aria-expanded="true"] .tw-shadow-chevron { transform: rotate(180deg); }
 .tw-shadow-pop .tw-color-body { margin-top: 2px; }
 /* The sides control: a number row with a link button between label and field; unlinked, a
  * block with the label, a summary and the link over four fields (sides.ts). */
@@ -936,11 +943,10 @@
 /* The motion control: a mini-curve chip on the row; in the popover, the Easing | Spring
  * switch, a preview switch that runs the motion (heavy.ts-driven Web Animations), and
  * one editor at a time. */
-.tw-motion-chip { position: relative; width: 26px; background: var(--tw-base); overflow: hidden; }
+.tw-motion-chip { position: relative; }
 .tw-motion-chip svg { display: block; width: 100%; height: 100%; }
 .tw-motion-chip path { fill: none; stroke: var(--tw-accent, var(--tw-text-primary)); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; } /* non-scaling: 1.25 CSS px on an 18px chip, whatever the viewBox stretch */
-.tw-motion-body { display: flex; flex-direction: column; gap: 8px; }
-.tw-motion-pane { display: flex; flex-direction: column; gap: 8px; }
+.tw-motion-body, .tw-motion-pane { display: flex; flex-direction: column; gap: 8px; }
 .tw-motion-pop .tw-bezier-graph, .tw-motion-pop .tw-spring-viz { height: 120px; } /* the popover has the room the inline editors don't */
 .tw-motion-pane .tw-spring > .tw-row { display: none; } /* the spring here is duration + bounce only — one switch in the pop, not two (motion.ts springTime) */
 .tw-motion-stage { display: flex; align-items: center; height: 56px; padding: 0 16px; border-radius: var(--tw-radius); background: var(--tw-surface); overflow: hidden; cursor: pointer; } /* padding: STAGE_PAD in motion.ts — an overshoot runs into it and clips at the stage, never past it into the popover */
