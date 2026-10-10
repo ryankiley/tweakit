@@ -734,11 +734,10 @@
 .tw-wg-hue.is-grabbing .tw-wg-hue-thumb, .tw-wg-alpha.is-grabbing .tw-wg-hue-thumb { transform: translate(-50%, -50%) scale(1.28); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
 .tw-wg-alpha-grad { position: absolute; inset: 0; border-radius: inherit; }
 
-/* ── Gradient — a trigger row (stop count + a wide preview chip; the checker shows
+/* ── Gradient — a trigger row (a wide preview chip; the checker shows
  * through any alpha stops) that opens a stop-bar + picker-body editor in a popover. ── */
 .tw-gradient { position: relative; }
-.tw-gradient-count { font-family: var(--tw-font-sans); font-size: 11px; font-weight: 500; color: var(--tw-text-tertiary); flex-shrink: 0; }
-.tw-gradient-preview { width: 48px; background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
+.tw-gradient-preview { width: 72px; background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
 
 /* the gradient editor popover — wider than the colour pop to give the bar room */
 .tw-gradient-pop { width: 260px; }
