@@ -42,7 +42,7 @@
    * raised surface on dark even before the shadow — tonal lift does what a drop shadow
    * can't against a dark backdrop. */
   --tw-base: #242424;
-  --tw-checker: var(--tw-checker); /* the alpha checker under swatches, strips and thumbs (colour.ts, basic.ts) */
+  --tw-checker: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; /* the alpha checker under swatches, strips and thumbs (colour.ts, basic.ts) */
   --tw-dropdown-bg: #292929;
   --tw-radius: 8px;
   --tw-row-height: 32px;
