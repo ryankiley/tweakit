@@ -920,6 +920,11 @@
 .tw-shadow-stage { display: flex; align-items: center; justify-content: center; height: 84px; border-radius: var(--tw-radius); background: var(--tw-base); overflow: hidden; }
 .tw-shadow-card { width: 64px; height: 40px; border-radius: 9px; background: var(--tw-dropdown-bg); }
 .tw-shadow-pop { width: 260px; }
+.tw-shadow-color { width: 100%; } /* the colour row inside the pop: a trigger row that discloses the picker body beneath it */
+.tw-shadow-color .tw-trigger-right, .tw-shadow-color .tw-trigger-value { max-width: none; } /* the row has the pop's full width: show the whole readout */
+.tw-shadow-pop .tw-color-body[hidden] { display: none; } /* the body's own display: flex would beat the hidden attribute */
+.tw-shadow-chevron { flex-shrink: 0; width: 12px; height: 12px; color: var(--tw-text-tertiary); transition: transform 0.2s var(--tw-ease-pop); }
+.tw-shadow-color[aria-expanded="true"] .tw-shadow-chevron { transform: rotate(180deg); }
 .tw-shadow-pop .tw-color-body { margin-top: 2px; }
 /* The motion control: a mini-curve chip on the row; in the popover, the Easing | Spring
  * switch, a preview switch that runs the motion (heavy.ts-driven Web Animations), and

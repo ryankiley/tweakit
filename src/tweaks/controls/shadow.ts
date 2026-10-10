@@ -5,7 +5,7 @@
 // colour the picker re-serialized — never a host string verbatim (the gradient's lesson: a
 // string that reaches a `style` sink can splice in a url()). Lazy; depends on the colour
 // module. ──
-import { el, txt, popover, createSegmented, registerControl } from "../shared.js";
+import { el, txt, popover, createSegmented, registerControl, btn, icon } from "../shared.js";
 import { numField, triggerRow } from "../heavy.js";
 import { createPickerBody, isColor } from "./colour.js";
 import type { OnChange, NumField } from "../shared.js";
@@ -32,6 +32,7 @@ const parseShadow = (s: string): ShadowInput | null => {
   return { inset, x: n[0], y: n[1], blur: n[2] ?? 0, spread: n[3] ?? 0, color: m[0] };
 };
 
+const CHEVRON = icon('<path d="M18 9s-4.4 6-6 6-6-6-6-6"/>', "tw-shadow-chevron", 2.5); // the kit's chevron glyph (icons.ts), built here from the shared helper: a lazy control importing the icons module splits it into a fourth shared chunk
 function createShadow(meta: Meta, onChange: OnChange): Control {
   const read = (v: unknown): ShadowInput | null => (typeof v === "string" ? parseShadow(v) : isObj(v) ? v : null);
   const init = read(meta.value) || {};
@@ -55,8 +56,15 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const fb = field("Blur", () => blur, (v) => { blur = Math.max(0, v); }, 0), fs = field("Spread", () => spread, (v) => { spread = v; });
   // As the fields fitted them (whole px, blur ≥ 0), so the value, the CSS and the fields never disagree — an authored 2.5 showed "3" and emitted 2.5px.
   x = fx.get(); y = fy.get(); blur = fb.get(); spread = fs.get();
-  const body = createPickerBody({ value: typeof init.color === "string" && isColor(init.color) ? init.color : DEF.color }, () => { update(); emit(); });
-  pop.append(stage, insetRow, fields, body.el);
+  // The colour is a row of its own (swatch + readout) that discloses the picker beneath it:
+  // the lengths are the main edit, so the pop opens compact and grows only when asked.
+  const colorRow = btn("tw-trigger tw-shadow-color"); colorRow.setAttribute("aria-expanded", "false");
+  const cSwatch = el("span", "tw-trigger-chip tw-color-swatch"), cText = el("span", "tw-trigger-value"), cRight = el("span", "tw-trigger-right");
+  cRight.append(cSwatch, cText); cRight.insertAdjacentHTML("beforeend", CHEVRON); colorRow.append(txt("span", "tw-trigger-label", "Colour"), cRight);
+  const body = createPickerBody({ value: typeof init.color === "string" && isColor(init.color) ? init.color : DEF.color, onMode: () => update() }, () => { update(); emit(); });
+  body.el.hidden = true;
+  colorRow.addEventListener("click", () => { const show = body.el.hidden; body.el.hidden = !show; colorRow.setAttribute("aria-expanded", String(show)); pop_.reflow(); }); // reflow: re-place for the new height, and lay the picker out now that it has a size
+  pop.append(stage, insetRow, fields, colorRow, body.el);
   root.append(pop);
 
   // The CSS, at a scale: 1 for the value and the preview card, a fraction for the chip's tile.
@@ -66,8 +74,9 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const update = () => {
     card.style.boxShadow = cssAt(1); chipTile.style.boxShadow = cssAt(0.3);
     valueEl.textContent = `${inset ? "in " : ""}${fmt(x)} ${fmt(y)} ${fmt(blur)}${spread ? " " + fmt(spread) : ""}`;
+    cSwatch.style.background = body.swatchCss(); cText.textContent = body.valueText();
   };
-  popover(root, trigger, pop, { width: 260, fallbackH: 480, gap: 6, onOpen: body.reflow, onReflow: body.reflow });
+  const pop_ = popover(root, trigger, pop, { width: 260, fallbackH: 300, gap: 6, onOpen: body.reflow, onReflow: body.reflow });
   update();
 
   // Programmatic set / restore: the object form (any subset of the fields) or a box-shadow
