@@ -45,7 +45,8 @@ const href = (slug) => `./${slug}.html`;
 // a page that runs examples preloads them all, so the kit arrives in one round trip
 // instead of the four the import chain takes on its own (core → shared chunk → a lazy
 // control → its chunk) — the lazy path still runs for real, out of cache.
-export async function buildSite({ outDir, esbuild, sizes, chunks = [] }) {
+export async function buildSite({ outDir, esbuild, sizes, chunks = [], version }) {
+  if (!version) throw new Error("buildSite: pass the package version (the sidebar shows it)");
   const shell = await readFile(path.join(HERE, "shell.html"), "utf8");
 
   for (const [file, loader] of [["site.css", "css"], ["site.js", "js"]]) {
@@ -68,7 +69,7 @@ export async function buildSite({ outDir, esbuild, sizes, chunks = [] }) {
     // Build-measured bundle sizes (hyphenated tokens, so the shell's {{\w+}} pass leaves
     // them for here). A leaked token means buildSite was called without sizes — fail loud
     // rather than ship "{{size-split}}" to a reader.
-    let html = renderPage(shell, pages, i, chunks);
+    let html = renderPage(shell, pages, i, chunks, version);
     if (sizes) for (const [k, v] of Object.entries(sizes)) html = html.replaceAll(`{{size-${k}}}`, v);
     const leak = html.match(/\{\{size-[\w-]+\}\}/);
     if (leak) throw new Error(`pages/${pages[i].meta.slug}.mjs: unsubstituted ${leak[0]} — pass sizes to buildSite()`);
@@ -77,7 +78,7 @@ export async function buildSite({ outDir, esbuild, sizes, chunks = [] }) {
   console.log(`site → ${pages.length} pages: ${pages.map((p) => p.meta.slug + ".html").join(", ")}`);
 }
 
-function renderPage(shell, pages, idx, chunks = []) {
+function renderPage(shell, pages, idx, chunks = [], version = "") {
   const page = pages[idx];
   const { meta } = page;
   const title = meta.slug === "index" ? meta.title : `${meta.title} · Tweakit`;
@@ -104,6 +105,7 @@ function renderPage(shell, pages, idx, chunks = []) {
     description: esc(meta.description || "Tweakit — a dependency-free, code-split, real-time parameter panel."),
     styles: css ? `  <style>${css}</style>` : "",
     nav: renderNav(pages, meta.slug),
+    version: esc(version),
     content,
     footnav: renderFootnav(pages, idx),
     script: renderScript(page),

@@ -144,6 +144,7 @@ console.log(`sizes (gzip): code-split ${sizes.split} (core + shared chunk) · si
 // script, so transpiling would break snippet/runtime parity).
 const { buildSite } = await import("./site/build-site.mjs");
 const chunks = Object.keys(splitBuild.metafile.outputs).filter((k) => k.endsWith(".js")).map((k) => path.basename(k)); // every split file, hashed names included — the pages preload them
-await buildSite({ outDir: p("dist"), esbuild, sizes, chunks });
+const { version } = JSON.parse(await readFile(p("package.json"), "utf8")); // the sidebar shows it, so a release rebuild carries it
+await buildSite({ outDir: p("dist"), esbuild, sizes, chunks, version });
 
 console.log("Built tweakit → dist/");
