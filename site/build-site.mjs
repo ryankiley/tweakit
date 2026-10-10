@@ -8,7 +8,8 @@
  * for execution. One source, zero drift.
  *
  * A page module exports:
- *   meta     — { slug, title, nav?, description?, hero? }  (hero: page renders its own h1)
+ *   meta     — { slug, title, nav?, description?, hero?, wide? }  (hero: page renders its own
+ *              h1; wide: the reading column drops its max-width — the landing's specimen stage)
  *   intro    — HTML string placed under the h1
  *   examples — array of blocks; each block:
  *     id      anchor id (required when run/html present; unique per page)
@@ -22,6 +23,7 @@
  *     code    extra display-only snippet: string (js) or { lang: "js"|"html"|"css"|"sh", text }
  *     noCaption  suppress the mount/target caption (it auto-shows on a page's first run)
  *     noMount    omit the panel slot — for runs that build panels into the target/body
+ *     foldCode   a summary string — the block's code folds under a <details> behind it
  */
 import { readFile, writeFile, cp } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -104,6 +106,7 @@ function renderPage(shell, pages, idx, chunks = []) {
     description: esc(meta.description || "Tweakit — a dependency-free, code-split, real-time parameter panel."),
     styles: css ? `  <style>${css}</style>` : "",
     nav: renderNav(pages, meta.slug),
+    docClass: meta.wide ? " doc-wide" : "",
     content,
     footnav: renderFootnav(pages, idx),
     script: renderScript(page),
@@ -160,6 +163,8 @@ function renderExample(ex, ids, captioned) {
     const text = dedent(c.text).trim();
     code += codeBlock(c.lang === "html" ? highlightHTML(text) : c.lang === "js" ? highlightJS(text) : esc(text), c.lang);
   }
+
+  if (code && ex.foldCode) code = `<details class="ex-fold"><summary>${esc(ex.foldCode)}</summary>${code}</details>`;
 
   const note = captioned
     ? `<p class="ex-note"><code>mount</code> is the panel's slot inside the stage${ex.target != null ? "; <code>target</code> is the demo surface it controls" : ""}. In your own page you'd just <code>document.body.append(panel.el)</code>.</p>`
