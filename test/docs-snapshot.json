@@ -366,17 +366,21 @@
   "structure.mjs › folder": [
     {
       "values": {
-        "label": "Stacked",
-        "shadow": {
-          "x": 0,
-          "y": 12,
-          "blur": 32,
-          "alpha": 0.5
+        "label": "Folder",
+        "type": {
+          "size": 15,
+          "tracking": 0,
+          "caps": false
+        },
+        "box": {
+          "padding": 12,
+          "radius": 10
         }
       },
       "ui": {
         "folders": {
-          "shadow": false
+          "type": false,
+          "box": false
         }
       }
     }

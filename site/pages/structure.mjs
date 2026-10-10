@@ -16,31 +16,37 @@ export const examples = [
     id: "folder",
     title: "Folder",
     prose: `<p>Any nested plain object becomes a collapsible folder, and its children
-      land on <code>params</code> as a nested object; here the whole
-      <code>shadow</code> folder composes one <code>box-shadow</code>. Folders nest
-      as deep as you'd ever want.</p>`,
-    target: `<div class="fld-card">Stacked</div>`,
+      land on <code>params</code> as a nested object: here <code>type</code> and
+      <code>box</code> are two folders over one tag, read as <code>params.type.size</code>
+      and <code>params.box.radius</code>. Folders nest as deep as you'd ever want.</p>`,
+    target: `<div class="fld-tag">Folder</div>`,
     css: `
-      #ex-folder .ex-target { min-height: 300px; } /* headroom so big shadows fade, not clip */
-      .fld-card { display: grid; place-items: center; width: 150px; height: 150px; border-radius: 20px;
-                  background: #2a2a2e; color: #ededed; font-weight: 600;
-                  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); }`,
+      .fld-tag { display: inline-flex; align-items: center; background: #7C5CFF; color: #fff;
+                 font-weight: 600; line-height: 1; white-space: nowrap;
+                 transition: border-radius 0.15s, padding 0.15s, font-size 0.15s, letter-spacing 0.15s; }`,
     run: ({ tweaks, mount, target }) => {
-      const card = target.querySelector(".fld-card");
+      const tag = target.querySelector(".fld-tag");
       const panel = tweaks("Folder", {
-        label: "Stacked",
-        shadow: {                    // nested object → folder
-          x: [0, -40, 40, 1],
-          y: [12, -40, 40, 1],
-          blur: [32, 0, 90, 1],
-          alpha: [0.5, 0, 1, 0.01],
+        label: "Folder",
+        type: {                        // nested object → folder
+          size: { type: "slider", value: 15, min: 10, max: 40, step: 1, unit: "px" },
+          tracking: { type: "slider", value: 0, min: -2, max: 8, step: 1, unit: "px" },
+          caps: false,
+        },
+        box: {                         // a second folder beside the first
+          padding: { type: "slider", value: 12, min: 4, max: 40, step: 1, unit: "px" },
+          radius: { type: "slider", value: 10, min: 0, max: 40, step: 1, unit: "px" },
         },
       });
       mount.append(panel.el);
 
       const apply = (p) => {
-        card.textContent = p.label;
-        card.style.boxShadow = `${p.shadow.x}px ${p.shadow.y}px ${p.shadow.blur}px rgba(0, 0, 0, ${p.shadow.alpha})`;
+        tag.textContent = p.label;
+        tag.style.fontSize = `${p.type.size}px`;
+        tag.style.letterSpacing = `${p.type.tracking}px`;
+        tag.style.textTransform = p.type.caps ? "uppercase" : "none";
+        tag.style.padding = `${p.box.padding}px ${Math.round(p.box.padding * 1.6)}px`;
+        tag.style.borderRadius = `${p.box.radius}px`;
       };
       panel.on(apply);
       apply(panel.params);
