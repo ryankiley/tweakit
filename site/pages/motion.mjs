@@ -74,7 +74,7 @@ export const examples = [
         spring: { type: "spring", stiffness: 220, damping: 18, mass: 1 },
         send: { type: "button", label: "Send the ball", action: () => { dest = dest ? 0 : 1; go(); } },
         curve: { type: "cubicbezier", value: [0.25, 0.1, 0.25, 1] },
-        seconds: [1.2, 0.2, 3, 0.1],
+        seconds: { type: "slider", value: 1.2, min: 0.2, max: 3, step: 0.1, unit: "s" },
       });
       mount.append(panel.el);
 
