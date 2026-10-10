@@ -58,12 +58,13 @@ export const examples = [
     run: ({ tweaks, gradientCss, mount, target }) => {
       const text = target.querySelector(".sp-text");
       const when = (mode) => (get) => get("mode") === mode;   // show a row for one fill mode
+      const phone = matchMedia("(max-width: 1000px)");       // phones centre the word
       const panel = tweaks("Tweakit", {
         size: { type: "slider", value: Math.max(48, Math.round(target.clientWidth / 3.4)), min: 16, max: 480, step: 1, unit: "px" }, // starts filling most of the column
         weight: [300, 100, 900, 10],
         tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
         leading: [1, 0.8, 1.8, 0.01],
-        align: { type: "segmented", options: ["left", "center", "right"], value: matchMedia("(max-width: 1000px)").matches ? "center" : "left" }, // centred on phones
+        align: { type: "segmented", options: ["left", "center", "right"], value: phone.matches ? "center" : "left" },
         fill: {
           mode: { type: "segmented", options: ["ink", "gradient"], value: "ink" },
           ink: { type: "color", value: getComputedStyle(text).color || "#1b1b1b", render: when("ink") }, // the page's ink
@@ -117,6 +118,9 @@ export const examples = [
       }
       panel.on((p, changed) => { apply(p); if (changed === "bounce") hop(); });
       panel.ready.then(() => { apply(panel.params); hop(); });
+      phone.addEventListener("change", (e) => {              // follow the breakpoint, unless you picked one
+        if (panel.params.align === (e.matches ? "left" : "center")) panel.set("align", e.matches ? "center" : "left");
+      });
       window.addEventListener("resize", () => apply(panel.params));
     },
   },
