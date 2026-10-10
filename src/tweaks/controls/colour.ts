@@ -197,7 +197,7 @@ function parseColor(str: string | null | undefined): Oklcha {
 // nested popover). `reflow()` re-renders + re-positions once it's mounted at real size;
 // swatchCss()/valueText() expose the readout so the host can paint its own trigger. ──
 function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): PickerBody {
-  let [L, C, H, A] = parseColor(meta.value || "#7c5cff");
+  let [L, C, H, A] = parseColor(meta.value || "#7c5cff"); // the kit's default colour, when the form names none
   let mode = EDIT_MODES.includes(meta.mode) ? meta.mode : "oklch"; // host can seed the mode (the gradient opens in the one its stored blend was authored in)
   let paintedHue = NaN, chromaCurve: Float64Array | null = null, chanFields: NumField[] = [];
   let hueRingH = NaN, hueRingBg = ""; // the hue-thumb ring colour depends only on H — cache it across L/C/A-only moves
@@ -438,7 +438,7 @@ function createColor(meta: Meta, onChange: OnChange): Control {
   popover(root, trigger, pop, { width: 240, fallbackH: 340, gap: 6, onOpen: body.reflow, onReflow: body.reflow });
   paintTrigger();
 
-  return { el: root, set: (v: string) => { body.set(v); paintTrigger(); }, get: () => body.get() };
+  return { el: root, set: (v: string) => { if (v == null) return; body.set(v); paintTrigger(); }, get: () => body.get() };
 }
 
 const oklchStr = (L: number, C: number, H: number, A: number) => A < 0.999

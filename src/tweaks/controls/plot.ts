@@ -115,16 +115,17 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   // equal pair pads out — xMin === xMax used to divide the x-mapping into an all-NaN
   // path (a silently blank plot). Same for a pinned y-range: equal/inverted falls back
   // to auto-range rather than a ÷0.
-  let xMin = Number(meta.xMin), xMax = Number(meta.xMax);
+  let xMin = Number(meta.xMin ?? meta.min), xMax = Number(meta.xMax ?? meta.max); // min/max are the verbose form's aliases
   if (!Number.isFinite(xMin)) xMin = -10;
   if (!Number.isFinite(xMax)) xMax = 10;
   if (xMax < xMin) { const t = xMin; xMin = xMax; xMax = t; }
   if (xMax === xMin) { xMin -= 1; xMax += 1; }
   const samples = Math.max(2, Math.min(4096, (meta.samples | 0) || 256)); // capped: the curve redraws on every resize + expression keystroke, so an absurd sample count (1e8+) froze the tab
   const fixedY = Number.isFinite(meta.yMin) && Number.isFinite(meta.yMax) && +meta.yMax > +meta.yMin;
-  const editable = meta.editable !== false && !meta.fn;
-  let expr = meta.expr != null ? String(meta.expr) : "";
-  let compiled = typeof meta.fn === "function" ? meta.fn : compileExpr(expr);
+  const fn = typeof meta.fn === "function" ? meta.fn : null;
+  const editable = meta.editable !== false && !fn;
+  let expr = meta.expr != null ? String(meta.expr) : fn ? "" : "sin(x)"; // no expression and no function: a sine to start from
+  let compiled = fn || compileExpr(expr);
 
   const root = el("div", "tw-plot");
   if (meta.label) root.append(txt("div", "tw-plot-label", meta.label));
@@ -188,7 +189,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   return {
     el: root,
     get: () => expr,
-    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!meta.fn) compiled = compileExpr(expr); draw(); }, // an invalid expression nulls compiled + flags is-invalid via draw — same contract as typing, never silently keeps plotting the old one
+    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!fn) compiled = compileExpr(expr); draw(); }, // an invalid expression nulls compiled + flags is-invalid via draw — same contract as typing, never silently keeps plotting the old one
   };
 }
 
