@@ -662,9 +662,9 @@
 /* The 18px preview chip — colour swatch / gradient strip / mini point pad. It pops a
  * touch on hover (and while the popover's open) — the preview leads the eye in. */
 .tw-trigger-chip { height: 18px; flex-shrink: 0; border-radius: calc(var(--tw-radius) - 4px); box-shadow: inset 0 0 0 1px var(--tw-border-hover); transition: transform 0.2s var(--tw-ease-spring); }
-.is-open > .tw-trigger .tw-trigger-chip { transform: scale(1.14); }
+.is-open > .tw-trigger .tw-trigger-chip { transform: scale(1.07); } /* the gradient preview's lift — 1.14 read as a jump on the wider chips */
 @media (hover: hover) and (pointer: fine) {
-  .tw-trigger:hover .tw-trigger-chip { transform: scale(1.14); }
+  .tw-trigger:hover .tw-trigger-chip { transform: scale(1.07); }
 }
 
 /* ── Colour — a trigger row (label + swatch + value) that opens the dropdown picker ── */
@@ -734,15 +734,10 @@
 .tw-wg-hue.is-grabbing .tw-wg-hue-thumb, .tw-wg-alpha.is-grabbing .tw-wg-hue-thumb { transform: translate(-50%, -50%) scale(1.28); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
 .tw-wg-alpha-grad { position: absolute; inset: 0; border-radius: inherit; }
 
-/* ── Gradient — a trigger row (stop count + a wide preview chip; the checker shows
+/* ── Gradient — a trigger row (a wide preview chip; the checker shows
  * through any alpha stops) that opens a stop-bar + picker-body editor in a popover. ── */
 .tw-gradient { position: relative; }
 .tw-gradient-preview { width: 72px; background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
-/* The wide chip scales gentler than the square ones — 1.14 on 48px reads as a lurch. */
-.is-open > .tw-trigger .tw-gradient-preview { transform: scale(1.07); }
-@media (hover: hover) and (pointer: fine) {
-  .tw-trigger:hover .tw-gradient-preview { transform: scale(1.07); }
-}
 
 /* the gradient editor popover — wider than the colour pop to give the bar room */
 .tw-gradient-pop { width: 260px; }
