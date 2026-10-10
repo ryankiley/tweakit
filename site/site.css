@@ -241,6 +241,14 @@ a { color: inherit; text-decoration: none; }
   padding: 44px 44px 96px;
 }
 
+/* A wide page (meta.wide — the landing's specimen stage) breaks the 780px column. The
+ * reading column centres in the full viewport, which a wider one can't do without running
+ * under the fixed sidebar, so it centres in the space right of the sidebar instead. */
+@media (min-width: 1001px) {
+  .layout:has(.doc-wide) { padding-left: 230px; }
+}
+.doc.doc-wide { max-width: 1180px; }
+
 /* No page-to-page transition — navigations are a plain instant load on every viewport.
  * (Cross-document View Transitions janked on mobile Safari; removed entirely.) */
 
@@ -276,18 +284,11 @@ a { color: inherit; text-decoration: none; }
 .doc td { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--site-border-soft); color: var(--site-muted); vertical-align: top; }
 .doc td:first-child { white-space: nowrap; }
 
-/* Hero (landing page) — the editorial statement: large and light (system Light weight),
- * tight leading, set close to the live demo so the panel rises toward the fold. */
-.hero { margin-block: 2px 26px; }
-.hero h1 {
-  font-size: clamp(2.4rem, 1.5rem + 3.4vw, 3.6rem); font-weight: 300; margin-bottom: 14px;
-  line-height: 1.1; letter-spacing: -0.025em; color: var(--site-h1-a);
-}
-.hero p { max-width: 52ch; font-size: 16px; }
-.hero-meta { display: flex; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+/* Landing pills: the build-measured size and the two promises, under the specimen. */
+.hero-meta { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
 .hero-pill {
-  font-size: 12.5px; color: var(--site-muted); border: 1px solid var(--site-border);
-  border-radius: 999px; padding: 4px 12px;
+  font-size: 12px; color: var(--site-muted); border: 1px solid var(--site-border);
+  border-radius: 999px; padding: 3px 10px;
   background: linear-gradient(180deg, var(--site-pill-a), var(--site-pill-b));
   box-shadow: inset 0 1px 0 var(--site-pill-edge);
 }
@@ -327,7 +328,7 @@ a { color: inherit; text-decoration: none; }
   display: flex; align-items: center; justify-content: center; padding: 8px;
   border-radius: 10px;
 }
-.ex-mount { flex: none; align-self: flex-start; } /* sizes to the panel's own 248px */
+.ex-mount { flex: none; align-self: flex-start; } /* sizes to the panel's own width (--tw-width, 256px by default) */
 .ex-live-solo { justify-content: center; }
 .ex-live-solo .ex-mount { align-self: center; } /* row: vertical centre · column: horizontal centre */
 .ex-live-markup { display: block; }
@@ -409,6 +410,24 @@ a { color: inherit; text-decoration: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ex-copy::after { transition: opacity var(--site-dur-fast) ease; transform: none; }
+}
+/* A folded code block (an example's foldCode): the snippet sits behind a quiet summary. */
+.ex-fold { margin: 14px 0; }
+.ex-fold > summary {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 13px; color: var(--site-muted); list-style: none;
+  transition: color var(--site-dur-fast) var(--site-ease-out);
+}
+.ex-fold > summary::-webkit-details-marker { display: none; }
+.ex-fold > summary::before {
+  content: ""; width: 6px; height: 6px; margin-top: -2px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform var(--site-dur-base) var(--site-ease-out);
+}
+.ex-fold[open] > summary::before { transform: rotate(45deg); }
+.ex-fold > summary:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .ex-fold > summary:hover { color: var(--site-text); }
 }
 .ex-note { font-size: 12.5px; color: var(--site-faint); margin-top: -6px; }
 /* A demo's own action button (the panel-API remotes) — neutral chrome on the --demo-* tokens. */
@@ -500,6 +519,11 @@ a { color: inherit; text-decoration: none; }
   body.nav-open::after { opacity: 1; }
 
   .doc { padding: 24px 18px 72px; }
+  /* A phone column can't hold a long code chip or a table's first column whole: let them
+   * wrap rather than push the page sideways. Each wrapped piece of a chip keeps its pill
+   * (box-decoration-break), so a broken chip still reads as one chip. */
+  .doc code { white-space: normal; overflow-wrap: break-word; -webkit-box-decoration-break: clone; box-decoration-break: clone; } /* break-word, not anywhere: anywhere shrinks a chip's min-content to one letter, so a table squeezed its first column and split `tweakit` mid-word */
+  .doc td:first-child { white-space: normal; }
   .ex { scroll-margin-top: 68px; }
   .ex-live { flex-direction: column; }
   /* Stacked, the stage's 18px padding is the whole vertical rhythm: demo and panel sit 18px

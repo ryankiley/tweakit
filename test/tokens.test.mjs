@@ -36,3 +36,13 @@ test("a bare [data-tw] host outside a panel gets the token scope; one inside a p
   assert.ok(!inner.classList.contains("tw-portal"));
   bare.remove(); panel.remove();
 });
+
+test("no token is defined in terms of itself", () => {
+  // `--x: var(--x)` is a cycle: the property computes to the guaranteed-invalid value, and
+  // every declaration that reads it (a swatch's `background: …, var(--x)`) drops to its
+  // initial value. The alpha checker went blank across the kit this way.
+  const cycles = [...css.matchAll(/(--tw-[\w-]+)\s*:([^;}]*)/g)]
+    .filter(([, name, value]) => new RegExp(`var\\(\\s*${name}\\s*[,)]`).test(value))
+    .map(([, name]) => name);
+  assert.deepEqual([...new Set(cycles)], []);
+});

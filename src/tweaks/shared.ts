@@ -38,7 +38,7 @@ interface Popover { open(): void; close(): void; isOpen(): boolean; reflow(): vo
 type ControlCtor<M = Meta, C = Control> = (meta: M, onChange?: OnChange) => C;
 
 // ── helpers ──
-const titleCase = (s: string) => s.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
+const titleCase = (s: string) => s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim(); // a word starts at a camel hump or where a capital opens a lowercase word ("fontSize" → "Font Size", "myURLParser" → "My URL Parser", "level2Up" → "Level2 Up"); a run of capitals stays whole ("XS", "2XL", "RGB")
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 // A colour-valued string: hex, or any CSS colour function (oklch/rgb/hsl/…). Used
 // to route a schema string to the colour control (a plain label stays a string).
@@ -249,9 +249,9 @@ const THEME_ALIASES: Record<string, string> = Object.assign(Object.create(null),
   // elevation
   shadow: "--tw-shadow-dropdown", shadowPanel: "--tw-shadow-panel", shadowPanelLifted: "--tw-shadow-panel-lifted",
   // type + shape
-  font: "--tw-font-sans", fontMono: "--tw-font-mono", radius: "--tw-radius", density: "--tw-row-height", // numeric → px
+  font: "--tw-font-sans", fontMono: "--tw-font-mono", radius: "--tw-radius", density: "--tw-row-height", width: "--tw-width", // numeric → px
 });
-const TW_PX_ALIASES = new Set(["radius", "density"]);
+const TW_PX_ALIASES = new Set(["radius", "density", "width"]);
 // On-accent text (the active segment pill / radio cell sits a label on the accent). Pick
 // black or white by the accent's WCAG relative luminance, whichever contrasts more — so a
 // bright accent (green, orange) stays legible where the panel's own light/dark text would

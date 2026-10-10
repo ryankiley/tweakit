@@ -90,71 +90,56 @@
       "ui": {}
     }
   ],
-  "index.mjs › showcase": [
+  "index.mjs › specimen": [
     {
       "values": {
-        "intensity": 0.65,
-        "accent": "oklch(60% 0.23 286)",
-        "shape": {
-          "range": [
-            20,
-            80
-          ],
-          "quality": "Med",
-          "origin": {
-            "x": 0,
-            "y": 0
-          }
-        },
-        "surface": {
+        "size": 48,
+        "weight": 300,
+        "tracking": -0.04,
+        "leading": 1,
+        "align": "left",
+        "fill": {
+          "mode": "ink",
+          "ink": "oklch(0% 0.00 0)",
           "ramp": {
             "stops": [
               {
-                "color": "oklch(0.72 0.19 25)",
+                "color": "oklch(0.78 0.19 30)",
                 "pos": 0
               },
               {
-                "color": "oklch(0.72 0.16 280)",
+                "color": "oklch(0.68 0.22 295)",
                 "pos": 1
               }
             ],
             "interpolation": "oklch",
             "easing": "linear"
           },
-          "lift": {
-            "inset": false,
-            "x": 0,
-            "y": 8,
-            "blur": 24,
-            "spread": 0,
-            "color": "oklch(0% 0.00 0 / 0.18)",
-            "css": "0px 8px 24px 0px oklch(0% 0.00 0 / 0.18)"
-          },
-          "radius": 12,
-          "tone": "accent"
+          "angle": 90
         },
-        "motion": {
-          "press": {
-            "mode": "spring",
-            "stiffness": 246.74011002723395,
-            "damping": 23.561944901923447,
-            "mass": 1,
-            "visualDuration": 0.4,
-            "bounce": 0.25,
-            "duration": 594,
-            "easing": "linear(0, 0.018, 0.064, 0.131, 0.21, 0.295, 0.383, 0.468, 0.55, 0.626, 0.695, 0.757, 0.811, 0.858, 0.897, 0.93, 0.956, 0.978, 0.994, 1.007, 1.016, 1.022, 1.026, 1.028, 1.028, 1.028, 1.026, 1.024, 1.022, 1.02, 1.017, 1.015, 1.013, 1.01, 1.008, 1.007, 1.005, 1.004, 1.003, 1.002, 1.001, 1.001, 1, 1, 1, 0.999, 0.999, 0.999)"
-          }
+        "shadow": {
+          "inset": false,
+          "x": 0,
+          "y": 6,
+          "blur": 20,
+          "spread": 0,
+          "color": "oklch(0% 0.00 0 / 0.14)",
+          "css": "0px 6px 20px 0px oklch(0% 0.00 0 / 0.14)"
         },
-        "monitor": {
-          "live": true
+        "bounce": {
+          "mode": "spring",
+          "stiffness": 109.6622711232151,
+          "damping": 10.471975511965978,
+          "mass": 1,
+          "visualDuration": 0.6,
+          "bounce": 0.5,
+          "duration": 1337,
+          "easing": "linear(0, 0.033, 0.119, 0.241, 0.382, 0.528, 0.67, 0.799, 0.911, 1.001, 1.071, 1.119, 1.149, 1.162, 1.161, 1.151, 1.134, 1.112, 1.088, 1.065, 1.042, 1.023, 1.006, 0.993, 0.984, 0.978, 0.974, 0.973, 0.974, 0.977, 0.98, 0.984, 0.988, 0.991, 0.995, 0.998, 1, 1.002, 1.003, 1.004, 1.004, 1.004, 1.004, 1.004, 1.003, 1.002, 1.002, 1.001, 1.001, 1, 1, 1, 0.999)"
         }
       },
       "ui": {
         "folders": {
-          "shape": false,
-          "surface": false,
-          "motion": false,
-          "monitor": false
+          "fill": false
         }
       }
     }
