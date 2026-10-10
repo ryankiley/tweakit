@@ -872,7 +872,8 @@
   .tw-folder-header:hover .tw-chevron { color: var(--tw-text-primary); }
 }
 /* Same optical pull as the select chevron: its 15px box carries 3.75px of side-bearing,
- * so the glyph's visible edge lands at the title's 2px inset rather than ~5.75px in. */
+ * so the glyph's visible edge lands 2px in from the edge rather than ~5.75px — a hair
+ * of air against the border, where the title sits flush. */
 /* The folder caret rides the body's own 0.35s --fold clock (not the shared 0.2s chevron
  * transition), so it rotates in lockstep with the fade instead of snapping ~0.15s ahead. */
 .tw-folder-header .tw-chevron { color: var(--tw-text-section); margin-right: -1.75px; transition: transform 0.35s var(--tw-ease-fold), color 0.15s; }
