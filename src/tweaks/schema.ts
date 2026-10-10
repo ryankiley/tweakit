@@ -177,8 +177,9 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
   // of top / right / bottom / left off whatever object it gets and fills the rest with 0.
   sides: (v) => ({ value: v.value ?? v, corners: !!v.corners, unit: unitOf(v.unit), step: v.step, min: v.min, max: v.max }),
   // A box-shadow: the fields off the top level, a nested `value: {…}`, or a `value` string
-  // in the strict grammar the control parses; the control fills the defaults.
-  shadow: (v) => ({ value: v.value ?? { inset: v.inset, x: v.x, y: v.y, blur: v.blur, spread: v.spread, color: v.color } }),
+  // in the strict grammar the control parses; the control reads its fields off whatever
+  // object it gets and fills the defaults.
+  shadow: (v) => ({ value: v.value ?? v }),
   image: (v) => ({ value: v.value || "" }),
   plot: (v) => {
     const expr = v.expr != null ? String(v.expr) : (typeof v.fn === "function" ? "" : "sin(x)");
@@ -288,7 +289,7 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
   interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
   sides: (d) => ({ value: d.value ?? d, corners: flag(d.corners), unit: d.unit, step: num(d.step), min: num(d.min), max: num(d.max) }), // data-value: "8px 16px"; or data-top / -right / -bottom / -left, which the control reads off the dataset itself (numeric strings parse)
-  shadow: (d) => ({ value: d.value ?? { inset: flag(d.inset), x: num(d.x), y: num(d.y), blur: num(d.blur), spread: num(d.spread), color: d.color } }), // data-value: a box-shadow string; or the fields as attributes
+  shadow: (d) => ({ value: d.value ?? { ...d, inset: flag(d.inset) } }), // data-value: a box-shadow string; or data-x / -y / -blur / -spread / -color, which the control reads as numeric strings
   spring: springData,
   motion: (d) => ({ ...springData(d), curve: d.curve && d.curve.includes(",") ? d.curve.split(",").map(Number) : d.curve, duration: num(d.duration) }), // the spring's keys and mode, plus data-curve (four numbers, or a CSS keyword) and data-duration
   cubicbezier: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined }),
