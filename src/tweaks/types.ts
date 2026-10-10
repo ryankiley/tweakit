@@ -3,7 +3,7 @@
  * the schema shorthands + the verbose control forms + the panel methods. */
 
 /** An option for a select / radio grid: a bare string, or `{ value, label }`. */
-export type Option = string | { value: string; label?: string };
+export type Option = string | { value: string; label?: string; color?: string }; // color: any CSS colour, shown as a swatch beside a dropdown option (and the chosen one on the row)
 
 /** A colour stop in a gradient. */
 export type GradientStop = { color: string; pos: number };

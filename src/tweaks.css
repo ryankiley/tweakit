@@ -591,7 +591,7 @@
 }
 .tw-select-dropdown.is-open { opacity: 1; transform: none; pointer-events: auto; }
 .tw-select-option {
-  display: block; width: 100%; padding: 8px 10px; font: inherit; font-size: 12px; font-weight: 500;
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; font: inherit; font-size: 12px; font-weight: 500;
   color: var(--tw-text-label); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px);
   cursor: pointer; text-align: left; transition: background 0.15s, color 0.15s;
 }
@@ -600,6 +600,8 @@
 }
 .tw-select-option:focus-visible { background: var(--tw-surface-hover); color: var(--tw-text-primary); outline: none; } /* keyboard focus reads as the hover highlight (roving focus in the listbox) */
 .tw-select-option[data-selected="true"] { color: var(--tw-text-primary); background: var(--tw-accent, var(--tw-surface-active)); }
+.tw-option-swatch { flex-shrink: 0; width: 12px; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--tw-border-hover); } /* an option's colour (basic.ts swatch()); painted over a checker so alpha reads */
+.tw-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Presets menu — a portaled toolbar menu to save / load / delete named value
  * snapshots (appears only when the panel is built with opts.persist). ── */
