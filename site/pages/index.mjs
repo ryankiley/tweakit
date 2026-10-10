@@ -28,7 +28,6 @@ export const examples = [
           <span class="hero-pill">{{size-split}} gzip code-split</span>
           <span class="hero-pill">TypeScript types included</span>
         </div>
-        <p class="sp-links"><a href="./getting-started.html">Get started</a><a href="./quick-tour.html">Every control, live</a><a href="https://github.com/ryankiley/tweakit" rel="noopener">GitHub</a><a href="https://www.npmjs.com/package/tweakit" rel="noopener">npm</a></p>
       </div>`,
     css: `
       #ex-specimen { margin-bottom: 0; }
@@ -44,8 +43,6 @@ export const examples = [
                       -webkit-background-clip: text; background-clip: text; }
       .doc .sp-about { max-width: 52ch; margin: 0; font-size: 16px; }
       .sp-stage .hero-meta { margin-top: 18px; }
-      .doc .sp-links { margin: 22px 0 0; font-size: 14px; }
-      .sp-links a + a { margin-left: 18px; }
       @media (max-width: 1000px) { #ex-specimen .ex-live { min-height: 0; gap: 36px; } }`,
     run: ({ tweaks, gradientCss, mount, target }) => {
       const text = target.querySelector(".sp-text");
