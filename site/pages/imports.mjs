@@ -57,7 +57,7 @@ export const examples = [
       <ul>
         <li><strong>color engine</strong>: <code>color</code>, and <code>gradient</code> and <code>shadow</code> (which build on it)</li>
         <li><strong>numeric field engine</strong>: <code>number</code> (the boxed fields of spring, point, cubicbezier, motion, shadow and the color channels reuse it)</li>
-        <li><strong>one module each</strong>: <code>interval</code>, <code>spring</code>, <code>cubicbezier</code>,
+        <li><strong>one module each</strong>: <code>interval</code>, <code>sides</code>, <code>spring</code>, <code>cubicbezier</code>,
           <code>point</code>, <code>plot</code>, <code>image</code>, <code>tabs</code></li>
         <li><strong>monitors</strong>: <code>monitor</code> and <code>fpsgraph</code> share a module</li>
         <li><strong>motion</strong>: <code>motion</code>, which also loads <code>spring</code> and <code>cubicbezier</code> (its two editors)</li>

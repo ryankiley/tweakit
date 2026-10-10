@@ -292,6 +292,27 @@
       "ui": {}
     }
   ],
+  "numbers.mjs › sides": [
+    {
+      "values": {
+        "pad": {
+          "top": 12,
+          "right": 20,
+          "bottom": 12,
+          "left": 20,
+          "css": "12px 20px"
+        },
+        "radius": {
+          "top": 16,
+          "right": 16,
+          "bottom": 16,
+          "left": 16,
+          "css": "16px"
+        }
+      },
+      "ui": {}
+    }
+  ],
   "numbers.mjs › point": [
     {
       "values": {

@@ -7,6 +7,7 @@ import "./heavy.js"; // registers the Number control
 import "./controls/colour.js";
 import "./controls/gradient.js";
 import "./controls/shadow.js";
+import "./controls/sides.js";
 import "./controls/interval.js";
 import "./controls/tabs.js";
 import "./controls/image.js";

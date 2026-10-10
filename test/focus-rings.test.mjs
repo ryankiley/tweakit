@@ -32,7 +32,7 @@ test("every focusable element in a panel with every control has a :focus-visible
     tint: "#ff0000", name: "hi", notes: { type: "text", value: "a\nb", rows: 3 }, span: { type: "interval", min: 0, max: 1 },
     spring: { type: "spring" }, curve: { type: "cubicbezier" }, move: { type: "motion" }, pos: { type: "point", components: [{ key: "x" }, { key: "y" }] },
     ramp: { type: "gradient" }, lift: { type: "shadow" }, wave: { type: "plot", expr: "x" }, fps: { type: "fpsgraph" }, mon: { type: "monitor", value: 1 },
-    pic: { type: "image" }, go: { type: "button", action() {} }, grp: { type: "buttongroup", buttons: { A() {}, B() {} } }, sep: { type: "separator" },
+    pic: { type: "image" }, pad: { type: "sides", value: [4, 8] }, go: { type: "button", action() {} }, grp: { type: "buttongroup", buttons: { A() {}, B() {} } }, sep: { type: "separator" },
     pages: { type: "tabs", pages: { One: { a: 1 }, Two: { b: 2 } } }, folder: { inner: 1 },
   }, { persist: true, filter: true, undo: true });
   document.body.append(p.el); await p.ready;
