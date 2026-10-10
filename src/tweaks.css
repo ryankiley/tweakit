@@ -792,6 +792,10 @@
  * works in both schemes). pointer-events:none so it never blocks the field; native
  * `resize: vertical` still does the drag where the platform supports it. */
 .tw-textarea::-webkit-resizer { background: transparent; }
+/* Text past the field's edges fades out over a line rather than cutting (basic.ts clip()). */
+.tw-textarea.is-clip-top { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px); mask-image: linear-gradient(to bottom, transparent, #000 14px); }
+.tw-textarea.is-clip-bottom { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); }
+.tw-textarea.is-clip-top.is-clip-bottom { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 14px), transparent); }
 .tw-row-multiline::after {
   content: ""; position: absolute; right: 8px; bottom: 8px; width: 11px; height: 11px;
   pointer-events: none; background-color: var(--tw-text-tertiary);

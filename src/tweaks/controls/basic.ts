@@ -399,8 +399,13 @@ function createString(meta: Meta, onChange: OnChange): Control {
   quietFocus(input); // click-to-type stays ringless; Tab rings
   if (meta.placeholder) input.placeholder = meta.placeholder;
   input.addEventListener("input", () => { value = input.value; onChange(value); });
+  // Long text clips softly: the edge with more text past it fades out instead of cutting
+  // (a mask, so the fade is the panel's own backdrop whatever the theme). Re-judged on
+  // scroll and input, and on every resize (the first observe covers the mount).
+  const clip = () => { const more = input.scrollHeight - input.clientHeight > 1; input.classList.toggle("is-clip-top", more && input.scrollTop > 1); input.classList.toggle("is-clip-bottom", more && input.scrollTop + input.clientHeight < input.scrollHeight - 1); };
+  if (multi) { input.addEventListener("scroll", clip); input.addEventListener("input", clip); if (typeof ResizeObserver === "function") new ResizeObserver(clip).observe(input); }
   row.append(txt("span", "tw-row-label", meta.label), input);
-  return { el: row, set: (v: unknown) => { value = str(v); input.value = value; }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
+  return { el: row, set: (v: unknown) => { value = str(v); input.value = value; if (multi) clip(); }, get: () => value }; // null/undefined → "", not the literal "undefined" the input renders for a raw assignment
 }
 
 // ── Folder — a collapsible titled group. Returns its inner
