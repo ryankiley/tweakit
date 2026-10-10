@@ -241,13 +241,15 @@ a { color: inherit; text-decoration: none; }
   padding: 44px 44px 96px;
 }
 
-/* A wide page (meta.wide — the landing's specimen stage) breaks the 780px column. The
- * reading column centres in the full viewport, which a wider one can't do without running
- * under the fixed sidebar, so it centres in the space right of the sidebar instead. */
+/* A wide page (meta.wide — the landing's specimen) starts at the same left edge as every
+ * other page's reading column, so the content keeps one relationship to the nav, and grows
+ * only to the right, up to 1480px. (Percentages here are of the layout's content box, the
+ * same box the reading column centres in.) Only beside the sidebar: in the drawer layout
+ * there's no nav column to line up with, so the page centres like the rest. */
+.doc.doc-wide { max-width: 1480px; }
 @media (min-width: 1001px) {
-  .layout:has(.doc-wide) { padding-left: 230px; }
+  .doc.doc-wide { margin-left: max(0px, (100% - 780px) / 2); margin-right: 0; }
 }
-.doc.doc-wide { max-width: 1180px; }
 
 /* No page-to-page transition — navigations are a plain instant load on every viewport.
  * (Cross-document View Transitions janked on mobile Safari; removed entirely.) */
@@ -411,23 +413,23 @@ a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .ex-copy::after { transition: opacity var(--site-dur-fast) ease; transform: none; }
 }
-/* A folded code block (an example's foldCode): the snippet sits behind a quiet summary. */
+/* A folded code block (an example's foldCode): a quiet toggle, and the body it opens. */
 .ex-fold { margin: 14px 0; }
-.ex-fold > summary {
-  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-  font-size: 13px; color: var(--site-muted); list-style: none;
+.ex-fold-body { scroll-margin-top: 24px; }
+.ex-fold-toggle {
+  display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: 13px; color: var(--site-muted); cursor: pointer;
   transition: color var(--site-dur-fast) var(--site-ease-out);
 }
-.ex-fold > summary::-webkit-details-marker { display: none; }
-.ex-fold > summary::before {
+.ex-fold-toggle::before {
   content: ""; width: 6px; height: 6px; margin-top: -2px;
   border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
   transform: rotate(-45deg); transition: transform var(--site-dur-base) var(--site-ease-out);
 }
-.ex-fold[open] > summary::before { transform: rotate(45deg); }
-.ex-fold > summary:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
+.ex-fold-toggle[aria-expanded="true"]::before { transform: rotate(45deg); }
+.ex-fold-toggle:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
 @media (hover: hover) and (pointer: fine) {
-  .ex-fold > summary:hover { color: var(--site-text); }
+  .ex-fold-toggle:hover { color: var(--site-text); }
 }
 .ex-note { font-size: 12.5px; color: var(--site-faint); margin-top: -6px; }
 /* A demo's own action button (the panel-API remotes) — neutral chrome on the --demo-* tokens. */
@@ -525,6 +527,7 @@ a { color: inherit; text-decoration: none; }
   .doc code { white-space: normal; overflow-wrap: break-word; -webkit-box-decoration-break: clone; box-decoration-break: clone; } /* break-word, not anywhere: anywhere shrinks a chip's min-content to one letter, so a table squeezed its first column and split `tweakit` mid-word */
   .doc td:first-child { white-space: normal; }
   .ex { scroll-margin-top: 68px; }
+  .ex-fold-body { scroll-margin-top: 68px; } /* clear of the sticky top bar */
   .ex-live { flex-direction: column; }
   /* Stacked, the stage's 18px padding is the whole vertical rhythm: demo and panel sit 18px
    * from its edges with the 20px flex gap between them. The target's own 14px vertical

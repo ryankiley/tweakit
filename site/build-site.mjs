@@ -23,7 +23,7 @@
  *     code    extra display-only snippet: string (js) or { lang: "js"|"html"|"css"|"sh", text }
  *     noCaption  suppress the mount/target caption (it auto-shows on a page's first run)
  *     noMount    omit the panel slot — for runs that build panels into the target/body
- *     foldCode   a summary string — the block's code folds under a <details> behind it
+ *     foldCode   a toggle label — the block's code folds away behind a button (needs id)
  */
 import { readFile, writeFile, cp } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -166,7 +166,11 @@ function renderExample(ex, ids, captioned) {
     code += codeBlock(c.lang === "html" ? highlightHTML(text) : c.lang === "js" ? highlightJS(text) : esc(text), c.lang);
   }
 
-  if (code && ex.foldCode) code = `<details class="ex-fold"><summary>${esc(ex.foldCode)}</summary>${code}</details>`;
+  // A fold is a toggle and a separate body (not one <details>), so a layout can set the toggle
+  // in one place and open the code in another; site.js wires the button to the body.
+  if (ex.foldCode && !ex.id) throw new Error(`example "${ex.title || "?"}": foldCode needs an id (the toggle points at its body by it)`);
+  // hidden="until-found": closed, but find-in-page still reaches the code and opens it.
+  if (code && ex.foldCode) code = `<div class="ex-fold"><button class="ex-fold-toggle" type="button" aria-expanded="false" aria-controls="fold-${ex.id}">${esc(ex.foldCode)}</button></div><div class="ex-fold-body" id="fold-${ex.id}" hidden="until-found">${code}</div>`;
 
   const note = captioned
     ? `<p class="ex-note"><code>mount</code> is the panel's slot inside the stage${ex.target != null ? "; <code>target</code> is the demo surface it controls" : ""}. In your own page you'd just <code>document.body.append(panel.el)</code>.</p>`

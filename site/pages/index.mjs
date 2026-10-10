@@ -1,4 +1,4 @@
-/* Landing page: the name, set large and editable, is the specimen; one panel beside it
+/* Landing page: the name, set large, is the specimen; one panel beside it
  * drives its type, fill, shadow and motion. The docs live on the other pages. */
 
 export const meta = {
@@ -19,7 +19,7 @@ export const examples = [
     foldCode: "The schema behind this pane",
     target: `
       <div class="sp-stage">
-        <h1 class="sp-text" contenteditable="plaintext-only" spellcheck="false">Tweakit</h1>
+        <h1 class="sp-text">Tweakit</h1>
         <p class="sp-about">A dependency-free, code-split, real-time <strong>parameter panel</strong>.
         Hand it a plain schema; it builds a live control for each value: sliders,
         color, curves, springs, and more.</p>
@@ -30,60 +30,84 @@ export const examples = [
         </div>
       </div>`,
     css: `
-      /* One grid for the whole example: the word, the copy and the folded schema stack in the
-       * left column, the pane spans the right. The schema's row takes the pane's spare height,
-       * so its summary sits right under the chips and the code opens down past the pane. */
-      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr;
-                     column-gap: 20px; margin: 6vh 0 0; }
+      /* One grid for the whole example. The pane spans the right; the word, the copy and the
+       * schema toggle sit between two equal flexible rows beside it. The schema itself opens in a
+       * full-width row under both, so opening it moves nothing above. */
+      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) minmax(256px, auto); /* the panel's default --tw-width, or a theme's wider one */
+                     grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr) auto; /* zero floor on the spacers, or they pad themselves from the pane */
+                     column-gap: clamp(40px, 6vw, 80px); margin: 0; }
       #ex-specimen .ex-live { display: contents; }
-      #ex-specimen .ex-target { grid-column: 1; grid-row: 1; min-height: 0; padding: 0; display: block; }
-      #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
-      #ex-specimen .ex-fold { grid-column: 1; grid-row: 2; align-self: start; margin: 26px 0 0; min-width: 0; }
+      #ex-specimen .ex-target { grid-column: 1; grid-row: 2; min-height: 0; padding: 0; display: block; container-type: inline-size; }
+      /* The pane's slot fills the first screen (less the column's 44px top padding and as much
+       * below); the run centres the pane in it once, so its top stays put when a folder closes.
+       * The stack's flexible rows span the same slot, so the stack centres there too. */
+      #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / 5; align-self: stretch; min-height: calc(100svh - 88px); }
+      #ex-specimen .ex-fold { grid-column: 1; grid-row: 3; margin: 26px 0 0; }
+      #ex-specimen .ex-fold-body { grid-column: 1 / -1; grid-row: 5; min-width: 0; }
+      #ex-specimen .ex-fold-body:not([hidden]) { margin-top: 32px; }
       .sp-stage { display: flex; flex-direction: column; width: 100%; }
-      .doc .sp-text { align-self: flex-start; max-width: 100%; min-width: 1ch; margin: 0 0 22px;
-                      outline: none; color: var(--demo-ink); caret-color: var(--demo-ink);
-                      font-family: system-ui, -apple-system, sans-serif;
+      .doc .sp-text { align-self: flex-start; max-width: 100%; line-height: 1; font-size: max(48px, 100cqi / 3.4); /* the run's start size, before it runs */
+                      /* the box is trimmed to the caps (below), and a gradient fill only paints inside the
+                       * box, so pad it back out over the ascenders and cancel the pad with margins */
+                      padding-block: 0.25em; margin: -0.25em 0 calc(30px - 0.25em);
+                      text-box: trim-both cap alphabetic; /* the box is the letters: the pane's top meets the cap line */
+                      color: var(--demo-ink);
+                      font-family: system-ui, -apple-system, sans-serif; font-weight: 300; letter-spacing: -0.04em;
                       text-wrap: balance; overflow-wrap: normal;
                       -webkit-background-clip: text; background-clip: text; transform-origin: 50% 100%; }
       .doc .sp-about { max-width: 52ch; margin: 0; font-size: 16px; }
       .sp-stage .hero-meta { margin-top: 16px; }
       @media (max-width: 1000px) {
-        #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 32px; margin-top: 8px; }
-        #ex-specimen .ex-mount { grid-column: 1; grid-row: 2; justify-self: center; }
-        #ex-specimen .ex-fold { grid-row: 3; margin: 0; }
+        #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 0; margin-top: 40px; } /* room for the hop under the top bar */
+        #ex-specimen .ex-target { grid-row: 1; }
+        #ex-specimen .ex-fold { grid-row: 2; margin: 22px 0 0; text-align: center; }
+        #ex-specimen .ex-mount { grid-column: 1; grid-row: 3; justify-self: center; margin-top: 32px; min-height: 0; padding-top: 0 !important; }
+        #ex-specimen .ex-fold-body { grid-row: 4; }
+        #ex-specimen .ex-fold-body:not([hidden]) { margin-top: 24px; }
+        .doc .sp-text { align-self: center; text-align: center; }
+        .doc .sp-about { margin-inline: auto; text-align: center; }
+        .sp-stage .hero-meta { justify-content: center; }
       }`,
     run: ({ tweaks, gradientCss, mount, target }) => {
       const text = target.querySelector(".sp-text");
-      const when = (mode) => (get) => get("mode") === mode;   // show a row for one fill mode
+      const when = (style) => (get) => get("style") === style;   // show a row for one fill style
+      const start = Math.max(48, Math.round(target.clientWidth / 3.4)); // most of the column
+      const pageColor = () => getComputedStyle(target).color;          // the page's text colour, per theme
+      text.style.fontSize = `${start}px`;                               // the CSS size below, pinned
       const panel = tweaks("Tweakit", {
-        size: { type: "slider", value: Math.max(48, Math.round(target.clientWidth / 5)), min: 16, max: 400, step: 1, unit: "px" }, // starts at a fifth of the stage
-        weight: [300, 100, 900, 10],
-        tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
-        leading: [1, 0.8, 1.8, 0.01],
-        align: { type: "segmented", options: ["left", "center", "right"], value: "left" },
+        text: {
+          size: { type: "slider", label: "Font size", value: start, min: 16, max: 480, step: 1, unit: "px" },
+          weight: [300, 100, 900, 10],
+          tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
+        },
         fill: {
-          mode: { type: "segmented", options: ["ink", "gradient"], value: "ink" },
-          ink: { type: "color", value: getComputedStyle(text).color || "#1b1b1b", render: when("ink") }, // the page's ink
-          ramp: { type: "gradient", stops: [["oklch(0.78 0.19 30)", 0], ["oklch(0.68 0.22 295)", 1]], render: when("gradient") },
+          style: { type: "segmented", options: ["solid", "gradient"], value: "solid" },
+          color: { type: "color", value: pageColor(), render: when("solid") },
+          gradient: { type: "gradient", stops: [["oklch(0.78 0.19 30)", 0], ["oklch(0.68 0.22 295)", 1]], render: when("gradient") },
           angle: { type: "slider", value: 90, min: 0, max: 360, step: 1, unit: "°", render: when("gradient") },
         },
-        shadow: { type: "shadow", y: 6, blur: 20, color: "rgb(0 0 0 / 0.14)" },
-        bounce: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word hops on it
+        effects: {
+          shadow: { type: "shadow", y: 6, blur: 20, color: "rgb(0 0 0 / 0.14)" },
+          bounce: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word hops on it
+        },
+        actions: {
+          play: { type: "button", label: "Bounce", action: () => hop() },
+        },
       });
       mount.append(panel.el);
 
-      const apply = ({ size, weight, tracking, leading, align, fill, shadow }) => {
-        const s = text.style, gradient = fill.mode === "gradient";
+      const apply = ({ text: { size, weight, tracking }, fill, effects: { shadow } }) => {
+        const s = text.style, gradient = fill.style === "gradient";
         s.fontSize = `${size}px`;
         s.fontWeight = weight;
         s.letterSpacing = `${tracking}em`;
-        const over = text.scrollWidth / text.clientWidth;  // a word never breaks: one too wide for the stage shrinks to fit
-        if (over > 1) s.fontSize = `${size / over}px`;
-        s.lineHeight = leading;
-        s.textAlign = align;
-        s.alignSelf = { left: "flex-start", center: "center", right: "flex-end" }[align];
-        s.backgroundImage = gradient && fill.ramp ? gradientCss(fill.ramp, fill.angle) : "none";
-        s.color = gradient ? "transparent" : fill.ink;
+        // a word never breaks: one too wide for its column shrinks to fit (a few passes, since
+        // glyph widths don't scale exactly with size)
+        for (let i = 0; i < 4 && text.scrollWidth > text.clientWidth; i++) {
+          s.fontSize = `${parseFloat(s.fontSize) * text.clientWidth / text.scrollWidth}px`;
+        }
+        s.backgroundImage = gradient && fill.gradient ? gradientCss(fill.gradient, fill.angle) : "none";
+        s.color = gradient ? "transparent" : fromPage.has(fill.color) ? "" : fill.color; // a colour from the page follows its theme
         // drop-shadow, not text-shadow: a text-shadow paints over the clipped gradient
         s.filter = shadow && !shadow.inset && (shadow.x || shadow.y || shadow.blur)   // a drop-shadow can't be inset
           ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur / 2}px ${shadow.color})`
@@ -91,31 +115,69 @@ export const examples = [
       };
       let hopping = false, again = false;                  // an edit mid-hop replays it after
       async function hop() {
-        if (!text.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        if (!text.animate) return;
+        if (matchMedia("(prefers-reduced-motion: reduce)").matches) {        // a fade, not a hop
+          text.animate([{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], { duration: 500, easing: "ease-in-out" });
+          return;
+        }
         if (hopping) { again = true; return; }
         hopping = true;
-        const { duration, easing } = panel.params.bounce;  // a spring resolves to linear(…)
-        // when the spring first reaches the ground: its first stop at or past 1 (the stops are evenly spaced)
-        const stops = easing.startsWith("linear(") ? easing.slice(7, -1).split(",").map(Number) : [];
-        const at = stops.findIndex((v) => v >= 1), hit = at > 0 ? at / (stops.length - 1) : 1;
-        await text.animate([                               // crouch, then spring up stretched
-          { translate: "0 0", scale: "1 1" },
-          { translate: "0 0", scale: "1.1 0.88", offset: 0.35 },
-          { translate: "0 -0.45em", scale: "0.92 1.1" },
-        ], { duration: 320, easing: "ease-out" }).finished;
-        text.animate([{ translate: "0 -0.45em" }, { translate: "0 0" }], { duration, easing });
-        await text.animate([                               // squash on landing, wobble back
-          { scale: "0.92 1.1" },
-          { scale: "1 1", offset: hit * 0.8 },
-          { scale: "1.14 0.84", offset: hit, easing: "cubic-bezier(0.3, 1.6, 0.5, 1)" },
-          { scale: "1 1" },
-        ], { duration }).finished;
-        hopping = false;
-        if (again) { again = false; hop(); }
+        try {
+          const { duration, easing } = panel.params.effects.bounce;  // a spring resolves to linear(…)
+          // when the spring first reaches the ground: its first stop at or past 1 (the stops are evenly spaced)
+          const stops = easing.startsWith("linear(") ? easing.slice(7, -1).split(",").map(Number) : [];
+          const at = stops.findIndex((v) => v >= 1), land = duration * (at > 0 ? at / (stops.length - 1) : 1);
+          // hop about half the word's height, but never up under the phone's sticky top bar (when
+          // it shows): the room runs from the cap line (the box is padded above it) to 9px under
+          // the bar, less the 10% stretch
+          const cs = getComputedStyle(text), box = text.getBoundingClientRect();
+          const bar = document.querySelector(".topbar"), barBottom = bar && bar.offsetHeight ? bar.getBoundingClientRect().bottom : -Infinity;
+          const room = box.top + parseFloat(cs.paddingTop) - (barBottom + 9) - box.height * 0.1;
+          const lift = Math.min(0.45 * parseFloat(cs.fontSize), Math.max(8, room));
+          const up = `0 -${lift}px`;
+          await text.animate([                             // crouch, then spring up stretched
+            { translate: "0 0", scale: "1 1" },
+            { translate: "0 0", scale: "1.1 0.88", offset: 0.35 },
+            { translate: up, scale: "0.92 1.1" },
+          ], { duration: 320, easing: "ease-out" }).finished;
+          const fall = text.animate([{ translate: up }, { translate: "0 0" }], { duration, easing });
+          const squash = land + 320;                       // squash at impact, then 320 ms to recover
+          await Promise.all([fall.finished, text.animate([
+            { scale: "0.92 1.1" },
+            { scale: "1 1", offset: (land * 0.8) / squash },
+            { scale: "1.14 0.84", offset: land / squash, easing: "cubic-bezier(0.3, 1.6, 0.5, 1)" },
+            { scale: "1 1" },
+          ], { duration: squash }).finished]);
+        } catch {} finally {                               // a cancelled run still frees the next one
+          hopping = false;
+          if (again) { again = false; hop(); }
+        }
       }
       panel.on((p, changed) => { apply(p); if (changed === "bounce") hop(); });
-      panel.ready.then(() => { apply(panel.params); hop(); });
-      window.addEventListener("resize", () => apply(panel.params));
+      // The pane at the slot's middle, on its fullest height: measured only while it sits open in
+      // the slot (not collapsed, not floated out), so a closed folder or a drag can't shift it.
+      let fullHeight = 0;
+      const centre = () => {
+        const inSlot = panel.el.parentElement === mount, open = panel.el.querySelector(".tw-header-toggle")?.getAttribute("aria-expanded") !== "false";
+        if (inSlot && open) fullHeight = Math.max(fullHeight, panel.el.offsetHeight);
+        mount.style.paddingTop = "0px";
+        mount.style.paddingTop = `${Math.max(0, (mount.clientHeight - fullHeight) / 2)}px`;
+      };
+      const fromPage = new Set();                                     // the page colours the panel has held
+      panel.ready.then(() => {                                        // the values exist from here
+        fromPage.add(panel.params.fill.color);
+        apply(panel.params); centre(); hop();
+        setTimeout(centre, 400);                                     // again once the folders finish opening
+        window.addEventListener("resize", () => { apply(panel.params); centre(); });
+        // the device theme flips: a colour still taken from the page moves to the new one;
+        // a colour you picked stays
+        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+          if (!fromPage.has(panel.params.fill.color)) return;
+          panel.set("fill.color", pageColor());
+          fromPage.add(panel.params.fill.color);
+          apply(panel.params);
+        });
+      });
     },
   },
 ];
