@@ -41,7 +41,11 @@ const NAV = [
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const href = (slug) => `./${slug}.html`;
 
-export async function buildSite({ outDir, esbuild, sizes }) {
+// `chunks` is every file of the code-split build (core + shared chunks + lazy controls):
+// a page that runs examples preloads them all, so the kit arrives in one round trip
+// instead of the four the import chain takes on its own (core → shared chunk → a lazy
+// control → its chunk) — the lazy path still runs for real, out of cache.
+export async function buildSite({ outDir, esbuild, sizes, chunks = [] }) {
   const shell = await readFile(path.join(HERE, "shell.html"), "utf8");
 
   for (const [file, loader] of [["site.css", "css"], ["site.js", "js"]]) {
@@ -64,7 +68,7 @@ export async function buildSite({ outDir, esbuild, sizes }) {
     // Build-measured bundle sizes (hyphenated tokens, so the shell's {{\w+}} pass leaves
     // them for here). A leaked token means buildSite was called without sizes — fail loud
     // rather than ship "{{size-split}}" to a reader.
-    let html = renderPage(shell, pages, i);
+    let html = renderPage(shell, pages, i, chunks);
     if (sizes) for (const [k, v] of Object.entries(sizes)) html = html.replaceAll(`{{size-${k}}}`, v);
     const leak = html.match(/\{\{size-[\w-]+\}\}/);
     if (leak) throw new Error(`pages/${pages[i].meta.slug}.mjs: unsubstituted ${leak[0]} — pass sizes to buildSite()`);
@@ -73,7 +77,7 @@ export async function buildSite({ outDir, esbuild, sizes }) {
   console.log(`site → ${pages.length} pages: ${pages.map((p) => p.meta.slug + ".html").join(", ")}`);
 }
 
-function renderPage(shell, pages, idx) {
+function renderPage(shell, pages, idx, chunks = []) {
   const page = pages[idx];
   const { meta } = page;
   const title = meta.slug === "index" ? meta.title : `${meta.title} · Tweakit`;
@@ -104,6 +108,7 @@ function renderPage(shell, pages, idx) {
     footnav: renderFootnav(pages, idx),
     script: renderScript(page),
   };
+  values.preload = values.script ? chunks.map((f) => `  <link rel="modulepreload" href="./tweaks/${f}" />`).join("\n") : ""; // only pages that run the kit
   return shell.replace(/\{\{(\w+)\}\}/g, (m, k) => (Object.hasOwn(values, k) ? values[k] : m));
 }
 
