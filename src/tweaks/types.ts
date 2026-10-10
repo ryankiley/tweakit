@@ -202,6 +202,10 @@ export interface Panel {
   fromJSON(state: PanelState): void;
   /** Re-theme the panel live; `null` reverts to the default. */
   setTheme(theme?: Theme | null): void;
+  /** Retitle the panel live — the header and the copy toast follow. The name it was built
+   *  with stays its storage key (`persist: true`), so saved values and presets keep their
+   *  home across a rename. */
+  setName(name: string): void;
   /** Save the current values as a named preset (needs `opts.persist`). */
   savePreset(name: string): boolean;
   /** Load a named preset. */

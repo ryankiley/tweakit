@@ -57,7 +57,8 @@ export const examples = [
     id: "editor",
     title: "Live retheming",
     prose: `<p><code>panel.setTheme(theme)</code> re-themes a mounted panel on the fly —
-      and <code>setTheme(null)</code> reverts to the default. Here one tweakit panel
+      and <code>setTheme(null)</code> reverts to the default. (<code>panel.setName(name)</code>
+      retitles one the same way; the name it was built with stays its storage key.) Here one tweakit panel
       themes another: the editor on the right drives the sample on the left.</p>`,
     target: `<div class="th-slot"></div>`,
     css: `
