@@ -20,7 +20,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   const preview = el("div", "tw-trigger-chip tw-point-preview");
   const previewDot = el("div", "tw-point-preview-dot");
   preview.append(previewDot);
-  right.append(valueEl, preview);
+  right.append(preview, valueEl); // preview first, as every chip row: the eye lands on the picture, then reads
 
   // ── Popover — the 2D pad over the component fields. Carries the colour popover's
   // class so it inherits its shell, tokens, and short-viewport scroll. ──
