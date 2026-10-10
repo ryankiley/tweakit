@@ -106,6 +106,33 @@
             "y": 0
           }
         },
+        "surface": {
+          "ramp": {
+            "stops": [
+              {
+                "color": "oklch(0.72 0.19 25)",
+                "pos": 0
+              },
+              {
+                "color": "oklch(0.72 0.16 280)",
+                "pos": 1
+              }
+            ],
+            "interpolation": "oklch",
+            "easing": "linear"
+          },
+          "lift": {
+            "inset": false,
+            "x": 0,
+            "y": 8,
+            "blur": 24,
+            "spread": 0,
+            "color": "oklch(0% 0.00 0 / 0.18)",
+            "css": "0px 8px 24px 0px oklch(0% 0.00 0 / 0.18)"
+          },
+          "radius": 12,
+          "tone": "accent"
+        },
         "motion": {
           "press": {
             "mode": "spring",
@@ -125,6 +152,7 @@
       "ui": {
         "folders": {
           "shape": false,
+          "surface": false,
           "motion": false,
           "monitor": false
         }
