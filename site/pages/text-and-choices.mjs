@@ -93,6 +93,38 @@ export const examples = [
     },
   },
   {
+    id: "swatches",
+    title: "Swatches in a list",
+    prose: `<p>An option can carry a <code>color</code>: it shows as a swatch beside the label in
+      the dropdown and, for the chosen option, on the row. The param stays the string you gave
+      it, so a token palette picks by name and your code applies whatever the name maps to.</p>`,
+    target: `<div class="sw-card">Neutral 10</div>`,
+    css: `
+      .sw-card { display: flex; align-items: center; justify-content: center; width: 200px; height: 120px; border-radius: 14px;
+                 font-size: 13px; font-weight: 500; border: 1px solid var(--demo-line); transition: background 0.15s, color 0.15s; }`,
+    run: ({ tweaks, mount, target }) => {
+      const card = target.querySelector(".sw-card");
+      const fills = { "neutral-10": "#f4f4f5", "neutral-90": "#18181b", accent: "#7C5CFF", warn: "#ff8a5b" };
+      const panel = tweaks("Tokens", {
+        fill: { value: "neutral-10", options: [
+          { value: "neutral-10", label: "Neutral 10", color: "#f4f4f5" },
+          { value: "neutral-90", label: "Neutral 90", color: "#18181b" },
+          { value: "accent",     label: "Accent",     color: "#7C5CFF" },
+          { value: "warn",       label: "Warn",       color: "#ff8a5b" },
+        ] },
+      });
+      mount.append(panel.el);
+
+      const apply = (p) => {
+        card.style.background = fills[p.fill];
+        card.style.color = p.fill === "neutral-10" ? "#222" : "#fff";
+        card.textContent = panel.el.querySelector(".tw-select-value").textContent;
+      };
+      panel.on(apply);
+      apply(panel.params);
+    },
+  },
+  {
     id: "radiogrid",
     title: "Radio grid",
     prose: `<p>A single-select laid out as buttons: <code>{ type: "radiogrid" }</code>

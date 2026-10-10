@@ -437,6 +437,14 @@
       "ui": {}
     }
   ],
+  "text-and-choices.mjs › swatches": [
+    {
+      "values": {
+        "fill": "neutral-10"
+      },
+      "ui": {}
+    }
+  ],
   "text-and-choices.mjs › radiogrid": [
     {
       "values": {
