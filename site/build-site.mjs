@@ -148,15 +148,6 @@ function renderExample(ex, ids, captioned) {
   }
   const heading = ex.title ? `<h2>${esc(ex.title)}</h2>` : "";
 
-  let live = "";
-  if (ex.run) {
-    const target = ex.target != null ? `<div class="ex-target">${ex.target}</div>` : "";
-    const mount = ex.noMount ? "" : `<div class="ex-mount"></div>`;
-    live = `<div class="ex-live${target ? "" : " ex-live-solo"}">${target}${mount}</div>`;
-  } else if (ex.html) {
-    live = `<div class="ex-live ex-live-markup"><div class="ex-target">${ex.html}</div></div>`;
-  }
-
   let code = "";
   if (ex.run) code = codeBlock(highlightJS(extractBody(ex.run)), "js");
   else if (ex.html) code = codeBlock(highlightHTML(dedent(ex.html).trim()), "html");
@@ -167,10 +158,27 @@ function renderExample(ex, ids, captioned) {
   }
 
   // A fold is a toggle and a separate body (not one <details>), so a layout can set the toggle
-  // in one place and open the code in another; site.js wires the button to the body.
+  // in one place and open the code in another; site.js wires the button to the body. In a run
+  // example the toggle sits inside the stage, between the demo and the panel, so the page's
+  // order (and so Tab's) matches a layout that shows it under the demo; the body follows the
+  // stage. hidden="until-found": closed, but find-in-page still reaches the code and opens it.
   if (ex.foldCode && !ex.id) throw new Error(`example "${ex.title || "?"}": foldCode needs an id (the toggle points at its body by it)`);
-  // hidden="until-found": closed, but find-in-page still reaches the code and opens it.
-  if (code && ex.foldCode) code = `<div class="ex-fold"><button class="ex-fold-toggle" type="button" aria-expanded="false" aria-controls="fold-${ex.id}">${esc(ex.foldCode)}</button></div><div class="ex-fold-body" id="fold-${ex.id}" hidden="until-found">${code}</div>`;
+  let toggle = "";
+  if (code && ex.foldCode) {
+    toggle = `<div class="ex-fold"><button class="ex-fold-toggle" type="button" aria-expanded="false" aria-controls="fold-${ex.id}">${esc(ex.foldCode)}</button></div>`;
+    code = `<div class="ex-fold-body" id="fold-${ex.id}" hidden="until-found">${code}</div>`;
+  }
+
+  let live = "";
+  if (ex.run) {
+    const target = ex.target != null ? `<div class="ex-target">${ex.target}</div>` : "";
+    const mount = ex.noMount ? "" : `<div class="ex-mount"></div>`;
+    live = `<div class="ex-live${target ? "" : " ex-live-solo"}">${target}${toggle}${mount}</div>`;
+    toggle = "";
+  } else if (ex.html) {
+    live = `<div class="ex-live ex-live-markup"><div class="ex-target">${ex.html}</div></div>`;
+  }
+  code = toggle + code;
 
   const note = captioned
     ? `<p class="ex-note"><code>mount</code> is the panel's slot inside the stage${ex.target != null ? "; <code>target</code> is the demo surface it controls" : ""}. In your own page you'd just <code>document.body.append(panel.el)</code>.</p>`
