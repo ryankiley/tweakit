@@ -96,9 +96,7 @@
         "text": {
           "size": 48,
           "weight": 300,
-          "tracking": -0.04,
-          "leading": 1,
-          "align": "left"
+          "tracking": -0.04
         },
         "fill": {
           "style": "solid",

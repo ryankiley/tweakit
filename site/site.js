@@ -32,15 +32,22 @@
     wrap.append(btn);
   });
 
-  // Folded code (an example's foldCode): the toggle shows or hides its body.
+  // Folded code (an example's foldCode): the toggle shows or hides its body. Closed is
+  // hidden="until-found", so find-in-page can still open it (beforematch keeps the toggle in
+  // step); a body that opens below the screen scrolls into view, or the click would look dead.
   document.querySelectorAll(".ex-fold-toggle").forEach((btn) => {
     const body = document.getElementById(btn.getAttribute("aria-controls"));
     if (!body) return;
+    const set = (open) => {
+      btn.setAttribute("aria-expanded", String(open));
+      if (open) body.removeAttribute("hidden"); else body.setAttribute("hidden", "until-found");
+    };
     btn.addEventListener("click", () => {
       const open = btn.getAttribute("aria-expanded") !== "true";
-      btn.setAttribute("aria-expanded", String(open));
-      body.hidden = !open;
+      set(open);
+      if (open && body.getBoundingClientRect().top > innerHeight - 120) body.scrollIntoView({ block: "start" });
     });
+    body.addEventListener("beforematch", () => set(true));
   });
 
   // Hover-revealed permalinks on anchored section headings.
