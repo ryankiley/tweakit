@@ -274,10 +274,10 @@ a { color: inherit; text-decoration: none; }
 .doc td:first-child { white-space: nowrap; }
 
 /* Landing pills: the build-measured size and the two promises, under the specimen. */
-.hero-meta { display: flex; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+.hero-meta { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
 .hero-pill {
-  font-size: 12.5px; color: var(--site-muted); border: 1px solid var(--site-border);
-  border-radius: 999px; padding: 4px 12px;
+  font-size: 12px; color: var(--site-muted); border: 1px solid var(--site-border);
+  border-radius: 999px; padding: 3px 10px;
   background: linear-gradient(180deg, var(--site-pill-a), var(--site-pill-b));
   box-shadow: inset 0 1px 0 var(--site-pill-edge);
 }

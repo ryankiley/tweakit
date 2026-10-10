@@ -30,48 +30,55 @@ export const examples = [
         </div>
       </div>`,
     css: `
-      #ex-specimen { margin-bottom: 0; }
-      #ex-specimen .ex-live { min-height: calc(100svh - 150px); margin: 0; padding: 0;
-                              border: none; background: none; box-shadow: none; }
-      #ex-specimen .ex-target { container-type: inline-size; padding: 0; }
-      #ex-specimen .ex-mount { align-self: center; }
+      /* One grid for the whole example: the word, the copy and the folded schema stack in the
+       * left column, the pane spans the right. The schema's row takes the pane's spare height,
+       * so its summary sits right under the chips and the code opens down past the pane. */
+      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr;
+                     column-gap: 20px; margin: 6vh 0 0; }
+      #ex-specimen .ex-live { display: contents; }
+      #ex-specimen .ex-target { grid-column: 1; grid-row: 1; min-height: 0; padding: 0; display: block; }
+      #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+      #ex-specimen .ex-fold { grid-column: 1; grid-row: 2; align-self: start; margin: 26px 0 0; min-width: 0; }
       .sp-stage { display: flex; flex-direction: column; width: 100%; }
       .doc .sp-text { align-self: flex-start; max-width: 100%; min-width: 1ch; margin: 0 0 22px;
                       outline: none; color: var(--demo-ink); caret-color: var(--demo-ink);
                       font-family: system-ui, -apple-system, sans-serif;
-                      text-wrap: balance; overflow-wrap: anywhere;
-                      -webkit-background-clip: text; background-clip: text; }
+                      text-wrap: balance; overflow-wrap: normal;
+                      -webkit-background-clip: text; background-clip: text; transform-origin: 50% 100%; }
       .doc .sp-about { max-width: 52ch; margin: 0; font-size: 16px; }
-      .sp-stage .hero-meta { margin-top: 18px; }
-      @media (max-width: 1000px) { #ex-specimen .ex-live { min-height: 0; gap: 36px; } }`,
+      .sp-stage .hero-meta { margin-top: 16px; }
+      @media (max-width: 1000px) {
+        #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 32px; margin-top: 8px; }
+        #ex-specimen .ex-mount { grid-column: 1; grid-row: 2; justify-self: center; }
+        #ex-specimen .ex-fold { grid-row: 3; margin: 0; }
+      }`,
     run: ({ tweaks, gradientCss, mount, target }) => {
       const text = target.querySelector(".sp-text");
       const when = (mode) => (get) => get("mode") === mode;   // show a row for one fill mode
       const panel = tweaks("Tweakit", {
-        size: { type: "slider", value: 20, min: 4, max: 30, step: 0.25, unit: "cqi" },
+        size: { type: "slider", value: Math.max(48, Math.round(target.clientWidth / 5)), min: 16, max: 400, step: 1, unit: "px" }, // starts at a fifth of the stage
         weight: [300, 100, 900, 10],
         tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
         leading: [1, 0.8, 1.8, 0.01],
         align: { type: "segmented", options: ["left", "center", "right"], value: "left" },
         fill: {
-          mode: { type: "segmented", options: ["ink", "gradient"], value: "gradient" },
-          ink: { type: "color", value: "#7C5CFF", render: when("ink") },
+          mode: { type: "segmented", options: ["ink", "gradient"], value: "ink" },
+          ink: { type: "color", value: getComputedStyle(text).color || "#1b1b1b", render: when("ink") }, // the page's ink
           ramp: { type: "gradient", stops: [["oklch(0.78 0.19 30)", 0], ["oklch(0.68 0.22 295)", 1]], render: when("gradient") },
           angle: { type: "slider", value: 90, min: 0, max: 360, step: 1, unit: "°", render: when("gradient") },
         },
-        shadow: { type: "shadow", y: 10, blur: 30, color: "rgb(124 92 255 / 0.35)" },
-        motion: { type: "motion", visualDuration: 0.5, bounce: 0.35 },
-        actions: {
-          bounce: { type: "button", label: "Bounce", action: () => bounce() },
-        },
+        shadow: { type: "shadow", y: 6, blur: 20, color: "rgb(0 0 0 / 0.14)" },
+        bounce: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word hops on it
       });
       mount.append(panel.el);
 
       const apply = ({ size, weight, tracking, leading, align, fill, shadow }) => {
         const s = text.style, gradient = fill.mode === "gradient";
-        s.fontSize = `${size}cqi`;
+        s.fontSize = `${size}px`;
         s.fontWeight = weight;
         s.letterSpacing = `${tracking}em`;
+        const over = text.scrollWidth / text.clientWidth;  // a word never breaks: one too wide for the stage shrinks to fit
+        if (over > 1) s.fontSize = `${size / over}px`;
         s.lineHeight = leading;
         s.textAlign = align;
         s.alignSelf = { left: "flex-start", center: "center", right: "flex-end" }[align];
@@ -82,12 +89,32 @@ export const examples = [
           ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur / 2}px ${shadow.color})`
           : "none";
       };
-      function bounce() {
-        const { duration, easing } = panel.params.motion;  // a spring resolves to linear(…)
-        text.animate([{ transform: "scale(0.9)" }, { transform: "none" }], { duration, easing });
+      let hopping = false, again = false;                  // an edit mid-hop replays it after
+      async function hop() {
+        if (!text.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        if (hopping) { again = true; return; }
+        hopping = true;
+        const { duration, easing } = panel.params.bounce;  // a spring resolves to linear(…)
+        // when the spring first reaches the ground: its first sample at or past 1
+        const hit = [...easing.matchAll(/([\d.]+) ([\d.]+)%/g)].find(([, v]) => v >= 1)?.[2] / 100 || 1;
+        await text.animate([                               // crouch, then spring up stretched
+          { translate: "0 0", scale: "1 1" },
+          { translate: "0 0", scale: "1.1 0.88", offset: 0.35 },
+          { translate: "0 -0.45em", scale: "0.92 1.1" },
+        ], { duration: 320, easing: "ease-out" }).finished;
+        text.animate([{ translate: "0 -0.45em" }, { translate: "0 0" }], { duration, easing });
+        await text.animate([                               // squash on landing, wobble back
+          { scale: "0.92 1.1" },
+          { scale: "1 1", offset: hit * 0.8 },
+          { scale: "1.14 0.84", offset: hit, easing: "cubic-bezier(0.3, 1.6, 0.5, 1)" },
+          { scale: "1 1" },
+        ], { duration }).finished;
+        hopping = false;
+        if (again) { again = false; hop(); }
       }
-      panel.on(apply);
-      panel.ready.then(() => apply(panel.params));
+      panel.on((p, changed) => { apply(p); if (changed === "bounce") hop(); });
+      panel.ready.then(() => { apply(panel.params); hop(); });
+      window.addEventListener("resize", () => apply(panel.params));
     },
   },
 ];
