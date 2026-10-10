@@ -37,7 +37,7 @@ export const examples = [
                      grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr) auto; /* zero floor on the spacers, or they pad themselves from the pane */
                      column-gap: clamp(40px, 6vw, 80px); margin: 0; }
       #ex-specimen .ex-live { display: contents; }
-      #ex-specimen .ex-target { grid-column: 1; grid-row: 2; min-height: 0; padding: 0; display: block; }
+      #ex-specimen .ex-target { grid-column: 1; grid-row: 2; min-height: 0; padding: 0; display: block; container-type: inline-size; }
       /* The pane's slot fills the first screen (less the column's 44px top padding and as much
        * below); the run centres the pane in it once, so its top stays put when a folder closes.
        * The stack's flexible rows span the same slot, so the stack centres there too. */
@@ -46,7 +46,7 @@ export const examples = [
       #ex-specimen .ex-fold-body { grid-column: 1 / -1; grid-row: 5; min-width: 0; }
       #ex-specimen .ex-fold-body:not([hidden]) { margin-top: 32px; }
       .sp-stage { display: flex; flex-direction: column; width: 100%; }
-      .doc .sp-text { align-self: flex-start; max-width: 100%; line-height: 1;
+      .doc .sp-text { align-self: flex-start; max-width: 100%; line-height: 1; font-size: max(48px, 100cqi / 3.4); /* the run's start size, before it runs */
                       /* the box is trimmed to the caps (below), and a gradient fill only paints inside the
                        * box, so pad it back out over the ascenders and cancel the pad with margins */
                       padding-block: 0.25em; margin: -0.25em 0 calc(30px - 0.25em);
@@ -73,7 +73,7 @@ export const examples = [
       const when = (style) => (get) => get("style") === style;   // show a row for one fill style
       const start = Math.max(48, Math.round(target.clientWidth / 3.4)); // most of the column
       const pageColor = () => getComputedStyle(target).color;          // the page's text colour, per theme
-      text.style.fontSize = `${start}px`;                               // sized now, not on ready: no jump
+      text.style.fontSize = `${start}px`;                               // the CSS size below, pinned
       const panel = tweaks("Tweakit", {
         text: {
           size: { type: "slider", label: "Font size", value: start, min: 16, max: 480, step: 1, unit: "px" },
@@ -115,7 +115,11 @@ export const examples = [
       };
       let hopping = false, again = false;                  // an edit mid-hop replays it after
       async function hop() {
-        if (!text.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        if (!text.animate) return;
+        if (matchMedia("(prefers-reduced-motion: reduce)").matches) {        // a fade, not a hop
+          text.animate([{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], { duration: 500, easing: "ease-in-out" });
+          return;
+        }
         if (hopping) { again = true; return; }
         hopping = true;
         try {
@@ -123,10 +127,12 @@ export const examples = [
           // when the spring first reaches the ground: its first stop at or past 1 (the stops are evenly spaced)
           const stops = easing.startsWith("linear(") ? easing.slice(7, -1).split(",").map(Number) : [];
           const at = stops.findIndex((v) => v >= 1), land = duration * (at > 0 ? at / (stops.length - 1) : 1);
-          // hop about half the word's height, but never up under the phone's top bar: the room is
-          // from the cap line (the box is padded above it) to 64px down, less the 10% stretch
+          // hop about half the word's height, but never up under the phone's sticky top bar (when
+          // it shows): the room runs from the cap line (the box is padded above it) to 9px under
+          // the bar, less the 10% stretch
           const cs = getComputedStyle(text), box = text.getBoundingClientRect();
-          const room = box.top + parseFloat(cs.paddingTop) - 64 - box.height * 0.1;
+          const bar = document.querySelector(".topbar"), barBottom = bar && bar.offsetHeight ? bar.getBoundingClientRect().bottom : -Infinity;
+          const room = box.top + parseFloat(cs.paddingTop) - (barBottom + 9) - box.height * 0.1;
           const lift = Math.min(0.45 * parseFloat(cs.fontSize), Math.max(8, room));
           const up = `0 -${lift}px`;
           await text.animate([                             // crouch, then spring up stretched
@@ -148,14 +154,20 @@ export const examples = [
         }
       }
       panel.on((p, changed) => { apply(p); if (changed === "bounce") hop(); });
-      const centre = () => {                                          // the pane at the slot's middle, set once
+      // The pane at the slot's middle, on its fullest height: measured only while it sits open in
+      // the slot (not collapsed, not floated out), so a closed folder or a drag can't shift it.
+      let fullHeight = 0;
+      const centre = () => {
+        const inSlot = panel.el.parentElement === mount, open = panel.el.querySelector(".tw-header-toggle")?.getAttribute("aria-expanded") !== "false";
+        if (inSlot && open) fullHeight = Math.max(fullHeight, panel.el.offsetHeight);
         mount.style.paddingTop = "0px";
-        mount.style.paddingTop = `${Math.max(0, (mount.clientHeight - panel.el.offsetHeight) / 2)}px`;
+        mount.style.paddingTop = `${Math.max(0, (mount.clientHeight - fullHeight) / 2)}px`;
       };
       const fromPage = new Set();                                     // the page colours the panel has held
       panel.ready.then(() => {                                        // the values exist from here
         fromPage.add(panel.params.fill.color);
         apply(panel.params); centre(); hop();
+        setTimeout(centre, 400);                                     // again once the folders finish opening
         window.addEventListener("resize", () => { apply(panel.params); centre(); });
         // the device theme flips: a colour still taken from the page moves to the new one;
         // a colour you picked stays
