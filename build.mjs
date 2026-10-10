@@ -143,6 +143,7 @@ console.log(`sizes (gzip): code-split ${sizes.split} (core + shared chunk) · si
 // example's run function is toString()-serialized into both the snippet and the page
 // script, so transpiling would break snippet/runtime parity).
 const { buildSite } = await import("./site/build-site.mjs");
-await buildSite({ outDir: p("dist"), esbuild, sizes });
+const chunks = Object.keys(splitBuild.metafile.outputs).filter((k) => k.endsWith(".js")).map((k) => path.basename(k)); // every split file, hashed names included — the pages preload them
+await buildSite({ outDir: p("dist"), esbuild, sizes, chunks });
 
 console.log("Built tweakit → dist/");
