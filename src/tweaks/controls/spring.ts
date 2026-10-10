@@ -1,7 +1,7 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/
 // bounce) mode, over one settle-curve preview. Lazy. ──
 import { el, txt, onReady, onLive, clamp, createSegmented, registerControl } from "../shared.js";
-import { dragGesture, numField, cssVar, accentColor } from "../heavy.js";
+import { dragGesture, numField, cssVar, accentColor, springCurve } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -15,21 +15,8 @@ interface SpringTime { visualDuration: number; bounce: number }
 /** What set() accepts: any subset of the physics, the time pair and an explicit mode. */
 type SpringValue = Partial<Phys & SpringTime & { mode: SpringMode }>;
 
-// Closed-form step response of a damped harmonic oscillator (under/critical/over). ──
-function springCurve(k: number, d: number, m: number, N = 64) {
-  const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m));
-  const T = Math.min(2.2, 9 / Math.max(z * w0, 0.5));
-  const out: number[] = [];
-  for (let i = 0; i < N; i++) {
-    const t = (i / (N - 1)) * T; let x: number;
-    if (z < 1 - 1e-4) { const wd = w0 * Math.sqrt(1 - z * z); x = 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t)); }
-    else if (z <= 1 + 1e-4) { x = 1 - Math.exp(-w0 * t) * (1 + w0 * t); }
-    else { const s = Math.sqrt(z * z - 1), a = w0 * (z + s), b = w0 * (z - s); x = 1 - (a * Math.exp(-b * t) - b * Math.exp(-a * t)) / (a - b); }
-    out.push(x);
-  }
-  return out;
-}
-
+// The settle curve itself (springCurve) lives in heavy.ts — the motion control draws and
+// samples it too.
 function createSpring(meta: Meta, onChange: OnChange): Control {
   // Clamp the config to the same floors the fields enforce (stiffness ≥1, damping ≥0.5,
   // mass ≥0.1), dropping non-finite values to the defaults — so a degenerate stiffness/

@@ -65,7 +65,7 @@ export const examples = [
       </table>
       <p>The <code>{ type }</code> forms unlock everything the shorthands can't say —
       the heavy controls (<a href="./color-and-gradient.html">gradient</a>,
-      <a href="./motion.html">spring, cubic-bézier, plot</a>,
+      <a href="./motion.html">motion, spring, cubic-bézier, plot</a>,
       <a href="./monitors.html">monitors</a>…) and per-control options.</p>`,
   },
   {
