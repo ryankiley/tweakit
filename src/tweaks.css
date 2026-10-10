@@ -207,10 +207,8 @@
 .tw-search, .tw-rename { display: none; flex: 1; min-width: 0; height: 24px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); outline: none; }
 .tw-search:focus, .tw-rename:focus { border-color: var(--tw-border-hover); }
 .tw-search::placeholder { color: var(--tw-text-tertiary); }
-.tw-panel.is-searching .tw-header-toggle { display: none; }
-.tw-panel.is-searching .tw-search { display: block; }
-.tw-panel.is-renaming .tw-header-toggle { display: none; }
-.tw-panel.is-renaming .tw-rename { display: block; }
+.tw-panel:is(.is-searching, .is-renaming) .tw-header-toggle { display: none; } /* either field takes the title's place */
+.tw-panel.is-searching .tw-search, .tw-panel.is-renaming .tw-rename { display: block; }
 .tw-filter-hidden { display: none !important; }
 
 /* Hint marker (ⓘ) — a control's `hint` shows here beside its label; hover/focus

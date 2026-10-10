@@ -360,14 +360,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (revealed) requestReflow();
     };
     const exitSearch = () => { panel.classList.remove("is-searching"); searchInput.value = ""; applyFilter(""); };
-    searchBtn.addEventListener("click", () => { if (searchBtn.disabled) return; if (panel.classList.toggle("is-searching")) { searchInput.focus(); searchInput.select(); } else exitSearch(); });
+    searchBtn.addEventListener("click", () => { if (searchBtn.disabled) return; renameInput?.blur(); if (panel.classList.toggle("is-searching")) { searchInput.focus(); searchInput.select(); } else exitSearch(); });
     searchInput.addEventListener("input", () => applyFilter(searchInput.value));
     searchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") { exitSearch(); searchBtn.focus(); } });
   }
   if (renameOn) {
     const stop = () => panel.classList.remove("is-renaming");
     const commit = () => { if (!panel.classList.contains("is-renaming")) return; stop(); const n = renameInput.value.trim(); if (n && n !== title) { setTitle(n); opts.onRename && opts.onRename(n); } }; // an empty field keeps the name
-    renameBtn.addEventListener("click", () => { if (renameBtn.disabled) return; panel.classList.add("is-renaming"); renameInput.value = title; renameInput.focus(); renameInput.select(); });
+    renameBtn.addEventListener("click", () => { if (renameBtn.disabled) return; if (panel.classList.contains("is-searching")) searchBtn!.click(); panel.classList.add("is-renaming"); renameInput.value = title; renameInput.focus(); renameInput.select(); }); // an open search closes first: the two fields share the title's slot
     renameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); renameBtn.focus(); } else if (e.key === "Escape") { e.preventDefault(); stop(); renameBtn.focus(); } });
     renameInput.addEventListener("blur", commit); // a click elsewhere commits too; after Enter / Escape the field is already away, so this is a no-op
   }

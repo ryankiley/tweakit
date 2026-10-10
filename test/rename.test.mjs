@@ -35,3 +35,12 @@ test("without the option there is no button; fromJSON restores a name; a fresh p
   const bare = tweaks("Bare", { a: 1 }, { rename: true, toolbar: false }); document.body.append(bare.el); await bare.ready;
   assert.equal(bare.el.querySelector(".tw-rename"), null, "no toolbar, no rename field"); bare.destroy();
 });
+
+test("search and rename share the title's slot: starting one ends the other", async () => {
+  const p = tweaks("Both", { a: 1 }, { rename: true, filter: true }); document.body.append(p.el); await p.ready;
+  const rename = p.el.querySelector('.tw-toolbar-btn[aria-label="Rename panel"]'), search = p.el.querySelector('.tw-toolbar-btn[aria-label="Filter controls"]'), input = p.el.querySelector(".tw-rename");
+  search.click(); assert.ok(p.el.classList.contains("is-searching"));
+  rename.click(); assert.ok(!p.el.classList.contains("is-searching"), "a rename closes the search"); assert.ok(p.el.classList.contains("is-renaming"));
+  input.value = "Named"; search.click(); assert.ok(!p.el.classList.contains("is-renaming"), "a search commits the rename"); assert.equal(p.el.querySelector(".tw-title").textContent, "Named");
+  p.destroy();
+});
