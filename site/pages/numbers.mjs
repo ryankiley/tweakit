@@ -21,7 +21,8 @@ export const examples = [
       Enter on the focused track (double-click or Alt+Backspace resets). With six or
       fewer stops the track snaps and shows rule
       lines. <code>soft: true</code> lets a typed or scripted value run past
-      <code>min</code>/<code>max</code>; dragging stays within them.</p>`,
+      <code>min</code>/<code>max</code>; dragging stays within them. <code>unit: "px"</code>
+      puts a unit after the readout; the param stays the bare number.</p>`,
     target: `<div class="num-tile"></div>`,
     css: `
       .num-tile { width: 132px; height: 132px; background: #7C5CFF;
@@ -31,7 +32,7 @@ export const examples = [
     run: ({ tweaks, mount, target }) => {
       const tile = target.querySelector(".num-tile");
       const panel = tweaks("Slider", {
-        radius: [16, 0, 66, 1],       // continuous: smooth square → circle
+        radius: { type: "slider", value: 16, min: 0, max: 66, step: 1, unit: "px" },   // continuous: smooth square → circle; reads "16 px"
         size: [4, 2, 6, 1],           // ≤6 stops: snaps, shows rule lines
       });
       mount.append(panel.el);
@@ -51,7 +52,7 @@ export const examples = [
       drag-to-scrub grab handle — for values where a track makes no sense. Drag the
       handle to scrub it, click the field to type. <code>min</code>/<code>max</code>
       clamp; omit them for unbounded, or add <code>soft: true</code> to keep the bounds
-      advisory rather than clamping.</p>`,
+      advisory rather than clamping. <code>unit</code> works here too.</p>`,
     target: `<div class="num-rotor"><div class="num-rotor-card">12°</div></div>`,
     css: `
       .num-rotor { display: grid; place-items: center; width: 200px; height: 200px; }
@@ -61,7 +62,7 @@ export const examples = [
     run: ({ tweaks, mount, target }) => {
       const card = target.querySelector(".num-rotor-card");
       const panel = tweaks("Number", {
-        angle: { type: "number", value: 12, min: -180, max: 180, step: 1 },
+        angle: { type: "number", value: 12, min: -180, max: 180, step: 1, unit: "°" },
       });
       mount.append(panel.el);
 

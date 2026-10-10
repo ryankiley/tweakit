@@ -97,8 +97,10 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     flds[key] = numField({ label: lab, value: phys[key], step, min: step }, (v) => { phys[key] = v; draw(); emit(); });
     physFields.append(flds[key].el);
   });
-  const durFld = numField({ label: "Duration", value: time.visualDuration, step: 0.05, min: DUR_MIN, max: DUR_MAX }, (v) => { time.visualDuration = clampDur(v); draw(); emit(); });
-  const bounceFld = numField({ label: "Bounce", value: time.bounce, step: 0.05, min: 0, max: 1 }, (v) => { time.bounce = clampBounce(v); draw(); emit(); });
+  // The field shows milliseconds (UI motion's unit — whole numbers, what CSS and design tools
+  // show); the value stays Motion's visualDuration in seconds.
+  const durFld = numField({ label: "Duration", value: time.visualDuration * 1000, step: 50, min: DUR_MIN * 1000, max: DUR_MAX * 1000, unit: "ms" }, (v) => { time.visualDuration = clampDur(v / 1000); draw(); emit(); });
+  const bounceFld = numField({ label: "Bounce", value: time.bounce * 100, step: 5, min: 0, max: 100, unit: "%" }, (v) => { time.bounce = clampBounce(v / 100); draw(); emit(); }); // shown as a percentage; the value stays Motion's 0–1
   timeFields.append(durFld.el, bounceFld.el);
 
   const showMode = () => { timeFields.style.display = mode === "time" ? "" : "none"; physFields.style.display = mode === "physics" ? "" : "none"; };
@@ -127,8 +129,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     // Set the field (which snaps to its own step grid + clamps), then read the snapped value
     // back — so the field readout, the emitted value, and the preview all agree on one number.
     if (mode === "time") {
-      durFld.set(DUR_MIN + px * (DUR_MAX - DUR_MIN)); time.visualDuration = durFld.get();
-      bounceFld.set(1 - py); time.bounce = bounceFld.get(); // top = bouncier
+      durFld.set((DUR_MIN + px * (DUR_MAX - DUR_MIN)) * 1000); time.visualDuration = durFld.get() / 1000;
+      bounceFld.set((1 - py) * 100); time.bounce = bounceFld.get() / 100; // top = bouncier
     } else {
       flds.stiffness.set(ST_MIN + px * (ST_MAX - ST_MIN)); phys.stiffness = flds.stiffness.get();
       flds.damping.set(DA_MIN + py * (DA_MAX - DA_MIN)); phys.damping = flds.damping.get(); // top = low damping
@@ -177,7 +179,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
       // spring rather than a stale earlier edit. The active emitted value still follows `mode`.
       if (hasPhys) phys = clampS({ ...phys, ...v });
       modeToggle.set(mode);
-      durFld.set(time.visualDuration); bounceFld.set(time.bounce);
+      durFld.set(time.visualDuration * 1000); bounceFld.set(time.bounce * 100);
       flds.stiffness.set(phys.stiffness); flds.damping.set(phys.damping); flds.mass.set(phys.mass);
       showMode(); draw();
     },

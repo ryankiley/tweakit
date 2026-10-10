@@ -39,6 +39,10 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   const handle = el("div", "tw-slider-handle");
   const labelEl = txt("span", "tw-slider-label", label);
   const valueEl = el("span", "tw-slider-value");
+  // The readout is a text node plus, with `unit`, a muted suffix ("24 px") — display only,
+  // the param stays the bare number. Persistent nodes: render() runs every drag frame.
+  const unit = typeof meta.unit === "string" ? meta.unit.trim() : "", numText = document.createTextNode("");
+  valueEl.append(numText); if (unit) valueEl.append(txt("span", "tw-slider-unit", " " + unit));
   track.append(hashes, fill, handle, labelEl, valueEl);
   wrap.append(track);
 
@@ -68,9 +72,9 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     fill.style.width = pull ? `calc(${edge})` : pct + "%";
     handle.style.left = `max(5px, calc(${edge} - 9px))`; // the inset hairline rides just inside the fill edge
     const qv = q(value), qvText = qv.toFixed(decimals); // q(value) is pure — compute once (render() runs every drag frame)
-    valueEl.textContent = qvText;
+    numText.data = qvText;
     track.setAttribute("aria-valuenow", String(qv));
-    track.setAttribute("aria-valuetext", qvText);
+    track.setAttribute("aria-valuetext", unit ? `${qvText} ${unit}` : qvText);
     // Value-dodge: the handle yields only while it actually overlaps the label (left) or
     // value (right) text — its real pixel span (it renders at pct% − 9px, 3px wide) tested
     // against each text's live-measured edge (overlapsText, shared with the interval), so it

@@ -153,9 +153,9 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   const root = el("div", spec.row ? "tw-row" : "tw-field");
   const wrap = el("div", "tw-num-wrap");
   const grab = el("span", "tw-num-grab", ICON_GRIP); grab.setAttribute("aria-hidden", "true"); grab.title = "Drag to adjust";
-  const inp = el("input", "tw-num"); inp.type = "text"; inp.inputMode = "decimal"; inp.setAttribute("aria-label", spec.label); inp.value = value.toFixed(decimals);
+  const inp = el("input", "tw-num"); inp.type = "text"; inp.inputMode = "decimal"; inp.setAttribute("aria-label", spec.unit ? `${spec.label} (${spec.unit})` : spec.label); inp.value = value.toFixed(decimals);
   quietFocus(inp); // click-to-edit stays ringless; Tab rings
-  wrap.append(grab, inp); root.append(txt("span", spec.row ? "tw-row-label" : "tw-field-label", spec.label), wrap);
+  wrap.append(grab, inp); if (spec.unit) wrap.append(txt("span", "tw-num-unit", spec.unit)); root.append(txt("span", spec.row ? "tw-row-label" : "tw-field-label", spec.label), wrap);
   const set = (val: number | string, fire = true) => { val = +val; if (!Number.isFinite(val)) return; value = fit(val); inp.value = value.toFixed(decimals); if (fire && onChange) onChange(value); };
   inp.addEventListener("change", () => { const p = parseFloat(inp.value); set(isNaN(p) ? value : p); });
   // Enter commits (blur → change). ↑/↓ step the value in place (⇧ = ×10), the keyboard

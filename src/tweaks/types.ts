@@ -42,8 +42,8 @@ export interface ControlOptions {
 
 /** The verbose object forms a schema value can take: `{ type: "…", … }`. */
 export type SchemaObject =
-  | { type: "slider"; value?: number; min?: number; max?: number; step?: number; soft?: boolean }
-  | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean }
+  | { type: "slider"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
+  | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
   | { type: "checkbox"; value?: boolean }
   | { type: "list"; options: Option[]; value?: string }
   | { type: "radiogrid" | "segmented"; options: Option[]; value?: string; cols?: number }
