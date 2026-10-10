@@ -1,4 +1,4 @@
-/* Text & choices — text, checkbox, list, radiogrid. */
+/* Text & choices: text, checkbox, list, radiogrid. */
 
 export const meta = {
   slug: "text-and-choices",
@@ -7,14 +7,14 @@ export const meta = {
 };
 
 export const intro = `
-<p>Strings, booleans and one-of-N choices. All four of these are built-in controls —
+<p>Strings, booleans and one-of-N choices. All four of these are built-in controls:
 they ship in the core bundle and are live the moment <code>tweaks()</code> returns.</p>`;
 
 export const examples = [
   {
     id: "text",
     title: "Text",
-    prose: `<p>A bare string is a text input. The verbose form adds
+    prose: `<p>A bare string is a text input (a color string becomes the picker). The verbose form adds
       <code>placeholder</code>, or <code>rows</code> to turn it into a textarea.</p>`,
     target: `<div class="txt-card"><h3>Synthesizers</h3><p>Voltage in, music out.</p></div>`,
     css: `
@@ -95,8 +95,8 @@ export const examples = [
   {
     id: "radiogrid",
     title: "Radio grid",
-    prose: `<p>A single-select laid out as buttons — <code>{ type: "radiogrid" }</code>
-      (alias <code>"segmented"</code>) with <code>cols</code> to shape the grid. Nine
+    prose: `<p>A single-select laid out as buttons: <code>{ type: "radiogrid" }</code>
+      (alias <code>"segmented"</code>) with <code>cols</code> (2 or 3) to shape the grid. Nine
       alignment options, three columns, and the value drops straight into
       <code>place-items</code>.</p>`,
     target: `<div class="rg-frame"><div class="rg-chip"></div></div>`,

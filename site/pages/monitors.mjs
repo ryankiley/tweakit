@@ -1,4 +1,4 @@
-/* Monitors — monitor (readout + sparkline) and fpsgraph. */
+/* Monitors: monitor (readout + sparkline) and fpsgraph. */
 
 export const meta = {
   slug: "monitors",
@@ -8,15 +8,15 @@ export const meta = {
 
 export const intro = `
 <p>Monitors flow the other way: instead of editing a value, they watch one. Hand them
-a <code>get</code> function and they poll it — numbers draw a scrolling graph by
-default; <code>graph: false</code> keeps a plain text readout.</p>`;
+a <code>get</code> function (or a static <code>value</code>) and they poll it. Numbers draw
+a scrolling graph by default; <code>graph: false</code> keeps a plain text readout.</p>`;
 
 export const examples = [
   {
     id: "monitor",
     title: "Monitor",
-    prose: `<p>Two monitors over the same signal — a noisy sine the page generates.
-      The graph form scrolls; the text form just re-reads. <code>min</code>/<code>max</code>
+    prose: `<p>Two monitors over the same signal, a noisy sine the page generates.
+      <code>min</code>/<code>max</code>
       frame the graph, <code>interval</code> sets the poll rate (ms),
       <code>decimals</code> trims the readout. <code>view: "graph"</code> or
       <code>"text"</code> forces one form whatever the value's type, and
@@ -34,7 +34,7 @@ export const examples = [
   {
     id: "fpsgraph",
     title: "FPS graph",
-    prose: `<p><code>{ type: "fpsgraph" }</code> measures the page's real frame rate —
+    prose: `<p><code>{ type: "fpsgraph" }</code> measures the page's real frame rate;
       no <code>get</code> needed. To prove it's honest, the slider spawns blurred,
       endlessly-spinning tiles. Push it up and watch the trace dip; pull it back and
       the frame rate recovers.</p>`,

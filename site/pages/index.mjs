@@ -1,8 +1,8 @@
-/* Landing page — hero + the kitchen-sink demo panel driving a live scene. */
+/* Landing page: hero + the kitchen-sink demo panel driving a live scene. */
 
 export const meta = {
   slug: "index",
-  title: "Tweakit — a dependency-free, real-time parameter panel",
+  title: "Tweakit: a dependency-free, real-time parameter panel",
   nav: "Overview",
   hero: true,
   description: "A dependency-free, code-split, real-time parameter panel. Hand it a plain schema and it builds a live control for each value.",
@@ -12,7 +12,7 @@ export const intro = `
 <div class="hero">
   <h1>Tweakit</h1>
   <p>A dependency-free, code-split, real-time <strong>parameter panel</strong>.
-  Hand it a plain schema; it builds a live control for each value — sliders,
+  Hand it a plain schema; it builds a live control for each value: sliders,
   color, curves, springs, and more.</p>
   <div class="hero-meta">
     <span class="hero-pill">No framework</span>
@@ -25,12 +25,11 @@ export const examples = [
   {
     id: "showcase",
     title: "Schema in, panel out",
-    prose: `<p>The panel below is built from the one schema object under it — nothing
+    prose: `<p>The panel below is built from the one schema object under it, nothing
       else. Shorthands infer controls from a value's shape (<code>[value, min, max,
       step]</code> → slider, <code>[[lo, hi], …]</code> → interval, <code>true</code> →
-      checkbox, a hex string → the wide-gamut color picker, a nested object → a
-      collapsible folder); the <code>{ type }</code> forms opt into everything the
-      shorthands can't say. Scrub the sliders, open the popovers, expand the folders,
+      checkbox, a color string → the wide-gamut color picker, a nested object → a
+      collapsible folder). Scrub the sliders, open the popovers, expand the folders,
       drag it around by the header.</p>`,
     noCaption: true,
     run: ({ tweaks, mount }) => {
@@ -40,7 +39,7 @@ export const examples = [
         shape: {                       // each nested object → a collapsible folder
           range: [[20, 80], 0, 100, 1],
           quality: { type: "segmented", options: ["Low", "Med", "High"], value: "Med" },
-          origin: { type: "point", pad: true, components: [
+          origin: { type: "point", components: [
             { key: "x", label: "X", value: 0, min: -1, max: 1, step: 0.01 },
             { key: "y", label: "Y", value: 0, min: -1, max: 1, step: 0.01 },
           ] },
@@ -59,8 +58,8 @@ export const examples = [
   {
     title: "Where next",
     prose: `<ul>
-      <li><a href="./getting-started.html">Getting started</a> — install, import, build your first panel.</li>
-      <li><a href="./quick-tour.html">Quick tour</a> — the schema shorthands in two minutes.</li>
+      <li><a href="./getting-started.html">Getting started</a>: install, import, build your first panel.</li>
+      <li><a href="./quick-tour.html">Quick tour</a>: the schema shorthands in two minutes.</li>
       <li>Every control, live: <a href="./numbers.html">numbers</a>,
         <a href="./text-and-choices.html">text &amp; choices</a>,
         <a href="./color-and-gradient.html">color &amp; gradient</a>,

@@ -1,4 +1,4 @@
-/* Theming — theme option, live setTheme editor, token reference, raw vars, recipes. */
+/* Theming: theme option, live setTheme editor, token reference, raw vars, recipes. */
 
 export const meta = {
   slug: "theming",
@@ -8,7 +8,7 @@ export const meta = {
 
 export const intro = `
 <p>The kit's entire appearance runs on <code>--tw-*</code> custom properties; a theme is
-just a bag of overrides. Every key is optional — a partial theme moves only what it
+just a bag of overrides. Every key is optional: a partial theme moves only what it
 names, and everything else keeps the default monochrome look.</p>`;
 
 export const examples = [
@@ -16,10 +16,10 @@ export const examples = [
     id: "scheme",
     title: "Light & dark",
     prose: `<p>The kit ships both looks. Dark is the default, and panels follow the OS
-      to light on their own (<code>prefers-color-scheme</code>) — like this whole site
+      to light on their own (<code>prefers-color-scheme</code>), like this whole site
       does. To pin a subtree, set <code>data-tw-scheme="light"</code> or
       <code>"dark"</code> on any ancestor: forcing beats the OS preference, and portaled
-      popovers carry the scheme with them. Flip the segmented control — the panel
+      popovers carry the scheme with them. Flip the segmented control and the panel
       themes itself, whatever your system is set to.</p>`,
     run: ({ tweaks, mount }) => {
       const panel = tweaks("Scheme", {
@@ -40,7 +40,7 @@ export const examples = [
     id: "construction",
     title: "Theme at construction",
     prose: `<p>Pass <code>{ theme }</code> as the third argument. Friendly names cover
-      the common moves — <code>accent</code> is the big one (the default look is
+      the common moves; <code>accent</code> is the big one (the default look is
       deliberately accentless).</p>`,
     run: ({ tweaks, mount }) => {
       const panel = tweaks("Accented", {
@@ -56,9 +56,8 @@ export const examples = [
   {
     id: "editor",
     title: "Live retheming",
-    prose: `<p><code>panel.setTheme(theme)</code> re-themes a mounted panel on the fly —
-      and <code>setTheme(null)</code> reverts to the default. (<code>panel.setName(name)</code>
-      retitles one the same way; the name it was built with stays its storage key.) Here one tweakit panel
+    prose: `<p><code>panel.setTheme(theme)</code> re-themes a mounted panel on the fly,
+      and <code>setTheme(null)</code> reverts to the default. Here one tweakit panel
       themes another: the editor on the right drives the sample on the left.</p>`,
     target: `<div class="th-slot"></div>`,
     css: `
@@ -96,7 +95,7 @@ export const examples = [
       <table>
         <tr><th>Token</th><th>Drives</th></tr>
         <tr><td><code>accent</code></td><td>slider fills, focus rings, active highlights</td></tr>
-        <tr><td><code>onAccent</code></td><td>text drawn on the accent (active segment, radio label) — derived from the accent's luminance when unset</td></tr>
+        <tr><td><code>onAccent</code></td><td>text drawn on the accent (active segment, radio label); derived from the accent's luminance when unset</td></tr>
         <tr><td><code>base</code></td><td>panel background, reused for recessed wells</td></tr>
         <tr><td><code>dropdownBg</code></td><td>popover / dropdown background</td></tr>
         <tr><td><code>surface</code>, <code>surfaceHover</code>, <code>surfaceActive</code></td><td>control surfaces and their interaction steps</td></tr>
@@ -108,14 +107,14 @@ export const examples = [
         <tr><td><code>shadow</code>, <code>shadowPanel</code>, <code>shadowPanelLifted</code></td><td>popover, panel and floating elevations</td></tr>
         <tr><td><code>font</code></td><td>font stack</td></tr>
         <tr><td><code>fontMono</code></td><td>monospace font stack</td></tr>
-        <tr><td><code>radius</code>, <code>density</code></td><td>corner radius and row height — numbers are px</td></tr>
+        <tr><td><code>radius</code>, <code>density</code></td><td>corner radius and row height; numbers are px</td></tr>
       </table>`,
   },
   {
     id: "raw",
     title: "The raw escape hatch",
     prose: `<p>Any raw <code>--tw-*</code> key passes straight through as a custom
-      property (unknown bare names are ignored) — and because the whole kit renders
+      property (unknown bare names are ignored). And because the whole kit renders
       from <code>--tw-*</code> variables, plain page CSS works too: set them on any
       ancestor and every panel inside inherits.</p>`,
     code: `
@@ -124,13 +123,13 @@ export const examples = [
         "--tw-ease-out": "ease-in-out",   // any raw token rides along
       } });
 
-      /* or, in plain CSS — no JS at all: */
+      /* or, in plain CSS, no JS at all: */
       .my-sidebar .tw-panel { --tw-accent: #39d353; --tw-radius: 4px; }`,
   },
   {
     id: "recipes",
     title: "Recipes",
-    prose: `<p>Three starting points beyond the default monochrome — each panel below is
+    prose: `<p>Three starting points beyond the default monochrome. Each panel below is
       live, built with the theme object printed underneath.</p>`,
     target: `<div class="th-gallery"></div>`,
     noMount: true,
