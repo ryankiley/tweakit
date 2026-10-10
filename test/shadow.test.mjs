@@ -81,3 +81,17 @@ test("review follow-up: a fractional length is emitted as the field fitted it, s
   assert.equal(p.params.s.css.startsWith("3px 7px 24px -1px "), true);
   p.destroy();
 });
+
+test("the colour is a row that discloses the picker; the row reads the picker's colour", async () => {
+  const p = tweaks("S", { lift: { type: "shadow", color: "#ff0000" } }); document.body.append(p.el); await p.ready;
+  const root = p.el.querySelector(".tw-shadow"), pop = root.querySelector(".tw-shadow-pop"), row = pop.querySelector(".tw-shadow-color"), body = pop.querySelector(".tw-color-body");
+  assert.ok(row && body, "a colour row and the picker body are in the pop");
+  assert.equal(body.hidden, true, "the picker starts disclosed away"); assert.equal(row.getAttribute("aria-expanded"), "false");
+  assert.ok(row.querySelector(".tw-color-swatch").compareDocumentPosition(row.querySelector(".tw-trigger-value")) & 4, "swatch before the readout");
+  assert.match(row.querySelector(".tw-trigger-value").textContent, /\S/, "the row shows a readout");
+  row.click(); assert.equal(body.hidden, false); assert.equal(row.getAttribute("aria-expanded"), "true");
+  const before = row.querySelector(".tw-trigger-value").textContent;
+  p.set("lift", { color: "#00ff00" }); assert.notEqual(row.querySelector(".tw-trigger-value").textContent, before, "set() repaints the row");
+  row.click(); assert.equal(body.hidden, true);
+  p.destroy();
+});
