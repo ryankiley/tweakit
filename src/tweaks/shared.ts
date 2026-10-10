@@ -309,9 +309,9 @@ const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => {
 // colour picker, the gradient editor, the select dropdown, and the presets menu.
 // It opens under its trigger (placeBelow, flipping up when it won't fit), carries
 // the host panel's theme onto the portaled node, and closes on outside-press /
-// Esc / scroll-away. Globally single-open — opening any popover closes whichever
-// other one is up. onOpen runs once it's placed at real size (then it re-places,
-// so content rendered in onOpen is measured); onReflow on scroll/resize while open.
+// Esc / the row scrolling out of view. Globally single-open — opening any popover
+// closes whichever other one is up. onOpen runs once it's placed at real size (then it
+// re-places, so content rendered in onOpen is measured); onReflow on resize while open.
 let activePopoverClose: null | (() => void) = null, activePopoverTrigger: HTMLElement | null = null;
 // Panel teardown closes the open popover — but only its own: with `owner` given, the
 // close runs only when the open popover's trigger lives inside it (destroying panel A
@@ -330,10 +330,21 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   // the panel's own pointerdown listener can't see them.
   pop.addEventListener("pointerdown", (e) => trigger.closest<PanelEl>(".tw-panel")?._twEditPointer?.(e), true);
   stopPointerLeak(pop); // on <body>, outside the panel's own pointer-stop
-  const place = () => placeBelow(trigger, pop, { width: opts.width, fallbackH: opts.fallbackH, gap: opts.gap, align: opts.align });
+  // place() picks the side and clamps into the viewport, then notes the pop's offset from
+  // its trigger; a scroll carries the pop along at that offset (follow), so it rides with
+  // its row instead of re-flipping and re-clamping its way off it as the row nears an edge.
+  // Once the row has left the viewport there is nothing to hang off: the pop closes.
+  let dx = 0, dy = 0;
+  const place = () => { placeBelow(trigger, pop, { width: opts.width, fallbackH: opts.fallbackH, gap: opts.gap, align: opts.align }); const r = trigger.getBoundingClientRect(); dx = parseFloat(pop.style.left) - r.left; dy = parseFloat(pop.style.top) - r.top; };
   // A reflow against a detached trigger would place off its zero-rect (the pop jumps to
   // the viewport corner) — if the host has unmounted the panel, close instead.
   const reflow = () => { if (open) { if (!root.isConnected) return close(); place(); opts.onReflow && opts.onReflow(); } };
+  const follow = () => {
+    if (!open) return; if (!root.isConnected) return close();
+    const r = trigger.getBoundingClientRect();
+    if (!(r.width || r.height) || r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth) return close(); // hidden, or scrolled out
+    pop.style.left = r.left + dx + "px"; pop.style.top = r.top + dy + "px";
+  };
   const onOutside = (e: PointerEvent) => { if (!root.contains(e.target as Node) && !pop.contains(e.target as Node)) close(); };
   const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && open) { close(); trigger.focus(); } };
   // Focus leaving both the pop and its trigger (Tab past the last field, Shift+Tab off
@@ -388,7 +399,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     // stopPointerLeak would otherwise swallow the event before it bubbles to document.
     setTimeout(() => { if (open) document.addEventListener("pointerdown", onOutside, true); }, 0); // skip the opening click; a same-tick close has already run its removal, so don't add behind it
     document.addEventListener("keydown", onKey); // Esc closes from anywhere while open, not only when focus is inside
-    window.addEventListener("scroll", reflow, true); window.addEventListener("resize", reflow);
+    window.addEventListener("scroll", follow, true); window.addEventListener("resize", reflow); // capture: inner scrollers (a host sidebar) scroll the row too
   };
   const close = () => {
     if (activePopoverClose === close) { activePopoverClose = null; activePopoverTrigger = null; }
@@ -397,7 +408,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (pop.contains(document.activeElement)) trigger.focus();
     open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); pop.inert = true; trigger.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
-    window.removeEventListener("scroll", reflow, true); window.removeEventListener("resize", reflow);
+    window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", reflow);
     window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; }
     setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
   };
