@@ -158,13 +158,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   }
   // Rename (opts.rename): a click on the title swaps it for a field; Enter or leaving the
   // field commits through setTitle (the storage key keeps the built-with name), Escape cancels.
-  const renameInput = renameOn ? el("input", "tw-rename") : null;
-  if (renameOn) { renameInput.type = "text"; renameInput.spellcheck = false; renameInput.setAttribute("aria-label", "Panel name"); quietFocus(renameInput); }
+  // The field hugs the name: a hidden mirror of the text sizes the grid cell the input fills
+  // (size 1, or the input's own 20-character intrinsic width would size the track instead).
+  const renameWrap = renameOn ? el("span", "tw-rename") : null, renameMirror = renameOn ? el("span", "tw-rename-mirror") : null, renameInput = renameOn ? el("input", "tw-rename-input") : null;
+  if (renameOn) { renameInput.type = "text"; renameInput.size = 1; renameInput.spellcheck = false; renameInput.setAttribute("aria-label", "Panel name"); quietFocus(renameInput); renameWrap.append(renameMirror, renameInput); renameInput.addEventListener("input", () => { renameMirror.textContent = renameInput.value; }); }
   toolbar.append(copyBtn, resetBtn);
   if (chevBtn) header.append(chevBtn);
   header.append(titleBtn);
   if (filterOn) header.append(searchInput);
-  if (renameOn) header.append(renameInput);
+  if (renameOn) header.append(renameWrap);
   if (opts.toolbar !== false) header.append(toolbar); // opts.toolbar:false → a bare panel (no copy/reset/presets), e.g. an embedded single-control demo
   // The buttons act on controls that only exist once assemble() has built them — until
   // then (the lazy-chunk window on the split build) they're honestly inert rather than
@@ -369,7 +371,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   if (renameOn) {
     const stop = () => panel.classList.remove("is-renaming");
     const commit = () => { if (!panel.classList.contains("is-renaming")) return; stop(); const n = renameInput.value.trim(); if (n && n !== title) { setTitle(n); opts.onRename && opts.onRename(n); } }; // an empty field keeps the name
-    titleBtn.addEventListener("click", () => { if (panel.classList.contains("is-searching")) searchBtn!.click(); panel.classList.add("is-renaming"); renameInput.value = title; renameInput.focus(); renameInput.select(); }); // an open search closes first: the two fields share the title's slot
+    titleBtn.addEventListener("click", () => { if (panel.classList.contains("is-searching")) searchBtn!.click(); panel.classList.add("is-renaming"); renameInput.value = title; renameMirror.textContent = title; renameInput.focus(); renameInput.select(); }); // an open search closes first: the two fields share the title's slot
     renameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); titleBtn.focus(); } else if (e.key === "Escape") { e.preventDefault(); stop(); titleBtn.focus(); } });
     renameInput.addEventListener("blur", commit); // a click elsewhere commits too; after Enter / Escape the field is already away, so this is a no-op
   }
