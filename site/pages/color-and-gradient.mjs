@@ -20,7 +20,11 @@ export const examples = [
     prose: `<p>Any hex or CSS color-function string is recognized as a shorthand — hex in, but the picker
       works in OKLCH and can emit <code>oklch()</code>, hex, <code>rgb()</code> or
       <code>hsl()</code> (switch the format inside the picker). P3-only colors survive
-      instead of clipping. The param is always a CSS-ready string.</p>`,
+      instead of clipping. The param is always a CSS-ready string.</p>
+      <p>Everything in the picker takes the keyboard: Tab to the plane and arrow it
+      (↑/↓ lightness, ←/→ chroma, ⇧ for ×10, Page Up/Down for ten lightness steps), the hue
+      and alpha strips are sliders (arrows, Home/End), and the channel fields type or
+      arrow-step.</p>`,
     target: `
       <div class="col-wrap">
         <svg class="col-blob" viewBox="0 0 200 200" width="170" height="170" aria-hidden="true">
