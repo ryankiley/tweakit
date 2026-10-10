@@ -151,7 +151,7 @@ export const examples = [
         color: { type: "color", value: "#7C5CFF",
                  render: (get) => get("glow"),          // hidden until glow is on
                  hint: "Only rendered while glow is on" },
-        strength: { type: "slider", value: 36, min: 0, max: 90,
+        strength: { type: "slider", value: 36, min: 0, max: 90, unit: "px",
                     disabled: (get) => !get("glow") },  // grayed out instead
       });
       mount.append(panel.el);

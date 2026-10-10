@@ -86,7 +86,7 @@ export const examples = [
       const panel = tweaks("Verbose", {
         opacity: { type: "slider", value: 1, min: 0, max: 1, step: 0.05,
                    hint: "Alpha blend of the tile" },
-        zoom: { type: "number", value: 100, min: 25, max: 400, step: 5 },
+        zoom: { type: "number", value: 100, min: 25, max: 400, step: 5, unit: "%" },
         fit: { type: "segmented", options: ["cover", "contain", "auto"] },
       });
       mount.append(panel.el);
