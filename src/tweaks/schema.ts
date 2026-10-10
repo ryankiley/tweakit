@@ -143,10 +143,11 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
     return { value };
   },
   cubicbezier: (v) => ({ value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
-  // Either mode's fields, off the top level or a nested `value: {…}`; the control infers
-  // the mode (spring keys → spring, a curve → easing) and fills the defaults.
+  // Either mode's fields, off the top level or a nested `value: {…}` — or `value` as a bare
+  // curve (a keyword or the four numbers), the shapes set() takes; the control infers the
+  // mode (spring keys → spring, a curve → easing) and fills the defaults.
   motion: (v) => {
-    const s = isObj(v.value) ? v.value : v, value: any = {};
+    const s = typeof v.value === "string" || Array.isArray(v.value) ? { ...v, curve: v.value } : isObj(v.value) ? v.value : v, value: any = {}; // the array test first: isObj is true of an array
     for (const k of ["mode", "curve", "duration", "stiffness", "damping", "mass", "visualDuration", "bounce"]) if (s[k] != null) value[k] = s[k];
     // Both sides get a default and the mode is pinned, so a reset (which re-applies this)
     // restores the editor you weren't looking at as well as the one you were.

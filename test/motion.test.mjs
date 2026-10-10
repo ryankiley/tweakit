@@ -143,3 +143,12 @@ test("review follow-ups: the preview keeps its direction and finishes a run on e
   window.HTMLElement.prototype.animate = function (frames, opts) { runs.push({ el: this, frames, ...opts }); return { cancel() {} }; };
   await close(p);
 });
+
+test("review follow-up: `value` as a bare keyword or 4-tuple is the curve on the schema path, as set() takes it", async () => {
+  const k = await mount({ t: { type: "motion", value: "ease-out", duration: 200 } });
+  assert.deepEqual(k.params.t, { mode: "easing", curve: [0, 0, 0.58, 1], duration: 200, easing: "cubic-bezier(0, 0, 0.58, 1)" });
+  k.destroy();
+  const a = await mount({ t: { type: "motion", value: [0.42, 0, 1, 1] } });
+  assert.deepEqual(a.params.t.curve, [0.42, 0, 1, 1]);
+  a.destroy();
+});
