@@ -64,12 +64,12 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   let selStop = stops[0];
   let easing = easingName(parseEase(meta.value)); // anything unrecognised reads as linear, as the CSS helper treats it
 
-  // ── Trigger row — a gradient preview + stop count that opens the editor (the
-  // shared modal-trigger row the colour control uses). ──
+  // ── Trigger row — a wide gradient preview that opens the editor (the shared
+  // modal-trigger row the colour control uses). The strip is the readout; the stop
+  // count rides along for the accessibility tree only. ──
   const { root, trigger, right } = triggerRow("tw-gradient", meta.label ?? "Gradient"); // ??: an explicit "" label renders none
-  const countEl = el("span", "tw-gradient-count");
-  const preview = el("span", "tw-trigger-chip tw-gradient-preview");
-  right.append(countEl, preview);
+  const preview = el("span", "tw-trigger-chip tw-gradient-preview"); preview.setAttribute("role", "img");
+  right.append(preview);
 
   // ── Editor popover — the stop bar (+ add) over the reused picker body. Carries the
   // colour popover's class so it inherits its tokens, shell, and short-viewport scroll. ──
@@ -92,7 +92,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   // The bar and the trigger preview draw gradientCss(value()) — the exported helper, fed
   // the emitted value — so the editor can't show a ramp a host templating through it won't get.
   const paint = () => { const css = gradientCss(value()); grad.style.background = css; preview.style.background = `${css}, ${CHECKER}`; };
-  const reflectCount = () => { countEl.textContent = `${stops.length} stop${stops.length === 1 ? "" : "s"}`; };
+  const reflectCount = () => { preview.setAttribute("aria-label", `${stops.length} stop${stops.length === 1 ? "" : "s"}`); };
   const emit = () => onChange(value());
 
   const handleFor = (s: GradientStop) => [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s); // the rail holds only stop handles

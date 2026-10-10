@@ -737,8 +737,7 @@
 /* ── Gradient — a trigger row (stop count + a wide preview chip; the checker shows
  * through any alpha stops) that opens a stop-bar + picker-body editor in a popover. ── */
 .tw-gradient { position: relative; }
-.tw-gradient-count { font-family: var(--tw-font-sans); font-size: 11px; font-weight: 500; color: var(--tw-text-tertiary); flex-shrink: 0; }
-.tw-gradient-preview { width: 48px; background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
+.tw-gradient-preview { width: 72px; background: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; }
 /* The wide chip scales gentler than the square ones — 1.14 on 48px reads as a lurch. */
 .is-open > .tw-trigger .tw-gradient-preview { transform: scale(1.07); }
 @media (hover: hover) and (pointer: fine) {
