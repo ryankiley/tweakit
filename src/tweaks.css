@@ -944,7 +944,7 @@
 .tw-sides.is-linked .tw-sides-multi, .tw-sides:not(.is-linked) > .tw-row { display: none; }
 .tw-sides-multi { display: flex; flex-direction: column; gap: 6px; padding: 6px 10px 10px 12px; background: var(--tw-surface); border-radius: var(--tw-radius); }
 .tw-sides-head { display: flex; align-items: center; gap: 8px; min-height: 20px; }
-.tw-sides-multi .tw-fields { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } /* 2×2 (T R / B L, or TL TR / BR BL): four across the 228px row left one digit showing */
+.tw-sides-multi .tw-fields, .tw-fields.tw-shadow-fields { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } /* 2×2 (T R / B L, TL TR / BR BL, or the shadow's X Y / Blur Spread): four across the row left one digit showing */
 .tw-sides-sum { margin-left: auto; font-family: var(--tw-font-sans); font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); word-spacing: 0.1em; }
 /* The motion control: a mini-curve chip on the row; in the popover, the Easing | Spring
  * switch, a preview switch that runs the motion (heavy.ts-driven Web Animations), and

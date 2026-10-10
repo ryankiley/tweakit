@@ -50,7 +50,7 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const stage = el("div", "tw-shadow-stage"), card = el("div", "tw-shadow-card"); stage.append(card);
   const insetSeg = createSegmented([{ value: "outer", label: "Outer" }, { value: "inner", label: "Inner" }], inset ? "inner" : "outer", (m: unknown) => { if ((m === "inner") !== inset) { inset = m === "inner"; update(); emit(); } }, "Shadow position");
   const insetRow = el("div", "tw-row"); insetRow.append(txt("span", "tw-row-label", "Position"), insetSeg.el);
-  const fields = el("div", "tw-fields");
+  const fields = el("div", "tw-fields tw-shadow-fields");
   const field = (label: string, get: () => number, put: (v: number) => void, min?: number): NumField => { const f = numField({ label, value: get(), step: 1, min, unit: "px" }, (v) => { put(v); update(); emit(); }); fields.append(f.el); return f; };
   const fx = field("X", () => x, (v) => { x = v; }), fy = field("Y", () => y, (v) => { y = v; });
   const fb = field("Blur", () => blur, (v) => { blur = Math.max(0, v); }, 0), fs = field("Spread", () => spread, (v) => { spread = v; });

@@ -95,3 +95,23 @@ test("the colour is a row that discloses the picker; the row reads the picker's 
   row.click(); assert.equal(body.hidden, true);
   p.destroy();
 });
+
+test("the four length fields sit two by two (X Y / Blur Spread), not four across the popover", async () => {
+  const p = await mount({ s: { type: "shadow" } });
+  const fields = document.querySelector(".tw-shadow-pop .tw-shadow-fields");
+  assert.ok(fields, "the shadow's field row carries its own class");
+  assert.deepEqual([...fields.querySelectorAll(".tw-field-label")].map((l) => l.textContent), ["X", "Y", "Blur", "Spread"]);
+  // It has to win the cascade, not just exist: the generic .tw-fields rule (four across) comes
+  // later in the sheet, so the 2×2 rule needs more classes than it, or a later place. (jsdom's
+  // getComputedStyle doesn't settle this the way a browser does, so the test reasons it out.)
+  const { readFile } = await import("node:fs/promises");
+  const css = (await readFile(new URL("../dist/tweaks.css", import.meta.url), "utf8")).replace(/@media[^{]*\{([^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, sel, body], i) => ({ i, sels: sel.split(",").map((x) => x.trim()), body }));
+  const classes = (sel) => (sel.match(/\.[\w-]+/g) || []).length;
+  const flow = (want) => rules.flatMap((r) => r.sels.filter((sel) => r.body.includes(`grid-auto-flow:${want}`) && fields.matches(sel)).map((sel) => ({ i: r.i, n: classes(sel) })));
+  const grid = flow("row"), four = flow("column");
+  assert.ok(grid.length && four.length, "both rules match the field row");
+  const beats = (a, b) => a.n > b.n || (a.n === b.n && a.i > b.i);
+  assert.ok(four.every((f) => grid.some((g) => beats(g, f))), "the 2×2 rule outranks the four-across one");
+  p.destroy();
+});
