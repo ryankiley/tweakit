@@ -905,6 +905,14 @@
 /* ── Spring config — settle-curve preview + stiffness/damping/mass. Lightweight
  * containment (cf. Cubic bezier): no outer card — the preview is the only surface,
  * with the mode toggle + fields sitting bare beneath it. ── */
+/* The shadow control: a chip with the shadow on a small tile (scaled down); in the popover,
+ * a preview card, the position switch, the four lengths and the picker body (shadow.ts). */
+.tw-shadow-chip { display: flex; align-items: center; justify-content: center; width: 26px; background: var(--tw-base); overflow: hidden; }
+.tw-shadow-chip-tile { width: 12px; height: 8px; border-radius: 2px; background: var(--tw-dropdown-bg); }
+.tw-shadow-stage { display: flex; align-items: center; justify-content: center; height: 84px; border-radius: var(--tw-radius); background: var(--tw-base); overflow: hidden; }
+.tw-shadow-card { width: 64px; height: 40px; border-radius: 9px; background: var(--tw-dropdown-bg); }
+.tw-shadow-pop { width: 260px; }
+.tw-shadow-pop .tw-color-body { margin-top: 2px; }
 /* The motion control: a mini-curve chip on the row; in the popover, the Easing | Spring
  * switch, a preview switch that runs the motion (heavy.ts-driven Web Animations), and
  * one editor at a time. */

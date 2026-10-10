@@ -33,6 +33,22 @@
       "ui": {}
     }
   ],
+  "color-and-gradient.mjs › shadow": [
+    {
+      "values": {
+        "lift": {
+          "inset": false,
+          "x": 0,
+          "y": 12,
+          "blur": 32,
+          "spread": -4,
+          "color": "oklch(60% 0.23 286 / 0.35)",
+          "css": "0px 12px 32px -4px oklch(60% 0.23 286 / 0.35)"
+        }
+      },
+      "ui": {}
+    }
+  ],
   "color-and-gradient.mjs › image": [
     {
       "values": {

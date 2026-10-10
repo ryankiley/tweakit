@@ -27,6 +27,7 @@ const FIXTURES = {
   interval: { type: "interval", min: 0, max: 1 },
   spring: { type: "spring" },
   cubicbezier: { type: "cubicbezier" },
+  shadow: { type: "shadow" },
   motion: { type: "motion" },
   point: { type: "point", components: [{ key: "x" }, { key: "y" }] },
   gradient: { type: "gradient" },
