@@ -135,8 +135,10 @@ export const examples = [
     target: `<div class="th-gallery"></div>`,
     noMount: true,
     css: `
-      .th-gallery { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; width: 100%; }
-      .th-recipe { width: 230px; flex: none; }`,
+      .th-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 16px; align-items: start; width: 100%; max-width: 800px; }   /* up to three default-width panels */
+      .th-recipe { justify-self: center; width: 100%; max-width: 256px; }
+      .th-recipe .tw-panel { --tw-width: 100%; }   /* each fills its column, up to the default width: three across when they fit */`,
     run: ({ tweaks, target }) => {
       const gallery = target.querySelector(".th-gallery");
       // Dark-base recipes carry a full light text-tone set, so titles / labels / toolbar
