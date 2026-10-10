@@ -29,3 +29,13 @@ test("a hostile colour string neither throws nor leaks into the label", async ()
   assert.equal(options[1].querySelector(".tw-option-swatch"), null, "a non-string colour is ignored");
   p.destroy();
 });
+
+test("review follow-up: a colour is one token; a string that would splice layers into the background is dropped, a var() is kept", async () => {
+  const p = tweaks("S", { tone: { options: [{ value: "a", color: "red), url(https://x/p.png), linear-gradient(red" }, { value: "b", color: "var(--accent)" }, { value: "c", color: " color(display-p3 1 0 0) " }, { value: "d", color: "rgb(1 2 3) rgb(4 5 6)" }], value: "a" } });
+  document.body.append(p.el); await p.ready;
+  const [a, b, c, d] = [...p.el.querySelectorAll(".tw-select-option")].map((o) => o.querySelector(".tw-option-swatch"));
+  assert.equal(a, null, "a spliced string gets no swatch"); assert.equal(p.el.querySelector(".tw-select-right .tw-option-swatch").style.display, "none", "and none on the row");
+  assert.ok(b && c, "var() and a trimmed color() are one token each"); assert.equal(d, null, "two tokens are not a colour");
+  assert.doesNotMatch(p.el.innerHTML, /url\(https:\/\/x/, "the string never reaches a style attribute");
+  p.destroy();
+});

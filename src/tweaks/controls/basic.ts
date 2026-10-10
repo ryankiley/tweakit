@@ -309,10 +309,13 @@ function createRadiogrid(meta: Meta, onChange: OnChange): Control {
 }
 
 // ── Select ──
+// An option's colour, as the swatch accepts it: a hex, a named colour, one colour function or a
+// var() — no nesting, so a `color(display-p3 …)` is one token and a `)` can't close it early.
+const COLOR_TOKEN = /^(?:#[0-9a-f]{3,8}|[a-z]+|(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch|color|var)\([^()]*\))$/i;
 const CHEVRON = chevronIcon("tw-select-chevron"); // the shared chevron shape, in the select's own class
 function createSelect(meta: Meta, onChange: OnChange): Control {
   let value = meta.value;
-  const opts = meta.options.map((o) => ({ value: optValue(o), label: optLabel(o), color: o && typeof o === "object" && typeof o.color === "string" ? o.color : "" }));
+  const opts = meta.options.map((o) => ({ value: optValue(o), label: optLabel(o), color: o && typeof o === "object" && typeof o.color === "string" && COLOR_TOKEN.test(o.color.trim()) ? o.color.trim() : "" })); // one colour token only: the string lands in a background shorthand, where a stray ")" could splice in a url()
   const root = el("div", "tw-select");
   const trigger = btn("tw-select-trigger"); trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
   const right = el("span", "tw-select-right");
