@@ -40,7 +40,8 @@ export const examples = [
       #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
       #ex-specimen .ex-fold { grid-column: 1; grid-row: 2; align-self: start; margin: 26px 0 0; min-width: 0; }
       .sp-stage { display: flex; flex-direction: column; width: 100%; }
-      .doc .sp-text { align-self: flex-start; max-width: 100%; min-width: 1ch; margin: 0 0 22px;
+      .doc .sp-text { align-self: flex-start; max-width: 100%; min-width: 1ch; margin: 0 0 30px;
+                      text-box: trim-both cap alphabetic; /* the box is the letters: the pane's top meets the cap line */
                       outline: none; color: var(--demo-ink); caret-color: var(--demo-ink);
                       font-family: system-ui, -apple-system, sans-serif;
                       text-wrap: balance; overflow-wrap: normal;
@@ -76,6 +77,9 @@ export const examples = [
         effects: {
           shadow: { type: "shadow", y: 6, blur: 20, color: "rgb(0 0 0 / 0.14)" },
           bounce: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word hops on it
+        },
+        actions: {
+          play: { type: "button", label: "Bounce", action: () => hop() },
         },
       });
       mount.append(panel.el);

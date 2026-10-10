@@ -230,14 +230,11 @@ a { color: inherit; text-decoration: none; }
   padding: 44px 44px 96px;
 }
 
-/* A wide page (meta.wide — the landing's specimen stage) breaks the 780px column. The
- * reading column centres in the full viewport, which a wider one can't do without running
- * under the fixed sidebar, so it centres in the space right of the sidebar instead, up to
- * 1480px so a big screen gets a big specimen. */
-@media (min-width: 1001px) {
-  .layout:has(.doc-wide) { padding-left: 230px; }
-}
-.doc.doc-wide { max-width: 1480px; }
+/* A wide page (meta.wide — the landing's specimen) starts at the same left edge as every
+ * other page's reading column, so the content keeps one relationship to the nav, and grows
+ * only to the right, up to 1480px. (Percentages here are of the layout's content box, the
+ * same box the reading column centres in.) */
+.doc.doc-wide { max-width: 1480px; margin-left: max(0px, (100% - 780px) / 2); margin-right: 0; }
 
 /* No page-to-page transition — navigations are a plain instant load on every viewport.
  * (Cross-document View Transitions janked on mobile Safari; removed entirely.) */
