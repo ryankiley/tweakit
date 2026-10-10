@@ -864,7 +864,7 @@
 .tw-folder .tw-folder { margin-left: 10px; } /* a nested folder steps in, so the nesting is visible (every level used to sit flush) */
 .tw-controls > .tw-folder:first-child { border-top: none; }
 .tw-folder:last-child { border-bottom: none; }
-.tw-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: var(--tw-row-height); padding: 0 2px; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
+.tw-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: var(--tw-row-height); padding: 0; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
 .tw-folder-title { font-size: 12px; font-weight: 600; color: var(--tw-text-section); letter-spacing: -0.01em; transition: color 0.15s; }
 /* The whole header reacts on hover — title + chevron brighten together, so the group reads as one toggle. */
 @media (hover: hover) and (pointer: fine) {
@@ -875,7 +875,7 @@
  * so the glyph's visible edge lands at the title's 2px inset rather than ~5.75px in. */
 /* The folder caret rides the body's own 0.35s --fold clock (not the shared 0.2s chevron
  * transition), so it rotates in lockstep with the fade instead of snapping ~0.15s ahead. */
-.tw-folder-header .tw-chevron { color: var(--tw-text-section); margin-right: -3.75px; transition: transform 0.35s var(--tw-ease-fold), color 0.15s; }
+.tw-folder-header .tw-chevron { color: var(--tw-text-section); margin-right: -1.75px; transition: transform 0.35s var(--tw-ease-fold), color 0.15s; }
 /* Collapsed caret flips to point up (open is the resting down-chevron) — an up/down toggle. */
 .tw-folder.is-collapsed .tw-folder-header .tw-chevron { transform: rotate(180deg); }
 /* contain: layout isolates the fold's per-frame track re-sizing (the subtree stays mounted +
@@ -983,7 +983,7 @@
 
 /* Plot — a function graph with an editable, safely-parsed expression. */
 .tw-plot { display: flex; flex-direction: column; gap: 6px; }
-.tw-plot-label, .tw-spring-label, .tw-bezier-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0 12px; } /* 12px left → caption on the shared label gridline, over the full-width graph (the slider's label-over-track idiom); the spring + bezier previews caption the same way */
+.tw-plot-label, .tw-spring-label, .tw-bezier-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0; } /* flush with the full-width graph below and the field labels under it — the row-label gridline (12px in) read as misaligned next to them */
 .tw-plot-graph { position: relative; width: 100%; height: 140px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); }
 .tw-plot-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .tw-plot-axis { stroke: var(--tw-border); stroke-width: 1; }
