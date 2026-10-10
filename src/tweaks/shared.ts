@@ -320,6 +320,11 @@ const closeActivePopover = (owner?: Element) => { if (activePopoverClose && (!ow
 function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
   let open = false, schemeObs: MutationObserver | null = null;
   pop.classList.add("tw-portal"); // the reduced-motion kill-switch + portal-wide rules key off this
+  // A closed pop is still in the DOM — inside the control root until its first open, on
+  // <body> through the 200 ms fade after a close — at opacity 0. `inert` keeps its tab
+  // stops out of the tab order and its names out of the accessibility tree until it opens:
+  // without it, Tab from the trigger landed on an invisible plane and arrows edited the value.
+  pop.inert = true;
   // Relay pointerdowns to the host panel's edit-lifecycle hook (capture, ahead of the
   // pointer-stop below) — the colour/gradient drag surfaces live here on <body>, where
   // the panel's own pointerdown listener can't see them.
@@ -359,7 +364,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open popover first
     activePopoverClose = close; activePopoverTrigger = trigger;
     open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
-    document.body.appendChild(pop);
+    pop.inert = false; document.body.appendChild(pop);
     carrySkin(pop, root); // the host panel's theme + winning scheme, neither of which the cascade can deliver to <body>
     window.addEventListener("tw-retheme", recarry); // setTheme() while open
     if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] }); } // host scheme flip while open
@@ -390,7 +395,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     // Focus stranded inside the pop (picking an option, loading a preset) returns to the
     // trigger before the node is removed; an outside click that already moved focus keeps it.
     if (pop.contains(document.activeElement)) trigger.focus();
-    open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); trigger.setAttribute("aria-expanded", "false");
+    open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); pop.inert = true; trigger.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", reflow, true); window.removeEventListener("resize", reflow);
     window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; }
@@ -455,7 +460,7 @@ const measurePill = (container: Element, pill: HTMLElement, animate?: boolean) =
 // an inert element hit-tests like pointer-events:none, so an inert row would pass the pointer
 // through to the panel and never show its not-allowed cursor. The children still drop out of
 // focus, keyboard and the a11y tree; the row stays a pointer target for the cursor alone.
-const setDisabled = (node: HTMLElement, d: boolean) => { node.classList.toggle("is-disabled", d); for (const c of node.children) (c as HTMLElement).inert = d; };
+const setDisabled = (node: HTMLElement, d: boolean) => { node.classList.toggle("is-disabled", d); for (const c of node.children) if (!c.classList.contains("tw-portal")) (c as HTMLElement).inert = d; }; // a not-yet-opened popover is a child too, and keeps its own inert (closed = inert) — re-enabling the row mustn't wake it
 const setCollapsed = (root: Element, toggle: Element, body: HTMLElement, c: boolean) => { root.classList.toggle("is-collapsed", c); toggle.setAttribute("aria-expanded", String(!c)); body.inert = c; };
 // The index of the button whose (stringified — dataset) value is the active one — or,
 // when none matches (a value no option carries), the first button: the group's roving

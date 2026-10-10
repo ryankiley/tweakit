@@ -297,7 +297,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     hueThumb.style.left = inside(H / 360, 16); alphaThumb.style.left = inside(A, 16);
     // Live values for assistive tech — drag, keyboard and an external set() all pass through here.
     alphaBar.setAttribute("aria-valuenow", String(+A.toFixed(2)));
-    const hDeg = Math.round(H) % 360; hueBar.setAttribute("aria-valuenow", String(hDeg)); hueBar.setAttribute("aria-valuetext", `${hDeg}°`);
+    const hDeg = Math.round(H); hueBar.setAttribute("aria-valuenow", String(hDeg)); hueBar.setAttribute("aria-valuetext", `${hDeg}°`); // H stays in [0, 360]: End reads as the top of the range (the emitted string says 0 — the same hue)
     area.setAttribute("aria-description", `lightness ${Math.round(L * 100)}%, chroma ${+C.toFixed(3)}`);
     alphaGrad.style.background = `linear-gradient(to right, oklch(${L} ${C} ${H} / 0), oklch(${L} ${C} ${H}))`;
     // Filled rings, not see-through: each ring carries its own colour, so a grabbed thumb
@@ -356,13 +356,17 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   // Arrows on the plane move the thumb, not the raw channels: chroma steps as the thumb's
   // fraction of its row, and a vertical step keeps that fraction — the thumb goes straight
   // up (as a drag along one x would) and the colour stays in gamut at the new lightness.
-  // Escape is the popover's (close, focus back on the trigger), as on the point pad.
+  // PageUp/PageDown are ten lightness steps (what ⇧↑/↓ does); Home/End have no meaning for a
+  // 2D point and are swallowed so they don't scroll the page under the open picker. Escape
+  // is the popover's (close, focus back on the trigger), as on the point pad.
   area.addEventListener("keydown", (e) => {
-    const dx = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, dy = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
+    if (e.key === "Home" || e.key === "End") { e.preventDefault(); return; }
+    const k = e.shiftKey ? 10 : 1;
+    const dx = e.key === "ArrowRight" ? k : e.key === "ArrowLeft" ? -k : 0, dy = e.key === "ArrowUp" ? k : e.key === "ArrowDown" ? -k : e.key === "PageUp" ? 10 : e.key === "PageDown" ? -10 : 0;
     if (!dx && !dy) return;
     e.preventDefault();
-    const k = e.shiftKey ? 10 : 1, c0 = ceilAt(L), fx = clamp((c0 > 0 ? C / c0 : 0) + dx * 0.01 * k, 0, 1);
-    L = clamp(L + dy * 0.01 * k, 0, 1); C = fx * ceilAt(L);
+    const c0 = ceilAt(L), fx = clamp((c0 > 0 ? C / c0 : 0) + dx * 0.01, 0, 1);
+    L = clamp(L + dy * 0.01, 0, 1); C = fx * ceilAt(L);
     commit(false);
   });
   const hueAt = (e: PointerEvent) => boxFrac(e, hueBar)[0] * 360;
@@ -396,8 +400,12 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   return {
     el: root,
     // Blur a focused body input before re-pointing: its change handler commits typed-but-
-    // uncommitted text against the OLD state, so stop-hopping can't land stop A's text on stop B.
-    set: (v: string) => { const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae)) ae.blur(); [L, C, H, A] = parseColor(v); sync(true); }, // repaint the plane only if the hue moved (gradient stop-hopping at the same hue skips the raster); renderArea self-guards offscreen
+    // uncommitted text against the OLD state, so stop-hopping can't land stop A's text on
+    // stop B. Only the text fields — the plane and the strips hold nothing uncommitted, and
+    // blurring one reads as focus leaving the popover (a keyboard-modality blur closes it),
+    // so a host that mirrors values back through set() would close the picker on the first
+    // arrow press.
+    set: (v: string) => { const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); sync(true); }, // repaint the plane only if the hue moved (gradient stop-hopping at the same hue skips the raster); renderArea self-guards offscreen
     get: () => colorStr(),
     // The current edit mode, and a setter for it — the gradient reads the mode to choose
     // its blend space, and re-points the body's mode when a host pushes in a stored ramp.
