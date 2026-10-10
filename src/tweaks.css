@@ -499,13 +499,18 @@
   font-size: 12px; font-weight: 500; color: var(--tw-text-label);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* The grid is sized by its content, not by the room left in the row: every cell is as
+ * wide as the group's widest label plus the toggle's 5px padding (equal cells, the
+ * segmented idiom), so a two-option group and a three-option group get the same kind of
+ * pill rather than halves and thirds of the row. It sits at the row's right edge and
+ * still shrinks (cells ellipsise) when the row is tight. */
 .tw-radiogrid-grid {
-  flex: 1; min-width: 0;
+  flex: 1 1 0; max-width: max-content; min-width: 0; margin-left: auto; /* grows from nothing up to its content, so a tight row still shrinks the cells before the label */
   display: grid; grid-template-columns: repeat(var(--tw-rg-cols, 3), minmax(0, 1fr)); gap: 4px;
 }
 .tw-radiogrid-btn {
   font: inherit; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums;
-  padding: 5px 4px; text-align: center; /* 5px verticals → the 24px pill height shared by the segmented / tabs / button-group cells */
+  padding: 5px; text-align: center; /* 5px all round, as the toggle's pills: the 24px pill height shared by the segmented / tabs / button-group cells */
   color: var(--tw-text-label); background: transparent; /* transparent — the container carries the surface, the cell highlights only when hovered/active */
   border: none; border-radius: calc(var(--tw-radius) - 2px);
   cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-pop);
