@@ -1,15 +1,15 @@
-/* Motion & curves — the motion control, its spring and bézier pieces, and the plot. */
+/* Motion & curves: the motion control, its spring and bézier pieces, and the plot. */
 
 export const meta = {
   slug: "motion",
   title: "Motion & curves",
-  description: "The motion control (an easing or a spring over one value), the spring and bézier editors on their own, and the expression grapher — each driving live motion.",
+  description: "The motion control (an easing or a spring over one value), the spring and bézier editors on their own, and the expression grapher, each driving live motion.",
 };
 
 export const intro = `
-<p>These controls edit plain config objects — a transition's timing, a spring's parameters,
-a CSS easing curve, a function of <code>x</code> — that feed straight into your own
-animation code. All of them are lazy-loaded heavy controls.</p>`;
+<p>These controls edit plain values that feed straight into your own animation code: a
+transition's timing, a spring's parameters, a CSS easing curve, a function of <code>x</code>.
+All of them are lazy-loaded heavy controls.</p>`;
 
 export const examples = [
   {
@@ -18,10 +18,13 @@ export const examples = [
     prose: `<p><code>{ type: "motion" }</code> is one control for a transition's timing: an
       easing curve with a duration, or a spring tuned by feel (duration + bounce), switched
       inside the popover over one value. Either way the param carries the CSS it resolves
-      to — <code>duration</code> in ms and an <code>easing</code> string,
-      <code>cubic-bezier(…)</code> or a sampled <code>linear(…)</code> for the spring — so
-      one <code>transition</code> works in both modes. Tap anywhere on the stage and the
-      box goes there with the motion; make the spring bouncier, or switch to an easing.</p>`,
+      to, <code>duration</code> in ms and an <code>easing</code> string
+      (<code>cubic-bezier(…)</code>, or a sampled <code>linear(…)</code> for the spring), so
+      one <code>transition</code> works in both modes. The spring's fields read in ms and %,
+      but the value keeps <code>visualDuration</code> in seconds and <code>bounce</code> as
+      0–1, as the snippet writes them; a stiffness/damping/mass config is accepted and
+      mapped to the nearest pair. Tap anywhere on the stage and the box goes there with
+      the motion; make the spring bouncier, or switch to an easing.</p>`,
     target: `<div class="mo-stage"><div class="mo-box"></div></div>`,
     css: `
       .mo-stage { position: relative; width: 100%; height: 120px; border-radius: 16px; overflow: hidden; cursor: crosshair;
@@ -49,10 +52,12 @@ export const examples = [
     id: "pieces",
     title: "Spring and bézier on their own",
     prose: `<p>When the motion isn't a transition, use the editors inside Motion alone.
-      <code>{ type: "spring" }</code> resolves to <code>{ stiffness, damping, mass }</code> for
-      a simulation that reads them every frame — the ball here is a tiny integrator.
-      <code>{ type: "cubicbezier" }</code> is the bare four-number curve for anything that takes
-      a timing function on its own — the dot's keyframe animation.</p>`,
+      <code>{ type: "spring" }</code> has two modes, physics (stiffness / damping / mass) and
+      time (duration + bounce), and resolves to <code>{ stiffness, damping, mass }</code>
+      either way (plus the time pair when tuned by feel) for a simulation that reads them
+      every frame (the ball here is a tiny integrator). <code>{ type: "cubicbezier" }</code>
+      is the bare four-number curve for anything that takes a timing function on its own
+      (the dot's keyframe animation).</p>`,
     target: `
       <div class="pc-stage">
         <div class="pc-track"><div class="pc-ball"></div></div>
@@ -100,13 +105,13 @@ export const examples = [
   {
     id: "plot",
     title: "Plot",
-    prose: `<p>An expression grapher with a safe evaluator — no <code>eval</code>, just a
+    prose: `<p>An expression grapher with a safe evaluator: no <code>eval</code>, just a
       small parser over <code>x</code>, the usual math functions and constants. The
       param is the expression string itself; type into the field to regraph. Pass
       <code>fn</code> instead to graph one of your own functions (read-only), or
       <code>editable: false</code> to drop the field and keep a fixed expression, and
-      <code>xMin</code>/<code>xMax</code>/<code>yMin</code>/<code>yMax</code>/<code>samples</code>
-      to frame it.</p>`,
+      <code>xMin</code>/<code>xMax</code>/<code>yMin</code>/<code>yMax</code> to frame it and
+      <code>samples</code> for the resolution.</p>`,
     target: `<code class="plt-readout">params.wave = "sin(x) * exp(-x / 6)"</code>`,
     css: `
       .plt-readout { font-size: 12.5px; color: var(--demo-muted); background: var(--demo-fill);
