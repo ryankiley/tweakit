@@ -33,8 +33,8 @@ export const examples = [
       /* One grid for the whole example: the word, the copy and the folded schema stack in the
        * left column, the pane spans the right. The schema's row takes the pane's spare height,
        * so its summary sits right under the chips and the code opens down past the pane. */
-      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr;
-                     column-gap: 20px; margin: 6vh 0 0; }
+      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) 248px; grid-template-rows: auto 1fr;
+                     column-gap: clamp(40px, 6vw, 80px); margin: max(6vh, calc(50svh - 340px)) 0 0; } /* near the middle of a tall screen */
       #ex-specimen .ex-live { display: contents; }
       #ex-specimen .ex-target { grid-column: 1; grid-row: 1; min-height: 0; padding: 0; display: block; }
       #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
@@ -50,17 +50,20 @@ export const examples = [
       @media (max-width: 1000px) {
         #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 32px; margin-top: 8px; }
         #ex-specimen .ex-mount { grid-column: 1; grid-row: 2; justify-self: center; }
-        #ex-specimen .ex-fold { grid-row: 3; margin: 0; }
+        #ex-specimen .ex-fold { grid-row: 3; margin: 0; text-align: center; }
+        #ex-specimen .ex-fold .ex-codewrap { text-align: left; }
+        .doc .sp-about { margin-inline: auto; text-align: center; }
+        .sp-stage .hero-meta { justify-content: center; }
       }`,
     run: ({ tweaks, gradientCss, mount, target }) => {
       const text = target.querySelector(".sp-text");
       const when = (mode) => (get) => get("mode") === mode;   // show a row for one fill mode
       const panel = tweaks("Tweakit", {
-        size: { type: "slider", value: Math.max(48, Math.round(target.clientWidth / 5)), min: 16, max: 400, step: 1, unit: "px" }, // starts at a fifth of the stage
+        size: { type: "slider", value: Math.max(48, Math.round(target.clientWidth / 3.4)), min: 16, max: 480, step: 1, unit: "px" }, // starts filling most of the column
         weight: [300, 100, 900, 10],
         tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
         leading: [1, 0.8, 1.8, 0.01],
-        align: { type: "segmented", options: ["left", "center", "right"], value: "left" },
+        align: { type: "segmented", options: ["left", "center", "right"], value: matchMedia("(max-width: 1000px)").matches ? "center" : "left" }, // centred on phones
         fill: {
           mode: { type: "segmented", options: ["ink", "gradient"], value: "ink" },
           ink: { type: "color", value: getComputedStyle(text).color || "#1b1b1b", render: when("ink") }, // the page's ink
