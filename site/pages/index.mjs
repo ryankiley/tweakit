@@ -46,7 +46,7 @@ export const examples = [
           ] },
         },
         motion: {
-          spring: { type: "spring", stiffness: 220, damping: 18, mass: 1 },
+          press: { type: "motion", visualDuration: 0.4, bounce: 0.25 },   // an easing or a spring, over one value
         },
         monitor: {
           live: true,

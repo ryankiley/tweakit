@@ -20,6 +20,17 @@ export interface ShadowInput { inset?: boolean; x?: number; y?: number; blur?: n
 /** A shadow control's value — the fields, plus the `box-shadow` CSS they resolve to (`css`),
  *  built from the numbers and the picker's own colour notation, so `el.style.boxShadow = css`. */
 export interface ShadowValue { inset: boolean; x: number; y: number; blur: number; spread: number; color: string; css: string }
+/** What a motion control accepts — any subset of either mode's fields. A `curve` may be
+ *  the four cubic-bezier numbers or a CSS keyword (`ease`, `ease-out`, …); `duration` is
+ *  the easing's, in ms. Spring keys select the spring mode unless `mode` says otherwise. */
+export interface MotionInput { mode?: "easing" | "spring"; curve?: [number, number, number, number] | string; duration?: number; stiffness?: number; damping?: number; mass?: number; visualDuration?: number; bounce?: number }
+/** A motion control's value: an easing curve with its duration, or a spring — each also
+ *  carrying the CSS it resolves to, `duration` in ms and an `easing` string (`cubic-bezier(…)`,
+ *  or a sampled `linear(…)` for the spring), so a host can write
+ *  `transition: transform ${duration}ms ${easing}` in either mode. */
+export type MotionValue =
+  | { mode: "easing"; curve: [number, number, number, number]; duration: number; easing: string }
+  | { mode: "spring"; stiffness: number; damping: number; mass: number; visualDuration?: number; bounce?: number; duration: number; easing: string };
 
 /** How a gradient blends between neighbouring stops: `"linear"` (CSS's own straight blend,
  *  the default) or a CSS easing — `ease`, `ease-in`, `ease-out`, `ease-in-out`, or any
@@ -61,6 +72,7 @@ export type SchemaObject =
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
   | { type: "cubicbezier"; value?: [number, number, number, number] }
   | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
+  | ({ type: "motion"; value?: MotionInput } & MotionInput)
   | { type: "point"; components: Array<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
   | { type: "gradient"; value?: GradientValue | Array<GradientStop | [string, number]>; stops?: Array<GradientStop | [string, number]> }
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }

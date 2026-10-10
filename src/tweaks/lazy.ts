@@ -28,6 +28,7 @@ const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
   monitor: () => import("./controls/monitor.js"),
   spring: () => import("./controls/spring.js"),
   cubicbezier: () => import("./controls/bezier.js"),
+  motion: () => Promise.all([import("./controls/bezier.js"), import("./controls/spring.js")]).then(() => import("./controls/motion.js")), // hosts both editors, taken from the registry — and registers last, so a failed editor chunk leaves "motion" unregistered for the next panel to retry rather than registered and unbuildable
   point: () => import("./controls/point.js"),
   plot: () => import("./controls/plot.js"),
 } : {};
