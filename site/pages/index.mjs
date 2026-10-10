@@ -57,27 +57,31 @@ export const examples = [
       }`,
     run: ({ tweaks, gradientCss, mount, target }) => {
       const text = target.querySelector(".sp-text");
-      const when = (mode) => (get) => get("mode") === mode;   // show a row for one fill mode
-      const phone = matchMedia("(max-width: 1000px)");       // phones centre the word
+      const when = (style) => (get) => get("style") === style;   // show a row for one fill style
+      const phone = matchMedia("(max-width: 1000px)");         // phones centre the word
       const panel = tweaks("Tweakit", {
-        size: { type: "slider", value: Math.max(48, Math.round(target.clientWidth / 3.4)), min: 16, max: 480, step: 1, unit: "px" }, // starts filling most of the column
-        weight: [300, 100, 900, 10],
-        tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
-        leading: [1, 0.8, 1.8, 0.01],
-        align: { type: "segmented", options: ["left", "center", "right"], value: phone.matches ? "center" : "left" },
+        text: {
+          size: { type: "slider", label: "Font size", value: Math.max(48, Math.round(target.clientWidth / 3.4)), min: 16, max: 480, step: 1, unit: "px" }, // starts filling most of the column
+          weight: [300, 100, 900, 10],
+          tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
+          leading: [1, 0.8, 1.8, 0.01],
+          align: { type: "segmented", options: ["left", "center", "right"], value: phone.matches ? "center" : "left" },
+        },
         fill: {
-          mode: { type: "segmented", options: ["ink", "gradient"], value: "ink" },
-          ink: { type: "color", value: getComputedStyle(text).color || "#1b1b1b", render: when("ink") }, // the page's ink
-          ramp: { type: "gradient", stops: [["oklch(0.78 0.19 30)", 0], ["oklch(0.68 0.22 295)", 1]], render: when("gradient") },
+          style: { type: "segmented", options: ["solid", "gradient"], value: "solid" },
+          color: { type: "color", value: getComputedStyle(text).color || "#1b1b1b", render: when("solid") }, // the page's ink
+          gradient: { type: "gradient", stops: [["oklch(0.78 0.19 30)", 0], ["oklch(0.68 0.22 295)", 1]], render: when("gradient") },
           angle: { type: "slider", value: 90, min: 0, max: 360, step: 1, unit: "°", render: when("gradient") },
         },
-        shadow: { type: "shadow", y: 6, blur: 20, color: "rgb(0 0 0 / 0.14)" },
-        bounce: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word hops on it
+        effects: {
+          shadow: { type: "shadow", y: 6, blur: 20, color: "rgb(0 0 0 / 0.14)" },
+          bounce: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word hops on it
+        },
       });
       mount.append(panel.el);
 
-      const apply = ({ size, weight, tracking, leading, align, fill, shadow }) => {
-        const s = text.style, gradient = fill.mode === "gradient";
+      const apply = ({ text: { size, weight, tracking, leading, align }, fill, effects: { shadow } }) => {
+        const s = text.style, gradient = fill.style === "gradient";
         s.fontSize = `${size}px`;
         s.fontWeight = weight;
         s.letterSpacing = `${tracking}em`;
@@ -86,8 +90,8 @@ export const examples = [
         s.lineHeight = leading;
         s.textAlign = align;
         s.alignSelf = { left: "flex-start", center: "center", right: "flex-end" }[align];
-        s.backgroundImage = gradient && fill.ramp ? gradientCss(fill.ramp, fill.angle) : "none";
-        s.color = gradient ? "transparent" : fill.ink;
+        s.backgroundImage = gradient && fill.gradient ? gradientCss(fill.gradient, fill.angle) : "none";
+        s.color = gradient ? "transparent" : fill.color;
         // drop-shadow, not text-shadow: a text-shadow paints over the clipped gradient
         s.filter = shadow && (shadow.x || shadow.y || shadow.blur)
           ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur / 2}px ${shadow.color})`
@@ -98,7 +102,7 @@ export const examples = [
         if (!text.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         if (hopping) { again = true; return; }
         hopping = true;
-        const { duration, easing } = panel.params.bounce;  // a spring resolves to linear(…)
+        const { duration, easing } = panel.params.effects.bounce;  // a spring resolves to linear(…)
         // when the spring first reaches the ground: its first sample at or past 1
         const hit = [...easing.matchAll(/([\d.]+) ([\d.]+)%/g)].find(([, v]) => v >= 1)?.[2] / 100 || 1;
         await text.animate([                               // crouch, then spring up stretched
@@ -119,7 +123,7 @@ export const examples = [
       panel.on((p, changed) => { apply(p); if (changed === "bounce") hop(); });
       panel.ready.then(() => { apply(panel.params); hop(); });
       phone.addEventListener("change", (e) => {              // follow the breakpoint, unless you picked one
-        if (panel.params.align === (e.matches ? "left" : "center")) panel.set("align", e.matches ? "center" : "left");
+        if (panel.params.text.align === (e.matches ? "left" : "center")) panel.set("text.align", e.matches ? "center" : "left");
       });
       window.addEventListener("resize", () => apply(panel.params));
     },
