@@ -31,15 +31,18 @@ export const examples = [
       </div>`,
     css: `
       /* One grid for the whole example. The pane spans the right; the word, the copy and the
-       * schema toggle sit between two equal flexible rows beside it, so the stack centres on the
-       * pane. The schema itself opens in a full-width row under both, so opening it moves
-       * nothing above. */
+       * schema toggle sit between two equal flexible rows beside it. The schema itself opens in a
+       * full-width row under both, so opening it moves nothing above. */
       #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) 256px; /* the panel's default --tw-width */
-                     grid-template-rows: 1fr auto auto 1fr auto;
-                     column-gap: clamp(40px, 6vw, 80px); margin: 57px 0 0; } /* the pane's top meets the top of the nav's current item (101px down: 44 padding + 57) */
+                     grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr) auto; /* zero floor on the spacers, or they pad themselves from the pane */
+                     column-gap: clamp(40px, 6vw, 80px); margin: 0; }
       #ex-specimen .ex-live { display: contents; }
       #ex-specimen .ex-target { grid-column: 1; grid-row: 2; min-height: 0; padding: 0; display: block; }
-      #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / 5; align-self: start; }
+      /* The pane's slot fills the first screen (less the column's 44px top padding and as much
+       * below) and centres the pane in it, so the pane sits at the screen's middle; the stack's
+       * flexible rows span the same slot, so the stack centres there too. */
+      #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / 5; align-self: stretch;
+                               min-height: calc(100svh - 88px); display: flex; align-items: center; }
       #ex-specimen .ex-fold { grid-column: 1; grid-row: 3; margin: 26px 0 0; }
       #ex-specimen .ex-fold-body { grid-column: 1 / -1; grid-row: 5; margin-top: 32px; min-width: 0; }
       .sp-stage { display: flex; flex-direction: column; width: 100%; }
@@ -55,7 +58,7 @@ export const examples = [
         #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 0; margin-top: 8px; }
         #ex-specimen .ex-target { grid-row: 1; }
         #ex-specimen .ex-fold { grid-row: 2; margin: 22px 0 0; text-align: center; }
-        #ex-specimen .ex-mount { grid-column: 1; grid-row: 3; justify-self: center; margin-top: 32px; }
+        #ex-specimen .ex-mount { grid-column: 1; grid-row: 3; justify-self: center; margin-top: 32px; min-height: 0; display: block; }
         #ex-specimen .ex-fold-body { grid-row: 4; margin-top: 24px; }
         .doc .sp-about { margin-inline: auto; text-align: center; }
         .sp-stage .hero-meta { justify-content: center; }
