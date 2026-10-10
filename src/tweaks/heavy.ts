@@ -5,7 +5,7 @@
  * lazy chunk instead of the shared chunk every basic panel fetches up front. It also
  * registers the Number control — numField in its row chrome — which no shorthand infers,
  * so the lazy map loads this module for it directly. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, REDUCE_MOTION } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -176,4 +176,24 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
 // scrub), min-anchored rounding, soft support. ──
 registerControl("number", (meta: Meta, onChange?: OnChange) => numField({ ...meta, row: true }, onChange));
 
-export { numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow };
+// ── Motion puck — the dot under a curve editor (spring, bezier) that replays the motion
+// being tuned. The Web Animations API runs it on the browser's own easing — cubic-bezier()
+// for the bezier, a sampled linear() for the spring — so there is no frame loop to own or
+// tear down: it ends on its own, a cancelled run snaps the dot back to the start, and
+// reduced motion leaves it at rest. Replays on every edit (the caller's play) and on hover. ──
+const motionPuck = (host: HTMLElement) => {
+  const lane = el("div", "tw-motion-lane"), puck = el("div", "tw-motion-puck"); lane.append(puck); host.append(lane);
+  let anim: Animation | null = null, last: [string, number] | null = null;
+  const play = (easing: string, duration: number) => {
+    last = [easing, duration];
+    if (REDUCE_MOTION.matches || typeof puck.animate !== "function") return;
+    anim?.cancel();
+    const frames = [{ transform: "translateX(0)" }, { transform: `translateX(${Math.max(0, lane.clientWidth - puck.offsetWidth)}px)` }];
+    try { anim = puck.animate(frames, { duration, easing, fill: "forwards" }); }
+    catch { anim = puck.animate(frames, { duration, fill: "forwards" }); } // an engine without linear(): a plain run rather than nothing
+  };
+  lane.addEventListener("pointerenter", () => { if (last) play(...last); });
+  return play;
+};
+
+export { numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, motionPuck };

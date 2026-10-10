@@ -1,7 +1,7 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/
 // bounce) mode, over one settle-curve preview. Lazy. ──
 import { el, txt, onReady, onLive, clamp, createSegmented, registerControl } from "../shared.js";
-import { dragGesture, numField, cssVar, accentColor } from "../heavy.js";
+import { dragGesture, numField, cssVar, accentColor, motionPuck } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -16,9 +16,11 @@ interface SpringTime { visualDuration: number; bounce: number }
 type SpringValue = Partial<Phys & SpringTime & { mode: SpringMode }>;
 
 // Closed-form step response of a damped harmonic oscillator (under/critical/over). ──
+// The window the curve is drawn (and the puck replayed) over: to the settle, capped at 2.2 s.
+const springSpan = (k: number, d: number, m: number) => { const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)); return Math.min(2.2, 9 / Math.max(z * w0, 0.5)); };
 function springCurve(k: number, d: number, m: number, N = 64) {
   const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m));
-  const T = Math.min(2.2, 9 / Math.max(z * w0, 0.5));
+  const T = springSpan(k, d, m);
   const out: number[] = [];
   for (let i = 0; i < N; i++) {
     const t = (i / (N - 1)) * T; let x: number;
@@ -92,26 +94,30 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   const resolvedValue = (): Phys & Partial<SpringTime> => (mode === "time" ? { ...resolved(), visualDuration: time.visualDuration, bounce: time.bounce } : resolved());
   const emit = () => onChange(resolvedValue());
 
+  // The dot under the curve replays the settle — on the browser's own clock via a sampled
+  // linear() easing over the drawn window, so the run matches the curve above it.
+  if (meta.label) root.append(txt("div", "tw-spring-label", meta.label)); // a caption over the preview, the plot's label idiom — so two springs in one panel can be told apart and the filter matches on text that is actually shown; an explicit "" skips it
+  root.append(viz);
+  const replay = motionPuck(root);
+  const preview = () => { const s = resolved(), pts = springCurve(s.stiffness, s.damping, s.mass, 48); replay(`linear(${pts.map((p) => +p.toFixed(3)).join(", ")})`, Math.round(springSpan(s.stiffness, s.damping, s.mass) * 1000)); };
+
   const flds: Partial<Record<PhysKey, NumField>> = {};
   ([["stiffness", "Stiffness", 1], ["damping", "Damping", 0.5], ["mass", "Mass", 0.1]] as const).forEach(([key, lab, step]) => {
-    flds[key] = numField({ label: lab, value: phys[key], step, min: step }, (v) => { phys[key] = v; draw(); emit(); });
+    flds[key] = numField({ label: lab, value: phys[key], step, min: step }, (v) => { phys[key] = v; draw(); emit(); preview(); });
     physFields.append(flds[key].el);
   });
-  const durFld = numField({ label: "Duration", value: time.visualDuration, step: 0.05, min: DUR_MIN, max: DUR_MAX }, (v) => { time.visualDuration = clampDur(v); draw(); emit(); });
-  const bounceFld = numField({ label: "Bounce", value: time.bounce, step: 0.05, min: 0, max: 1 }, (v) => { time.bounce = clampBounce(v); draw(); emit(); });
+  const durFld = numField({ label: "Duration", value: time.visualDuration, step: 0.05, min: DUR_MIN, max: DUR_MAX }, (v) => { time.visualDuration = clampDur(v); draw(); emit(); preview(); });
+  const bounceFld = numField({ label: "Bounce", value: time.bounce, step: 0.05, min: 0, max: 1 }, (v) => { time.bounce = clampBounce(v); draw(); emit(); preview(); });
   timeFields.append(durFld.el, bounceFld.el);
 
   const showMode = () => { timeFields.style.display = mode === "time" ? "" : "none"; physFields.style.display = mode === "physics" ? "" : "none"; };
-  const switchMode = (m: unknown) => { if ((m !== "time" && m !== "physics") || m === mode) return; mode = m; showMode(); draw(); emit(); };
+  const switchMode = (m: unknown) => { if ((m !== "time" && m !== "physics") || m === mode) return; mode = m; showMode(); draw(); emit(); preview(); };
   const modeToggle = createSegmented([{ value: "time", label: "Time" }, { value: "physics", label: "Physics" }], mode, switchMode, "Spring mode");
   // The mode switch reuses the panel's row idiom (label left, segmented pill right) — the
   // same shape as the Off/On toggle and enum selectors — rather than a bespoke full-width pill.
   const modeRow = el("div", "tw-row");
   modeRow.append(txt("span", "tw-row-label", "Mode"), modeToggle.el);
-  // A caption over the preview, the plot's label idiom — so two springs in one panel can be
-  // told apart and the filter matches on text that is actually shown. An explicit "" skips it.
-  if (meta.label) root.append(txt("div", "tw-spring-label", meta.label));
-  root.append(viz, modeRow, physFields, timeFields);
+  root.append(modeRow, physFields, timeFields);
 
   // Draggable preview — drag anywhere in the curve area to tune by feel. PHYSICS: horizontal
   // sets stiffness, vertical sets damping (up = less damping = more overshoot, tracking the
@@ -140,10 +146,10 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   dragGesture(viz, {
     onDown: (e) => { e.preventDefault(); vizRect = viz.getBoundingClientRect(); viz.classList.add("is-dragging"); fromPointer(e); },
     onMove: fromPointer,
-    onEnd: () => { vizRect = null; viz.classList.remove("is-dragging"); },
+    onEnd: () => { vizRect = null; viz.classList.remove("is-dragging"); preview(); }, // one replay per drag, at its end — not a restart per move
   });
   showMode();
-  onReady(draw);
+  onReady(() => { draw(); preview(); });
   // The canvas reads theme tokens at draw time, so redraw on resize, on a tab page
   // revealing this control (tw-reflow — it built at 0×0 while hidden), when the OS
   // scheme flips, and when the host re-themes (SVG controls update via CSS, but a
@@ -179,7 +185,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
       modeToggle.set(mode);
       durFld.set(time.visualDuration); bounceFld.set(time.bounce);
       flds.stiffness.set(phys.stiffness); flds.damping.set(phys.damping); flds.mass.set(phys.mass);
-      showMode(); draw();
+      showMode(); draw(); preview();
     },
     get: () => resolvedValue(),
   };

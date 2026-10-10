@@ -1,6 +1,6 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
 import { el, btn, txt, clamp, onReady, onLive, registerControl } from "../shared.js";
-import { dragGesture, numField, svgEl } from "../heavy.js";
+import { dragGesture, numField, svgEl, motionPuck } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -32,7 +32,12 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   const h2 = btn("tw-bezier-handle"); h2.setAttribute("aria-label", "Control point 2");
   graph.append(svg, h1, h2);
   const fields = el("div", "tw-fields tw-bezier-fields");
-  root.append(graph, fields);
+  root.append(graph);
+  // The dot under the graph replays the easing on each edit — the browser's own
+  // cubic-bezier(), over a fixed 800 ms so the shape, not a duration, is what it shows.
+  const replay = motionPuck(root);
+  const preview = () => replay(`cubic-bezier(${v.join(", ")})`, 800);
+  root.append(fields);
 
   let W = 0, H = 0;
   const xPx = (x: number) => PAD + x * (W - 2 * PAD);
@@ -62,7 +67,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   // overshoot. Drag a handle and they update.
   const SPECS = [{ label: "X1", i: 0, lo: 0, hi: 1 }, { label: "Y1", i: 1, lo: YMIN, hi: YMAX }, { label: "X2", i: 2, lo: 0, hi: 1 }, { label: "Y2", i: 3, lo: YMIN, hi: YMAX }];
   const flds = SPECS.map((sp) => {
-    const fld = numField({ label: sp.label, value: v[sp.i], step: 0.01, min: sp.lo, max: sp.hi }, (val) => { v[sp.i] = val; drawGraph(); onChange(v.slice()); });
+    const fld = numField({ label: sp.label, value: v[sp.i], step: 0.01, min: sp.lo, max: sp.hi }, (val) => { v[sp.i] = val; drawGraph(); onChange(v.slice()); preview(); });
     fields.append(fld.el); return fld;
   });
   const syncFields = () => flds.forEach((fld, k) => fld.set(v[SPECS[k].i]));
@@ -80,28 +85,28 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
         const y = clamp(YMIN + ((gh - PAD) - gy) / (gh - 2 * PAD) * RANGE, YMIN, YMAX);
         v[idx * 2] = +x.toFixed(2); v[idx * 2 + 1] = +y.toFixed(2); drawGraph(); syncFields(); onChange(v.slice());
       },
-      onEnd: () => { rect = null; handle.classList.remove("is-dragging"); },
+      onEnd: () => { rect = null; handle.classList.remove("is-dragging"); preview(); }, // one replay per drag, at its end
     });
     // Keyboard: the handles were tab stops that did nothing. Arrows nudge the focused
     // point by 0.01 (⇧ = 0.1) on the drag's own clamps + 2-decimal grid, Home restores
     // the schema default for the whole curve, Escape drops focus.
     handle.addEventListener("keydown", (e) => {
       if (e.key === "Escape") return handle.blur();
-      if (e.key === "Home") { e.preventDefault(); v = def.slice(); drawGraph(); syncFields(); onChange(v.slice()); return; }
+      if (e.key === "Home") { e.preventDefault(); v = def.slice(); drawGraph(); syncFields(); onChange(v.slice()); preview(); return; }
       const dx = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, dy = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
       if (!dx && !dy) return;
       e.preventDefault();
       const k = e.shiftKey ? 0.1 : 0.01, i = idx * 2;
       if (dx) v[i] = +clamp(v[i] + dx * k, 0, 1).toFixed(2);
       if (dy) v[i + 1] = +clamp(v[i + 1] + dy * k, YMIN, YMAX).toFixed(2);
-      drawGraph(); syncFields(); onChange(v.slice());
+      drawGraph(); syncFields(); onChange(v.slice()); preview();
     });
   };
   drag(h1, 0); drag(h2, 1);
 
-  onReady(drawGraph);
+  onReady(() => { drawGraph(); preview(); });
   onLive(root, [[window, "resize"], [window, "tw-reflow"]], drawGraph); // tw-reflow: a tab page revealing this control re-measures it (it built at 0×0 while hidden); self-cleans once the panel is gone
-  return { el: root, set: (nv: unknown) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() }; // the same clamp as the build, so get() agrees with the handles + fields
+  return { el: root, set: (nv: unknown) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); preview(); } }, get: () => v.slice() }; // the same clamp as the build, so get() agrees with the handles + fields
 }
 
 registerControl("cubicbezier", createBezier);

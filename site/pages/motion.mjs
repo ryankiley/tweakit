@@ -20,8 +20,9 @@ export const examples = [
       a <strong>Physics</strong> mode (stiffness / damping / mass), switched in the control.
       Either way the param resolves to a <code>{ stiffness, damping, mass }</code> object
       (Time mode carries the authoring <code>visualDuration</code> / <code>bounce</code>
-      alongside it, so it round-trips); here it drives a tiny integrator. Soften the damping,
-      then send the ball.</p>`,
+      alongside it, so it round-trips); here it drives a tiny integrator. The dot under the
+      curve replays the settle on every edit (hover it to replay). Soften the damping, then
+      send the ball.</p>`,
     target: `<div class="spr-track"><div class="spr-ball"></div></div>`,
     css: `
       .spr-track { position: relative; width: 100%; height: 64px; border-radius: 14px;
@@ -56,8 +57,9 @@ export const examples = [
     prose: `<p>A CSS easing editor — drag the two handles (or Tab to one and nudge it
       with the arrow keys, ⇧ for 0.1 steps), or type into the X1/Y1/X2/Y2 fields. The
       param is the four-number array, ready for
-      <code>cubic-bezier(…)</code> anywhere CSS takes a timing function. The dot below
-      ping-pongs on an infinite animation; the curve is applied live.</p>`,
+      <code>cubic-bezier(…)</code> anywhere CSS takes a timing function. The dot under the
+      editor's curve replays the easing on every edit (hover it to replay); the one below
+      ping-pongs on an infinite animation with the curve applied live.</p>`,
     target: `<div class="bez-track"><div class="bez-dot"></div></div>`,
     css: `
       .bez-track { position: relative; width: 100%; height: 56px; border-radius: 14px;

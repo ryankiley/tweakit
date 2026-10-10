@@ -908,6 +908,12 @@
 /* ── Spring config — settle-curve preview + stiffness/damping/mass. Lightweight
  * containment (cf. Cubic bezier): no outer card — the preview is the only surface,
  * with the mode toggle + fields sitting bare beneath it. ── */
+/* The motion puck under the spring + bezier curves: a dot that replays the motion on the
+ * browser's own easing (heavy.ts motionPuck). The lane is its run; overflow stays visible
+ * so an overshoot (a bouncy spring, a back-ease) carries past the end. */
+.tw-motion-lane { position: relative; height: 12px; margin-top: -2px; }
+.tw-motion-lane::before { content: ""; position: absolute; left: 5px; right: 5px; top: 50%; height: 1px; background: var(--tw-border); }
+.tw-motion-puck { position: absolute; left: 0; top: 1px; width: 10px; height: 10px; border-radius: 50%; background: var(--tw-accent, var(--tw-text-primary)); will-change: transform; }
 .tw-spring { display: flex; flex-direction: column; gap: 6px; }
 .tw-spring-viz { width: 100%; height: 96px; border-radius: var(--tw-radius); background: var(--tw-surface); overflow: hidden; cursor: crosshair; touch-action: none; transition: background 0.15s; }
 @media (hover: hover) and (pointer: fine) {
