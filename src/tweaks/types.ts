@@ -154,8 +154,8 @@ export interface TweaksOptions {
   /** Add a filter/search field to the toolbar. */
   filter?: boolean;
   /** Let people rename the panel in place: a click on the title swaps it for a field (Enter
-   *  or leaving it commits, Escape cancels), and a chevron beside the title takes over
-   *  collapsing. The name the panel was built with stays its storage key. */
+   *  or leaving it commits, Escape cancels); a click on the header outside the title collapses
+   *  the panel instead. The name the panel was built with stays its storage key. */
   rename?: boolean;
   /** Called with the new name after an in-place rename (not after `setName()`). */
   onRename?: (name: string) => void;

@@ -59,7 +59,7 @@ export const examples = [
       toast follow); the name it was built with stays its storage key, so saved values and
       presets survive a rename. With <code>rename: true</code> people can retitle the panel in
       place: click the title and it swaps for a field, Enter or leaving it commits, Escape
-      cancels, and the chevron beside the title takes over collapsing. <code>onRename</code>
+      cancels, and a click on the header outside the title collapses instead. <code>onRename</code>
       hears the new name, and it rides in <code>toJSON().ui.name</code>. Try it on this
       panel.</p>`,
     target: `
@@ -339,7 +339,7 @@ export const examples = [
         <tr><td><code>theme</code></td><td>token overrides; see <a href="./theming.html">Theming</a></td></tr>
         <tr><td><code>persist</code></td><td>localStorage key (or <code>true</code> to key by panel name); enables presets</td></tr>
         <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title); it needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
-        <tr><td><code>rename</code></td><td>click the title to rename the panel in place; collapsing moves to a chevron beside it</td></tr>
+        <tr><td><code>rename</code></td><td>click the title to rename the panel in place; a click on the header outside it collapses</td></tr>
         <tr><td><code>onRename</code></td><td>called with the new name after an in-place rename</td></tr>
         <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
         <tr><td><code>draggable</code></td><td>header dragging, on by default; <code>false</code> pins</td></tr>

@@ -10,7 +10,7 @@ import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
-import { ICON_PRESETS, ICON_X, ICON_SEARCH, ICON_CHEVRON } from "./icons.js";
+import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { PanelEl } from "./shared.js";
@@ -117,10 +117,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const header = el("div", "tw-header");
   // Tapping the title collapses the body; the toolbar sits beside it and never triggers a
   // collapse. No chevron — the title is the toggle — unless opts.rename makes the title the
-  // rename trigger instead: then a leading chevron takes the collapse.
+  // rename trigger instead: then a click on the header outside the title collapses.
   const renameOn = !!opts.rename;
-  const titleBtn = btn("tw-header-toggle"), chevBtn = renameOn ? btn("tw-header-chevron", ICON_CHEVRON) : null, toggleBtn = chevBtn ?? titleBtn;
-  toggleBtn.setAttribute("aria-expanded", "true"); if (chevBtn) chevBtn.setAttribute("aria-label", "Collapse");
+  const titleBtn = btn("tw-header-toggle"), toggleBtn = renameOn ? header : titleBtn;
+  if (!renameOn) titleBtn.setAttribute("aria-expanded", "true");
   let title = name; // the shown name — setName() moves it; the storage key keeps the built-with name
   const titleEl = txt("span", "tw-title", title); titleBtn.append(titleEl);
   const setTitle = (n: string) => { title = n; titleEl.textContent = n; if (renameOn) titleBtn.setAttribute("aria-label", "Rename " + n); }; // setName(), the in-place rename and a restored ui.name all land here
@@ -163,7 +163,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const renameWrap = renameOn ? el("span", "tw-rename") : null, renameMirror = renameOn ? el("span", "tw-rename-mirror") : null, renameInput = renameOn ? el("input", "tw-rename-input") : null;
   if (renameOn) { renameInput.type = "text"; renameInput.size = 1; renameInput.spellcheck = false; renameInput.setAttribute("aria-label", "Panel name"); quietFocus(renameInput); renameWrap.append(renameMirror, renameInput); renameInput.addEventListener("input", () => { renameMirror.textContent = renameInput.value; }); }
   toolbar.append(copyBtn, resetBtn);
-  if (chevBtn) header.append(chevBtn);
   header.append(titleBtn);
   if (filterOn) header.append(searchInput);
   if (renameOn) header.append(renameWrap);
@@ -185,7 +184,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // once the 0.25s body collapse has settled and the height is real.
     if (panel.dataset.mode === "floating") setTimeout(() => { if (panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } }, 270);
   };
-  toggleBtn.addEventListener("click", toggleCollapse);
+  if (renameOn) header.addEventListener("click", (e) => { if (!(e.target as Element).closest("button, input, .tw-rename")) toggleCollapse(); }); // the header's own surface (padding, grabber), not the title, a field or a toolbar button
+  else titleBtn.addEventListener("click", toggleCollapse);
   const body = el("div", "tw-body");
   const controls = el("div", "tw-controls");
   body.append(controls);
