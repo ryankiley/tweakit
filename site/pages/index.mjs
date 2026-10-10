@@ -1,86 +1,120 @@
-/* Landing page: hero + the kitchen-sink demo panel driving a live scene. */
+/* Landing page: the name, set large and editable, is the specimen; one panel beside it
+ * drives its type, fill, shadow and motion. The docs live on the other pages. */
 
 export const meta = {
   slug: "index",
   title: "Tweakit: a dependency-free, real-time parameter panel",
   nav: "Overview",
   hero: true,
+  wide: true,
   description: "A dependency-free, code-split, real-time parameter panel. Hand it a plain schema and it builds a live control for each value.",
 };
 
-export const intro = `
-<div class="hero">
-  <h1>Tweakit</h1>
-  <p>A dependency-free, code-split, real-time <strong>parameter panel</strong>.
-  Hand it a plain schema; it builds a live control for each value: sliders,
-  color, curves, springs, and more.</p>
-  <div class="hero-meta">
-    <span class="hero-pill">No framework</span>
-    <span class="hero-pill">{{size-split}} gzip code-split</span>
-    <span class="hero-pill">TypeScript types included</span>
-  </div>
-</div>`;
+export const intro = "";
 
 export const examples = [
   {
-    id: "showcase",
-    title: "Schema in, panel out",
-    prose: `<p>The panel below is built from the one schema object under it, nothing
-      else. Shorthands infer controls from a value's shape (<code>[value, min, max,
-      step]</code> → slider, <code>[[lo, hi], …]</code> → interval, <code>true</code> →
-      checkbox, a color string → the wide-gamut color picker, a nested object → a
-      collapsible folder). Scrub the sliders, open the popovers, expand the folders,
-      drag it around by the header.</p>`,
+    id: "specimen",
     noCaption: true,
-    run: ({ tweaks, mount }) => {
-      const panel = tweaks("Demo", {
-        intensity: [0.65, 0, 1, 0.01],
-        accent: "#7C5CFF",
-        shape: {                       // each nested object → a collapsible folder
-          range: [[20, 80], 0, 100, 1],
-          quality: { type: "segmented", options: ["Low", "Med", "High"], value: "Med" },
-          origin: { type: "point", components: [
-            { key: "x", label: "X", value: 0, min: -1, max: 1, step: 0.01 },
-            { key: "y", label: "Y", value: 0, min: -1, max: 1, step: 0.01 },
-          ] },
+    foldCode: "The schema behind this pane",
+    target: `
+      <div class="sp-stage">
+        <h1 class="sp-text" contenteditable="plaintext-only" spellcheck="false">Tweakit</h1>
+        <p class="sp-about">A dependency-free, code-split, real-time <strong>parameter panel</strong>.
+        Hand it a plain schema; it builds a live control for each value: sliders,
+        color, curves, springs, and more.</p>
+        <div class="hero-meta">
+          <span class="hero-pill">No framework</span>
+          <span class="hero-pill">{{size-split}} gzip code-split</span>
+          <span class="hero-pill">TypeScript types included</span>
+        </div>
+      </div>`,
+    css: `
+      /* One grid for the whole example: the word, the copy and the folded schema stack in the
+       * left column, the pane spans the right. The schema's row takes the pane's spare height,
+       * so its summary sits right under the chips and the code opens down past the pane. */
+      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr;
+                     column-gap: 20px; margin: 6vh 0 0; }
+      #ex-specimen .ex-live { display: contents; }
+      #ex-specimen .ex-target { grid-column: 1; grid-row: 1; min-height: 0; padding: 0; display: block; }
+      #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+      #ex-specimen .ex-fold { grid-column: 1; grid-row: 2; align-self: start; margin: 26px 0 0; min-width: 0; }
+      .sp-stage { display: flex; flex-direction: column; width: 100%; }
+      .doc .sp-text { align-self: flex-start; max-width: 100%; min-width: 1ch; margin: 0 0 22px;
+                      outline: none; color: var(--demo-ink); caret-color: var(--demo-ink);
+                      font-family: system-ui, -apple-system, sans-serif;
+                      text-wrap: balance; overflow-wrap: normal;
+                      -webkit-background-clip: text; background-clip: text; transform-origin: 50% 100%; }
+      .doc .sp-about { max-width: 52ch; margin: 0; font-size: 16px; }
+      .sp-stage .hero-meta { margin-top: 16px; }
+      @media (max-width: 1000px) {
+        #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 32px; margin-top: 8px; }
+        #ex-specimen .ex-mount { grid-column: 1; grid-row: 2; justify-self: center; }
+        #ex-specimen .ex-fold { grid-row: 3; margin: 0; }
+      }`,
+    run: ({ tweaks, gradientCss, mount, target }) => {
+      const text = target.querySelector(".sp-text");
+      const when = (mode) => (get) => get("mode") === mode;   // show a row for one fill mode
+      const panel = tweaks("Tweakit", {
+        size: { type: "slider", value: Math.max(48, Math.round(target.clientWidth / 5)), min: 16, max: 400, step: 1, unit: "px" }, // starts at a fifth of the stage
+        weight: [300, 100, 900, 10],
+        tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
+        leading: [1, 0.8, 1.8, 0.01],
+        align: { type: "segmented", options: ["left", "center", "right"], value: "left" },
+        fill: {
+          mode: { type: "segmented", options: ["ink", "gradient"], value: "ink" },
+          ink: { type: "color", value: getComputedStyle(text).color || "#1b1b1b", render: when("ink") }, // the page's ink
+          ramp: { type: "gradient", stops: [["oklch(0.78 0.19 30)", 0], ["oklch(0.68 0.22 295)", 1]], render: when("gradient") },
+          angle: { type: "slider", value: 90, min: 0, max: 360, step: 1, unit: "°", render: when("gradient") },
         },
-        surface: {
-          ramp: { type: "gradient", value: { stops: [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }] } },
-          lift: { type: "shadow", y: 8, blur: 24, color: "rgb(0 0 0 / 0.18)" },
-          radius: { type: "slider", value: 12, min: 0, max: 40, unit: "px" },
-          tone: { value: "accent", options: [                                   // a dropdown whose options carry a swatch
-            { value: "neutral", label: "Neutral", color: "#9a9a9a" },
-            { value: "accent",  label: "Accent",  color: "#7C5CFF" },
-            { value: "warm",    label: "Warm",    color: "#ff8a5b" },
-          ] },
-        },
-        motion: {
-          press: { type: "motion", visualDuration: 0.4, bounce: 0.25 },   // an easing or a spring, over one value
-        },
-        monitor: {
-          live: true,
-          fps: { type: "fpsgraph", label: "FPS" },
-        },
+        shadow: { type: "shadow", y: 6, blur: 20, color: "rgb(0 0 0 / 0.14)" },
+        bounce: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word hops on it
       });
       mount.append(panel.el);
+
+      const apply = ({ size, weight, tracking, leading, align, fill, shadow }) => {
+        const s = text.style, gradient = fill.mode === "gradient";
+        s.fontSize = `${size}px`;
+        s.fontWeight = weight;
+        s.letterSpacing = `${tracking}em`;
+        const over = text.scrollWidth / text.clientWidth;  // a word never breaks: one too wide for the stage shrinks to fit
+        if (over > 1) s.fontSize = `${size / over}px`;
+        s.lineHeight = leading;
+        s.textAlign = align;
+        s.alignSelf = { left: "flex-start", center: "center", right: "flex-end" }[align];
+        s.backgroundImage = gradient && fill.ramp ? gradientCss(fill.ramp, fill.angle) : "none";
+        s.color = gradient ? "transparent" : fill.ink;
+        // drop-shadow, not text-shadow: a text-shadow paints over the clipped gradient
+        s.filter = shadow && (shadow.x || shadow.y || shadow.blur)
+          ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur / 2}px ${shadow.color})`
+          : "none";
+      };
+      let hopping = false, again = false;                  // an edit mid-hop replays it after
+      async function hop() {
+        if (!text.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        if (hopping) { again = true; return; }
+        hopping = true;
+        const { duration, easing } = panel.params.bounce;  // a spring resolves to linear(…)
+        // when the spring first reaches the ground: its first sample at or past 1
+        const hit = [...easing.matchAll(/([\d.]+) ([\d.]+)%/g)].find(([, v]) => v >= 1)?.[2] / 100 || 1;
+        await text.animate([                               // crouch, then spring up stretched
+          { translate: "0 0", scale: "1 1" },
+          { translate: "0 0", scale: "1.1 0.88", offset: 0.35 },
+          { translate: "0 -0.45em", scale: "0.92 1.1" },
+        ], { duration: 320, easing: "ease-out" }).finished;
+        text.animate([{ translate: "0 -0.45em" }, { translate: "0 0" }], { duration, easing });
+        await text.animate([                               // squash on landing, wobble back
+          { scale: "0.92 1.1" },
+          { scale: "1 1", offset: hit * 0.8 },
+          { scale: "1.14 0.84", offset: hit, easing: "cubic-bezier(0.3, 1.6, 0.5, 1)" },
+          { scale: "1 1" },
+        ], { duration }).finished;
+        hopping = false;
+        if (again) { again = false; hop(); }
+      }
+      panel.on((p, changed) => { apply(p); if (changed === "bounce") hop(); });
+      panel.ready.then(() => { apply(panel.params); hop(); });
+      window.addEventListener("resize", () => apply(panel.params));
     },
-  },
-  {
-    title: "Where next",
-    prose: `<ul>
-      <li><a href="./getting-started.html">Getting started</a>: install, import, build your first panel.</li>
-      <li><a href="./quick-tour.html">Quick tour</a>: the schema shorthands in two minutes.</li>
-      <li>Every control, live: <a href="./numbers.html">numbers</a>,
-        <a href="./text-and-choices.html">text &amp; choices</a>,
-        <a href="./color-and-gradient.html">color &amp; gradient</a>,
-        <a href="./motion.html">motion &amp; curves</a>,
-        <a href="./monitors.html">monitors</a>,
-        <a href="./structure.html">structure</a>.</li>
-      <li><a href="./panel-api.html">The panel API</a>, <a href="./theming.html">theming</a>,
-        <a href="./markup.html">markup-driven panels</a> and
-        <a href="./imports.html">the two builds</a>.</li>
-    </ul>
-    <p>Inspired by Tweakpane and dialkit. Source on
-    <a href="https://github.com/ryankiley/tweakit" rel="noopener">GitHub</a> (MIT).</p>`,
   },
 ];
