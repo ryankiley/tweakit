@@ -70,7 +70,7 @@ export async function enhance(root: Document | Element = document): Promise<void
       };
       const reset = () => { for (const t of live()) t.reset(); };
       const toolbar = el("div", "tw-toolbar");
-      toolbar.append(makeCopyBtn(panel, name, values), makeResetBtn(reset)); header.append(toolbar);
+      toolbar.append(makeCopyBtn(panel, name, () => [values(), -1]), makeResetBtn(reset)); header.append(toolbar); // a markup panel has no defaults to diff against: ⇧ or not, the copy is every value
     }
   });
   // Folders first: build the collapsible chrome and move child [data-tw] hosts into it.

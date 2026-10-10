@@ -18,11 +18,15 @@ const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => { c
 // Both handlers bail while the button is `disabled` (the panel's lazy window, before its
 // controls exist): a user click never reaches a disabled control, but a synthetic
 // dispatchEvent(click) does, and it must stay as inert as the button reads.
-const makeCopyBtn = (anchor: Element, name: string, text: () => string) => {
-  const b = toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values");
-  b.addEventListener("click", async () => {
+// `text(changedOnly)` returns the payload and a count: -1 for the full snapshot, else how
+// many changed values it holds — a ⇧-click with nothing changed copies nothing and says so.
+const makeCopyBtn = (anchor: Element, name: string, text: (changedOnly: boolean) => [string, number]) => {
+  const b = toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values (⇧: changed only)");
+  b.addEventListener("click", async (e) => {
     if (b.disabled) return;
-    if (await copyText(text())) { flashCopied(b); showToast(`${name} values copied`, anchor); }
+    const [t, n] = text(e.shiftKey);
+    if (!n) { showToast("Nothing has changed", anchor); return; }
+    if (await copyText(t)) { flashCopied(b); showToast(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : `${name} values copied`, anchor); }
     else showToast("Copy failed", anchor);
   });
   return b;
