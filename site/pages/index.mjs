@@ -85,7 +85,7 @@ export const examples = [
         s.backgroundImage = gradient && fill.ramp ? gradientCss(fill.ramp, fill.angle) : "none";
         s.color = gradient ? "transparent" : fill.ink;
         // drop-shadow, not text-shadow: a text-shadow paints over the clipped gradient
-        s.filter = shadow && (shadow.x || shadow.y || shadow.blur)
+        s.filter = shadow && !shadow.inset && (shadow.x || shadow.y || shadow.blur)   // a drop-shadow can't be inset
           ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur / 2}px ${shadow.color})`
           : "none";
       };
@@ -95,8 +95,9 @@ export const examples = [
         if (hopping) { again = true; return; }
         hopping = true;
         const { duration, easing } = panel.params.bounce;  // a spring resolves to linear(…)
-        // when the spring first reaches the ground: its first sample at or past 1
-        const hit = [...easing.matchAll(/([\d.]+) ([\d.]+)%/g)].find(([, v]) => v >= 1)?.[2] / 100 || 1;
+        // when the spring first reaches the ground: its first stop at or past 1 (the stops are evenly spaced)
+        const stops = easing.startsWith("linear(") ? easing.slice(7, -1).split(",").map(Number) : [];
+        const at = stops.findIndex((v) => v >= 1), hit = at > 0 ? at / (stops.length - 1) : 1;
         await text.animate([                               // crouch, then spring up stretched
           { translate: "0 0", scale: "1 1" },
           { translate: "0 0", scale: "1.1 0.88", offset: 0.35 },
