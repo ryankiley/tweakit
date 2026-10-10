@@ -489,6 +489,11 @@ a { color: inherit; text-decoration: none; }
   body.nav-open::after { opacity: 1; }
 
   .doc { padding: 24px 18px 72px; }
+  /* A phone column can't hold a long code chip or a table's first column whole: let them
+   * wrap rather than push the page sideways. Each wrapped piece of a chip keeps its pill
+   * (box-decoration-break), so a broken chip still reads as one chip. */
+  .doc code { white-space: normal; overflow-wrap: anywhere; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .doc td:first-child { white-space: normal; }
   .ex { scroll-margin-top: 68px; }
   .ex-live { flex-direction: column; }
   /* Stacked, the stage's 18px padding is the whole vertical rhythm: demo and panel sit 18px
