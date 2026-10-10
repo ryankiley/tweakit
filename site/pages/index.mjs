@@ -44,6 +44,16 @@ export const examples = [
             { key: "y", label: "Y", value: 0, min: -1, max: 1, step: 0.01 },
           ] },
         },
+        surface: {
+          ramp: { type: "gradient", value: { stops: [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }] } },
+          lift: { type: "shadow", y: 8, blur: 24, color: "rgb(0 0 0 / 0.18)" },
+          radius: { type: "slider", value: 12, min: 0, max: 40, unit: "px" },
+          tone: { value: "accent", options: [                                   // a dropdown whose options carry a swatch
+            { value: "neutral", label: "Neutral", color: "#9a9a9a" },
+            { value: "accent",  label: "Accent",  color: "#7C5CFF" },
+            { value: "warm",    label: "Warm",    color: "#ff8a5b" },
+          ] },
+        },
         motion: {
           press: { type: "motion", visualDuration: 0.4, bounce: 0.25 },   // an easing or a spring, over one value
         },
