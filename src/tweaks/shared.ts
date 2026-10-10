@@ -249,9 +249,9 @@ const THEME_ALIASES: Record<string, string> = Object.assign(Object.create(null),
   // elevation
   shadow: "--tw-shadow-dropdown", shadowPanel: "--tw-shadow-panel", shadowPanelLifted: "--tw-shadow-panel-lifted",
   // type + shape
-  font: "--tw-font-sans", fontMono: "--tw-font-mono", radius: "--tw-radius", density: "--tw-row-height", // numeric → px
+  font: "--tw-font-sans", fontMono: "--tw-font-mono", radius: "--tw-radius", density: "--tw-row-height", width: "--tw-width", // numeric → px
 });
-const TW_PX_ALIASES = new Set(["radius", "density"]);
+const TW_PX_ALIASES = new Set(["radius", "density", "width"]);
 // On-accent text (the active segment pill / radio cell sits a label on the accent). Pick
 // black or white by the accent's WCAG relative luminance, whichever contrasts more — so a
 // bright accent (green, orange) stays legible where the panel's own light/dark text would
