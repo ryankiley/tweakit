@@ -62,10 +62,7 @@ function normalizeStops(value: any): GradientStop[] {
 function createGradient(meta: Meta, onChange: OnChange): Control {
   let stops = normalizeStops(meta.value);
   let selStop = stops[0];
-  // An easing the value names but the parser doesn't know (`steps()`, a typo) reads as linear,
-  // as the CSS helper treats it — said once in the console, since the value echoes back rewritten.
-  const readEasing = (v: any) => { const e = parseEase(v); if (e !== null && !parseEasing(e) && e.trim().toLowerCase() !== "linear") console.warn(`[tweaks] gradient: unrecognised easing ${JSON.stringify(e)} — using linear`); return easingName(e); };
-  let easing = readEasing(meta.value);
+  let easing = easingName(parseEase(meta.value)); // anything unrecognised reads as linear, as the CSS helper treats it
 
   // ── Trigger row — a gradient preview + stop count that opens the editor (the
   // shared modal-trigger row the colour control uses). ──
@@ -108,9 +105,9 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     handleFor(selStop)?.style.setProperty("--stop", c);
     paint(); emit();
   });
-  // Easing sits beside the mode in the body's mode row (its modeRow slot): both are "how
-  // the ramp blends", one the space, the other the curve. Styled as the mode select; the
-  // picker's gamut tag keeps the row's far end.
+  // Easing sits beside the mode in the body's mode row: both are "how the ramp blends",
+  // one the space, the other the curve. Styled as the mode select; the picker's gamut tag
+  // keeps the row's far end.
   const easeSel = el("select", "tw-color-mode tw-gradient-ease"); easeSel.setAttribute("aria-label", "Easing between stops"); easeSel.title = "How the ramp blends between stops";
   for (const [v, label] of EASINGS) { const o = document.createElement("option"); o.value = v; o.textContent = label; easeSel.append(o); }
   const reflectEase = () => {
@@ -120,7 +117,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     easeSel.value = easing;
   };
   easeSel.addEventListener("change", () => { easing = easeSel.value as GradientEasing; reflectEase(); paint(); emit(); }); // reflect: picking a keyword retires the Custom option
-  body.modeRow.querySelector(".tw-color-mode")!.after(easeSel); // after the mode select, before the gamut tag
+  body.el.querySelector(".tw-color-mode")!.after(easeSel); // after the mode select, before the gamut tag
   reflectEase();
   pop.append(barRow, body.el);
   root.append(pop);
@@ -256,7 +253,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
       // the same interpolation we emitted, so this is usually a no-op); absent → leave the
       // mode as the user left it, never silently reset it to OKLCH on a stops-only set.
       const ip = parseInterp(v); if (ip) body.setMode(interpolationMode(ip));
-      if (parseEase(v) !== null) { easing = readEasing(v); reflectEase(); } // same rule as the blend: named → applied, absent → left as the user set it
+      const es = parseEase(v); if (es !== null) { easing = easingName(es); reflectEase(); } // same rule as the blend: named → applied, absent → left as the user set it
       const next = normalizeStops(v).sort((a, b) => a.pos - b.pos);
       if (next.length === stops.length) {
         // Same count — the common case: a host mirroring values back via on(). Update

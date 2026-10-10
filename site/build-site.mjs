@@ -186,13 +186,9 @@ function renderScript(page) {
   if (!runs.length && !hasMarkup) return "";
   // Importing core also auto-runs enhance(document) on DOMContentLoaded — that alone
   // powers the [data-tw] markup-mode examples; run-mode examples wire up below it.
-  let js = `import { tweaks, enhance } from "./tweaks/core.js";\n`;
-  // The gradient → CSS helper rides only on a page whose examples name it (its own entry,
-  // so the other pages don't fetch a module they never call).
-  const usesGradientCss = runs.some((ex) => /\bgradientCss\b/.test(ex.run.toString()));
-  if (usesGradientCss) js += `import { gradientCss } from "./gradient-css.js";\n`;
+  let js = `import { tweaks, enhance, gradientCss } from "./tweaks/core.js";\n`;
   if (runs.length) {
-    js += `const wire = (id, fn) => { const ex = document.getElementById(id); fn({ tweaks, enhance, ${usesGradientCss ? "gradientCss, " : ""}mount: ex.querySelector(".ex-mount"), target: ex.querySelector(".ex-target") }); };\n`;
+    js += `const wire = (id, fn) => { const ex = document.getElementById(id); fn({ tweaks, enhance, gradientCss, mount: ex.querySelector(".ex-mount"), target: ex.querySelector(".ex-target") }); };\n`;
     for (const ex of runs) {
       const src = ex.run.toString();
       // "</script" closes the inline module; "<!--" flips the parser into the

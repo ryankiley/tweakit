@@ -56,8 +56,7 @@ export const examples = [
       it with the arrow keys), double-click the bar (or the + button) to add, select a stop
       to recolor it with the full picker, Delete to remove it. The value is
       <code>{ stops: [{ color, pos }], interpolation, easing }</code>; hand it to
-      <code>gradientCss(value, angle?)</code> (from <code>tweakit/gradient-css</code>) for the
-      CSS. Stops can be authored in
+      <code>gradientCss(value, angle?)</code> for the CSS. Stops can be authored in
       <code>oklch()</code> for wide-gamut ramps.</p>
       <p>The ramp blends in whichever color space you pick in the stop editor: switch the mode
       to RGB and the blend goes through sRGB (muddier — that's what <code>rgb()</code> blends

@@ -47,11 +47,6 @@
       "types": "./dist/tweaks.css.d.ts",
       "default": "./dist/tweaks.css"
     },
-    "./gradient-css": {
-      "types": "./dist/types/tweaks/gradient-css.d.ts",
-      "import": "./dist/gradient-css.js",
-      "default": "./dist/gradient-css.js"
-    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -59,7 +54,6 @@
     "dist/tweaks.js",
     "dist/tweaks.css",
     "dist/tweaks.css.d.ts",
-    "dist/gradient-css.js",
     "dist/types",
     "THIRD-PARTY-NOTICES.md"
   ],

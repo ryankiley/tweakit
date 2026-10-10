@@ -294,9 +294,8 @@ export const examples = [
       <code>linear-gradient(in &lt;interpolation&gt; &lt;angle&gt;, …)</code> with the value's
       easing expanded into sampled stops — and <code>gradientStops(value)</code> is the stop
       list alone, for a conic or radial gradient. The editor's own preview draws through the
-      same function, so this is the one way to get exactly what it shows. Pure string work
-      with no panel needed, from its own entry <code>tweakit/gradient-css</code> (the
-      monolith exports it from its root as well; the code-split core keeps to its budget).</p>`,
+      same function, so this is the one way to get exactly what it shows. Pure string work:
+      it runs anywhere, with no control mounted.</p>`,
     code: `
       import { mountControl, createColorPicker } from "tweakit";
 
@@ -313,7 +312,7 @@ export const examples = [
       myPopover.append(picker.el);
       swatch.addEventListener("click", () => { openPopover(); picker.reflow(); });
 
-      import { gradientCss } from "tweakit/gradient-css";
+      import { gradientCss } from "tweakit";
       panel.on((p) => hero.style.background = gradientCss(p.ramp, 135));`,
   },
   {

@@ -1,8 +1,8 @@
 /* Gradient easing + gradient → CSS. The one place a gradient value becomes a stop list,
  * shared by the editor (its bar and trigger preview) and by hosts (gradientCss /
- * gradientStops, re-exported by the `tweakit/gradient-css` entry — the parser and the
- * samplers here are the editor's, not public API) — so what the editor draws is, by
- * construction, what a host's CSS draws.
+ * gradientStops, exported from core) — so what the editor draws is, by construction, what
+ * a host's CSS draws. Core reaches it through shared.ts, so it lands in the shared chunk
+ * rather than minting one of its own (see the re-export there).
  *
  * Easing: a CSS gradient blends in a straight line between stops, and the eye reads
  * where a straight blend starts and stops as an edge (a fade to transparent, a two-stop
@@ -18,10 +18,6 @@
  *
  * Pure string + number work, no DOM: it runs anywhere a host templates CSS. */
 import type { GradientEasing, GradientStop, GradientValue } from "./types.js";
-
-/** What the CSS helpers take: the emitted object form, or the stop shorthand a schema
- *  accepts — a stop array of `{ color, pos }` objects and/or `[color, pos]` tuples. */
-export type GradientInput = GradientValue | Array<GradientStop | [string, number]>;
 
 /** cubic-bezier control points [x1, y1, x2, y2]. */
 type Bez = [number, number, number, number];
@@ -48,14 +44,9 @@ export function parseEasing(e: unknown): Bez | null {
   return [clamp01(n[0]), n[1], clamp01(n[2]), n[3]];
 }
 
-/** The canonical name of an easing: "linear" for linear or anything unrecognised, the
- *  keyword when the bezier is one (`cubic-bezier(.42, 0, .58, 1)` reads back as
- *  "ease-in-out"), else a normalised `cubic-bezier(x1, y1, x2, y2)`. */
-export function easingName(e: unknown): GradientEasing {
-  const b = parseEasing(e); if (!b) return "linear";
-  for (const k in KEYWORDS) if (KEYWORDS[k].every((v, i) => v === b[i])) return k as GradientEasing;
-  return `cubic-bezier(${b.join(", ")})`;
-}
+/** The name an easing is stored under: the string itself, trimmed and lowercased, when
+ *  parseEasing knows it; "linear" for linear and for anything unrecognised. */
+export const easingName = (e: unknown): GradientEasing => (parseEasing(e) ? (e as string).trim().toLowerCase() as GradientEasing : "linear");
 
 /** The curve at 16 even t: [x, y] pairs — x the position within the segment (0→1), y the
  *  blend progress, clamped to [0,1] since it becomes a color-mix percentage. */
@@ -87,16 +78,12 @@ const pct = (n: number) => +(n * 100).toFixed(2);
  *  the value's easing expanded into sampled stops. Linear (or no) easing gives the plain
  *  list. For a `linear-gradient` use gradientCss; this is for templating a conic / radial
  *  gradient, or any other place a stop list goes. */
-export function gradientStops(value: GradientInput): string {
-  // The shorthand a host authors its schema with is a value too: a bare stop array (no
-  // blend space, no easing → OKLCH, linear) and tuple stops, so a host can paint from the
-  // value it wrote before the panel's first emit without crashing on `.stops`.
-  const v: GradientValue = Array.isArray(value) ? { stops: value as GradientStop[] } : value;
-  const stops = (Array.isArray(v?.stops) ? v.stops : []).map((s: GradientStop | [string, number]) => (Array.isArray(s) ? { color: s[0], pos: s[1] } : s)).sort((a, b) => a.pos - b.pos);
+export function gradientStops(value: GradientValue): string {
+  const stops = [...value.stops].sort((a, b) => a.pos - b.pos);
   const plain = (s: GradientStop) => `${s.color} ${pct(s.pos)}%`;
-  const bez = parseEasing(v?.easing);
+  const bez = parseEasing(value.easing);
   if (!bez || stops.length < 2) return stops.map(plain).join(", ");
-  const samples = easingSamples(bez), space = v.interpolation || "oklch";
+  const samples = easingSamples(bez), space = value.interpolation || "oklch";
   const out = [plain(stops[0])];
   for (let i = 1; i < stops.length; i++) {
     const a = stops[i - 1], b = stops[i], span = b.pos - a.pos;
@@ -115,7 +102,6 @@ export function gradientStops(value: GradientInput): string {
  *  easing expanded, blend space honoured — paste it straight into `background`. `direction`
  *  is an angle in degrees or any CSS direction (`"to right"`, the default, is what the
  *  editor's own preview draws). */
-export function gradientCss(value: GradientInput, direction: number | string = "to right"): string {
-  const space = (!Array.isArray(value) && value?.interpolation) || "oklch";
-  return `linear-gradient(in ${space} ${typeof direction === "number" ? `${direction}deg` : direction}, ${gradientStops(value)})`;
+export function gradientCss(value: GradientValue, direction: number | string = "to right"): string {
+  return `linear-gradient(in ${value.interpolation || "oklch"} ${typeof direction === "number" ? `${direction}deg` : direction}, ${gradientStops(value)})`;
 }

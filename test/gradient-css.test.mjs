@@ -27,9 +27,8 @@ test("parseEasing: keywords, cubic-bezier() with x clamped, and garbage → line
   }
 });
 
-test("easingName canonicalises: a keyword's bezier reads back as the keyword, others as cubic-bezier(…)", () => {
-  assert.equal(easingName("cubic-bezier(0.42, 0, 0.58, 1)"), "ease-in-out");
-  assert.equal(easingName("EASE"), "ease");
+test("easingName keeps a known easing (trimmed, lowercased) and reads anything else as linear", () => {
+  assert.equal(easingName(" EASE-in "), "ease-in");
   assert.equal(easingName("cubic-bezier(0.3, 0, 0.7, 1)"), "cubic-bezier(0.3, 0, 0.7, 1)");
   assert.equal(easingName("nonsense"), "linear");
   assert.equal(easingName(undefined), "linear");
@@ -84,13 +83,3 @@ test("y overshoot clamps into color-mix's 0–100% and the stops still sort by p
   pos.forEach((p, i) => i && assert.ok(p >= pos[i - 1], "monotonic"));
 });
 
-test("the helpers take the schema's shorthand too: a bare stop array, tuple stops, and a missing stops field", () => {
-  assert.equal(gradientCss([["#000", 0], ["#fff", 1]]), "linear-gradient(in oklch to right, #000 0%, #fff 100%)");
-  assert.equal(gradientStops({ stops: [["red", 0], { color: "blue", pos: 1 }], easing: "ease" }).split(/, (?![^(]*\))/).length, 16);
-  assert.equal(gradientStops({}), ""); assert.equal(gradientStops(null), ""); assert.equal(gradientCss(undefined), "linear-gradient(in oklch to right, )"); // garbage never throws
-});
-
-test("stops are sorted by position before expansion, whatever order the value holds them in", () => {
-  const css = gradientStops({ stops: [{ color: "blue", pos: 1 }, { color: "red", pos: 0 }], easing: "ease-in-out" });
-  assert.ok(css.startsWith("red 0%, color-mix(in oklch, red, blue") && css.endsWith("blue 100%"));
-});

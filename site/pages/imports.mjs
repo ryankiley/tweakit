@@ -15,7 +15,6 @@ export const intro = `
   <tr><td><code>tweakit</code></td><td>{{size-single}} gzip</td><td>one self-contained file; every control inlined, fully synchronous</td></tr>
   <tr><td><code>tweakit/core</code></td><td>{{size-split}} gzip</td><td>code-split; color engine and heavy controls dynamic-import on first use</td></tr>
   <tr><td><code>tweakit/css</code></td><td>{{size-css}} gzip</td><td>the stylesheet, the same for both builds — add it to either figure for the full weight on the wire</td></tr>
-  <tr><td><code>tweakit/gradient-css</code></td><td>&lt;1 KB gzip</td><td><code>gradientCss()</code> / <code>gradientStops()</code>, a gradient value → CSS with its easing expanded; pure string work, no panel needed. The monolith exports them from its root too</td></tr>
 </table>
 <p>Pick the monolith for drop-in simplicity (it's also the no-bundler choice — copy
 <code>dist/tweaks.js</code> anywhere). Pick <code>/core</code> when panels are part of a
@@ -70,10 +69,9 @@ export const examples = [
     prose: `<p>Everything the package ships, by import path. Types ride along with both
       entries.</p>`,
     code: `
-      import { tweaks, enhance } from "tweakit";        // monolith
-      import { tweaks, enhance } from "tweakit/core";   // code-split
-      import "tweakit/css";                             // panel styles
-      import { gradientCss } from "tweakit/gradient-css"; // gradient value → CSS (also on the monolith's root)
+      import { tweaks, enhance, gradientCss } from "tweakit";        // monolith
+      import { tweaks, enhance, gradientCss } from "tweakit/core";   // code-split
+      import "tweakit/css";                                          // panel styles
 
       import type { Schema, Panel, Theme, TweaksOptions, GradientValue } from "tweakit";`,
   },

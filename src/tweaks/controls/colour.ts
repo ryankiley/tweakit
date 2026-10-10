@@ -14,7 +14,7 @@ export type Oklcha = [number, number, number, number];
  *  the host repaints its trigger on when the mode dropdown changes. */
 export interface PickerOptions { value?: string; mode?: ColorMode; onMode?: () => void }
 /** The picker body's handle — a Control plus the mode and trigger-painting surface. */
-export interface PickerBody extends Control { el: HTMLDivElement; set(v: string): void; get(): string; mode(): ColorMode; setMode(m: ColorMode): void; reflow(): void; swatchCss(): string; valueText(): string; modeRow: HTMLDivElement }
+export interface PickerBody extends Control { el: HTMLDivElement; set(v: string): void; get(): string; mode(): ColorMode; setMode(m: ColorMode): void; reflow(): void; swatchCss(): string; valueText(): string }
 
 // ── Colour — one module: a row that opens a dropdown OKLCH picker. Ported from
 // Ryan's wide-gamut colour plugin (the real engine; see wide-gamut.js): an
@@ -376,7 +376,6 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     // its blend space, and re-points the body's mode when a host pushes in a stored ramp.
     mode: () => mode,
     setMode: (m: ColorMode) => { if (m !== mode && EDIT_MODES.includes(m)) remode(m); },
-    modeRow, // the row holding the mode select + gamut tag: a host puts a sibling "how it blends" control here (the gradient's easing)
     reflow,
     // The host paints its own trigger from these — the body carries no swatch/value of its own.
     swatchCss: () => `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), ${CHECKER}`,

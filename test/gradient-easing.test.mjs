@@ -21,31 +21,6 @@ const barCss = (p) => {
 const easeSel = (p) => p.el.querySelector(".tw-gradient-ease");
 const pick = (sel, v) => { sel.value = v; sel.dispatchEvent(new Event("change", { bubbles: true })); };
 
-test("the tweakit/gradient-css entry builds, exports exactly the two helpers, and ships its types", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const entry = await import(new URL("../dist/gradient-css.js", import.meta.url));
-  assert.deepEqual(Object.keys(entry).sort(), ["gradientCss", "gradientStops"]);
-  assert.equal(entry.gradientCss({ stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }] }), gradientCss({ stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }] }), "the entry and the single-file export agree");
-  const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-  const exp = pkg.exports["./gradient-css"];
-  for (const rel of [exp.import, exp.default, exp.types]) await readFile(new URL("../" + rel, import.meta.url)); // every mapped path exists in the build
-  assert.ok(pkg.files.includes("dist/gradient-css.js"), "the entry ships in the tarball");
-  const dts = await readFile(new URL("../" + exp.types, import.meta.url), "utf8");
-  assert.ok(/gradientCss/.test(dts) && !/easingSamples/.test(dts), "the entry's types expose the two helpers, not the editor's samplers");
-});
-
-test("an unrecognised easing warns once and reads as linear", () => {
-  const warned = []; const orig = console.warn; console.warn = (...a) => { const m = a.join(" "); if (m.startsWith("[tweaks]")) warned.push(m); }; // the kit's own warnings only — jsdom's CSS parser also warns when it gives up on the long eased background
-  try {
-    const p = tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "steps(4)" } } });
-    assert.equal(p.params.g.easing, "linear");
-    assert.equal(warned.length, 1); assert.match(warned[0], /unrecognised easing "steps\(4\)"/);
-    tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "Linear" } } });
-    tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "cubic-bezier(.42,0,.58,1)" } } });
-    assert.equal(warned.length, 1, "a spelled-out linear and a valid bezier don't warn");
-  } finally { console.warn = orig; }
-});
-
 test("a gradient emits easing: linear by default, and its bar is gradientCss(value) verbatim", () => {
   const p = tweaks("G", { g: { type: "gradient" } });
   assert.equal(p.params.g.easing, "linear");
@@ -68,7 +43,7 @@ test("the easing menu sits beside the mode select, lists the CSS keywords, and a
   assert.ok(barCss(p).includes("color-mix(in oklch, #ff0000, #0000ff"), "samples mix in the value's blend space");
 });
 
-test("a value carrying easing opens on it; a keyword's bezier canonicalises; an unknown bezier shows as Custom", () => {
+test("a value carrying easing opens on it; a bezier that isn't a keyword shows as Custom", () => {
   const p = tweaks("G", {
     a: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "ease-out" } },
     b: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "cubic-bezier(0.42,0,0.58,1)" } },
@@ -76,7 +51,7 @@ test("a value carrying easing opens on it; a keyword's bezier canonicalises; an 
     d: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "bogus) url(x" } },
   });
   assert.equal(p.params.a.easing, "ease-out"); assert.equal(p.el.querySelectorAll(".tw-gradient-ease")[0].value, "ease-out");
-  assert.equal(p.params.b.easing, "ease-in-out");
+  assert.equal(p.params.b.easing, "cubic-bezier(0.42,0,0.58,1)"); // stored as written, not renamed
   assert.equal(p.params.c.easing, "cubic-bezier(0.3, 0, 0.7, 1)");
   const selC = p.el.querySelectorAll(".tw-gradient-ease")[2];
   assert.equal(selC.value, "cubic-bezier(0.3, 0, 0.7, 1)");
@@ -99,14 +74,6 @@ test("set() applies an easing it names and leaves one it doesn't; reset returns 
   p.reset();
   assert.equal(p.params.g.easing, "linear", "reset restores the form the control opened on");
   assert.equal(easeSel(p).value, "linear");
-});
-
-test("toJSON / fromJSON round-trip easing", () => {
-  const a = tweaks("G", { g: { type: "gradient" } });
-  pick(easeSel(a), "ease-in-out");
-  const b = tweaks("G", { g: { type: "gradient" } });
-  b.fromJSON(a.toJSON());
-  assert.equal(b.params.g.easing, "ease-in-out"); assert.equal(easeSel(b).value, "ease-in-out");
 });
 
 test("a stop added to an eased ramp samples the eased colour, so it lands on the ramp the bar draws", () => {
