@@ -44,7 +44,7 @@ export const examples = [
       <code>radiogrid</code>, <code>list</code>, <code>text</code>, <code>color</code>,
       <code>image</code>, <code>button</code>, <code>buttongroup</code>,
       <code>separator</code>, <code>interval</code>, <code>spring</code>,
-      <code>cubicbezier</code>, <code>point</code>, <code>plot</code> and
+      <code>cubicbezier</code>, <code>motion</code>, <code>shadow</code>, <code>point</code>, <code>plot</code> and
       <code>fpsgraph</code>, plus the <code>folder</code> wrapper below.
       <code>gradient</code>, <code>monitor</code>, <code>segmented</code> and
       <code>tabs</code> are panel-only; a host naming one of those is left untouched.</p>`,

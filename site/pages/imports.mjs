@@ -55,11 +55,12 @@ export const examples = [
       time any panel (or <code>[data-tw]</code> host) uses them; once loaded, they're
       synchronous for the rest of the session:</p>
       <ul>
-        <li><strong>color engine</strong>: <code>color</code>, and <code>gradient</code> (which builds on it)</li>
-        <li><strong>numeric field engine</strong>: <code>number</code> (the boxed fields of spring, point, cubicbezier and the color channels reuse it)</li>
+        <li><strong>color engine</strong>: <code>color</code>, and <code>gradient</code> and <code>shadow</code> (which build on it)</li>
+        <li><strong>numeric field engine</strong>: <code>number</code> (the boxed fields of spring, point, cubicbezier, motion, shadow and the color channels reuse it)</li>
         <li><strong>one module each</strong>: <code>interval</code>, <code>spring</code>, <code>cubicbezier</code>,
           <code>point</code>, <code>plot</code>, <code>image</code>, <code>tabs</code></li>
         <li><strong>monitors</strong>: <code>monitor</code> and <code>fpsgraph</code> share a module</li>
+        <li><strong>motion</strong>: <code>motion</code>, which also loads <code>spring</code> and <code>cubicbezier</code> (its two editors)</li>
       </ul>
       <p>Everything else (<code>slider</code>, <code>text</code>, <code>checkbox</code>, <code>list</code>,
       <code>radiogrid</code>, <code>button</code>, <code>buttongroup</code>, <code>folder</code>,
@@ -74,6 +75,6 @@ export const examples = [
       import { tweaks, enhance, mountControl, createColorPicker, gradientCss, gradientStops } from "tweakit/core";   // code-split
       import "tweakit/css";                                                                                          // panel styles
 
-      import type { Schema, Panel, PanelState, Theme, TweaksOptions, GradientValue } from "tweakit";`,
+      import type { Schema, Panel, PanelState, Theme, TweaksOptions, GradientValue, MotionValue, ShadowValue } from "tweakit";`,
   },
 ];
