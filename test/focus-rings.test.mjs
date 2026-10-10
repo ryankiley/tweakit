@@ -12,7 +12,9 @@ const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
 const css = readFileSync(new URL("../dist/tweaks.css", import.meta.url), "utf8");
 
 // Every selector list in the stylesheet that names :focus-visible, split into its selectors.
-const selectors = [...css.matchAll(/([^{}]+)\{[^}]*\}/g)].map((m) => m[1]).filter((s) => s.includes(":focus-visible"))
+// The @media wrappers go first: a rule inside one would otherwise be read as part of the
+// wrapper's own selector text and dropped, hiding the ring it declares.
+const selectors = [...css.replace(/@media[^{]*\{/g, "").matchAll(/([^{}]+)\{[^}]*\}/g)].map((m) => m[1]).filter((s) => s.includes(":focus-visible"))
   .flatMap((s) => s.split(",").map((x) => x.trim()).filter((x) => x.includes(":focus-visible")));
 const strip = (s) => s.replace(/:focus-visible/g, "").replace(/:not\([^)]*\)/g, "").trim();
 // A selector covers an element when the element matches it with the pseudo-classes removed,
@@ -43,4 +45,11 @@ test("every focusable element in a panel with every control has a :focus-visible
   const describe = (el) => `<${el.tagName.toLowerCase()} class="${el.className}"${el.getAttribute("role") ? ` role=${el.getAttribute("role")}` : ""}>`;
   assert.deepEqual([...new Set(bare.map(describe))], [], "focusable elements no :focus-visible rule reaches");
   p.destroy();
+});
+
+
+test("the selector scan sees a ring declared inside a media block", () => {
+  const sample = `.a:focus-visible { outline: 1px }\n@media (hover: hover) and (pointer: fine) {\n  .b:focus-visible { outline: 1px }\n}\n.c:focus-visible { outline: 1px }`;
+  const seen = [...sample.replace(/@media[^{]*\{/g, "").matchAll(/([^{}]+)\{[^}]*\}/g)].map((m) => m[1].trim());
+  assert.deepEqual(seen, [".a:focus-visible", ".b:focus-visible", ".c:focus-visible"]);
 });
