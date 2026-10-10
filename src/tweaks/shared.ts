@@ -38,7 +38,7 @@ interface Popover { open(): void; close(): void; isOpen(): boolean; reflow(): vo
 type ControlCtor<M = Meta, C = Control> = (meta: M, onChange?: OnChange) => C;
 
 // ── helpers ──
-const titleCase = (s: string) => s.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
+const titleCase = (s: string) => s.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase()).trim(); // a camel hump splits ("fontSize" → "Font Size"); a run of capitals or a digit before one does not ("XS", "2XL", "RGB" stay)
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 // A colour-valued string: hex, or any CSS colour function (oklch/rgb/hsl/…). Used
 // to route a schema string to the colour control (a plain label stays a string).
