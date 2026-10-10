@@ -23,7 +23,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   trigger.setAttribute("aria-label", `${meta.label}: choose an image`);
   const text = el("span", "tw-image-text");
   const thumb = el("span", "tw-trigger-chip tw-image-thumb");
-  right.append(text, thumb);
+  right.append(thumb, text); // thumb first, as every chip row
   const input = el("input", "tw-image-input"); input.type = "file"; input.accept = "image/*";
   root.append(input);
   const render = () => {
