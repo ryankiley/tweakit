@@ -1,5 +1,5 @@
 // ── Interval / range slider — dual-handle [lo,hi]. Lazy.
-import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, overlapsText, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
+import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, defaultRange, overlapsText, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
 import { dragGesture } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -16,7 +16,13 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   // swaps, and a degenerate step re-infers — so markup like data-min="abc"
   // can't ride in as NaN ("NaN – NaN").
   const t0 = +(meta.value && meta.value[0]), t1 = +(meta.value && meta.value[1]);
-  let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, Number.isFinite(t0) ? t0 : 0, Number.isFinite(t1) ? t1 : 1);
+  const lo0 = Number.isFinite(t0) ? t0 : 0, hi0 = Number.isFinite(t1) ? t1 : 1;
+  // An absent bound derives from the values the range must hold, as the shorthand and a verbose
+  // slider do: each end widens it, so [20, 80] spans 0–240, not just 20–80 (which pinned both
+  // handles at the ends).
+  const [a, b] = [defaultRange(lo0), defaultRange(hi0)];
+  const given = (n: unknown) => n != null && n !== "" && Number.isFinite(+n!);
+  let { min, max, step } = normalizeRange(given(meta.min) ? meta.min : Math.min(a[0], b[0]), given(meta.max) ? meta.max : Math.max(a[1], b[1]), meta.step, lo0, hi0);
   [min, max] = gridEnds(min, max, step); // as the slider: the range is its reachable grid, so an off-grid bound never reports a value past it and every surface shares one lattice
   const decimals = stepPrecision(step);
   const q = (v: number) => roundToStep(v, min, step);

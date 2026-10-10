@@ -27,9 +27,14 @@ test("a verbose slider / interval without min/max derives its range from the val
   assert.deepEqual(p.params.i, [20, 80]);
   assert.equal(p.params.neg, -5);
   assert.equal(p.params.unit, 0.5);
-  const [s] = p.el.querySelectorAll("[role=slider]");
+  const [s, i0, i1] = p.el.querySelectorAll("[role=slider]");
   assert.equal(s.getAttribute("aria-valuemin"), "0");
   assert.equal(s.getAttribute("aria-valuemax"), "150"); // the shorthand's 0–3×value
+  // The interval's ends each widen its range (0–240 for [20, 80]), so both handles can move out;
+  // a range locked to the value tuple pinned them at the ends.
+  for (const h of [i0, i1]) { assert.equal(h.getAttribute("aria-valuemin"), "0"); assert.equal(h.getAttribute("aria-valuemax"), "240"); }
+  p.set("i", [0, 200]);
+  assert.deepEqual(p.params.i, [0, 200]);
   // The markup path agrees: one meta derivation for every entry point.
   const host = document.createElement("div");
   host.innerHTML = '<div data-tw="slider" data-value="50"></div>';
@@ -38,6 +43,11 @@ test("a verbose slider / interval without min/max derives its range from the val
   assert.equal(m.getAttribute("aria-valuenow"), "50");
   assert.equal(m.getAttribute("aria-valuemax"), "150");
   host.remove();
+  const ih = document.createElement("div");
+  ih.innerHTML = '<div data-tw="interval" data-value="20,80"></div>';
+  document.body.append(ih); enhance(ih);
+  for (const h of ih.querySelectorAll("[role=slider]")) assert.equal(h.getAttribute("aria-valuemax"), "240");
+  ih.remove();
 });
 
 test("an explicit min/max still wins over the derived range", () => {

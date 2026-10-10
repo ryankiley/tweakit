@@ -100,13 +100,10 @@ const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) 
 // "segmented" is kept as an alias: picking one of a list renders as the radio grid (the
 // nicer-looking single-select). The inline pill is reserved for booleans.
 const radiogridMeta = (v: any): MetaFields => Array.isArray(v.options) && { type: "radiogrid", options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
-// The colour a `{ type: "color" }` / [data-tw="color"] opens on when none is given — it
-// lives on the meta (not only in the picker's own fallback) so reset() restores it rather
-// than handing the control `undefined`, which parsed as black.
-// The verbose range bounds (slider + interval): an absent min/max derives from the value(s)
-// the range must contain, the way the bare-number shorthand does (defaultRange) — so
-// `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`, and an interval's ends each
-// widen it. (Both used to default to 0–1 and clamp a 50 to 1.) Step defaults to the grain.
+// A verbose slider's range bounds: an absent min/max derives from the value the range must
+// contain, the way the bare-number shorthand does (defaultRange), so `{ type: "slider",
+// value: 50 }` spans 0–150 like `size: 50`. (The interval does the same in its own
+// constructor, since its verbose form passes through as given.) Step defaults to the grain.
 const rangeOf = (v: any, ...seeds: unknown[]) => {
   const ranges = (seeds.length ? seeds : [0]).map((s) => defaultRange(Number.isFinite(+s) ? +s : 0));
   const min = v.min ?? Math.min(...ranges.map((r) => r[0])), max = v.max ?? Math.max(...ranges.map((r) => r[1]));
