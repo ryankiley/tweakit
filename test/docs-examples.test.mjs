@@ -1,7 +1,7 @@
 /* Every live example on the docs site runs under jsdom against the built bundle. The
  * site generator only stringifies each example's run function, so a renamed option or
  * a removed method would build green and break on the page. Each run gets the same
- * { tweaks, enhance, mount, target } the page script passes, and every panel it builds
+ * { tweaks, enhance, gradientCss, mount, target } the page script passes, and every panel it builds
  * is destroyed afterward so no monitor loop outlives the test.
  *
  * Beyond "no uncaught error", each example's state after `ready` — every panel's
@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import "./_setup-dom.mjs";
 
-const { tweaks, enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks, enhance, gradientCss } = await import(new URL("../dist/tweaks.js", import.meta.url));
 const pagesDir = new URL("../site/pages/", import.meta.url);
 const files = (await readdir(pagesDir)).filter((f) => f.endsWith(".mjs")).sort();
 
@@ -39,7 +39,7 @@ for (const file of files) {
       const onError = (e) => errors.push(e.error || e.message);
       window.addEventListener("error", onError);
       try {
-        if (ex.run) ex.run({ tweaks: tw, enhance, mount: stage.querySelector(".ex-mount"), target: stage.querySelector(".ex-target") });
+        if (ex.run) ex.run({ tweaks: tw, enhance, gradientCss, mount: stage.querySelector(".ex-mount"), target: stage.querySelector(".ex-target") });
         else await enhance(stage);
         await Promise.all(made.map((p) => p.ready));
         await new Promise((r) => setTimeout(r, 40)); // a couple of frames for measure passes and first draws

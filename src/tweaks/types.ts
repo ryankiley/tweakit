@@ -13,6 +13,17 @@ export type GradientStop = { color: string; pos: number };
  *  so your CSS ramp matches the editor's preview exactly. */
 export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" | "lch" | "lab" | "display-p3" | "rec2020";
 
+/** How a gradient blends between neighbouring stops: `"linear"` (CSS's own straight blend,
+ *  the default) or a CSS easing — `ease`, `ease-in`, `ease-out`, `ease-in-out`, or any
+ *  `cubic-bezier(x1, y1, x2, y2)`. No browser eases a gradient natively, so `gradientCss()`
+ *  samples the curve into stops; template through it rather than by hand. */
+export type GradientEasing = "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" | `cubic-bezier(${string})`;
+
+/** A gradient control's value — the stops, the blend space, and the easing between stops.
+ *  Hand it to `gradientCss(value, angle?)` for the CSS, or `gradientStops(value)` for just
+ *  the stop list (a conic / radial gradient). */
+export interface GradientValue { stops: GradientStop[]; interpolation?: GradientInterpolation; easing?: GradientEasing }
+
 /** Reader passed to a conditional `render` / `disabled` predicate — `get("siblingKey")`. */
 export type Get = (key: string) => unknown;
 
@@ -42,7 +53,7 @@ export type SchemaObject =
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
   | { type: "cubicbezier"; value?: [number, number, number, number] }
   | { type: "point"; components: Array<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
-  | { type: "gradient"; value?: { stops: GradientStop[]; interpolation?: GradientInterpolation } | Array<GradientStop | [string, number]>; stops?: Array<GradientStop | [string, number]> }
+  | { type: "gradient"; value?: GradientValue | Array<GradientStop | [string, number]>; stops?: Array<GradientStop | [string, number]> }
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
   | { type: "fpsgraph" }
   | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }

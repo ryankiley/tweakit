@@ -16,3 +16,7 @@ import "./controls/point.js";
 import "./controls/plot.js";
 
 export * from "./core.js";
+// The gradient → CSS helper is its own entry on the split build (tweakit/gradient-css, so a
+// basic panel's core stays under its budget); the drop-in carries everything, so it's here.
+export { gradientCss, gradientStops } from "./gradient-css.js";
+export type { GradientInput } from "./gradient-css.js";

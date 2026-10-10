@@ -55,18 +55,30 @@ export const examples = [
     prose: `<p>A Figma-style stop editor: drag stops along the bar (or Tab to one and nudge
       it with the arrow keys), double-click the bar (or the + button) to add, select a stop
       to recolor it with the full picker, Delete to remove it. The value is
-      <code>{ stops: [{ color, pos }], interpolation }</code> — ready to template into any CSS
-      gradient. Stops can be authored in <code>oklch()</code> for wide-gamut ramps.</p>
+      <code>{ stops: [{ color, pos }], interpolation, easing }</code>; hand it to
+      <code>gradientCss(value, angle?)</code> (from <code>tweakit/gradient-css</code>) for the
+      CSS. Stops can be authored in
+      <code>oklch()</code> for wide-gamut ramps.</p>
       <p>The ramp blends in whichever color space you pick in the stop editor: switch the mode
       to RGB and the blend goes through sRGB (muddier — that's what <code>rgb()</code> blends
       look like); OKLCH stays perceptually even. That chosen space rides along as
       <code>interpolation</code>, so dropping it into <code>linear-gradient(in …)</code> makes
-      your CSS match the preview exactly.</p>`,
+      your CSS match the preview exactly.</p>
+      <p>Beside the mode, <strong>easing</strong>. A gradient blends in a straight line between
+      stops, and the eye reads where a straight blend starts and stops as an edge — most
+      visibly in a fade to transparent. Pick <code>ease-in-out</code> (or any CSS easing) and
+      the ramp eases between each pair of stops instead; it rides along as <code>easing</code>.
+      No browser eases a gradient natively, so <code>gradientCss()</code> samples the curve
+      into 16 stops per segment, each a <code>color-mix()</code> in the ramp's own blend
+      space — template through it rather than by hand. <code>gradientStops(value)</code> is
+      the stop list alone, for a conic or radial gradient. Easing is per segment: a stop
+      added midway through an eased ramp makes two eased segments, with a flat spot at the
+      stop.</p>`,
     target: `<div class="grad-swatch"></div>`,
     css: `
       .grad-swatch { width: 100%; height: 120px; border-radius: 14px; align-self: center;
                      box-shadow: inset 0 0 0 1px var(--demo-line); }`,
-    run: ({ tweaks, mount, target }) => {
+    run: ({ tweaks, gradientCss, mount, target }) => {
       const swatch = target.querySelector(".grad-swatch");
       const panel = tweaks("Gradient", {
         ramp: { type: "gradient", value: { stops: [
@@ -78,11 +90,9 @@ export const examples = [
       });
       mount.append(panel.el);
 
-      const apply = (p) => {
-        const stops = p.ramp.stops.map((s) => `${s.color} ${s.pos * 100}%`).join(", ");
-        const space = p.ramp.interpolation || "oklch"; // honor the editor's blend space so the swatch matches the picker
-        swatch.style.background = `linear-gradient(in ${space} ${p.angle}deg, ${stops})`;
-      };
+      // gradientCss honours the editor's blend space and expands its easing, so the
+      // swatch is the picker's preview at the chosen angle.
+      const apply = (p) => { swatch.style.background = gradientCss(p.ramp, p.angle); };
       panel.on(apply);
       panel.ready.then(() => apply(panel.params));
     },

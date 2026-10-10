@@ -4,6 +4,9 @@
  *                       panels fetch core + shared, heavy controls load on demand.
  *   • dist/tweaks.js    one self-contained file (TW_SPLIT=false → every control inlined,
  *                       synchronous) — the drop-in / copyable build, no bundler needed.
+ *   • dist/gradient-css.js  gradientCss() / gradientStops() alone (tweakit/gradient-css) — the
+ *                       gradient value → CSS templating, for split-build hosts (core's 20 KiB
+ *                       budget has no room for it; the single file carries it too).
  *   • dist/tweaks.css   minified panel CSS.
  *   • dist/types/       .d.ts declarations (tsc) — consumers get full types.
  *   • dist/*.html       the docs/examples site (GitHub Pages root) — see site/.
@@ -47,6 +50,16 @@ await esbuild.build({
   // the MIT license requires in every copy (the split build is installed, and the
   // package ships THIRD-PARTY-NOTICES.md next to it).
   banner: { js: "/* tweakit — MIT © Ryan Kiley. Toolbar and control icons from Hugeicons (MIT); see THIRD-PARTY-NOTICES.md in the tweakit package. */" },
+});
+
+// 2b) the gradient → CSS helper as its own entry → dist/gradient-css.js. Pure string work
+// (easing.ts, no DOM), so it bundles alone; the gradient control's chunk inlines its own
+// copy (1.5 KB minified) rather than minting a fourth shared chunk every host would route through.
+await esbuild.build({
+  entryPoints: [p("src/tweaks/gradient-css.ts")],
+  outfile: p("dist/gradient-css.js"),
+  bundle: true, splitting: false, format: "esm", minify: true, target: "es2020",
+  legalComments: "none", define: { TW_SPLIT: "false" },
 });
 
 // 3) minified panel CSS → dist/tweaks.css. The light palette must exist twice —
@@ -110,7 +123,7 @@ try {
   fail("tsc failed — the declarations would be wrong or partial:\n" + String(e.stdout || e.message || "").trimEnd());
 }
 // tsc emits a declaration per source module, but the package's type surface is only what
-// the public entry reaches (core → panel, enhance, standalone, types): the internal
+// the public entries reach (core → panel, enhance, standalone, types; gradient-css): the internal
 // modules' declarations (shared, schema, the controls, wide-gamut) would ship as noise,
 // and read as public API. Keep the reachable set, drop the rest. Paths are kept in the
 // OS-native form readdir() reports, so the keep-set matches on every platform. (Emptied
@@ -122,6 +135,7 @@ try {
     for (const m of (await readFile(p("dist/types", rel), "utf8")).matchAll(/from "(\.[^"]+)"/g)) await walk(path.join(path.dirname(rel), m[1].replace(/\.js$/, ".d.ts")));
   };
   await walk(path.join("tweaks", "core.d.ts"));
+  await walk(path.join("tweaks", "gradient-css.d.ts"));
   for (const f of await readdir(p("dist/types"), { recursive: true })) if (f.endsWith(".d.ts") && !keep.has(f)) await rm(p("dist/types", f));
 }
 
