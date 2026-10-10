@@ -318,7 +318,7 @@
  * ring — quietFocus (shared.ts) marks pointer-origin focus; Tab still rings. */
 .tw-trigger:focus-visible, .tw-select-trigger:focus-visible, .tw-button:focus-visible,
 .tw-seg-btn:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
-.tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
+.tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
 .tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
@@ -919,6 +919,20 @@
 .tw-shadow-card { width: 64px; height: 40px; border-radius: 9px; background: var(--tw-dropdown-bg); }
 .tw-shadow-pop { width: 260px; }
 .tw-shadow-pop .tw-color-body { margin-top: 2px; }
+/* The sides control: a number row with a link button between label and field; unlinked, a
+ * block with the label, a summary and the link over four fields (sides.ts). */
+.tw-sides-link { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 3px); cursor: pointer; transition: color 0.15s, background 0.15s; }
+.tw-sides-link svg { width: 14px; height: 14px; }
+.tw-sides-link[aria-pressed="true"] { color: var(--tw-accent, var(--tw-text-primary)); }
+@media (hover: hover) and (pointer: fine) {
+  .tw-sides-link:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+}
+.tw-sides > .tw-row .tw-sides-link { margin-left: auto; }
+.tw-sides.is-linked .tw-sides-multi, .tw-sides:not(.is-linked) > .tw-row { display: none; }
+.tw-sides-multi { display: flex; flex-direction: column; gap: 6px; padding: 6px 10px 10px 12px; background: var(--tw-surface); border-radius: var(--tw-radius); }
+.tw-sides-head { display: flex; align-items: center; gap: 8px; min-height: 20px; }
+.tw-sides-multi .tw-fields { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } /* 2×2 (T R / B L, or TL TR / BR BL): four across the 228px row left one digit showing */
+.tw-sides-sum { margin-left: auto; font-family: var(--tw-font-sans); font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); word-spacing: 0.1em; }
 /* The motion control: a mini-curve chip on the row; in the popover, the Easing | Spring
  * switch, a preview switch that runs the motion (heavy.ts-driven Web Animations), and
  * one editor at a time. */

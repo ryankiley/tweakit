@@ -13,6 +13,16 @@ export type GradientStop = { color: string; pos: number };
  *  so your CSS ramp matches the editor's preview exactly. */
 export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" | "lch" | "lab" | "display-p3" | "rec2020";
 
+/** What a sides control accepts: one number for all four; `[vertical, horizontal]`,
+ *  `[top, horizontal, bottom]` or `[top, right, bottom, left]` (CSS order); a CSS shorthand
+ *  string like `"8px 16px"` (the numbers are read in the control's unit); or any subset of
+ *  the four as an object. With `corners: true` the four are the corners from top-left round,
+ *  the same CSS order, under the same keys. */
+export type SidesInput = number | number[] | string | { top?: number; right?: number; bottom?: number; left?: number };
+/** A sides control's value: the four numbers in CSS order plus the shorthand they collapse
+ *  to (`css`, in the control's unit, `0` bare), so `el.style.padding = css`. */
+export interface SidesValue { top: number; right: number; bottom: number; left: number; css: string }
+
 /** What a shadow control accepts — any subset of its fields (px, `color` any colour the kit
  *  parses); or, as `value`, a `box-shadow` string: optional `inset`, two to four px lengths,
  *  one colour, one layer. */
@@ -72,6 +82,7 @@ export type SchemaObject =
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
   | { type: "cubicbezier"; value?: [number, number, number, number] }
   | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
+  | { type: "sides"; value?: SidesInput; corners?: boolean; unit?: string; step?: number; min?: number; max?: number; top?: number; right?: number; bottom?: number; left?: number }
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
   | { type: "point"; components: Array<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
   | { type: "gradient"; value?: GradientValue | Array<GradientStop | [string, number]>; stops?: Array<GradientStop | [string, number]> }

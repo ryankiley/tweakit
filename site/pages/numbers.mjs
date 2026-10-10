@@ -109,6 +109,33 @@ export const examples = [
     },
   },
   {
+    id: "sides",
+    title: "Box sides",
+    prose: `<p><code>{ type: "sides" }</code> is one row for a four-sided length: padding,
+      margin, border width, or with <code>corners: true</code> a border radius. Linked, it is
+      one number for all four; the link button beside it opens the four fields, in CSS order.
+      The param is the four numbers plus the shorthand they collapse to, so
+      <code>el.style.padding = p.pad.css</code> is the whole wiring. Author it as one number,
+      <code>[vertical, horizontal]</code>, the four, or a CSS string like
+      <code>"8px 16px"</code>.</p>`,
+    target: `<div class="sd-card"><div class="sd-inner">Card</div></div>`,
+    css: `
+      .sd-card { display: inline-block; background: #7C5CFF; transition: padding 0.1s, border-radius 0.1s; }
+      .sd-inner { padding: 14px 22px; font-size: 13px; font-weight: 500; color: #1b1b1b; background: var(--demo-fill); border-radius: 8px; }`,
+    run: ({ tweaks, mount, target }) => {
+      const card = target.querySelector(".sd-card");
+      const panel = tweaks("Box", {
+        pad: { type: "sides", value: [12, 20], max: 60 },                 // [vertical, horizontal]
+        radius: { type: "sides", value: 16, corners: true, max: 48 },
+      });
+      mount.append(panel.el);
+
+      const apply = (p) => { card.style.padding = p.pad.css; card.style.borderRadius = p.radius.css; };
+      panel.on(apply);
+      panel.ready.then(() => apply(panel.params));
+    },
+  },
+  {
     id: "point",
     title: "Point",
     prose: `<p>An n-dimensional vector: one scrubbable field per component, plus a
