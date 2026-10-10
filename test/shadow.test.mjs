@@ -108,10 +108,14 @@ test("the four length fields sit two by two (X Y / Blur Spread), not four across
   const css = (await readFile(new URL("../dist/tweaks.css", import.meta.url), "utf8")).replace(/@media[^{]*\{([^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, sel, body], i) => ({ i, sels: sel.split(",").map((x) => x.trim()), body }));
   const classes = (sel) => (sel.match(/\.[\w-]+/g) || []).length;
-  const flow = (want) => rules.flatMap((r) => r.sels.filter((sel) => r.body.includes(`grid-auto-flow:${want}`) && fields.matches(sel)).map((sel) => ({ i: r.i, n: classes(sel) })));
-  const grid = flow("row"), four = flow("column");
-  assert.ok(grid.length && four.length, "both rules match the field row");
+  // Each property on its own: whichever matching rule wins it must be the 2×2 one, so a later
+  // rule that only resets the columns (or only the flow) fails here too.
   const beats = (a, b) => a.n > b.n || (a.n === b.n && a.i > b.i);
-  assert.ok(four.every((f) => grid.some((g) => beats(g, f))), "the 2×2 rule outranks the four-across one");
+  for (const [prop, want] of [["grid-auto-flow", "row"], ["grid-template-columns", "1fr 1fr"]]) {
+    const hits = rules.flatMap((r) => { const m = r.body.match(new RegExp(`(?:^|;)${prop}:([^;]+)`)); return m ? r.sels.filter((sel) => fields.matches(sel)).map((sel) => ({ i: r.i, n: classes(sel), v: m[1].trim() })) : []; });
+    assert.ok(hits.length, `some rule sets ${prop} on the field row`);
+    const winner = hits.reduce((w, h) => (beats(h, w) ? h : w));
+    assert.equal(winner.v, want, `${prop} resolves to ${want}`);
+  }
   p.destroy();
 });
