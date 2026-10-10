@@ -173,8 +173,9 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
   },
   gradient: (v) => ({ value: v.value ?? v.stops ?? null }),
   // Four sides: `value` in any of the control's forms (a number, an array, a CSS shorthand
-  // string, an object), or the four off the top level; the control fills the rest with 0.
-  sides: (v) => ({ value: v.value ?? (["top", "right", "bottom", "left"].some((k) => v[k] != null) ? { top: v.top, right: v.right, bottom: v.bottom, left: v.left } : undefined), corners: !!v.corners, unit: unitOf(v.unit), step: v.step, min: v.min, max: v.max }),
+  // string, an object), or the four off the top level — the control's own parser reads any
+  // of top / right / bottom / left off whatever object it gets and fills the rest with 0.
+  sides: (v) => ({ value: v.value ?? v, corners: !!v.corners, unit: unitOf(v.unit), step: v.step, min: v.min, max: v.max }),
   // A box-shadow: the fields off the top level, a nested `value: {…}`, or a `value` string
   // in the strict grammar the control parses; the control fills the defaults.
   shadow: (v) => ({ value: v.value ?? { inset: v.inset, x: v.x, y: v.y, blur: v.blur, spread: v.spread, color: v.color } }),
@@ -286,7 +287,7 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   image: (d) => ({ value: d.value }),
   fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
   interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
-  sides: (d) => ({ value: d.value ?? ([d.top, d.right, d.bottom, d.left].some((x) => x != null) ? { top: num(d.top), right: num(d.right), bottom: num(d.bottom), left: num(d.left) } : undefined), corners: flag(d.corners), unit: d.unit, step: num(d.step), min: num(d.min), max: num(d.max) }), // data-value: "8px 16px"; or the sides as attributes
+  sides: (d) => ({ value: d.value ?? d, corners: flag(d.corners), unit: d.unit, step: num(d.step), min: num(d.min), max: num(d.max) }), // data-value: "8px 16px"; or data-top / -right / -bottom / -left, which the control reads off the dataset itself (numeric strings parse)
   shadow: (d) => ({ value: d.value ?? { inset: flag(d.inset), x: num(d.x), y: num(d.y), blur: num(d.blur), spread: num(d.spread), color: d.color } }), // data-value: a box-shadow string; or the fields as attributes
   spring: springData,
   motion: (d) => ({ ...springData(d), curve: d.curve && d.curve.includes(",") ? d.curve.split(",").map(Number) : d.curve, duration: num(d.duration) }), // the spring's keys and mode, plus data-curve (four numbers, or a CSS keyword) and data-duration

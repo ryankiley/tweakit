@@ -32,11 +32,11 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   const root = el("div", "tw-sides");
   // Linked: a number row with the link button between the label and the field.
   const all = numField({ label: meta.label, value: v[0], row: true, ...spec }, (n) => { v = [n, n, n, n]; update(); emit(); });
-  const linkBtn = (): HTMLButtonElement => { const b = btn("tw-sides-link", ICON_LINK); b.setAttribute("aria-label", "Link all sides"); b.title = "Same on all sides"; b.addEventListener("click", () => toggle()); return b; };
-  const link1 = linkBtn(); all.el.insertBefore(link1, all.el.lastChild);
+  // One link button, moved to whichever block is showing: before the field in the row, last in the unlinked header.
+  const link = btn("tw-sides-link", ICON_LINK); link.setAttribute("aria-label", "Link all sides"); link.title = "Same on all sides"; link.addEventListener("click", () => toggle());
   // Unlinked: a header line (label, summary, link) over the four fields.
-  const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum"), link2 = linkBtn();
-  head.append(txt("span", "tw-row-label", meta.label), sum, link2);
+  const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum");
+  head.append(txt("span", "tw-row-label", meta.label), sum);
   const fields = el("div", "tw-fields");
   const names = corners ? ["TL", "TR", "BR", "BL"] : ["T", "R", "B", "L"];
   const flds: NumField[] = names.map((n, i) => { const f = numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }); fields.append(f.el); return f; });
@@ -48,13 +48,13 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   const value = (): SidesValue => ({ top: v[0], right: v[1], bottom: v[2], left: v[3], css: css() });
   const emit = () => onChange(value());
   const update = () => {
-    root.classList.toggle("is-linked", linked);
-    for (const b of [link1, link2]) b.setAttribute("aria-pressed", String(linked));
+    root.classList.toggle("is-linked", linked); link.setAttribute("aria-pressed", String(linked));
+    if (linked) all.el.insertBefore(link, all.el.lastChild); else head.append(link);
     all.set(v[0]); flds.forEach((f, i) => f.set(v[i]));
     sum.textContent = v.map(fmt).join(" ");
   };
   // Linking takes the first side for all four (the convention); unlinking keeps the four.
-  const toggle = () => { linked = !linked; if (linked) v = [v[0], v[0], v[0], v[0]]; update(); emit(); (linked ? link1 : link2).focus(); };
+  const toggle = () => { linked = !linked; if (linked) v = [v[0], v[0], v[0], v[0]]; update(); emit(); link.focus(); };
   update();
 
   // Programmatic set / restore: any input form. Equal sides re-link; unequal ones unlink,
