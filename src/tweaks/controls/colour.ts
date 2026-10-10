@@ -208,12 +208,18 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const root = el("div", "tw-color-body");
   const area = el("div", "tw-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "tw-wg-canvas"; const areaThumb = el("div", "tw-wg-thumb"); area.append(areaCanvas, areaThumb);
   const hueBar = el("div", "tw-wg-hue"); const hueCanvas = document.createElement("canvas"); hueCanvas.className = "tw-wg-hue-canvas"; const hueThumb = el("div", "tw-wg-hue-thumb"); hueBar.append(hueCanvas, hueThumb);
-  // The rasters are images to assistive tech (a bare canvas is announced as nothing).
-  areaCanvas.setAttribute("role", "img"); areaCanvas.setAttribute("aria-label", "Colour plane: chroma across, lightness up");
-  hueCanvas.setAttribute("role", "img"); hueCanvas.setAttribute("aria-label", "Hue strip");
   const alphaBar = el("div", "tw-wg-alpha"); const alphaGrad = el("div", "tw-wg-alpha-grad"); const alphaThumb = el("div", "tw-wg-hue-thumb"); alphaBar.append(alphaGrad, alphaThumb);
-  // Keyboard-operable alpha strip (the interval handles' slider idiom): Tab to it, arrows
-  // nudge (⇧ = coarse ×10), Home/End snap to transparent/opaque.
+  // The rasters are decoration to assistive tech — the plane and the strips carry the
+  // names and live values themselves (below), so a bare canvas isn't announced on its own.
+  areaCanvas.setAttribute("aria-hidden", "true"); hueCanvas.setAttribute("aria-hidden", "true");
+  // Keyboard-operable plane — the point pad's idiom: a focusable group (no ARIA role fits
+  // a 2D value; the live readout rides on aria-description). ←/→ step chroma by 1% of the
+  // row's gamut ceiling (the thumb's own x axis), ↑/↓ step lightness by 0.01; ⇧ = ×10.
+  area.tabIndex = 0; area.setAttribute("role", "group"); area.setAttribute("aria-label", "Colour plane: chroma across, lightness up");
+  // Keyboard-operable strips (the interval handles' slider idiom): Tab to one, arrows
+  // nudge (⇧ = coarse ×10), Home/End snap to the ends — 0°/360°, transparent/opaque.
+  hueBar.tabIndex = 0; hueBar.setAttribute("role", "slider"); hueBar.setAttribute("aria-label", "Hue");
+  hueBar.setAttribute("aria-valuemin", "0"); hueBar.setAttribute("aria-valuemax", "360");
   alphaBar.tabIndex = 0; alphaBar.setAttribute("role", "slider"); alphaBar.setAttribute("aria-label", "Alpha");
   alphaBar.setAttribute("aria-valuemin", "0"); alphaBar.setAttribute("aria-valuemax", "1");
   const modeRow = el("div", "tw-color-mode-row");
@@ -289,7 +295,10 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     const inside = (frac: number, w: number) => { const f = clamp(frac, 0, 1); return `calc(${f * 100}% + ${(0.5 - f) * w}px)`; };
     areaThumb.style.left = at(ceil > 0 ? C / ceil : 0); areaThumb.style.top = at(1 - L);
     hueThumb.style.left = inside(H / 360, 16); alphaThumb.style.left = inside(A, 16);
-    alphaBar.setAttribute("aria-valuenow", String(+A.toFixed(2))); // drag + keyboard + external set all pass through here
+    // Live values for assistive tech — drag, keyboard and an external set() all pass through here.
+    alphaBar.setAttribute("aria-valuenow", String(+A.toFixed(2)));
+    const hDeg = Math.round(H) % 360; hueBar.setAttribute("aria-valuenow", String(hDeg)); hueBar.setAttribute("aria-valuetext", `${hDeg}°`);
+    area.setAttribute("aria-description", `lightness ${Math.round(L * 100)}%, chroma ${+C.toFixed(3)}`);
     alphaGrad.style.background = `linear-gradient(to right, oklch(${L} ${C} ${H} / 0), oklch(${L} ${C} ${H}))`;
     // Filled rings, not see-through: each ring carries its own colour, so a grabbed thumb
     // (scaled up past its track's height) stays solid to its edge instead of revealing the
@@ -340,12 +349,30 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 
   // Grab feedback: grabSurface flags .is-grabbing for the drag's run so the thumb scales up
   // (CSS, spring-eased) the moment you press — the picker's echo of the slider handle's lift.
+  const ceilAt = (l: number) => (chromaCurve ? sampleCurve(chromaCurve, l) : 0.4); // the row's chroma ceiling: the plane's x axis is C as a fraction of it
   const areaXY = (e: PointerEvent) => boxFrac(e, area);
-  const setArea = (e: PointerEvent) => { const [fx, fy] = areaXY(e); L = 1 - fy; C = fx * (chromaCurve ? sampleCurve(chromaCurve, L) : 0.4); commit(false); };
+  const setArea = (e: PointerEvent) => { const [fx, fy] = areaXY(e); L = 1 - fy; C = fx * ceilAt(L); commit(false); };
   grabSurface(area, setArea);
+  // Arrows on the plane move the thumb, not the raw channels: chroma steps as the thumb's
+  // fraction of its row, and a vertical step keeps that fraction — the thumb goes straight
+  // up (as a drag along one x would) and the colour stays in gamut at the new lightness.
+  // Escape is the popover's (close, focus back on the trigger), as on the point pad.
+  area.addEventListener("keydown", (e) => {
+    const dx = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, dy = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
+    if (!dx && !dy) return;
+    e.preventDefault();
+    const k = e.shiftKey ? 10 : 1, c0 = ceilAt(L), fx = clamp((c0 > 0 ? C / c0 : 0) + dx * 0.01 * k, 0, 1);
+    L = clamp(L + dy * 0.01 * k, 0, 1); C = fx * ceilAt(L);
+    commit(false);
+  });
   const hueAt = (e: PointerEvent) => boxFrac(e, hueBar)[0] * 360;
   const setHue = (e: PointerEvent) => { H = hueAt(e); commit(true); };
   grabSurface(hueBar, setHue);
+  hueBar.addEventListener("keydown", (e) => {
+    const nv = rangeStep(e, H, 1, 0, 360); // the shared range keyboard model (arrows/⇧ coarse/Home/End)
+    if (nv == null) return;
+    e.preventDefault(); H = clamp(nv, 0, 360); commit(true); // a hue move repaints the plane
+  });
   const alphaAt = (e: PointerEvent) => boxFrac(e, alphaBar)[0];
   const setAlpha = (e: PointerEvent) => { A = alphaAt(e); commit(false); };
   grabSurface(alphaBar, setAlpha);

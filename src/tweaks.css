@@ -950,7 +950,7 @@
 .tw-plot-field:has(> .tw-plot-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
 .tw-slider:has(.tw-slider-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
 /* The alpha strip is a keyboard slider with no ring of its own until now; outset, like the handles. */
-.tw-wg-alpha:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
+.tw-wg-area:focus-visible, .tw-wg-hue:focus-visible, .tw-wg-alpha:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
 .tw-field .tw-num { flex: 1; width: auto; min-width: 0; }
 .tw-field .tw-num-grab { width: 10px; }
 
@@ -1073,4 +1073,5 @@
   .tw-seg-pill, .tw-tabs-pill, .tw-slider-fill { outline: 2px solid Highlight; outline-offset: -2px; }
   .tw-radiogrid-btn[data-active="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
   .tw-gradient-stop[data-sel="true"] { border-color: Highlight; }
+  .tw-select-option:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; } /* the listbox's roving focus is a background highlight with the outline off — flattened away here, so draw it */
 }

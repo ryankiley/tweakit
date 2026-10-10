@@ -168,3 +168,57 @@ test("gradient: focusing a stop selects it, and its label carries position + sel
   void pop;
   p.destroy();
 });
+
+// The colour control emits in the picker's edit mode (OKLCH unless the schema says
+// otherwise): read L / C / H back out of the string, L as a fraction whether it was
+// written as one or as a percentage.
+const oklch = (s) => { const m = String(s).match(/^oklch\(([\d.]+)(%?) ([\d.]+) ([\d.]+)/); assert.ok(m, `an oklch() string, got ${s}`); return [m[2] ? +m[1] / 100 : +m[1], +m[3], +m[4]]; };
+const openPicker = async (p) => { const trigger = p.el.querySelector(".tw-color .tw-trigger"); trigger.focus(); trigger.click(); await wait(40); const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
+const closePicker = async (p) => { key(document.activeElement, { key: "Escape" }); await wait(220); p.destroy(); };
+
+test("colour hue strip: a focusable slider — arrows step 1°, Shift x10, Home/End snap to the ends", async () => {
+  const p = mount({ tint: { type: "color", value: "oklch(0.6 0.2 120)" } });
+  const pop = await openPicker(p);
+  const hue = pop.querySelector(".tw-wg-hue");
+  assert.equal(hue.tabIndex, 0, "the strip is a tab stop");
+  assert.equal(hue.getAttribute("role"), "slider");
+  assert.equal(hue.getAttribute("aria-valuenow"), "120");
+  hue.focus();
+  const e = key(hue, { key: "ArrowRight" });
+  assert.equal(e.defaultPrevented, true, "the strip owns its arrow keys");
+  assert.equal(oklch(p.params.tint)[2], 121);
+  key(hue, { key: "ArrowLeft", shiftKey: true });
+  assert.equal(oklch(p.params.tint)[2], 111);
+  assert.equal(hue.getAttribute("aria-valuenow"), "111", "the slider value follows");
+  assert.equal(hue.getAttribute("aria-valuetext"), "111°");
+  key(hue, { key: "Home" });
+  assert.equal(oklch(p.params.tint)[2], 0);
+  key(hue, { key: "End" });
+  assert.equal(oklch(p.params.tint)[2], 0, "End is 360°, which reads back as 0 — the same hue");
+  assert.equal(hue.getAttribute("aria-valuenow"), "0");
+  await closePicker(p);
+});
+
+test("colour plane: a focusable group — up/down step lightness by 0.01, left/right step chroma by 1% of the row's ceiling, Shift x10", async () => {
+  const p = mount({ tint: { type: "color", value: "oklch(0.5 0.2 200)" } });
+  const pop = await openPicker(p);
+  const plane = pop.querySelector(".tw-wg-area");
+  assert.equal(plane.tabIndex, 0, "the plane is a tab stop");
+  assert.equal(plane.getAttribute("role"), "group");
+  assert.ok(plane.getAttribute("aria-label"), "the plane is named");
+  assert.equal(plane.getAttribute("aria-description"), "lightness 50%, chroma 0.2", "the live readout");
+  plane.focus();
+  const e = key(plane, { key: "ArrowUp" });
+  assert.equal(e.defaultPrevented, true, "the plane owns its arrow keys");
+  assert.equal(oklch(p.params.tint)[0], 0.51);
+  assert.equal(oklch(p.params.tint)[1], 0.2, "a vertical step keeps the thumb's x — under jsdom the row ceiling is the 0.4 fallback on every row, so chroma itself is unchanged");
+  key(plane, { key: "ArrowDown", shiftKey: true });
+  assert.equal(oklch(p.params.tint)[0], 0.41);
+  key(plane, { key: "ArrowRight" });
+  assert.equal(plane.getAttribute("aria-description"), "lightness 41%, chroma 0.204", "one step is 1% of the row's ceiling (0.4 under jsdom)");
+  key(plane, { key: "ArrowRight", shiftKey: true });
+  assert.equal(oklch(p.params.tint)[1], 0.24);
+  key(plane, { key: "ArrowLeft", shiftKey: true }); key(plane, { key: "ArrowLeft", shiftKey: true });
+  assert.equal(oklch(p.params.tint)[1], 0.16);
+  await closePicker(p);
+});
