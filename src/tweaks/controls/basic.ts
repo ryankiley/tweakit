@@ -321,8 +321,9 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   const right = el("span", "tw-select-right");
   // An option's colour shows as a swatch before its label (a token palette: "Neutral 10"),
   // over a checker so alpha reads; the row shows the chosen option's swatch the same way.
-  const swatch = (c: string) => { const s = el("span", "tw-option-swatch"); s.style.background = `linear-gradient(${c}, ${c}), repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 6px 6px`; return s; };
-  const valSwatch = swatch(""), valEl = el("span", "tw-select-value");
+  const swatchCss = (c: string) => `linear-gradient(${c}, ${c}), var(--tw-checker)`;
+  const swatch = (c: string) => { const s = el("span", "tw-option-swatch"); s.style.background = swatchCss(c); return s; };
+  const valSwatch = el("span", "tw-option-swatch"), valEl = el("span", "tw-select-value");
   right.append(valSwatch, valEl);
   right.insertAdjacentHTML("beforeend", CHEVRON);
   trigger.append(txt("span", "tw-select-label", meta.label), right);
@@ -333,7 +334,7 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
     dropdown.append(b); return b;
   });
   root.append(trigger, dropdown);
-  const reflect = () => { const cur = opts.find((o) => o.value === value); valEl.textContent = cur?.label ?? value; valSwatch.style.display = cur?.color ? "" : "none"; if (cur?.color) valSwatch.style.background = swatch(cur.color).style.background; optButtons.forEach((b) => { const sel = b.dataset.value === String(value); b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); }; // String(value): dataset stringifies, so numeric option values never matched (no selected/aria state)
+  const reflect = () => { const cur = opts.find((o) => o.value === value); valEl.textContent = cur?.label ?? value; valSwatch.style.display = cur?.color ? "" : "none"; if (cur?.color) valSwatch.style.background = swatchCss(cur.color); optButtons.forEach((b) => { const sel = b.dataset.value === String(value); b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); }; // String(value): dataset stringifies, so numeric option values never matched (no selected/aria state)
   const set = (v: unknown, fire = true) => { if (v != null && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null/undefined clear the selection (a snapshot writes undefined as null); any other value matching no option is ignored (a stale restore used to land in params verbatim, then persist as null)
   // The shared popover shell portals the dropdown to <body> (never clipped by the
   // panel's overflow or a transformed ancestor), themes + places it, and closes on

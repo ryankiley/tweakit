@@ -33,7 +33,7 @@ const sampleCurve = (curve: Float64Array, t: number) => { const last = curve.len
 const gamutCurve = (hue: number, gamut: Gamut) => { const probe = oklchGamutProbe(hue, gamut), c = new Float64Array(128); for (let i = 0; i < 128; i++) c[i] = chromaCeil(probe, i / 127); return c; };
 // The alpha chequerboard a translucent swatch composites over — shared with the
 // gradient control's trigger preview.
-const CHECKER = "repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px";
+const CHECKER = "var(--tw-checker)"; // the alpha checker, a panel token (tweaks.css) so every swatch, strip and thumb draws the one pattern
 
 // Parse any CSS colour (hex / oklch / oklab / lab / lch / color() / rgb / hsl / named) → [L, C, H, alpha].
 // The CSS Color 4 functions are parsed by regex + the engine — channel handling ported

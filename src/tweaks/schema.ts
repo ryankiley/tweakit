@@ -119,6 +119,7 @@ const unitOf = (u: unknown) => (typeof u === "string" && u.trim() ? u.trim().sli
 // is the one exception — it has no handler because the `{ action }` shorthand
 // inference below already covers the verbose form. (`v` is the host's object form,
 // inspected as metaFor's `value` is.)
+const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"]; // a spring's fields, as the spring and motion controls take them
 const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth: number) => MetaFields> = {
   slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft, unit: unitOf(v.unit) }; },
   number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft, unit: unitOf(v.unit) }),
@@ -147,14 +148,13 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
   // curve (a keyword or the four numbers), the shapes set() takes; the control infers the
   // mode (spring keys → spring, a curve → easing) and fills the defaults.
   motion: (v) => {
-    const s = typeof v.value === "string" || Array.isArray(v.value) ? { ...v, curve: v.value } : isObj(v.value) ? v.value : v, value: any = {}; // the array test first: isObj is true of an array
-    for (const k of ["mode", "curve", "duration", "stiffness", "damping", "mass", "visualDuration", "bounce"]) if (s[k] != null) value[k] = s[k];
+    const s = typeof v.value === "string" || Array.isArray(v.value) ? { ...v, curve: v.value } : isObj(v.value) ? v.value : v; // the array test first: isObj is true of an array
+    const springy = SPRING_KEYS.some((k) => s[k] != null);
     // Both sides get a default and the mode is pinned, so a reset (which re-applies this)
     // restores the editor you weren't looking at as well as the one you were.
-    const springy = ["stiffness", "damping", "mass", "visualDuration", "bounce"].some((k) => value[k] != null);
+    const value: any = { curve: "ease", duration: 300, ...(springy ? {} : { visualDuration: 0.5, bounce: 0.2 }) };
+    for (const k of ["mode", "curve", "duration", ...SPRING_KEYS]) if (s[k] != null) value[k] = s[k];
     if (value.mode !== "easing" && value.mode !== "spring") value.mode = springy ? "spring" : "easing";
-    if (value.curve == null) value.curve = "ease"; if (value.duration == null) value.duration = 300;
-    if (!springy) { value.visualDuration = 0.5; value.bounce = 0.2; }
     return { value };
   },
   point: (v) => {
@@ -267,7 +267,7 @@ const VALUELESS = new Set<string>(["button", "fpsgraph", "monitor", "buttongroup
 // readout while the schema path defaulted to the first option).
 // Partial over the same public union: every markup type must be a real control type
 // (tsc flags a typo'd key), but not every control needs a markup form.
-const springData = (d: DOMStringMap) => ({ stiffness: num(d.stiffness), damping: num(d.damping), mass: num(d.mass), visualDuration: num(d.visualDuration), bounce: num(d.bounce), mode: d.mode }); // the spring's keys and mode — the motion control reads the same markup
+const springData = (d: DOMStringMap) => ({ ...Object.fromEntries(SPRING_KEYS.map((k) => [k, num(d[k])])), mode: d.mode }); // the spring's keys and mode — the motion control reads the same markup
 const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: HTMLElement, label: string) => object>> = {
   slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft), unit: d.unit }), // absent bounds derive from the value in the verbose handler, as on the schema path (this table used to pin 0–100)
   // A list of options is a single-select → radio grid; a bare checkbox is boolean.
