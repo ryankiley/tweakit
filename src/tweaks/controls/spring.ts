@@ -34,7 +34,10 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   const DUR_MIN = 0.1, DUR_MAX = 1;
   const clampDur = (v: unknown) => clamp(has(v) ? +v : 0.5, DUR_MIN, DUR_MAX);
   const clampBounce = (v: unknown) => clamp(has(v) ? +v : 0.2, 0, 1);
-  const timeToPhysics = (t: SpringTime): Phys => { const k = (2 * Math.PI / t.visualDuration) ** 2, z = 1 - t.bounce, m = 1; return { stiffness: k, damping: 2 * z * Math.sqrt(k * m), mass: m }; };
+  // Derived values snap to ten significant figures: the trig round trip otherwise hands back
+  // 300.00000000000006 for a stiffness of 300, and that noise lands in changes() and the copy.
+  const sig = (x: number) => +x.toPrecision(10);
+  const timeToPhysics = (t: SpringTime): Phys => { const k = (2 * Math.PI / t.visualDuration) ** 2, z = 1 - t.bounce, m = 1; return { stiffness: sig(k), damping: sig(2 * z * Math.sqrt(k * m)), mass: m }; };
 
   // Initial config — accept top-level props (the inline shorthand
   // `{ type:"spring", visualDuration:0.3, bounce:0.2 }` or `{ …, stiffness, damping, mass }`)
