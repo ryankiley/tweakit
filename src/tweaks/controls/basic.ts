@@ -42,7 +42,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   // The readout is a text node plus, with `unit`, a muted suffix ("24 px") — display only,
   // the param stays the bare number. Persistent nodes: render() runs every drag frame.
   const unit = typeof meta.unit === "string" ? meta.unit.trim() : "", numText = document.createTextNode("");
-  valueEl.append(numText); if (unit) valueEl.append(txt("span", "tw-slider-unit", " " + unit));
+  const joined = !unit ? "" : /^[%°]$/.test(unit) ? unit : " " + unit; // "50%", "90°", but "24 px", "300 ms"
+  valueEl.append(numText); if (unit) valueEl.append(txt("span", "tw-slider-unit", joined));
   track.append(hashes, fill, handle, labelEl, valueEl);
   wrap.append(track);
 
@@ -74,7 +75,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     const qv = q(value), qvText = qv.toFixed(decimals); // q(value) is pure — compute once (render() runs every drag frame)
     numText.data = qvText;
     track.setAttribute("aria-valuenow", String(qv));
-    track.setAttribute("aria-valuetext", unit ? `${qvText} ${unit}` : qvText);
+    track.setAttribute("aria-valuetext", qvText + joined);
     // Value-dodge: the handle yields only while it actually overlaps the label (left) or
     // value (right) text — its real pixel span (it renders at pct% − 9px, 3px wide) tested
     // against each text's live-measured edge (overlapsText, shared with the interval), so it

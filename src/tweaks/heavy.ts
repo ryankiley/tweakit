@@ -176,4 +176,21 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
 // scrub), min-anchored rounding, soft support. ──
 registerControl("number", (meta: Meta, onChange?: OnChange) => numField({ ...meta, row: true }, onChange));
 
-export { numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow };
+// ── Spring step response — shared by the spring control (its curve) and the motion control
+// (its chip and the linear() easing it emits). The window runs to the settle, capped at 2.2 s.
+const springSpan = (k: number, d: number, m: number) => { const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)); return Math.min(2.2, 9 / Math.max(z * w0, 0.5)); };
+// Closed-form step response of a damped harmonic oscillator (under/critical/over), N samples over the span.
+function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, d, m)) {
+  const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m));
+  const out: number[] = [];
+  for (let i = 0; i < N; i++) {
+    const t = (i / (N - 1)) * T; let x: number;
+    if (z < 1 - 1e-4) { const wd = w0 * Math.sqrt(1 - z * z); x = 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t)); }
+    else if (z <= 1 + 1e-4) { x = 1 - Math.exp(-w0 * t) * (1 + w0 * t); }
+    else { const s = Math.sqrt(z * z - 1), a = w0 * (z + s), b = w0 * (z - s); x = 1 - (a * Math.exp(-b * t) - b * Math.exp(-a * t)) / (a - b); }
+    out.push(x);
+  }
+  return out;
+}
+
+export { numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan };

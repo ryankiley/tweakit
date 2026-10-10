@@ -12,6 +12,7 @@ import "./controls/image.js";
 import "./controls/monitor.js";
 import "./controls/spring.js";
 import "./controls/bezier.js";
+import "./controls/motion.js";
 import "./controls/point.js";
 import "./controls/plot.js";
 

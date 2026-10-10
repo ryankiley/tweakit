@@ -76,7 +76,7 @@ export const examples = [
         accent: "#7C5CFF",
         base: "#242424",
         radius: [8, 0, 24, 1],
-        density: [32, 24, 44, 1],     // row height, px
+        density: { type: "slider", value: 32, min: 24, max: 44, unit: "px" },   // row height
         back: { type: "button", label: "setTheme(null)", action: () => {
           editor.reset();          // restore the editor's controls first…
           sample.setTheme(null);   // …then drop the override entirely

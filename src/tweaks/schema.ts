@@ -143,6 +143,20 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
     return { value };
   },
   cubicbezier: (v) => ({ value: Array.isArray(v.value) && v.value.length === 4 ? v.value.map(Number) : [0.25, 0.1, 0.25, 1] }),
+  // Either mode's fields, off the top level or a nested `value: {…}` — or `value` as a bare
+  // curve (a keyword or the four numbers), the shapes set() takes; the control infers the
+  // mode (spring keys → spring, a curve → easing) and fills the defaults.
+  motion: (v) => {
+    const s = typeof v.value === "string" || Array.isArray(v.value) ? { ...v, curve: v.value } : isObj(v.value) ? v.value : v, value: any = {}; // the array test first: isObj is true of an array
+    for (const k of ["mode", "curve", "duration", "stiffness", "damping", "mass", "visualDuration", "bounce"]) if (s[k] != null) value[k] = s[k];
+    // Both sides get a default and the mode is pinned, so a reset (which re-applies this)
+    // restores the editor you weren't looking at as well as the one you were.
+    const springy = ["stiffness", "damping", "mass", "visualDuration", "bounce"].some((k) => value[k] != null);
+    if (value.mode !== "easing" && value.mode !== "spring") value.mode = springy ? "spring" : "easing";
+    if (value.curve == null) value.curve = "ease"; if (value.duration == null) value.duration = 300;
+    if (!springy) { value.visualDuration = 0.5; value.bounce = 0.2; }
+    return { value };
+  },
   point: (v) => {
     if (!Array.isArray(v.components) || !v.components.length) return false;
     // A component without a key takes its label (lower-cased, the markup convention) or its
@@ -250,6 +264,7 @@ const VALUELESS = new Set<string>(["button", "fpsgraph", "monitor", "buttongroup
 // readout while the schema path defaulted to the first option).
 // Partial over the same public union: every markup type must be a real control type
 // (tsc flags a typo'd key), but not every control needs a markup form.
+const springData = (d: DOMStringMap) => ({ stiffness: num(d.stiffness), damping: num(d.damping), mass: num(d.mass), visualDuration: num(d.visualDuration), bounce: num(d.bounce), mode: d.mode }); // the spring's keys and mode — the motion control reads the same markup
 const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: HTMLElement, label: string) => object>> = {
   slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft), unit: d.unit }), // absent bounds derive from the value in the verbose handler, as on the schema path (this table used to pin 0–100)
   // A list of options is a single-select → radio grid; a bare checkbox is boolean.
@@ -265,7 +280,8 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   image: (d) => ({ value: d.value }),
   fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
   interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
-  spring: (d) => ({ stiffness: num(d.stiffness), damping: num(d.damping), mass: num(d.mass), visualDuration: num(d.visualDuration), bounce: num(d.bounce), mode: d.mode }),
+  spring: springData,
+  motion: (d) => ({ ...springData(d), curve: d.curve && d.curve.includes(",") ? d.curve.split(",").map(Number) : d.curve, duration: num(d.duration) }), // the spring's keys and mode, plus data-curve (four numbers, or a CSS keyword) and data-duration
   cubicbezier: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined }),
   point: (d) => {
     const vals = (d.value || "").split(",").map((s) => parseFloat(s));
