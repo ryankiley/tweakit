@@ -61,12 +61,9 @@ export const examples = [
       into 16 stops per segment, each a <code>color-mix()</code> in the ramp's own blend
       space. <code>gradientStops(value)</code> is the stop list alone, for a conic or radial
       gradient.</p>`,
-    target: `<div class="grad-swatch"></div>`,
     css: `
-      .grad-swatch { width: 100%; height: 120px; border-radius: 14px; align-self: center;
-                     box-shadow: inset 0 0 0 1px var(--demo-line); }`,
-    run: ({ tweaks, gradientCss, mount, target }) => {
-      const swatch = target.querySelector(".grad-swatch");
+      #ex-gradient .ex-live { min-height: 200px; transition: background 0.15s; }`,
+    run: ({ tweaks, gradientCss, mount }) => {
       const panel = tweaks("Gradient", {
         ramp: { type: "gradient", value: { stops: [
           { color: "oklch(0.72 0.19 25)", pos: 0 },
@@ -77,9 +74,10 @@ export const examples = [
       });
       mount.append(panel.el);
 
-      // gradientCss honors the editor's blend space and expands its easing, so the
-      // swatch is the picker's preview at the chosen angle.
-      const apply = (p) => { swatch.style.background = gradientCss(p.ramp, p.angle); };
+      // gradientCss honors the editor's blend space and expands its easing, so the box
+      // behind the panel is the picker's preview at the chosen angle.
+      const stage = mount.parentElement;
+      const apply = (p) => { stage.style.background = gradientCss(p.ramp, p.angle); };
       panel.on(apply);
       panel.ready.then(() => apply(panel.params));
     },
