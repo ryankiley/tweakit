@@ -142,6 +142,11 @@ export interface TweaksOptions {
   persist?: string | boolean;
   /** Add a filter/search field to the toolbar. */
   filter?: boolean;
+  /** Add a rename button to the toolbar: the title swaps for a field (Enter or leaving it
+   *  commits, Escape cancels). The name the panel was built with stays its storage key. */
+  rename?: boolean;
+  /** Called with the new name after an in-place rename (not after `setName()`). */
+  onRename?: (name: string) => void;
   /** Start the panel already floated (fixed-positioned): `true` → top-left, or an explicit `{x,y}`. */
   floating?: boolean | { x: number; y: number };
   /** Drag the header to reposition the panel — on by default. An inline panel lifts into a
@@ -174,6 +179,9 @@ export interface PanelState {
    *  skips keys with no matching control. Normally you pass back what `toJSON()` produced. */
   values?: Record<string, any>;
   ui?: {
+    /** The panel's shown name, present only when it differs from the name it was built with
+     *  (`setName()` or an in-place rename); restoring it retitles the panel. */
+    name?: string;
     /** Folder collapse state → `true` when collapsed. Keys are the folder's path with each
      *  segment JSON-pointer-escaped (`.`→`~0`, `~`→`~1`) then joined by `.` — injective, so a
      *  literal dot in a key can't collide with the nesting separator. Treat keys as opaque. */

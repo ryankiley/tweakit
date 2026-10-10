@@ -57,7 +57,10 @@ export const examples = [
       source). ⇧-click the toolbar's copy button to copy that instead of the full snapshot.
       <code>panel.setName(name)</code> retitles the panel live (the header and the copy
       toast follow); the name it was built with stays its storage key, so saved values and
-      presets survive a rename.</p>`,
+      presets survive a rename. With <code>rename: true</code> the toolbar gains a pencil and
+      people can retitle the panel in place: the title swaps for a field, Enter or leaving it
+      commits, Escape cancels; <code>onRename</code> hears the new name, and it rides in
+      <code>toJSON().ui.name</code>. Try it on this panel.</p>`,
     target: `
       <div class="pa-remote">
         <div class="pa-tile"></div>
@@ -76,7 +79,7 @@ export const examples = [
       const panel = tweaks("Remote", {
         hue: [260, 0, 360, 1],
         lift: [0, 0, 40, 1],
-      });
+      }, { rename: true });
       mount.append(panel.el);
 
       const apply = (p) => {
@@ -335,6 +338,8 @@ export const examples = [
         <tr><td><code>theme</code></td><td>token overrides; see <a href="./theming.html">Theming</a></td></tr>
         <tr><td><code>persist</code></td><td>localStorage key (or <code>true</code> to key by panel name); enables presets</td></tr>
         <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title); it needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
+        <tr><td><code>rename</code></td><td>adds a rename button to the toolbar (the title swaps for a field); needs the toolbar, like <code>filter</code></td></tr>
+        <tr><td><code>onRename</code></td><td>called with the new name after an in-place rename</td></tr>
         <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
         <tr><td><code>draggable</code></td><td>header dragging, on by default; <code>false</code> pins</td></tr>
         <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>

@@ -10,7 +10,7 @@ import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
-import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
+import { ICON_PRESETS, ICON_X, ICON_SEARCH, ICON_EDIT } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { PanelEl } from "./shared.js";
@@ -121,6 +121,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   titleBtn.setAttribute("aria-expanded", "true");
   let title = name; // the shown name — setName() moves it; the storage key keeps the built-with name
   const titleEl = txt("span", "tw-title", title); titleBtn.append(titleEl);
+  const setTitle = (n: string) => { title = n; titleEl.textContent = n; }; // setName(), the in-place rename and a restored ui.name all land here
   const toolbar = el("div", "tw-toolbar");
   // The values that have moved off their defaults, keyed by dotted path — setMany()'s shape,
   // and the hand-off for baking tuned values into source (an agent, a commit): the full
@@ -152,14 +153,22 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     quietFocus(searchInput);
     toolbar.append(searchBtn);
   }
+  // Rename (opts.rename): a pencil swaps the title for a field; Enter or leaving the field
+  // commits through setTitle (the storage key keeps the built-with name), Escape cancels.
+  // In the toolbar like the filter, so toolbar:false drops it the same way.
+  const renameOn = !!opts.rename && opts.toolbar !== false; // no toolbar, no button (documented; no warning, unlike the filter: the bytes)
+  const renameBtn = renameOn ? toolbarBtn("", ICON_EDIT, "Rename panel") : null;
+  const renameInput = renameOn ? el("input", "tw-rename") : null;
+  if (renameOn) { renameInput.type = "text"; renameInput.spellcheck = false; renameInput.setAttribute("aria-label", "Panel name"); quietFocus(renameInput); toolbar.append(renameBtn); }
   toolbar.append(copyBtn, resetBtn);
   header.append(titleBtn);
   if (filterOn) header.append(searchInput);
+  if (renameOn) header.append(renameInput);
   if (opts.toolbar !== false) header.append(toolbar); // opts.toolbar:false → a bare panel (no copy/reset/presets), e.g. an embedded single-control demo
   // The buttons act on controls that only exist once assemble() has built them — until
   // then (the lazy-chunk window on the split build) they're honestly inert rather than
   // silently dead.
-  const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
+  const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn, renameBtn].filter(Boolean);
   for (const b of toolbarBtns) b.disabled = true;
   // A header drag (floating mode) sets this so the click ending the drag doesn't collapse.
   // The swallow lives on the header, not the title: once the header holds pointer capture
@@ -355,6 +364,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     searchInput.addEventListener("input", () => applyFilter(searchInput.value));
     searchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") { exitSearch(); searchBtn.focus(); } });
   }
+  if (renameOn) {
+    const stop = () => panel.classList.remove("is-renaming");
+    const commit = () => { if (!panel.classList.contains("is-renaming")) return; stop(); const n = renameInput.value.trim(); if (n && n !== title) { setTitle(n); opts.onRename && opts.onRename(n); } }; // an empty field keeps the name
+    renameBtn.addEventListener("click", () => { if (renameBtn.disabled) return; panel.classList.add("is-renaming"); renameInput.value = title; renameInput.focus(); renameInput.select(); });
+    renameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); renameBtn.focus(); } else if (e.key === "Escape") { e.preventDefault(); stop(); renameBtn.focus(); } });
+    renameInput.addEventListener("blur", commit); // a click elsewhere commits too; after Enter / Escape the field is already away, so this is a no-op
+  }
 
   // ── Snapshots in: persisted sessions, presets, fromJSON, undo. Path-aware so folders
   // round-trip. Per-entry isolation, the kit-wide degrade idiom (createControl, metaFor,
@@ -393,10 +409,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const ui: NonNullable<PanelState["ui"]> = {};
     if (folderEls.length) { const f: Record<string, boolean> = {}; for (const fe of folderEls) f[pathKey(fe.path)] = fe.el.classList.contains("is-collapsed"); ui.folders = f; }
     if (tabsCtrls.length) { const t: Record<string, string | null> = {}; for (const tc of tabsCtrls) t[pathKey(tc.path)] = tc.pageKeys[tc.ctrl.active()] ?? null; ui.tabs = t; }
+    if (title !== name) ui.name = title; // a renamed panel carries its name; the storage key stays the built-with one
     return ui;
   };
   const applyUI = (ui: PanelState["ui"]) => {
     if (!ui || typeof ui !== "object") return;
+    if (typeof ui.name === "string" && ui.name.trim() && ui.name !== title) setTitle(ui.name.trim());
     if (ui.folders) for (const fe of folderEls) { const c = ui.folders[pathKey(fe.path)]; if (typeof c === "boolean") fe.setCollapsed(c); }
     if (ui.tabs) for (const tc of tabsCtrls) { const i = tc.pageKeys.indexOf(ui.tabs[pathKey(tc.path)]); if (i >= 0 && i !== tc.ctrl.active()) tc.ctrl.activate(i); } // skip re-activating the already-active tab — avoids a spurious tw-reflow on a no-op restore
   };
@@ -744,7 +762,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     },
     // Live theming — re-applies --tw-* vars to the panel (and future popovers). Clears
     // the prior theme first, so setTheme(null) reverts to the default monochrome look.
-    setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; }, // the header + the copy toast; persistKey is a const — a rename never moves saved values or presets
+    setName(n) { if (destroyed) return; setTitle(String(n)); }, // the header + the copy toast; persistKey is a const — a rename never moves saved values or presets
     setTheme(theme) { if (destroyed) return; if (themeVars) for (const k in themeVars) panel.style.removeProperty(k); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
     // Presets API (no-ops without opts.persist). Names are arbitrary strings. The list reads
     // storage, which exists already; a save/load/delete made before ready queues like set()
