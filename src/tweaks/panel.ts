@@ -119,7 +119,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // beside it and never triggers a collapse. No chevron — the title is the toggle.
   const titleBtn = btn("tw-header-toggle");
   titleBtn.setAttribute("aria-expanded", "true");
-  titleBtn.append(txt("span", "tw-title", name));
+  let title = name; // the shown name — setName() moves it; the storage key keeps the built-with name
+  const titleEl = txt("span", "tw-title", title); titleBtn.append(titleEl);
   const toolbar = el("div", "tw-toolbar");
   // The values that have moved off their defaults, keyed by dotted path — setMany()'s shape,
   // and the hand-off for baking tuned values into source (an agent, a commit): the full
@@ -129,7 +130,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Copy emits the values snapshot — ⇧-click, only the changed values; reset restores every
   // default (or runs opts.onReset). feedback.ts owns their click feedback (the copy ⇄ check
   // swap, the reset spin).
-  const copyBtn = makeCopyBtn(panel, name, (changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // through snapshot(): a bag value JSON can't take falls back to the controls' values instead of throwing out of the click
+  const copyBtn = makeCopyBtn(panel, () => title, (changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // through snapshot(): a bag value JSON can't take falls back to the controls' values instead of throwing out of the click
   const resetBtn = makeResetBtn(resetAll);
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn: HTMLButtonElement | null = null;
@@ -743,6 +744,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     },
     // Live theming — re-applies --tw-* vars to the panel (and future popovers). Clears
     // the prior theme first, so setTheme(null) reverts to the default monochrome look.
+    setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; }, // the header + the copy toast; persistKey is a const — a rename never moves saved values or presets
     setTheme(theme) { if (destroyed) return; if (themeVars) for (const k in themeVars) panel.style.removeProperty(k); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
     // Presets API (no-ops without opts.persist). Names are arbitrary strings. The list reads
     // storage, which exists already; a save/load/delete made before ready queues like set()

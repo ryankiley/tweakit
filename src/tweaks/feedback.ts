@@ -20,13 +20,13 @@ const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => { c
 // dispatchEvent(click) does, and it must stay as inert as the button reads.
 // `text(changedOnly)` returns the payload and a count: -1 for the full snapshot, else how
 // many changed values it holds — a ⇧-click with nothing changed copies nothing and says so.
-const makeCopyBtn = (anchor: Element, name: string, text: (changedOnly: boolean) => [string, number]) => {
+const makeCopyBtn = (anchor: Element, name: () => string, text: (changedOnly: boolean) => [string, number]) => { // name is read at click time — the panel can be renamed
   const b = toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values (⇧: changed only)");
   b.addEventListener("click", async (e) => {
     if (b.disabled) return;
     const [t, n] = text(e.shiftKey);
     if (!n) { showToast("Nothing has changed", anchor); return; }
-    if (await copyText(t)) { flashCopied(b); showToast(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : `${name} values copied`, anchor); }
+    if (await copyText(t)) { flashCopied(b); showToast(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : `${name()} values copied`, anchor); }
     else showToast("Copy failed", anchor);
   });
   return b;
