@@ -121,9 +121,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   titleBtn.setAttribute("aria-expanded", "true");
   titleBtn.append(txt("span", "tw-title", name));
   const toolbar = el("div", "tw-toolbar");
-  // Copy emits the values snapshot; reset restores every default (or runs opts.onReset).
-  // feedback.ts owns their click feedback (the copy ⇄ check swap, the reset spin).
-  const copyBtn = makeCopyBtn(panel, name, () => JSON.stringify(snapshot(), null, 2)); // through snapshot(): a bag value JSON can't take falls back to the controls' values instead of throwing out of the click
+  // The values that have moved off their defaults, keyed by dotted path — setMany()'s shape,
+  // and the hand-off for baking tuned values into source (an agent, a commit): the full
+  // snapshot repeats every default. valueChanged compares objects structurally, so a
+  // spring/point/gradient at its default stays out.
+  const changed = (): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.path.join(".")] = e.get(); return JSON.parse(JSON.stringify(out, replacer)); };
+  // Copy emits the values snapshot — ⇧-click, only the changed values; reset restores every
+  // default (or runs opts.onReset). feedback.ts owns their click feedback (the copy ⇄ check
+  // swap, the reset spin).
+  const copyBtn = makeCopyBtn(panel, name, (changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // through snapshot(): a bag value JSON can't take falls back to the controls' values instead of throwing out of the click
   const resetBtn = makeResetBtn(resetAll);
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn: HTMLButtonElement | null = null;
@@ -729,6 +735,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // skipped, like a preset load — one notify), then the UI state, silently (not a value
     // change, and outside undo so a ⌘Z reverts values without thrashing folders/tabs).
     toJSON() { return destroyed ? { values: {}, ui: {} } : { values: snapshot(), ui: collectUI() }; },
+    changes() { return destroyed ? {} : changed(); }, // empty in the lazy window too — no entries yet
     fromJSON(state) {
       if (!state || typeof state !== "object") return;
       const values = state.values && typeof state.values === "object" ? { ...state.values } : state.values, ui = state.ui && typeof state.ui === "object" ? { ...state.ui } : state.ui; // read now, like setMany (one level): a host re-pointing a key after the call can't change what a lazy-window replay applies

@@ -188,6 +188,11 @@ export interface Panel {
    *  it to your own storage: a file, a query string / share link, a server. `JSON.stringify`
    *  on the panel calls this too. Most meaningful once `ready` (lazy controls have built). */
   toJSON(): PanelState;
+  /** The values that differ from their defaults, keyed by dotted path — `setMany()`'s shape
+   *  (`{ "shadow.radius": 28, blur: 48 }`), the hand-off for baking tuned values into source.
+   *  ⇧-click on the toolbar's copy button copies this instead of the full snapshot. Empty
+   *  before `ready`. */
+  changes(): Record<string, unknown>;
   /** Restore a panel from a `toJSON()` object: values are applied where their path still
    *  exists (missing ones skipped, like loading a preset), then folder/tab UI state. Fires
    *  listeners once. Both halves are optional — pass `{ values }` to restore values only, or

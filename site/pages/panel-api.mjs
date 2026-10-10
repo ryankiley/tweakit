@@ -50,7 +50,10 @@ export const examples = [
       fire, the UI follows), and <code>panel.reset()</code> restores every default —
       the same thing the toolbar's reset button does. To move several at once, hand
       <code>panel.setMany({ key: v, "folder.child": w })</code> a flat map — it applies the
-      whole batch and notifies once, not once per key (the shuffle below sets two).</p>`,
+      whole batch and notifies once, not once per key (the shuffle below sets two). The
+      reverse, <code>panel.changes()</code>, is a flat map of every value that has moved off
+      its default, in the same shape — what you paste to bake tuned values into source.
+      ⇧-click the toolbar's copy button to copy that instead of the full snapshot.</p>`,
     target: `
       <div class="pa-remote">
         <div class="pa-tile"></div>
