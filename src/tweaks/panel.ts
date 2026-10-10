@@ -10,7 +10,7 @@ import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
-import { ICON_PRESETS, ICON_X, ICON_SEARCH, ICON_EDIT } from "./icons.js";
+import { ICON_PRESETS, ICON_X, ICON_SEARCH, ICON_CHEVRON } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { PanelEl } from "./shared.js";
@@ -115,13 +115,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // demo stage that listens on window). The controls have handled them by now.
   stopPointerLeak(panel);
   const header = el("div", "tw-header");
-  // Tapping the title collapses the body; the toolbar sits
-  // beside it and never triggers a collapse. No chevron — the title is the toggle.
-  const titleBtn = btn("tw-header-toggle");
-  titleBtn.setAttribute("aria-expanded", "true");
+  // Tapping the title collapses the body; the toolbar sits beside it and never triggers a
+  // collapse. No chevron — the title is the toggle — unless opts.rename makes the title the
+  // rename trigger instead: then a leading chevron takes the collapse.
+  const renameOn = !!opts.rename;
+  const titleBtn = btn("tw-header-toggle"), chevBtn = renameOn ? btn("tw-header-chevron", ICON_CHEVRON) : null, toggleBtn = chevBtn ?? titleBtn;
+  toggleBtn.setAttribute("aria-expanded", "true"); if (chevBtn) chevBtn.setAttribute("aria-label", "Collapse");
   let title = name; // the shown name — setName() moves it; the storage key keeps the built-with name
   const titleEl = txt("span", "tw-title", title); titleBtn.append(titleEl);
-  const setTitle = (n: string) => { title = n; titleEl.textContent = n; }; // setName(), the in-place rename and a restored ui.name all land here
+  const setTitle = (n: string) => { title = n; titleEl.textContent = n; if (renameOn) titleBtn.setAttribute("aria-label", "Rename " + n); }; // setName(), the in-place rename and a restored ui.name all land here
+  if (renameOn) titleBtn.setAttribute("aria-label", "Rename " + title);
   const toolbar = el("div", "tw-toolbar");
   // The values that have moved off their defaults, keyed by dotted path — setMany()'s shape,
   // and the hand-off for baking tuned values into source (an agent, a commit): the full
@@ -153,14 +156,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     quietFocus(searchInput);
     toolbar.append(searchBtn);
   }
-  // Rename (opts.rename): a pencil swaps the title for a field; Enter or leaving the field
-  // commits through setTitle (the storage key keeps the built-with name), Escape cancels.
-  // In the toolbar like the filter, so toolbar:false drops it the same way.
-  const renameOn = !!opts.rename && opts.toolbar !== false; // no toolbar, no button (documented; no warning, unlike the filter: the bytes)
-  const renameBtn = renameOn ? toolbarBtn("", ICON_EDIT, "Rename panel") : null;
+  // Rename (opts.rename): a click on the title swaps it for a field; Enter or leaving the
+  // field commits through setTitle (the storage key keeps the built-with name), Escape cancels.
   const renameInput = renameOn ? el("input", "tw-rename") : null;
-  if (renameOn) { renameInput.type = "text"; renameInput.spellcheck = false; renameInput.setAttribute("aria-label", "Panel name"); quietFocus(renameInput); toolbar.append(renameBtn); }
+  if (renameOn) { renameInput.type = "text"; renameInput.spellcheck = false; renameInput.setAttribute("aria-label", "Panel name"); quietFocus(renameInput); }
   toolbar.append(copyBtn, resetBtn);
+  if (chevBtn) header.append(chevBtn);
   header.append(titleBtn);
   if (filterOn) header.append(searchInput);
   if (renameOn) header.append(renameInput);
@@ -168,7 +169,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The buttons act on controls that only exist once assemble() has built them — until
   // then (the lazy-chunk window on the split build) they're honestly inert rather than
   // silently dead.
-  const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn, renameBtn].filter(Boolean);
+  const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
   for (const b of toolbarBtns) b.disabled = true;
   // A header drag (floating mode) sets this so the click ending the drag doesn't collapse.
   // The swallow lives on the header, not the title: once the header holds pointer capture
@@ -176,12 +177,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // the release), so a title-level guard never saw it and ate the NEXT real click instead.
   let dragMoved = false, swallowClick = false;
   header.addEventListener("click", (e) => { if (swallowClick) { swallowClick = false; e.preventDefault(); e.stopPropagation(); } }, true);
-  titleBtn.addEventListener("click", () => {
-    setCollapsed(panel, titleBtn, body, !panel.classList.contains("is-collapsed"));
+  const toggleCollapse = () => {
+    setCollapsed(panel, toggleBtn, body, !panel.classList.contains("is-collapsed"));
     // A bottom-parked floating panel grows past the viewport when it expands — re-clamp
     // once the 0.25s body collapse has settled and the height is real.
     if (panel.dataset.mode === "floating") setTimeout(() => { if (panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } }, 270);
-  });
+  };
+  toggleBtn.addEventListener("click", toggleCollapse);
   const body = el("div", "tw-body");
   const controls = el("div", "tw-controls");
   body.append(controls);
@@ -367,8 +369,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   if (renameOn) {
     const stop = () => panel.classList.remove("is-renaming");
     const commit = () => { if (!panel.classList.contains("is-renaming")) return; stop(); const n = renameInput.value.trim(); if (n && n !== title) { setTitle(n); opts.onRename && opts.onRename(n); } }; // an empty field keeps the name
-    renameBtn.addEventListener("click", () => { if (renameBtn.disabled) return; if (panel.classList.contains("is-searching")) searchBtn!.click(); panel.classList.add("is-renaming"); renameInput.value = title; renameInput.focus(); renameInput.select(); }); // an open search closes first: the two fields share the title's slot
-    renameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); renameBtn.focus(); } else if (e.key === "Escape") { e.preventDefault(); stop(); renameBtn.focus(); } });
+    titleBtn.addEventListener("click", () => { if (panel.classList.contains("is-searching")) searchBtn!.click(); panel.classList.add("is-renaming"); renameInput.value = title; renameInput.focus(); renameInput.select(); }); // an open search closes first: the two fields share the title's slot
+    renameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); titleBtn.focus(); } else if (e.key === "Escape") { e.preventDefault(); stop(); titleBtn.focus(); } });
     renameInput.addEventListener("blur", commit); // a click elsewhere commits too; after Enter / Escape the field is already away, so this is a no-op
   }
 

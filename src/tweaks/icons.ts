@@ -18,7 +18,6 @@ const ICON_CHECK = icon('<path d="m5 14 3.5 3.5L19 6.5"/>', "tw-toolbar-btn__che
 // so the spin on click reads as a turn about the centre.
 const ICON_RESET = icon('<path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-7.6 4.2M3.3 3l.2 2q0 2.2.6 2.7t2.7.2l2-.2"/>');
 const ICON_SEARCH = icon('<path d="m17 17 4 4m-2-10a8 8 0 0 0-16 0 8 8 0 0 0 16 0"/>');
-const ICON_EDIT = icon('<path d="M4 16 15.5 4.5l4 4L8 20H4v-4Zm9-9 4 4"/>'); // original: a pencil, body and tip mark in one path
 // One chevron shape, parameterised by class — the folder header (tw-chevron) and the
 // select trigger (tw-select-chevron) carry the identical glyph under different hooks.
 const chevronIcon = (cls: string) => icon('<path d="M18 9s-4.4 6-6 6-6-6-6-6"/>', cls, 2.5);
@@ -27,4 +26,4 @@ const ICON_PRESETS = icon('<path d="M20.2 13.5q1.8.8 1.8 1.5 0 .8-2.7 2l-5 2.2Q1
 const ICON_X = icon('<path d="M18 6 6 18m12 0L6 6"/>', "", 2.2);
 const ICON_INFO = icon('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4m-.25-3.75a.25.25 0 0 0 .5 0 .25.25 0 0 0-.5 0"/>');
 
-export { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_SEARCH, ICON_CHEVRON, ICON_PRESETS, ICON_X, ICON_INFO, ICON_EDIT, chevronIcon };
+export { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_SEARCH, ICON_CHEVRON, ICON_PRESETS, ICON_X, ICON_INFO, chevronIcon };

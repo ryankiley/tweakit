@@ -202,6 +202,11 @@
 }
 .tw-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
 .tw-panel.is-collapsed .tw-chevron { transform: rotate(-90deg); }
+/* Rename (opts.rename): the title is the rename trigger, so a leading chevron takes the collapse. */
+.tw-header-chevron { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 20px; height: 20px; margin: 0 2px 0 -4px; padding: 0; background: none; border: none; border-radius: calc(var(--tw-radius) - 3px); color: inherit; cursor: pointer; }
+@media (hover: hover) and (pointer: fine) {
+  .tw-header-chevron:hover { background: var(--tw-surface-hover); }
+}
 .tw-toolbar { display: flex; align-items: center; gap: 4px; }
 /* Filter (opts.filter) — the search input replaces the title while searching. */
 .tw-search, .tw-rename { display: none; flex: 1; min-width: 0; height: 24px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); outline: none; }
@@ -209,6 +214,10 @@
 .tw-search::placeholder { color: var(--tw-text-tertiary); }
 .tw-panel:is(.is-searching, .is-renaming) .tw-header-toggle { display: none; } /* either field takes the title's place */
 .tw-panel.is-searching .tw-search, .tw-panel.is-renaming .tw-rename { display: block; }
+/* A direct edit: the field wears the title's type (14px / 500, the root text colour) and sits
+ * where the title sat, its border + padding pulled back by a negative margin so the glyphs
+ * don't move when the title turns into a field; 24px tall like the toolbar buttons beside it. */
+.tw-rename { padding: 0 6px; margin-left: -7px; font-size: 14px; font-weight: 500; color: var(--tw-text-root); }
 .tw-filter-hidden { display: none !important; }
 
 /* Hint marker (ⓘ) — a control's `hint` shows here beside its label; hover/focus
@@ -319,7 +328,7 @@
  * ring — quietFocus (shared.ts) marks pointer-origin focus; Tab still rings. */
 .tw-trigger:focus-visible, .tw-select-trigger:focus-visible, .tw-button:focus-visible,
 .tw-seg-btn:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
-.tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
+.tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-header-chevron:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
 .tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-rename:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {

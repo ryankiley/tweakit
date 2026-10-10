@@ -34,7 +34,7 @@ test("every focusable element in a panel with every control has a :focus-visible
     ramp: { type: "gradient" }, lift: { type: "shadow" }, wave: { type: "plot", expr: "x" }, fps: { type: "fpsgraph" }, mon: { type: "monitor", value: 1 },
     pic: { type: "image" }, pad: { type: "sides", value: [4, 8] }, go: { type: "button", action() {} }, grp: { type: "buttongroup", buttons: { A() {}, B() {} } }, sep: { type: "separator" },
     pages: { type: "tabs", pages: { One: { a: 1 }, Two: { b: 2 } } }, folder: { inner: 1 },
-  }, { persist: true, filter: true, undo: true });
+  }, { persist: true, filter: true, undo: true, rename: true });
   document.body.append(p.el); await p.ready;
   const nodes = [...p.el.querySelectorAll(FOCUSABLE), ...document.body.querySelectorAll(".tw-portal " + FOCUSABLE.split(", ").join(", .tw-portal "))]
     .filter((el) => el.getAttribute("aria-hidden") !== "true" && el.type !== "file" && el.type !== "hidden");
