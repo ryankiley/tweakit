@@ -209,15 +209,16 @@
 .tw-search::placeholder { color: var(--tw-text-tertiary); }
 .tw-panel:is(.is-searching, .is-renaming) .tw-header-toggle { display: none; } /* either field takes the title's place */
 .tw-panel.is-searching .tw-search { display: block; }
-/* Rename (opts.rename): a direct edit. The field wears the title's type (14px / 500, the root
- * text colour) and sits where the title sat, its border + padding pulled back by a negative
- * margin so the glyphs don't move when the title turns into a field; 24px tall like the
- * toolbar buttons beside it; and only as wide as the name: a hidden mirror of the text sizes
- * the grid cell the input fills, so the box grows as you type. */
-.tw-rename { display: none; align-items: center; height: 24px; min-width: 3ch; margin: 0 auto 0 -7px; /* auto right: the header spaces its items apart, and a field that no longer stretches would float to the middle */ background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); }
+/* Rename (opts.rename): a direct edit. The field is the title's own text box (14px / 500, the
+ * root text colour, no padding, no border), so the glyphs don't move when the title turns
+ * into a field; the box people see is a ring painted around it (a surface fill and a hairline,
+ * both box-shadows, so nothing in layout moves either), 4px on each side of the 16px line for
+ * the toolbar buttons' 24px. A hidden mirror of the text sizes the grid cell the input fills,
+ * so the box is only as wide as the name and grows as you type. */
+.tw-rename { display: none; align-items: center; height: 16px; min-width: 2ch; margin: 0 auto 0 0; border-radius: 3px; background: var(--tw-surface); box-shadow: 0 0 0 4px var(--tw-surface), 0 0 0 5px var(--tw-border); } /* auto right margin: the header spaces its items apart, and a field that no longer stretches would float to the middle */
 .tw-panel.is-renaming .tw-rename { display: inline-grid; }
-.tw-rename:focus-within { border-color: var(--tw-border-hover); }
-.tw-rename > * { grid-area: 1 / 1; padding: 0 6px; font: inherit; font-size: 14px; font-weight: 500; }
+.tw-rename:focus-within { box-shadow: 0 0 0 4px var(--tw-surface), 0 0 0 5px var(--tw-border-hover); }
+.tw-rename > * { grid-area: 1 / 1; padding: 0; font: inherit; font-size: 14px; font-weight: 500; }
 .tw-rename-mirror { visibility: hidden; white-space: pre; }
 .tw-rename-input { width: 100%; min-width: 0; height: 100%; margin: 0; border: 0; background: none; color: var(--tw-text-root); outline: none; }
 .tw-filter-hidden { display: none !important; }
