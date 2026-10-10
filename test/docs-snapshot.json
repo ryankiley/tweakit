@@ -129,8 +129,8 @@
           },
           "bounce": {
             "mode": "spring",
-            "stiffness": 109.6622711232151,
-            "damping": 10.471975511965978,
+            "stiffness": 109.6622711,
+            "damping": 10.47197551,
             "mass": 1,
             "visualDuration": 0.6,
             "bounce": 0.5,
@@ -216,8 +216,8 @@
       "values": {
         "move": {
           "mode": "spring",
-          "stiffness": 194.9551486634935,
-          "damping": 19.54768762233649,
+          "stiffness": 194.9551487,
+          "damping": 19.54768762,
           "mass": 1,
           "visualDuration": 0.45,
           "bounce": 0.3,

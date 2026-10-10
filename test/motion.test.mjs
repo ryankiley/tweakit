@@ -152,3 +152,17 @@ test("review follow-up: `value` as a bare keyword or 4-tuple is the curve on the
   assert.deepEqual(a.params.t.curve, [0.42, 0, 1, 1]);
   a.destroy();
 });
+
+test("a spring's physics round-trips clean: stiffness 300 comes back 300, not 300.00000000000006", async () => {
+  const p = tweaks("Noise", { m: { type: "motion", stiffness: 300, damping: 20 }, s: { type: "spring", stiffness: 300, damping: 20 } });
+  document.body.append(p.el); await p.ready;
+  for (const k of ["m", "s"]) {
+    assert.equal(p.params[k].stiffness, 300, `${k}: stiffness`);
+    assert.equal(p.params[k].damping, 20, `${k}: damping`);
+  }
+  p.set("m", { stiffness: 500, damping: 25 });
+  const c = p.changes().m;
+  assert.equal(c.stiffness, 500, "changes() carries the stiffness as set");
+  assert.equal(c.damping, 25, "and the damping");
+  p.destroy();
+});
