@@ -204,11 +204,11 @@
 .tw-panel.is-collapsed .tw-chevron { transform: rotate(-90deg); }
 .tw-toolbar { display: flex; align-items: center; gap: 4px; }
 /* Filter (opts.filter) — the search input replaces the title while searching. */
-.tw-search { display: none; flex: 1; min-width: 0; height: 24px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); outline: none; }
-.tw-search:focus { border-color: var(--tw-border-hover); }
+.tw-search, .tw-rename { display: none; flex: 1; min-width: 0; height: 24px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); outline: none; }
+.tw-search:focus, .tw-rename:focus { border-color: var(--tw-border-hover); }
 .tw-search::placeholder { color: var(--tw-text-tertiary); }
-.tw-panel.is-searching .tw-header-toggle { display: none; }
-.tw-panel.is-searching .tw-search { display: block; }
+.tw-panel:is(.is-searching, .is-renaming) .tw-header-toggle { display: none; } /* either field takes the title's place */
+.tw-panel.is-searching .tw-search, .tw-panel.is-renaming .tw-rename { display: block; }
 .tw-filter-hidden { display: none !important; }
 
 /* Hint marker (ⓘ) — a control's `hint` shows here beside its label; hover/focus
@@ -321,7 +321,7 @@
 .tw-seg-btn:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
 .tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
-.tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
+.tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-rename:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
   outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px;
 }
