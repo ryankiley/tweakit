@@ -8,7 +8,7 @@ import "./_setup-dom.mjs";
 const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
 
 test("string option labels: camel humps split, capital runs and digits do not", async () => {
-  const p = tweaks("L", { size: { type: "radiogrid", options: ["XS", "2XL", "RGB", "fontSize", "small"] } }); document.body.append(p.el); await p.ready;
-  assert.deepEqual([...p.el.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["XS", "2XL", "RGB", "Font Size", "Small"]);
+  const p = tweaks("L", { size: { type: "radiogrid", options: ["XS", "2XL", "RGB", "fontSize", "small", "myURLParser", "level2Up"] } }); document.body.append(p.el); await p.ready;
+  assert.deepEqual([...p.el.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up"]);
   p.destroy();
 });
