@@ -833,6 +833,8 @@
 
 /* ── Number grab handle (drag to scrub) ── */
 .tw-num-wrap { display: flex; align-items: center; gap: 4px; }
+.tw-slider-unit { color: var(--tw-text-tertiary); } /* the slider readout's unit ("24 px") — muted, same size, so the number stays the thing you read */
+.tw-num-unit { flex-shrink: 0; font-size: 12px; line-height: normal; color: var(--tw-text-tertiary); padding-right: 2px; user-select: none; -webkit-user-select: none; } /* the field's unit, read with the value ("450 ms") — the label stays the quantity. Same size and line box as the input's text, so the row's centring lands both on one baseline (a smaller unit centred rode high; baseline-aligning the row pushed the pair to the top) */
 .tw-num-wrap .tw-num { flex: 0 0 auto; width: 6ch; text-overflow: ellipsis; } /* a value wider than the field ("0.123456", "1e+21") shows it is cut rather than looking like a shorter number */
 .tw-row > .tw-num-wrap .tw-num { width: 9ch; } /* the Number control's own row has the room a three-up field grid lacks */
 .tw-num-grab { display: flex; align-items: center; justify-content: center; width: 12px; height: 18px; flex-shrink: 0; color: var(--tw-text-tertiary); cursor: ew-resize; touch-action: none; transition: color 0.15s, transform 0.18s var(--tw-ease-spring); }

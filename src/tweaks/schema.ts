@@ -22,7 +22,7 @@ interface Meta {
   // Per-control options (ControlOptions), attached by metaFor.
   render?: (get: Get) => boolean; disabled?: boolean | ((get: Get) => boolean); hint?: string;
   // Ranges — slider, number, interval, monitor.
-  min?: number; max?: number; step?: number; soft?: boolean;
+  min?: number; max?: number; step?: number; soft?: boolean; unit?: string; // unit: slider / number, display only
   // Single-select — list, radiogrid.
   options?: Option[]; cols?: number;
   // Text.
@@ -112,14 +112,16 @@ const rangeOf = (v: any, ...seeds: unknown[]) => {
 // A verbose form's own `label` wins over the title-cased key — `??` semantics, so an
 // explicit "" (= no label) survives where `||` fell back to the key.
 const ownLabel = (v: any, label: string) => (v.label == null ? label : String(v.label));
+// A unit is a short string shown after the value ("px", "ms", "%"); anything else is dropped.
+const unitOf = (u: unknown) => (typeof u === "string" && u.trim() ? u.trim().slice(0, 12) : undefined);
 // Typed against the public SchemaObject union, so tsc itself flags a control type
 // added to types.ts but missing here (or a stray key with no public form). "button"
 // is the one exception — it has no handler because the `{ action }` shorthand
 // inference below already covers the verbose form. (`v` is the host's object form,
 // inspected as metaFor's `value` is.)
 const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth: number) => MetaFields> = {
-  slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft }; },
-  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft }),
+  slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft, unit: unitOf(v.unit) }; },
+  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft, unit: unitOf(v.unit) }),
   checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
@@ -249,7 +251,7 @@ const VALUELESS = new Set<string>(["button", "fpsgraph", "monitor", "buttongroup
 // Partial over the same public union: every markup type must be a real control type
 // (tsc flags a typo'd key), but not every control needs a markup form.
 const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: HTMLElement, label: string) => object>> = {
-  slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft) }), // absent bounds derive from the value in the verbose handler, as on the schema path (this table used to pin 0–100)
+  slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft), unit: d.unit }), // absent bounds derive from the value in the verbose handler, as on the schema path (this table used to pin 0–100)
   // A list of options is a single-select → radio grid; a bare checkbox is boolean.
   checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
   radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
@@ -258,7 +260,7 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   button: (d, host, label) => ({ action: () => showToast(`${label} pressed`, host) }),
   buttongroup: (d, host) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab, action: () => showToast(`${lab} pressed`, host) })) }),
   separator: () => ({}),
-  number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step) }),
+  number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), unit: d.unit }),
   text: (d) => ({ value: d.value ?? "", placeholder: d.placeholder, rows: num(d.rows) }),
   image: (d) => ({ value: d.value }),
   fpsgraph: (d) => ({ label: d.label ?? "FPS" }),

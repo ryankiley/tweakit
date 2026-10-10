@@ -28,7 +28,7 @@ export const examples = [
       <div class="tw-panel" data-mode="inline" style="max-width: 300px">
         <div class="tw-header"><span class="tw-title">Static</span></div>
         <div class="tw-controls">
-          <div data-tw="slider" data-label="Blur" data-value="12" data-min="0" data-max="40"></div>
+          <div data-tw="slider" data-label="Blur" data-value="12" data-min="0" data-max="40" data-unit="px"></div>
           <div data-tw="checkbox" data-label="Visible" data-checked="true"></div>
           <div data-tw="list" data-label="Blend" data-options="normal, multiply, screen" data-value="normal"></div>
         </div>

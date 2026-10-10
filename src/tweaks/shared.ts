@@ -26,7 +26,7 @@ interface Stringifying { setAttribute(name: string, value: string | number): voi
 type Built<E extends Element> = E & Stringifying;
 /** The labelled numeric field's spec (numField) — the Number control's meta, or a boxed
  *  field's own label + range inside a composite control. */
-interface NumSpec { label: string; value?: unknown; min?: unknown; max?: unknown; step?: unknown; soft?: boolean; row?: boolean }
+interface NumSpec { label: string; value?: unknown; min?: unknown; max?: unknown; step?: unknown; soft?: boolean; row?: boolean; unit?: string } // unit: a muted suffix inside the field ("ms", "s"), also folded into its accessible name
 /** The numeric field's handle: set() coerces and fits, get() reads the fitted number. */
 interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number }
 /** The popover shell's handle (popover). */
