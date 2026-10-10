@@ -1,4 +1,4 @@
-/* Getting started — install, import, first panel, reading values. */
+/* Getting started: install, import, first panel, reading values. */
 
 export const meta = {
   slug: "getting-started",
@@ -13,20 +13,19 @@ pick one of the two builds, add the stylesheet, and hand <code>tweaks()</code> a
 export const examples = [
   {
     title: "Install",
-    prose: `<p>From npm — or, since there's nothing else to install, copy
+    prose: `<p>From npm. Or, since there's nothing else to install, copy
       <code>dist/tweaks.js</code> and <code>dist/tweaks.css</code> straight into a project
       that has no build step at all.</p>`,
     code: { lang: "sh", text: `npm install tweakit` },
   },
   {
     title: "Import a build",
-    prose: `<p>Two entries, one API. The default import is a single self-contained file
-      ({{size-single}} gzip) — every control inlined, fully synchronous. The <code>/core</code>
-      entry is code-split ({{size-split}} gzip): heavy controls (color, gradient, spring,
-      plot…) dynamic-import on first use. <a href="./imports.html">More on choosing →</a></p>`,
+    prose: `<p>Two entries, one API: the default import is the single-file build, self-contained
+      and fully synchronous; <code>/core</code> is code-split and loads heavy controls on first
+      use. <a href="./imports.html">Sizes and what loads when →</a></p>`,
     code: `
       import { tweaks } from "tweakit";        // everything inlined, synchronous
-      // …or the code-split entry — heavy controls load on first use:
+      // or the code-split entry: heavy controls load on first use
       import { tweaks } from "tweakit/core";`,
   },
   {
@@ -36,13 +35,13 @@ export const examples = [
       Import it through your bundler, or link the file directly.</p>`,
     code: `
       import "tweakit/css";   // bundler
-      // — or —
+      // or:
       // <link rel="stylesheet" href="node_modules/tweakit/dist/tweaks.css" />`,
   },
   {
     id: "first-panel",
     title: "Your first panel",
-    prose: `<p><code>tweaks(name, schema)</code> returns the panel synchronously —
+    prose: `<p><code>tweaks(name, schema)</code> returns the panel synchronously;
       append <code>panel.el</code> wherever you like. Each schema value becomes a control,
       inferred from its shape.</p>`,
     target: `<div class="gs-chip">Tweak me</div>`,
@@ -69,10 +68,10 @@ export const examples = [
   {
     id: "reading-values",
     title: "Reading values",
-    prose: `<p>Live values sit on <code>panel.params</code> — plain properties, updated in
+    prose: `<p>Live values sit on <code>panel.params</code>: plain properties, updated in
       place. Subscribe with <code>panel.on(fn)</code>; the callback receives the params bag
       and the key that changed. Move a slider and watch the log.</p>`,
-    target: `<pre class="gs-log">— move a control —</pre>`,
+    target: `<pre class="gs-log">Move a control</pre>`,
     css: `
       .gs-log { width: 100%; margin: 0; padding: 14px 16px; border-radius: 10px; background: var(--demo-well);
                 border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.7; color: var(--demo-well-ink);

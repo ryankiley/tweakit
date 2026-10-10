@@ -1,4 +1,4 @@
-/* The panel API — events, set/reset, conditional controls, undo, presets, floating. */
+/* The panel API: events, set/reset, conditional controls, undo, presets, floating, teardown. */
 
 export const meta = {
   slug: "panel-api",
@@ -8,20 +8,19 @@ export const meta = {
 };
 
 export const intro = `
-<p><code>tweaks()</code> returns synchronously — <code>panel.el</code> to mount,
+<p><code>tweaks()</code> returns synchronously: <code>panel.el</code> to mount,
 <code>panel.params</code> for live values, and the methods on this page. On the
-code-split build, a panel that needs lazy modules builds its controls behind
-<code>panel.ready</code>; the element, params and methods work immediately.</p>`;
+code-split build, lazy controls build behind
+<a href="./imports.html#ex-ready"><code>panel.ready</code></a>.</p>`;
 
 export const examples = [
   {
     id: "events",
     title: "Events",
-    prose: `<p><code>panel.on(fn)</code> subscribes to every change; the callback gets
-      the params bag and the key that changed (also available as
-      <code>params._last</code>). It returns an unsubscribe function. Move things and
-      watch the feed.</p>`,
-    target: `<pre class="pa-log">— change something —</pre>`,
+    prose: `<p><code>panel.on(fn)</code> fires on every change with the params bag and the
+      changed key (also on <code>params._last</code>), and returns an unsubscribe function.
+      Move things and watch the feed.</p>`,
+    target: `<pre class="pa-log">Change something</pre>`,
     css: `
       .pa-log { width: 100%; align-self: stretch; margin: 0; padding: 14px 16px; border-radius: 10px;
                 background: var(--demo-well); border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.8;
@@ -44,16 +43,21 @@ export const examples = [
   },
   {
     id: "set-reset",
-    title: "set & reset",
+    title: "set, setMany, changes & reset",
     prose: `<p>The panel is just another consumer of its own state:
       <code>panel.set(key, value)</code> moves a control programmatically (listeners
-      fire, the UI follows), and <code>panel.reset()</code> restores every default —
+      fire, the UI follows), and <code>panel.reset()</code> restores every default,
       the same thing the toolbar's reset button does. To move several at once, hand
-      <code>panel.setMany({ key: v, "folder.child": w })</code> a flat map — it applies the
-      whole batch and notifies once, not once per key (the shuffle below sets two). The
-      reverse, <code>panel.changes()</code>, is a flat map of every value that has moved off
-      its default, in the same shape — what you paste to bake tuned values into source.
-      ⇧-click the toolbar's copy button to copy that instead of the full snapshot.</p>`,
+      <code>panel.setMany({ key: v, "folder.child": w })</code> a flat map: it applies the
+      whole batch and notifies once, not once per key (the shuffle below sets two). Each
+      control resets on its own too: double-click its label (or a slider's readout), hold
+      it on touch, or press ⌥+Backspace with focus inside it.</p>
+      <p>The reverse, <code>panel.changes()</code>, is a flat map of every value that has
+      moved off its default, in the same shape (what you paste to bake tuned values into
+      source). ⇧-click the toolbar's copy button to copy that instead of the full snapshot.
+      <code>panel.setName(name)</code> retitles the panel live (the header and the copy
+      toast follow); the name it was built with stays its storage key, so saved values and
+      presets survive a rename.</p>`,
     target: `
       <div class="pa-remote">
         <div class="pa-tile"></div>
@@ -91,8 +95,8 @@ export const examples = [
   {
     id: "save-load",
     title: "Save & load state",
-    prose: `<p><code>panel.toJSON()</code> serializes the whole panel — every value
-      <strong>plus</strong> UI state (which folders are collapsed, which tab is open) — to a
+    prose: `<p><code>panel.toJSON()</code> serializes the whole panel, every value
+      <strong>plus</strong> UI state (which folders are collapsed, which tab is open), to a
       plain object, separate from the localStorage presets. Persist it your own way: a file,
       a URL, a server. <code>panel.fromJSON(state)</code> restores it (unknown paths skipped).
       Tweak things, collapse the folder, <strong>Save</strong>, change more, then
@@ -103,7 +107,7 @@ export const examples = [
           <button class="demo-btn pa-do-save" type="button">panel.toJSON()</button>
           <button class="demo-btn pa-do-load" type="button">panel.fromJSON(…)</button>
         </div>
-        <pre class="pa-state">— Save to capture state —</pre>
+        <pre class="pa-state">Save to capture state</pre>
       </div>`,
     css: `
       .pa-save { display: flex; flex-direction: column; gap: 10px; width: 100%; align-self: stretch; }
@@ -167,7 +171,7 @@ export const examples = [
     id: "undo",
     title: "Undo & redo",
     prose: `<p>Pass <code>{ undo: true }</code> and the panel keeps a debounced history:
-      ⌘Z / ⇧⌘Z work while the panel is hovered or focused (so it never hijacks the
+      ⌘Z / ⇧⌘Z (Ctrl on Windows and Linux) work while the panel is hovered or focused (so it never hijacks the
       page's own undo), a continuous drag coalesces into one step, and
       <code>panel.undo()</code> / <code>panel.redo()</code> drive it from outside.</p>`,
     target: `
@@ -205,8 +209,9 @@ export const examples = [
   {
     id: "presets",
     title: "Persistence & presets",
-    prose: `<p><code>{ persist: "key" }</code> saves values to localStorage (reload this
-      page — the panel comes back as you left it) and unlocks presets: a presets menu
+    prose: `<p><code>{ persist: "key" }</code> saves values, and a floated panel's position,
+      to localStorage (reload this page and the panel comes back as you left it) and unlocks
+      presets: a presets menu
       appears in the toolbar, and <code>savePreset</code> / <code>loadPreset</code> /
       <code>deletePreset</code> / <code>presets()</code> drive the same store from code.</p>`,
     target: `
@@ -253,7 +258,7 @@ export const examples = [
   {
     id: "floating",
     title: "Floating & draggable",
-    prose: `<p>Every panel is draggable by its header — an inline panel lifts into a
+    prose: `<p>Every panel is draggable by its header: an inline panel lifts into a
       floating layer on first drag (<code>draggable: false</code> pins it). Pass
       <code>floating: true</code> or <code>{ x, y }</code> to start it floated, like a
       classic debug overlay.</p>`,
@@ -274,8 +279,15 @@ export const examples = [
     },
   },
   {
+    id: "destroy",
+    title: "Teardown",
+    prose: `<p><code>panel.destroy()</code> removes the panel, releases every global listener
+      and closes any open popover; the API goes inert. Call it when the host view
+      unmounts.</p>`,
+  },
+  {
     title: "Standalone controls",
-    prose: `<p>Sometimes you want a control, not a panel — a slider in your own settings
+    prose: `<p>Sometimes you want a control, not a panel: a slider in your own settings
       form, or the color picker behind a swatch your page already draws.
       <code>mountControl(host, value, opts)</code> builds one control from any schema value
       (shorthand or verbose) straight into an element of yours and returns
@@ -283,22 +295,19 @@ export const examples = [
       <code>onChange</code> gets the value, and <code>set()</code> fires it too, so your own
       state stays the single source. <code>label: ""</code> suppresses the label when the host
       page has one.</p>
-      <p><code>createColorPicker({ value, mode, onChange })</code> is the picker body alone —
-      the OKLCH plane, strips and channel fields with no trigger row — for a swatch of your
+      <p><code>createColorPicker({ value, mode, onChange })</code> is the picker body alone
+      (the OKLCH plane, strips and channel fields, no trigger row), for a swatch of your
       own. Append <code>el</code> wherever you like (a popover, a sidebar), call
       <code>reflow()</code> after showing it, and read <code>get()</code> back in whatever
       notation the mode dropdown is set to: <code>hex</code> gives <code>#rrggbb</code>; the
       wide-gamut modes give a CSS color like <code>oklch(…)</code>, which a native
-      <code>&lt;input type="color"&gt;</code> won't accept — feed that only hex. Both handles
-      exist synchronously, and <code>el</code> is a wrapper that carries the kit's tokens, so
-      the control renders outside any panel; on the code-split build a control whose chunk
-      hasn't loaded yet fills it in behind <code>ready</code>.</p>
-      <p><code>gradientCss(value, angle?)</code> turns a gradient control's value into its CSS —
-      <code>linear-gradient(in &lt;interpolation&gt; &lt;angle&gt;, …)</code> with the value's
-      easing expanded into sampled stops — and <code>gradientStops(value)</code> is the stop
-      list alone, for a conic or radial gradient. The editor's own preview draws through the
-      same function, so this is the one way to get exactly what it shows. Pure string work:
-      it runs anywhere, with no control mounted.</p>`,
+      <code>&lt;input type="color"&gt;</code> won't accept; feed that only hex. Both handles
+      exist synchronously; on the code-split build a lazy control fills its <code>el</code>
+      in behind <code>ready</code>.</p>
+      <p><code>gradientCss(value, direction?)</code> and <code>gradientStops(value)</code> turn
+      a gradient control's value into CSS, easing expanded and blend space honored; the
+      editor's own preview draws through the same function. Pure string work: no control
+      needs to be mounted. See <a href="./color-and-gradient.html#ex-gradient">Gradient</a>.</p>`,
     code: `
       import { mountControl, createColorPicker } from "tweakit";
 
@@ -323,15 +332,15 @@ export const examples = [
     prose: `<p>The full third argument, for reference:</p>
       <table>
         <tr><th>Option</th><th>Does</th></tr>
-        <tr><td><code>theme</code></td><td>token overrides — see <a href="./theming.html">Theming</a></td></tr>
+        <tr><td><code>theme</code></td><td>token overrides; see <a href="./theming.html">Theming</a></td></tr>
         <tr><td><code>persist</code></td><td>localStorage key (or <code>true</code> to key by panel name); enables presets</td></tr>
-        <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title) — needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
+        <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title); it needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
         <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
-        <tr><td><code>draggable</code></td><td>header dragging — on by default, <code>false</code> pins</td></tr>
+        <tr><td><code>draggable</code></td><td>header dragging, on by default; <code>false</code> pins</td></tr>
         <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>
         <tr><td><code>undo</code></td><td>debounced undo/redo history</td></tr>
         <tr><td><code>onReset</code></td><td>replace the default reset behavior</td></tr>
-        <tr><td><code>onEditStart</code> / <code>onEditEnd</code></td><td>bracket a continuous drag — pause expensive work mid-scrub</td></tr>
+        <tr><td><code>onEditStart</code> / <code>onEditEnd</code></td><td>bracket a continuous drag, to pause expensive work mid-scrub</td></tr>
       </table>`,
   },
 ];

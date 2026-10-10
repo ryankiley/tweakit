@@ -1,9 +1,9 @@
-/* Structure — folder, tabs, button, buttongroup, separator. */
+/* Structure: folder, tabs, button, buttongroup, separator. */
 
 export const meta = {
   slug: "structure",
   title: "Structure",
-  description: "Organizing a panel: folders, tabs, buttons, button groups and separators — live.",
+  description: "Organizing a panel: folders, tabs, buttons, button groups and separators, live.",
 };
 
 export const intro = `
@@ -16,7 +16,7 @@ export const examples = [
     id: "folder",
     title: "Folder",
     prose: `<p>Any nested plain object becomes a collapsible folder, and its children
-      land on <code>params</code> as a nested object — here the whole
+      land on <code>params</code> as a nested object; here the whole
       <code>shadow</code> folder composes one <code>box-shadow</code>. Folders nest
       as deep as you'd ever want.</p>`,
     target: `<div class="fld-card">Stacked</div>`,
@@ -49,7 +49,7 @@ export const examples = [
   {
     id: "tabs",
     title: "Tabs",
-    prose: `<p><code>{ type: "tabs", pages: { … } }</code> splits a panel into pages —
+    prose: `<p><code>{ type: "tabs", pages: { … } }</code> splits a panel into pages;
       each page is just another schema. Params nest by page:
       <code>params.look.fill.color</code>, <code>params.look.stroke.width</code>.</p>`,
     target: `
@@ -83,7 +83,7 @@ export const examples = [
     title: "Button, button group & separator",
     prose: `<p>A bare <code>{ action: fn }</code> is a button; <code>buttongroup</code>
       packs several into one row; <code>{ type: "separator" }</code> draws the line
-      between concerns. Buttons don't produce params — they just fire.</p>`,
+      between concerns. Buttons don't produce params; they just fire.</p>`,
     target: `<div class="act-orbit"><div class="act-planet"></div></div>`,
     css: `
       .act-orbit { position: relative; width: 170px; height: 170px; border-radius: 50%;

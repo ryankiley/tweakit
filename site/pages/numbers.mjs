@@ -1,4 +1,4 @@
-/* Numbers — slider, number, interval, point. */
+/* Numbers: slider, number, interval, point. */
 
 export const meta = {
   slug: "numbers",
@@ -7,7 +7,7 @@ export const meta = {
 };
 
 export const intro = `
-<p>Four ways to edit a number — or two, or four of them at once. Sliders are built in;
+<p>Four ways to edit a number, or two, or four of them at once. Sliders are built in;
 <code>number</code>, <code>interval</code> and <code>point</code> load on first use on the
 code-split build.</p>`;
 
@@ -16,11 +16,10 @@ export const examples = [
     id: "slider",
     title: "Slider",
     prose: `<p>The workhorse. <code>[value, min, max, step]</code> as shorthand, or
-      <code>{ type: "slider" }</code> for options. Drag anywhere on the track, scrub with
-      arrow keys (⇧ for coarse steps), or hover the value and click to type — or press
-      Enter on the focused track (double-click or Alt+Backspace resets). With six or
-      fewer stops the track snaps and shows rule
-      lines. <code>soft: true</code> lets a typed or scripted value run past
+      <code>{ type: "slider" }</code> for options. Drag anywhere on the track, or scrub with
+      the arrow keys (⇧ for coarse steps). To type a value, hover the readout and click it,
+      or press Enter on the focused track. With six or fewer stops the track snaps and
+      shows rule lines. <code>soft: true</code> lets a typed or scripted value run past
       <code>min</code>/<code>max</code>; dragging stays within them. <code>unit: "px"</code>
       puts a unit after the readout; the param stays the bare number.</p>`,
     target: `<div class="num-tile"></div>`,
@@ -49,8 +48,9 @@ export const examples = [
     id: "number",
     title: "Number",
     prose: `<p><code>{ type: "number" }</code> is a plain numeric field with a
-      drag-to-scrub grab handle — for values where a track makes no sense. Drag the
-      handle to scrub it, click the field to type. <code>min</code>/<code>max</code>
+      drag-to-scrub grab handle, for values where a track makes no sense. Drag the
+      handle to scrub it (⇧ ×10, ⌥ ×0.1), click the field to type, or step it with ↑/↓.
+      <code>min</code>/<code>max</code>
       clamp; omit them for unbounded, or add <code>soft: true</code> to keep the bounds
       advisory rather than clamping. <code>unit</code> works here too.</p>`,
     target: `<div class="num-rotor"><div class="num-rotor-card">12°</div></div>`,
@@ -77,7 +77,7 @@ export const examples = [
   {
     id: "interval",
     title: "Interval",
-    prose: `<p>A dual-handle range. Shorthand <code>[[lo, hi], min, max, step?]</code> —
+    prose: `<p>A dual-handle range. Shorthand <code>[[lo, hi], min, max, step?]</code>:
       the first entry being a 2-tuple is what marks it as an interval. The value on
       <code>params</code> is a <code>[lo, hi]</code> pair; here it gates which bars count
       as “in range”.</p>`,
@@ -111,7 +111,7 @@ export const examples = [
   {
     id: "point",
     title: "Point",
-    prose: `<p>An n-dimensional vector — one scrubbable field per component, plus a
+    prose: `<p>An n-dimensional vector: one scrubbable field per component, plus a
       draggable 2D pad for the first two (on by default; <code>pad: false</code> opts
       out). The value is a plain map of component keys. Add a third component for 3D, a
       fourth for 4D; the pad stays 2D, the fields stack. The pad points +Y up;
@@ -128,7 +128,7 @@ export const examples = [
     run: ({ tweaks, mount, target }) => {
       const dot = target.querySelector(".num-dot");
       const panel = tweaks("Point", {
-        offset: { type: "point", pad: true, components: [
+        offset: { type: "point", components: [
           { key: "x", label: "X", value: 0, min: -1, max: 1, step: 0.01 },
           { key: "y", label: "Y", value: 0, min: -1, max: 1, step: 0.01 },
         ] },

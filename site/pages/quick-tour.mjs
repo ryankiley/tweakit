@@ -1,14 +1,14 @@
-/* Quick tour — the shorthand grammar in one scene, then the verbose escape hatch. */
+/* Quick tour: the shorthand grammar in one scene, then the verbose escape hatch. */
 
 export const meta = {
   slug: "quick-tour",
   title: "Quick tour",
-  description: "The tweakit schema shorthands in two minutes — what each value shape becomes, and the verbose { type } escape hatch.",
+  description: "The tweakit schema shorthands in two minutes: what each value shape becomes, and the verbose { type } escape hatch.",
 };
 
 export const intro = `
 <p>The schema is the whole API. Every property becomes a control, inferred from the
-<em>shape</em> of its value — no registration, no builders. This page is the grammar.</p>`;
+<em>shape</em> of its value. No registration, no builders. This page is the grammar.</p>`;
 
 export const examples = [
   {
@@ -52,28 +52,27 @@ export const examples = [
     prose: `<p>Everything the inference understands, in one place:</p>
       <table>
         <tr><th>You write</th><th>You get</th><th><code>params</code> value</th></tr>
-        <tr><td><code>24</code></td><td>slider over a sensible range</td><td>number</td></tr>
+        <tr><td><code>24</code></td><td>slider, 0–1 for a value ≤ 1, else 0–3× the value</td><td>number</td></tr>
         <tr><td><code>[1.2, 0, 3, 0.1]</code></td><td>slider with min / max / step</td><td>number</td></tr>
         <tr><td><code>[[20, 80], 0, 100]</code></td><td>interval (dual-handle range)</td><td><code>[lo, hi]</code></td></tr>
         <tr><td><code>true</code></td><td>checkbox</td><td>boolean</td></tr>
         <tr><td><code>"Hello"</code></td><td>text input</td><td>string</td></tr>
         <tr><td><code>"#7C5CFF"</code></td><td>wide-gamut color picker</td><td>color string</td></tr>
         <tr><td><code>["a", "b"]</code></td><td>dropdown list</td><td>string</td></tr>
+        <tr><td><code>{ options: ["a", "b"], value: "b" }</code></td><td>dropdown list with a chosen default</td><td>string</td></tr>
         <tr><td><code>{ action: fn }</code></td><td>button</td><td>—</td></tr>
         <tr><td><code>{ x: 0, y: 10 }</code></td><td>folder (collapsible group)</td><td>nested object</td></tr>
         <tr><td><code>{ type: "…", … }</code></td><td>that control, verbatim</td><td>per control</td></tr>
-      </table>
-      <p>The <code>{ type }</code> forms unlock everything the shorthands can't say —
-      the heavy controls (<a href="./color-and-gradient.html">gradient</a>,
-      <a href="./motion.html">motion, spring, cubic-bézier, plot</a>,
-      <a href="./monitors.html">monitors</a>…) and per-control options.</p>`,
+      </table>`,
   },
   {
     id: "verbose",
     title: "The verbose escape hatch",
-    prose: `<p>Any control can be written as <code>{ type, … }</code> to reach options the
-      shorthand can't express — and every object form accepts <code>render</code>,
-      <code>disabled</code> and <code>hint</code> (covered in
+    prose: `<p>Any control can be written as <code>{ type, … }</code> to reach what the
+      shorthands can't say: the heavy controls (<a href="./color-and-gradient.html">gradient</a>,
+      <a href="./motion.html">motion, spring, cubic-bézier, plot</a>,
+      <a href="./monitors.html">monitors</a>…) and per-control options. Every object form
+      also accepts <code>render</code>, <code>disabled</code> and <code>hint</code> (covered in
       <a href="./panel-api.html">the panel API</a>). Hover the ⓘ beside “Opacity”.</p>`,
     target: `<div class="qt-tile"></div>`,
     css: `
