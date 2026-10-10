@@ -72,7 +72,7 @@ export const examples = [
       const text = target.querySelector(".sp-text");
       const when = (style) => (get) => get("style") === style;   // show a row for one fill style
       const start = Math.max(48, Math.round(target.clientWidth / 3.4)); // most of the column
-      const ink = getComputedStyle(text).color || "#1b1b1b";            // the page's own ink
+      const pageColor = () => getComputedStyle(target).color;          // the page's text colour, per theme
       text.style.fontSize = `${start}px`;                               // sized now, not on ready: no jump
       const panel = tweaks("Tweakit", {
         text: {
@@ -82,7 +82,7 @@ export const examples = [
         },
         fill: {
           style: { type: "segmented", options: ["solid", "gradient"], value: "solid" },
-          color: { type: "color", value: ink, render: when("solid") },
+          color: { type: "color", value: pageColor(), render: when("solid") },
           gradient: { type: "gradient", stops: [["oklch(0.78 0.19 30)", 0], ["oklch(0.68 0.22 295)", 1]], render: when("gradient") },
           angle: { type: "slider", value: 90, min: 0, max: 360, step: 1, unit: "°", render: when("gradient") },
         },
@@ -107,7 +107,7 @@ export const examples = [
           s.fontSize = `${parseFloat(s.fontSize) * text.clientWidth / text.scrollWidth}px`;
         }
         s.backgroundImage = gradient && fill.gradient ? gradientCss(fill.gradient, fill.angle) : "none";
-        s.color = gradient ? "transparent" : fill.color === seed ? "" : fill.color; // untouched ink follows the theme
+        s.color = gradient ? "transparent" : fromPage.has(fill.color) ? "" : fill.color; // a colour from the page follows its theme
         // drop-shadow, not text-shadow: a text-shadow paints over the clipped gradient
         s.filter = shadow && !shadow.inset && (shadow.x || shadow.y || shadow.blur)   // a drop-shadow can't be inset
           ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur / 2}px ${shadow.color})`
@@ -152,11 +152,19 @@ export const examples = [
         mount.style.paddingTop = "0px";
         mount.style.paddingTop = `${Math.max(0, (mount.clientHeight - panel.el.offsetHeight) / 2)}px`;
       };
-      let seed;                                                       // the ink as the panel writes it
+      const fromPage = new Set();                                     // the page colours the panel has held
       panel.ready.then(() => {                                        // the values exist from here
-        seed = panel.params.fill.color;
+        fromPage.add(panel.params.fill.color);
         apply(panel.params); centre(); hop();
         window.addEventListener("resize", () => { apply(panel.params); centre(); });
+        // the device theme flips: a colour still taken from the page moves to the new one;
+        // a colour you picked stays
+        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+          if (!fromPage.has(panel.params.fill.color)) return;
+          panel.set("fill.color", pageColor());
+          fromPage.add(panel.params.fill.color);
+          apply(panel.params);
+        });
       });
     },
   },
