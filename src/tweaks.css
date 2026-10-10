@@ -42,10 +42,11 @@
    * raised surface on dark even before the shadow — tonal lift does what a drop shadow
    * can't against a dark backdrop. */
   --tw-base: #242424;
-  --tw-checker: var(--tw-checker); /* the alpha checker under swatches, strips and thumbs (colour.ts, basic.ts) */
+  --tw-checker: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; /* the alpha checker under swatches, strips and thumbs (colour.ts, basic.ts) */
   --tw-dropdown-bg: #292929;
   --tw-radius: 8px;
   --tw-row-height: 32px;
+  --tw-width: 256px; /* the panel's width (theme `width`) */
   --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
   /* Container elevation — a faint 1px rim-light separates the panel from the page (a black
    * shadow alone can't on dark), backed by a soft, subdued pool (no lit top edge).
@@ -97,7 +98,7 @@
   box-sizing: border-box;
 }
 .tw-panel {
-  width: 248px;
+  width: var(--tw-width);
   background: var(--tw-base);
   /* No flat outline — the layered shadow (with its 1px ring + lit top edge) carries
    * the panel's definition instead. */

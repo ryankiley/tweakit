@@ -108,6 +108,7 @@ export const examples = [
         <tr><td><code>font</code></td><td>font stack</td></tr>
         <tr><td><code>fontMono</code></td><td>monospace font stack</td></tr>
         <tr><td><code>radius</code>, <code>density</code></td><td>corner radius and row height; numbers are px</td></tr>
+        <tr><td><code>width</code></td><td>the panel's width, 256px by default; a number is px</td></tr>
       </table>`,
   },
   {

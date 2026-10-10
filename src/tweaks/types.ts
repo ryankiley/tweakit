@@ -141,6 +141,8 @@ export interface Theme {
   font?: string; fontMono?: string;
   /** Control corner radius and row height — a bare number is treated as px. */
   radius?: number | string; density?: number | string;
+  /** The panel's width (256px by default) — a bare number is treated as px. */
+  width?: number | string;
   /** Escape hatch — any raw token, e.g. `"--tw-accent": "#6c8cff"`. */
   [token: string]: string | number | undefined;
 }
