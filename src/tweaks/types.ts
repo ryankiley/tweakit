@@ -13,6 +13,14 @@ export type GradientStop = { color: string; pos: number };
  *  so your CSS ramp matches the editor's preview exactly. */
 export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" | "lch" | "lab" | "display-p3" | "rec2020";
 
+/** What a shadow control accepts — any subset of its fields (px, `color` any colour the kit
+ *  parses); or, as `value`, a `box-shadow` string: optional `inset`, two to four px lengths,
+ *  one colour, one layer. */
+export interface ShadowInput { inset?: boolean; x?: number; y?: number; blur?: number; spread?: number; color?: string }
+/** A shadow control's value — the fields, plus the `box-shadow` CSS they resolve to (`css`),
+ *  built from the numbers and the picker's own colour notation, so `el.style.boxShadow = css`. */
+export interface ShadowValue { inset: boolean; x: number; y: number; blur: number; spread: number; color: string; css: string }
+
 /** How a gradient blends between neighbouring stops: `"linear"` (CSS's own straight blend,
  *  the default) or a CSS easing — `ease`, `ease-in`, `ease-out`, `ease-in-out`, or any
  *  `cubic-bezier(x1, y1, x2, y2)`. No browser eases a gradient natively, so `gradientCss()`
@@ -52,6 +60,7 @@ export type SchemaObject =
   | { type: "interval"; value?: [number, number]; min?: number; max?: number; step?: number }
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
   | { type: "cubicbezier"; value?: [number, number, number, number] }
+  | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
   | { type: "point"; components: Array<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
   | { type: "gradient"; value?: GradientValue | Array<GradientStop | [string, number]>; stops?: Array<GradientStop | [string, number]> }
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }

@@ -158,6 +158,9 @@ const TYPED_META: Record<Exclude<SchemaObject["type"], "button">, (v: any, depth
     return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) }; // `value` = the default component map, so reset() / double-click-reset can restore it
   },
   gradient: (v) => ({ value: v.value ?? v.stops ?? null }),
+  // A box-shadow: the fields off the top level, a nested `value: {…}`, or a `value` string
+  // in the strict grammar the control parses; the control fills the defaults.
+  shadow: (v) => ({ value: v.value ?? { inset: v.inset, x: v.x, y: v.y, blur: v.blur, spread: v.spread, color: v.color } }),
   image: (v) => ({ value: v.value || "" }),
   plot: (v) => {
     const expr = v.expr != null ? String(v.expr) : (typeof v.fn === "function" ? "" : "sin(x)");
@@ -266,6 +269,7 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
   interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
   spring: (d) => ({ stiffness: num(d.stiffness), damping: num(d.damping), mass: num(d.mass), visualDuration: num(d.visualDuration), bounce: num(d.bounce), mode: d.mode }),
+  shadow: (d) => ({ value: d.value ?? { inset: flag(d.inset), x: num(d.x), y: num(d.y), blur: num(d.blur), spread: num(d.spread), color: d.color } }), // data-value: a box-shadow string; or the fields as attributes
   cubicbezier: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined }),
   point: (d) => {
     const vals = (d.value || "").split(",").map((s) => parseFloat(s));

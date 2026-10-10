@@ -21,6 +21,7 @@ const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
   interval: () => import("./controls/interval.js"),
   color: () => import("./controls/colour.js"),
   gradient: () => import("./controls/gradient.js"),
+  shadow: () => import("./controls/shadow.js"),
   tabs: () => import("./controls/tabs.js"),
   image: () => import("./controls/image.js"),
   fpsgraph: () => import("./controls/monitor.js"),

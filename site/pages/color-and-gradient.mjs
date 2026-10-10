@@ -4,7 +4,7 @@ export const meta = {
   slug: "color-and-gradient",
   title: "Color & gradient",
   nav: "Color & gradient",
-  description: "The wide-gamut OKLCH color picker, the gradient editor, and the image drop zone — live.",
+  description: "The wide-gamut OKLCH color picker, the gradient editor, the shadow editor, and the image drop zone, live.",
 };
 
 export const intro = `
@@ -96,6 +96,31 @@ export const examples = [
       // gradientCss honours the editor's blend space and expands its easing, so the
       // swatch is the picker's preview at the chosen angle.
       const apply = (p) => { swatch.style.background = gradientCss(p.ramp, p.angle); };
+      panel.on(apply);
+      panel.ready.then(() => apply(panel.params));
+    },
+  },
+  {
+    id: "shadow",
+    title: "Shadow",
+    prose: `<p><code>{ type: "shadow" }</code> edits a <code>box-shadow</code>: offset, blur,
+      spread, inside or outside, and the colour from the same picker, in one popover. The
+      param is the fields plus <code>css</code>, the shadow as CSS, so
+      <code>el.style.boxShadow = p.lift.css</code> is the whole wiring. Author it as fields
+      or as a <code>box-shadow</code> string.</p>`,
+    target: `<div class="sh-card">Card</div>`,
+    css: `
+      .sh-card { display: grid; place-items: center; width: 150px; height: 100px; border-radius: 18px;
+                 background: var(--demo-fill); border: 1px solid var(--demo-line); font-weight: 500;
+                 transition: box-shadow 0.15s; }`,
+    run: ({ tweaks, mount, target }) => {
+      const card = target.querySelector(".sh-card");
+      const panel = tweaks("Shadow", {
+        lift: { type: "shadow", y: 12, blur: 32, spread: -4, color: "rgb(124 92 255 / 0.35)" },   // or { type: "shadow", value: "0 12px 32px -4px #7c5cff59" }
+      });
+      mount.append(panel.el);
+
+      const apply = (p) => { card.style.boxShadow = p.lift.css; };
       panel.on(apply);
       panel.ready.then(() => apply(panel.params));
     },
