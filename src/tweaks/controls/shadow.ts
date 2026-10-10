@@ -53,6 +53,8 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const field = (label: string, get: () => number, put: (v: number) => void, min?: number): NumField => { const f = numField({ label, value: get(), step: 1, min, unit: "px" }, (v) => { put(v); update(); emit(); }); fields.append(f.el); return f; };
   const fx = field("X", () => x, (v) => { x = v; }), fy = field("Y", () => y, (v) => { y = v; });
   const fb = field("Blur", () => blur, (v) => { blur = Math.max(0, v); }, 0), fs = field("Spread", () => spread, (v) => { spread = v; });
+  // As the fields fitted them (whole px, blur ≥ 0), so the value, the CSS and the fields never disagree — an authored 2.5 showed "3" and emitted 2.5px.
+  x = fx.get(); y = fy.get(); blur = fb.get(); spread = fs.get();
   const body = createPickerBody({ value: typeof init.color === "string" && isColor(init.color) ? init.color : DEF.color }, () => { update(); emit(); });
   pop.append(stage, insetRow, fields, body.el);
   root.append(pop);
@@ -74,10 +76,10 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const set = (v: unknown) => {
     const inp = read(v); if (!inp) return;
     if (inp.inset != null) { inset = !!inp.inset; insetSeg.set(inset ? "inner" : "outer"); }
-    if (inp.x != null) { x = num(inp.x, x); fx.set(x); }
-    if (inp.y != null) { y = num(inp.y, y); fy.set(y); }
-    if (inp.blur != null) { blur = Math.max(0, num(inp.blur, blur)); fb.set(blur); }
-    if (inp.spread != null) { spread = num(inp.spread, spread); fs.set(spread); }
+    if (inp.x != null) { fx.set(num(inp.x, x)); x = fx.get(); } // read back fitted, as above
+    if (inp.y != null) { fy.set(num(inp.y, y)); y = fy.get(); }
+    if (inp.blur != null) { fb.set(num(inp.blur, blur)); blur = fb.get(); } // the field's min clamps a negative blur to 0
+    if (inp.spread != null) { fs.set(num(inp.spread, spread)); spread = fs.get(); }
     if (typeof inp.color === "string" && isColor(inp.color)) body.set(inp.color);
     update();
   };

@@ -71,3 +71,13 @@ test("markup: data-value as a box-shadow string, or the fields as attributes", a
   assert.equal(b.inset, true); assert.equal(b.y, 1); assert.equal(b.blur, 0);
   holder.remove();
 });
+
+test("review follow-up: a fractional length is emitted as the field fitted it, so the value, the CSS and the field agree", async () => {
+  const p = await mount({ s: { type: "shadow", x: 2.5, blur: 24.4 } });
+  const fields = () => [...p.el.querySelectorAll(".tw-shadow-pop .tw-fields .tw-num")].map((i) => i.value);
+  assert.deepEqual([p.params.s.x, p.params.s.blur], [3, 24]); assert.deepEqual(fields(), ["3", "8", "24", "0"]);
+  p.set("s", { y: 7.4, spread: -0.6 });
+  assert.deepEqual([p.params.s.y, p.params.s.spread], [7, -1]); assert.deepEqual(fields(), ["3", "7", "24", "-1"]);
+  assert.equal(p.params.s.css.startsWith("3px 7px 24px -1px "), true);
+  p.destroy();
+});
