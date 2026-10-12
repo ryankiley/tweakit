@@ -21,7 +21,8 @@ export const examples = [
       or press Enter on the focused track. With six or fewer stops the track snaps and
       shows rule lines. <code>soft: true</code> lets a typed or scripted value run past
       <code>min</code>/<code>max</code>; dragging stays within them. <code>unit: "px"</code>
-      puts a unit after the readout; the param stays the bare number.</p>`,
+      puts a unit after the readout; the param stays the bare number. For a readout of
+      your own, see the next example.</p>`,
     target: `<div class="num-tile"></div>`,
     css: `
       .num-tile { width: 132px; height: 132px; background: #7C5CFF;
@@ -40,6 +41,44 @@ export const examples = [
         tile.style.borderRadius = `${p.radius}px`;
         tile.style.transform = `scale(${0.55 + p.size * 0.11})`;
       };
+      panel.on(apply);
+      apply(panel.params);
+    },
+  },
+  {
+    id: "slider-format",
+    title: "Formatted readout",
+    prose: `<p><code>format</code> draws a slider's readout from its value, in place of its
+      digits, and <code>parse</code> reads a typed readout back, so the inline editor shows
+      and takes the same text. Here the value is minutes of the day and the readout is a
+      clock. Like <code>unit</code>, it is display only: the param stays the number. A
+      format that throws falls back to the digits. When <code>parse</code> can't read the
+      text, have it return <code>NaN</code>, and the slider keeps its value.</p>`,
+    target: `<div class="num-clock">7:30 AM</div>`,
+    css: `
+      .num-clock { display: grid; place-items: center; width: 200px; height: 120px; border-radius: 18px;
+                   background: #7C5CFF; color: #fff; font-weight: 600; font-size: 28px;
+                   font-variant-numeric: tabular-nums; box-shadow: 0 14px 44px var(--demo-shadow); }`,
+    run: ({ tweaks, mount, target }) => {
+      const face = target.querySelector(".num-clock");
+      // Minutes of the day as a clock, and a typed clock back to minutes. Text that
+      // isn't a clock like the readout's is NaN, which leaves the slider where it was.
+      const clock = (m) => {
+        const h = Math.floor(m / 60) % 24;
+        return (h % 12 || 12) + ":" + String(m % 60).padStart(2, "0") + (h < 12 ? " AM" : " PM");
+      };
+      const unclock = (text) => {
+        const [hm, ap] = text.trim().toUpperCase().split(" ");
+        const [h, m] = hm.split(":").map(Number);
+        if (!(h >= 1 && h <= 12 && m >= 0 && m < 60) || (ap !== "AM" && ap !== "PM")) return NaN;
+        return ((h % 12) + (ap === "PM" ? 12 : 0)) * 60 + m;
+      };
+      const panel = tweaks("Formatted", {
+        time: { type: "slider", value: 450, min: 0, max: 1425, step: 15, format: clock, parse: unclock },
+      });
+      mount.append(panel.el);
+
+      const apply = (p) => { face.textContent = clock(p.time); };
       panel.on(apply);
       apply(panel.params);
     },

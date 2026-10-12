@@ -25,6 +25,7 @@ interface Meta {
   render?: (get: Get) => boolean; disabled?: boolean | ((get: Get) => boolean); hint?: string;
   // Ranges — slider, number, interval, monitor.
   min?: number; max?: number; step?: number; soft?: boolean; unit?: string; corners?: boolean; // unit: slider / number, display only; corners: the sides control labels its four as corners
+  format?: (value: number) => string; parse?: (text: string) => number; // slider: its readout drawn from the value, and a typed one read back
   // Single-select — list, radiogrid.
   options?: Option[]; cols?: number;
   // Text.
@@ -112,6 +113,8 @@ const rangeOf = (v: any, ...seeds: unknown[]) => {
 // A verbose form's own `label` wins over the title-cased key — `??` semantics, so an
 // explicit "" (= no label) survives where `||` fell back to the key.
 const ownLabel = (v: any, label: string) => (v.label == null ? label : String(v.label));
+// A function option (a slider's format and parse) is kept only if it is one.
+const fnOf = (f: unknown) => (typeof f === "function" ? (f as any) : undefined);
 // A unit is a short string shown after the value ("px", "ms", "%"); anything else is dropped.
 const unitOf = (u: unknown) => (typeof u === "string" && u.trim() ? u.trim().slice(0, 12) : undefined);
 // Typed against the public SchemaObject union, so tsc itself flags a control type
@@ -121,7 +124,7 @@ const unitOf = (u: unknown) => (typeof u === "string" && u.trim() ? u.trim().sli
 // inspected as metaFor's `value` is.)
 const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"]; // a spring's fields, as the spring and motion controls take them
 const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) => MetaFields>> = {
-  slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft, unit: unitOf(v.unit) }; },
+  slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft, unit: unitOf(v.unit), format: fnOf(v.format), parse: fnOf(v.parse) }; },
   number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft, unit: unitOf(v.unit) }),
   checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,

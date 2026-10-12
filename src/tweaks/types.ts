@@ -71,7 +71,14 @@ export interface ControlOptions {
 
 /** The verbose object forms a schema value can take: `{ type: "…", … }`. */
 export type SchemaObject =
-  | { type: "slider"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
+  | { type: "slider"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string;
+      /** Draws the readout from the value ("7:30 AM" for minutes of the day), in place of its
+       *  digits; `unit` still follows it. Display only, like `unit`: the param stays the number. */
+      format?: (value: number) => string;
+      /** Reads a typed readout back into a value, so the inline editor shows and takes the
+       *  formatted text (without one, it edits the digits). Text it can't read (it throws, or
+       *  returns anything but a finite number) leaves the value where it was. */
+      parse?: (text: string) => number }
   | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
   | { type: "checkbox"; value?: boolean }
   | { type: "list"; options: Option[]; value?: string }
