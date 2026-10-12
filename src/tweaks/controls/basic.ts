@@ -44,6 +44,11 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   const unit = typeof meta.unit === "string" ? meta.unit.trim() : "", numText = document.createTextNode("");
   const joined = !unit ? "" : /^[%°]$/.test(unit) ? unit : " " + unit; // "50%", "90°", but "24 px", "300 ms"
   valueEl.append(numText); if (unit) valueEl.append(txt("span", "tw-slider-unit", joined));
+  // `format` draws the readout from the value in place of its digits (and `parse`, in the
+  // editor below, reads a typed one back). A format that throws or returns anything but a
+  // non-empty string falls back to the digits, so a bad formatter can't blank the slider.
+  const format = meta.format, parse = meta.parse;
+  const show = (v: number) => { if (format) { try { const s = format(v); if (typeof s === "string" && s) return s; } catch {} } return v.toFixed(decimals); };
   track.append(hashes, fill, handle, labelEl, valueEl);
   wrap.append(track);
 
@@ -72,7 +77,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     const edge = `${pct}%${off}`;
     fill.style.width = pull ? `calc(${edge})` : pct + "%";
     handle.style.left = `max(5px, calc(${edge} - 9px))`; // the inset hairline rides just inside the fill edge
-    const qv = q(value), qvText = qv.toFixed(decimals); // q(value) is pure — compute once (render() runs every drag frame)
+    const qv = q(value), qvText = show(qv); // q(value) is pure — compute once (render() runs every drag frame)
     numText.data = qvText;
     track.setAttribute("aria-valuenow", String(qv));
     track.setAttribute("aria-valuetext", qvText + joined);
@@ -80,8 +85,13 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     // value (right) text — its real pixel span (it renders at pct% − 9px, 3px wide) tested
     // against each text's live-measured edge (overlapsText, shared with the interval), so it
     // dims right as it reaches the number and re-shows the instant it clears.
-    const trackW = wrap.offsetWidth;
+    const trackW = wrap.offsetWidth, valueW = valueEl.offsetWidth;
     if (trackW) {
+      // The label's room is what the readout leaves, measured as the interval does: a format
+      // can make the readout long. 12px label inset + 8px gap + the readout's 10px inset. The
+      // stylesheet's fixed reserve covers the first paint, and while the editor has the
+      // readout out of the page the last room stands.
+      if (valueW) labelEl.style.maxWidth = Math.max(0, trackW - valueW - 30) + "px";
       const hx = Math.max(5, (pct / 100) * trackW + pull - 9);
       track.classList.toggle("is-dodge", overlapsText(labelEl, valueEl, hx, 3));
     }
@@ -253,10 +263,23 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   // and leaves focus where the user sent it.
   const openEditor = () => {
     if (valueEl.classList.contains("is-editing")) return;
-    const input = el("input", "tw-slider-input"); input.type = "text"; input.inputMode = "decimal"; quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */ input.value = q(value).toFixed(decimals);
+    const input = el("input", "tw-slider-input"); input.type = "text"; input.inputMode = parse ? "text" : "decimal"; quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */
+    input.value = parse ? show(q(value)) : q(value).toFixed(decimals); // with a parse, the field edits the formatted text; with only a format, the digits
+    const opened = input.value; input.style.width = opened.length + 1 + "ch"; // read back (a text field drops line breaks), and sized to its text, which a format can make long
     valueEl.classList.add("is-editing"); valueEl.replaceWith(input); input.focus(); input.select();
     const restore = () => { input.replaceWith(valueEl); valueEl.classList.remove("is-editing", "is-editable"); };
-    const commit = () => { const p = parseFloat(input.value); if (!isNaN(p)) set(meta.soft ? p : clamp(p, min, max)); restore(); };
+    // Typed text is read by `parse`, or else strictly, all of it a number (the unit dropped,
+    // so "24px" reads 24; blank is no number): not parseFloat, which reads "1,000" as 1 and
+    // "7:30" as 7. Only a finite number commits: a parse that throws or can't read the text
+    // leaves the value where it was. So does text left as it opened, or a format coarser
+    // than the step (whole numbers on a 0.1 step) would move the value just by opening and
+    // closing the editor.
+    const commit = () => {
+      const t = input.value; let p = NaN;
+      if (t !== opened) try { p = parse ? parse(t) : Number(t.replace(unit, "").trim() || NaN); } catch {}
+      if (Number.isFinite(p)) set(meta.soft ? p : clamp(p, min, max));
+      restore();
+    };
     input.addEventListener("pointerdown", (e) => e.stopPropagation());
     input.addEventListener("blur", commit);
     // Both key paths move focus to the track BEFORE the input leaves the DOM (with the

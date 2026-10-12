@@ -264,6 +264,14 @@
       "ui": {}
     }
   ],
+  "numbers.mjs › slider-format": [
+    {
+      "values": {
+        "time": 450
+      },
+      "ui": {}
+    }
+  ],
   "numbers.mjs › number": [
     {
       "values": {
