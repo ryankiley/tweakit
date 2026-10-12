@@ -20,7 +20,7 @@ import type { TabsControl } from "./controls/tabs.js";
 type Target = Record<string, unknown>;
 /** A valued control's wiring: where its value lives (target + key), its set/get, the pair
  *  reset restores (the authored value and the form it opened on), and its dotted path. */
-interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[] }
+interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean }
 /** A values snapshot — params minus `_last`, as JSON round-trips it (persist, presets,
  *  undo, toJSON). A parsed JSON blob: its leaves are whatever the controls, or a
  *  hand-edited store, hold. */
@@ -38,6 +38,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const entries: Entry[] = []; // { target, key, set, get, def, path } — flattened across folders, for reset + persist
   const subTrees = new Set<Target>(); // the folder/tabs params sub-objects — set() refuses to overwrite one (doing so orphaned every child entry silently)
   const listeners = new Set<(p: Params, last?: string) => void>();
+  const own = new Set<(p: Params, last?: string) => void>(); // the panel's own listeners (undo, conditionals), also in `listeners`: all a silent write calls
   const cleanups: Array<() => void> = []; // every global attachment (document/window listeners, pending timers) registers its release here for destroy()
   let destroyed = false; // flipped by destroy(): assemble() bails, the mutating API methods go silent
   let assembled = false; // flipped at the end of assemble() — until then the controls don't exist
@@ -75,15 +76,23 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The live values save to localStorage, debounced. destroy() flushes a pending write
   // rather than dropping it — the last edit before a teardown (an SPA route change right
   // after a tweak) used to vanish with the timer.
+  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
+  // A control with `persist: false` stays out of what is saved, and out of what is restored
+  // (a value stored before the flag was set must not come back).
+  const unsaved = (snap: Snapshot | null) => {
+    for (const e of entries) if (!e.persist) { const o: any = atPath(snap, e.path.slice(0, -1)); if (o && typeof o === "object") Reflect.deleteProperty(o, e.key); } // Reflect: a key a stored value can't drop (an array's length) is left, not thrown
+    return snap;
+  };
   const persist = persistKey ? (() => {
     let saveT = 0;
-    const save = () => { saveT = 0; writeStore(persistKey, snapshot()); };
+    const save = () => { saveT = 0; writeStore(persistKey, unsaved(snapshot())); };
     cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
     return () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };
   })() : () => {};
   // Each listener runs isolated: a throwing on() callback (or internal listener)
-  // can't break the others, skip persist(), or bubble back out through set().
-  const notify = () => { listeners.forEach((fn) => { try { fn(params, params._last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); if (!destroyed) persist(); }; // a listener may destroy() the panel: the flush cleanup already ran, so no new save may be armed behind it
+  // can't break the others, skip persist(), or bubble back out through set(). `last` is
+  // read once, so a write one listener makes can't change the key the rest are told.
+  const notify = (silent?: boolean, last = params._last) => { (silent ? own : listeners).forEach((fn) => { try { fn(params, last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); if (!destroyed) persist(); }; // a listener may destroy() the panel: the flush cleanup already ran, so no new save may be armed behind it
   // Push a value into a control and mirror what it actually took back onto params — the
   // one write path behind restores and set(). A function/symbol/bigint is no control value
   // (the list control stores any value as-is, and JSON can't carry those: every snapshot
@@ -134,7 +143,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const resetBtn = makeResetBtn(resetAll);
   // Presets button appears only when persistence is on (presets share its storage).
   let presetsBtn: HTMLButtonElement | null = null;
-  if (persistKey) {
+  if (persistKey && opts.presets !== false) { // opts.presets:false keeps the saving, without the menu
     presetsBtn = toolbarBtn("", ICON_PRESETS, "Presets");
     presetsBtn.setAttribute("aria-haspopup", "menu"); presetsBtn.setAttribute("aria-expanded", "false");
     toolbar.append(presetsBtn);
@@ -318,7 +327,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // that window queue and replay after the build instead.)
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key] };
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false };
         entries.push(entry); wireReset(ctrl.el, entry);
       }
       registerCond(ctrl.el, m);
@@ -363,9 +372,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // elsewhere — must cost only its own value. Unguarded, one throw abandoned every
   // remaining entry AND skipped the notify/persist below, leaving the panel silently
   // half-restored with listeners none the wiser. ──
-  const atPath = (obj: Snapshot, path: string[]): unknown => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
   const owned = new Set(metas.map((m) => m.key)); // top-level control, folder and tabs keys — everything else on params is a bag key
-  const applySnapshot = (snap: Snapshot | null, fire = true) => {
+  const applySnapshot = (snap: Snapshot | null, silent?: boolean) => {
     if (!snap || typeof snap !== "object") return;
     for (const e of entries) {
       const v = atPath(snap, e.path); if (v === undefined) continue;
@@ -376,7 +384,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // so a restore (undo, a preset, fromJSON) brings their values back too. A key params
     // doesn't hold is still skipped, like a control path that no longer exists.
     for (const k of Object.keys(snap)) if (!owned.has(k) && k !== "_last" && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) { try { params[k] = snap[k]; } catch (err) { console.error(`[tweaks] restoring "${k}" failed — value skipped:`, err); } } // a getter-only bag key costs only itself, like a control that refuses
-    params._last = undefined; if (fire) notify();
+    params._last = undefined; notify(silent);
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets". The API
   // layer below guards the key + name and queues these in the lazy window. ──
@@ -606,7 +614,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     };
     const record = () => { if (applyingHistory) return; clearTimeout(histTimer); histTimer = setTimeout(commit, 350); };
     const flush = () => { if (histTimer) { clearTimeout(histTimer); commit(); } }; // commit a pending edit first, so ⌘Z right after a change still undoes it
-    listeners.add(record);
+    listeners.add(record); own.add(record);
     const restore = (idx: number) => { applyingHistory = true; applySnapshot(history[idx]); applyingHistory = false; histIdx = idx; };
     const undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
     const redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
@@ -652,12 +660,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         }
         if (revealed) requestReflow(); // a control built behind a false render condition measured 0×0 (blank canvas/SVG, a stuck pill) — once shown, let it re-measure, as a tab page does
       };
-      listeners.add(applyConditionals); applyConditionals();
+      listeners.add(applyConditionals); own.add(applyConditionals); applyConditionals();
     }
     // Restore last session, notifying: on the lazy path assemble runs after tweaks()
     // returned, so a host that already subscribed must hear the restored values (on the
     // synchronous path nobody is subscribed yet, so the notify is free).
-    if (persistKey) applySnapshot(readStore(persistKey));
+    if (persistKey) applySnapshot(unsaved(readStore(persistKey)));
     if (destroyed) return; // a listener may have destroyed the panel on that notify — no listener may register on, and no call may reach, a torn-down panel
     undoApi?.arm(); watchResize();
     assembled = true;
@@ -717,15 +725,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const api = {
     el: panel, params,
     on(fn) { if (destroyed) return () => {}; listeners.add(fn); return () => listeners.delete(fn); },
-    set(key, v) { const k = String(key); later(() => { if (applySet(k, v)) notify(); }); }, // the key resolves at the call: one that can't stringify throws here, not out of the replay
+    set(key, v, o) { const k = String(key), silent = o?.silent; later(() => { if (applySet(k, v)) notify(silent); }); }, // the key resolves at the call: one that can't stringify throws here, not out of the replay
     // Batch write — apply a flat map of (possibly dotted) keys, e.g.
     // setMany({ "shadow.radius": 28, blur: 48 }), firing listeners + persist ONCE for the
     // whole batch rather than per key as a set() loop would. Same path resolution and
     // no-op / reserved / bad-path guards as set(); unrecognised keys warn-and-skip.
-    setMany(values) {
+    setMany(values, o) {
       if (values == null || typeof values !== "object") return;
-      const batch = Object.entries(values); // read now, so a host mutating the object after the call can't change what a lazy-window replay applies
-      later(() => { let changed = false; for (const [k, v] of batch) { try { if (applySet(k, v)) changed = true; } catch (e) { console.error(`[tweaks] setMany("${k}") failed — key skipped:`, e); } } if (changed) notify(); }); // per-key isolation: a bag value the change check can't compare (circular) costs only its key, and the rest still notify
+      const batch = Object.entries(values), silent = o?.silent; // read now, so a host mutating the object after the call can't change what a lazy-window replay applies
+      later(() => { let changed = false; for (const [k, v] of batch) { try { if (applySet(k, v)) changed = true; } catch (e) { console.error(`[tweaks] setMany("${k}") failed — key skipped:`, e); } } if (changed) notify(silent); }); // per-key isolation: a bag value the change check can't compare (circular) costs only its key, and the rest still notify
     },
     reset() { if (assembled && !destroyed) spinReset(resetBtn); later(resetAll); },
     // Whole-panel state — values + UI (open folders, active tabs) as a plain JSON-safe
@@ -737,10 +745,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // change, and outside undo so a ⌘Z reverts values without thrashing folders/tabs).
     toJSON() { return destroyed ? { values: {}, ui: {} } : { values: snapshot(), ui: collectUI() }; },
     changes() { return destroyed ? {} : changed(); }, // empty in the lazy window too — no entries yet
-    fromJSON(state) {
+    fromJSON(state, o) {
       if (!state || typeof state !== "object") return;
+      const silent = o?.silent;
       const values = state.values && typeof state.values === "object" ? { ...state.values } : state.values, ui = state.ui && typeof state.ui === "object" ? { ...state.ui } : state.ui; // read now, like setMany (one level): a host re-pointing a key after the call can't change what a lazy-window replay applies
-      later(() => { if (values) applySnapshot(values); applyUI(ui); });
+      later(() => { if (values) applySnapshot(values, silent); applyUI(ui); });
     },
     // Live theming — re-applies --tw-* vars to the panel (and future popovers). Clears
     // the prior theme first, so setTheme(null) reverts to the default monochrome look.

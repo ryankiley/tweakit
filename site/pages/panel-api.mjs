@@ -49,7 +49,11 @@ export const examples = [
       fire, the UI follows), and <code>panel.reset()</code> restores every default,
       the same thing the toolbar's reset button does. To move several at once, hand
       <code>panel.setMany({ key: v, "folder.child": w })</code> a flat map: it applies the
-      whole batch and notifies once, not once per key (the shuffle below sets two). Each
+      whole batch and notifies once, not once per key (the shuffle below sets two). Pass
+      <code>{ silent: true }</code> as the last argument to <code>set</code>,
+      <code>setMany</code> or <code>fromJSON</code> to apply a value without calling your
+      <code>on()</code> listeners, for mirroring a change the host already made so it
+      doesn't echo back; conditional controls, persistence and undo still follow it. Each
       control resets on its own too: double-click its label (or a slider's readout), hold
       it on touch, or press ⌥+Backspace with focus inside it.</p>
       <p>The reverse, <code>panel.changes()</code>, is a flat map of every value that has
@@ -99,6 +103,8 @@ export const examples = [
       <strong>plus</strong> UI state (which folders are collapsed, which tab is open), to a
       plain object, separate from the localStorage presets. Persist it your own way: a file,
       a URL, a server. <code>panel.fromJSON(state)</code> restores it (unknown paths skipped).
+      It takes part of one too: <code>panel.fromJSON({ ui: { folders: { shadow: true } } })</code>
+      right after <code>tweaks()</code> starts that folder closed, by dotted path.
       Tweak things, collapse the folder, <strong>Save</strong>, change more, then
       <strong>Load</strong> to snap back.</p>`,
     target: `
@@ -213,7 +219,10 @@ export const examples = [
       to localStorage (reload this page and the panel comes back as you left it) and unlocks
       presets: a presets menu
       appears in the toolbar, and <code>savePreset</code> / <code>loadPreset</code> /
-      <code>deletePreset</code> / <code>presets()</code> drive the same store from code.</p>`,
+      <code>deletePreset</code> / <code>presets()</code> drive the same store from code.
+      <code>presets: false</code> keeps the saving and leaves the menu out. A control
+      with <code>persist: false</code> is left out of the saved session, so it opens on its
+      schema value every load (a “playing” toggle that should start off).</p>`,
     target: `
       <div class="ps-remote">
         <div class="ps-tile"></div>
@@ -334,6 +343,7 @@ export const examples = [
         <tr><th>Option</th><th>Does</th></tr>
         <tr><td><code>theme</code></td><td>token overrides; see <a href="./theming.html">Theming</a></td></tr>
         <tr><td><code>persist</code></td><td>localStorage key (or <code>true</code> to key by panel name); enables presets</td></tr>
+        <tr><td><code>presets</code></td><td><code>false</code> keeps <code>persist</code>'s saving without the Presets menu</td></tr>
         <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title); it needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
         <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
         <tr><td><code>draggable</code></td><td>header dragging, on by default; <code>false</code> pins</td></tr>
