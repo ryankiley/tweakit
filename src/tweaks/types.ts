@@ -67,6 +67,10 @@ export interface ControlOptions {
   disabled?: boolean | ((get: Get) => boolean);
   /** A tooltip revealed by an ⓘ marker beside the label. */
   hint?: string;
+  /** `false` leaves this control out of what `opts.persist` saves, so it opens on its schema
+   *  value every load (presets, undo and `toJSON()` still carry it). On a control, not a
+   *  plain folder object, where `persist` is a child. */
+  persist?: boolean;
 }
 
 /** The verbose object forms a schema value can take: `{ type: "…", … }`. */
@@ -154,12 +158,23 @@ export interface Theme {
   [token: string]: string | number | undefined;
 }
 
+/** Options for a programmatic write — `set()`, `setMany()`, `fromJSON()`. */
+export interface SetOptions {
+  /** Apply without calling your `on()` listeners: for mirroring a value the host already
+   *  acted on (another tab, its own state), so the change doesn't echo back. Conditional
+   *  controls, persistence and undo still follow it: it's an undo step like any other. */
+  silent?: boolean;
+}
+
 /** Panel options (third arg to `tweaks()`). */
 export interface TweaksOptions {
   /** Theme overrides (friendly names or raw `--tw-*`); `null` / omitted = default monochrome. */
   theme?: Theme | null;
   /** Persist values to localStorage + enable presets — a key, or `true` to key by name. */
   persist?: string | boolean;
+  /** With `persist`, `false` keeps saving values but leaves the Presets menu out of the
+   *  toolbar (the presets API still works). On by default. */
+  presets?: boolean;
   /** Add a filter/search field to the toolbar. */
   filter?: boolean;
   /** Start the panel already floated (fixed-positioned): `true` → top-left, or an explicit `{x,y}`. */
@@ -196,7 +211,8 @@ export interface PanelState {
   ui?: {
     /** Folder collapse state → `true` when collapsed. Keys are the folder's path with each
      *  segment JSON-pointer-escaped (`.`→`~0`, `~`→`~1`) then joined by `.` — injective, so a
-     *  literal dot in a key can't collide with the nesting separator. Treat keys as opaque. */
+     *  literal dot in a key can't collide with the nesting separator. For plain keys that's
+     *  the dotted path, so `fromJSON({ ui: { folders: { shadow: true } } })` starts one closed. */
     folders?: Record<string, boolean>;
     /** Active tab → the active page's key, under the tabs control's path (escaped as above). */
     tabs?: Record<string, string | null>;
@@ -216,12 +232,12 @@ export interface Panel {
   /** Set a control's value programmatically. Nested controls take a dotted path
    *  ("folder.child", "tabs.page.child"); a bare key also reaches a nested control
    *  when it's unambiguous. A key matching no control is stored on `params` as-is. */
-  set(key: string, value: unknown): void;
+  set(key: string, value: unknown, options?: SetOptions): void;
   /** Set several controls at once — a flat map of keys (dotted for nested controls), e.g.
    *  `setMany({ "shadow.radius": 28, blur: 48 })`. Resolves each key like `set()`, then fires
    *  listeners + persists ONCE for the whole batch, where N separate `set()` calls would fire
    *  N times. Unknown / ambiguous / reserved keys warn and are skipped. */
-  setMany(values: Record<string, unknown>): void;
+  setMany(values: Record<string, unknown>, options?: SetOptions): void;
   /** Reset every control to its default (or run `opts.onReset`). */
   reset(): void;
   /** Serialize the whole panel — every control value plus UI state (collapsed folders,
@@ -240,7 +256,7 @@ export interface Panel {
    *  `{ ui }` to restore chrome only. The value restore is undoable (one history step); the
    *  UI restore is intentionally outside undo, so a Cmd-Z reverts values without thrashing
    *  folders/tabs. */
-  fromJSON(state: PanelState): void;
+  fromJSON(state: PanelState, options?: SetOptions): void;
   /** Re-theme the panel live; `null` reverts to the default. */
   setTheme(theme?: Theme | null): void;
   /** Retitle the panel live — the header and the copy toast follow. The name it was built

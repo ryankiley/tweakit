@@ -22,7 +22,7 @@ interface Meta {
   type: string; key: string; label: string;
   value?: any; // the control's own value shape, host-authored; each constructor checks what it accepts
   // Per-control options (ControlOptions), attached by metaFor.
-  render?: (get: Get) => boolean; disabled?: boolean | ((get: Get) => boolean); hint?: string;
+  render?: (get: Get) => boolean; disabled?: boolean | ((get: Get) => boolean); hint?: string; persist?: boolean;
   // Ranges — slider, number, interval, monitor.
   min?: number; max?: number; step?: number; soft?: boolean; unit?: string; corners?: boolean; // unit: slider / number, display only; corners: the sides control labels its four as corners
   format?: (value: number) => string; parse?: (text: string) => number; // slider: its readout drawn from the value, and a typed one read back
@@ -62,6 +62,7 @@ function metaFor(key: string, value: any, depth = 0): Meta | null {
     if (typeof value.render === "function") meta.render = value.render;
     if (value.disabled != null) meta.disabled = value.disabled;
     if (value.hint != null) meta.hint = String(value.hint);
+    if (value.persist === false) meta.persist = false;
   }
   return meta;
 }
