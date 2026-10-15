@@ -110,14 +110,19 @@ const json = (v: unknown) => { try { return JSON.stringify(v); } catch { return 
 // A { value } option with no label reads as its value's string; an object with neither, as its JSON.
 const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : json(o)) : String(o));
 
-// The DOM factory, typed by tag like createElement (svgEl in heavy.ts is its SVG twin).
-const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string): Built<HTMLElementTagNameMap[K]> => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+// The DOM factory, typed by tag like createElement (svgEl in heavy.ts is its SVG twin). A field it
+// makes is a setting, not a form: autofill and the password managers leave it alone.
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string): Built<HTMLElementTagNameMap[K]> => {
+  const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html;
+  if (tag == "input" || tag == "textarea") n.setAttribute("autocomplete", "off"), n.setAttribute("data-1p-ignore", ""), n.setAttribute("data-lpignore", "true");
+  return n;
+};
 // Every <button> is type="button" — inside a host's <form> the default would submit — and
 // text goes through textContent, never innerHTML: labels are host data.
 const btn = (cls: string, html?: string) => { const b = el("button", cls, html); b.type = "button"; return b; };
 const txt = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text: string) => { const n = el(tag, cls); n.textContent = text; if (tag === "button") (n as HTMLButtonElement).type = "button"; return n; };
-// Stop a node's pointer events leaking to the page behind it.
-const stopPointerLeak = (node: EventTarget) => ["pointerdown", "pointermove", "pointerup"].forEach((t) => node.addEventListener(t, (e) => e.stopPropagation()));
+// Stop a node's pointer events and clicks leaking to the page behind it.
+const stopPointerLeak = (node: EventTarget) => ["pointerdown", "pointermove", "pointerup", "click"].forEach((t) => node.addEventListener(t, (e) => e.stopPropagation()));
 // Run fn next frame and again once web fonts load — font swaps change the metrics controls measure.
 const onReady = (fn: () => void) => { requestAnimationFrame(fn); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fn); };
 // Listen on global targets for a DOM-bound owner: the first event after the owner has left
