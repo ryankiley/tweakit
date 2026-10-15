@@ -55,23 +55,19 @@ test("the split build has exactly three shared chunks, and core imports exactly 
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
-// Raised 22 → 23 KiB for two panel-wide behaviors that live in core because every panel
-// has them: fields that autofill and password managers leave alone, plus clicks kept off
-// the page (+60 B), and conditional rows that fold in and out (+263 B, #153). Main was
-// 22,263 B; the two together come to about 22,586 B.
 // Raised 21 → 22 KiB for the unit suffix on sliders/number fields and the motion and shadow
 // controls' registry lines (schema handler, markup parser, lazy import), which together cross
 // 21 KiB by a few dozen bytes; the controls themselves are lazy chunks.
 // Raised 20 → 21 KiB for the gradient's easing (#101): gradientCss() is a core export so a
 // host templates from one place, and it is ~700 B gzip of pure string work.
-test("a basic panel's code-split download stays under 23 KiB gzip", async () => {
+test("a basic panel's code-split download stays under 22 KiB gzip", async () => {
   const { readFile } = await import("node:fs/promises");
   const { gzipSync } = await import("node:zlib");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const core = await readFile(new URL("core.js", dir));
   let bytes = gzipSync(core).length;
   for (const [, c] of String(core).matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)) bytes += gzipSync(await readFile(new URL(c, dir))).length;
-  assert.ok(bytes < 23552, `core + shared chunk is ${bytes} B gzip — over the 23 KiB budget`);
+  assert.ok(bytes < 22528, `core + shared chunk is ${bytes} B gzip — over the 22 KiB budget`);
 });
 
 // Number is lazy on the split build (no shorthand infers it): the standalone and markup
