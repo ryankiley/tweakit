@@ -5,11 +5,11 @@
  * build, not only on set(). */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import "./_setup-dom.mjs";
+import { loadSingle, distCss } from "./_helpers.mjs";
 
-const { tweaks, enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const css = readFileSync(new URL("../dist/tweaks.css", import.meta.url), "utf8");
+const { tweaks, enhance } = await loadSingle();
+const css = distCss();
 
 // Every class a control renders its own label into (not .tw-field-label — those are the
 // inner captions of a picker's channels or a point's components, never the control's label).
@@ -131,4 +131,13 @@ test("a point value outside the default pad range widens the range instead of pi
   const thumb = p.el.querySelector(".tw-pad-thumb");
   const top = parseFloat(thumb.style.top);
   assert.ok(top > 0 && top < 50, `the thumb should sit inside the pad, above centre (top=${thumb.style.top})`);
+});
+
+// A string option's label title-cases a camel hump ("fontSize" → "Font Size") and leaves a
+// run of capitals or a digit before one alone ("XS", "2XL", "RGB" used to render "X S",
+// "2 X L", "R G B").
+test("string option labels: camel humps split, capital runs and digits do not", async () => {
+  const p = tweaks("L", { size: { type: "radiogrid", options: ["XS", "2XL", "RGB", "fontSize", "small", "myURLParser", "level2Up"] } }); document.body.append(p.el); await p.ready;
+  assert.deepEqual([...p.el.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up"]);
+  p.destroy();
 });

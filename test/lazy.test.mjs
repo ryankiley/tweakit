@@ -5,8 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSplit } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks/core.js", import.meta.url));
+const { tweaks } = await loadSplit();
 // The control registry is process-wide: once a test has loaded a lazy chunk, the next panel
 // that needs only that type assembles synchronously and the window these tests exercise is
 // gone. Each test therefore needs a lazy type no earlier test loaded, and asserts the window

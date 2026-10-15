@@ -4,8 +4,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks } = await loadSingle();
 const metrics = (el, m) => { for (const [k, v] of Object.entries(m)) Object.defineProperty(el, k, { value: v, configurable: true, writable: true }); };
 const clip = (el) => [el.classList.contains("is-clip-top"), el.classList.contains("is-clip-bottom")];
 

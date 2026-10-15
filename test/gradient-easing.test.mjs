@@ -4,8 +4,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle } from "./_helpers.mjs";
 
-const { tweaks, gradientCss } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks, gradientCss } = await loadSingle();
 // jsdom's CSS parser doesn't know color-mix(), so an eased ramp assigned to style.background
 // reads back as "" there (a browser takes it). Capture the assignment itself instead: the
 // bar's painter writes `grad.style.background = css`, so an own-property accessor on that

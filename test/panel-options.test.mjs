@@ -5,8 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks } = await loadSingle();
 const stored = (k) => JSON.parse(localStorage.getItem(k));
 
 test("a silent set, setMany or fromJSON skips on() but still runs conditionals, persistence and undo", async () => {

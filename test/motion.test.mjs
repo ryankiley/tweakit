@@ -5,12 +5,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, wait, mounter } from "./_helpers.mjs";
 
-const { tweaks, enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const { tweaks, enhance } = await loadSingle();
 let runs = [];
 window.HTMLElement.prototype.animate = function (frames, opts) { runs.push({ el: this, frames, ...opts }); return { cancel() {} }; };
-const mount = async (schema) => { runs = []; const p = tweaks("M", schema); document.body.append(p.el); await p.ready; return p; };
+const mountPanel = mounter(tweaks, "M");
+const mount = (schema) => { runs = []; return mountPanel(schema); };
 const open = async (p) => { const t = p.el.querySelector(".tw-motion .tw-trigger"); t.focus(); t.click(); await wait(40); const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
 const close = async (p) => { document.activeElement.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(220); p.destroy(); };
 const EASE = "cubic-bezier(0.25, 0.1, 0.25, 1)";

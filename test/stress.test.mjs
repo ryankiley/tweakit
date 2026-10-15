@@ -24,6 +24,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as nodeSetTimeout } from "node:timers";
 import { window } from "./_setup-dom.mjs";
+import { loadSingle, tick } from "./_helpers.mjs";
 
 // jsdom has no canvas 2D implementation (getContext() returns null), and the graph
 // controls draw into the context they got — a browser never hands back null for a fresh
@@ -80,7 +81,7 @@ const fakeContext = () => {
 };
 window.HTMLCanvasElement.prototype.getContext = function () { return (this._twStressCtx ||= fakeContext()); };
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks } = await loadSingle();
 
 const SEED_COUNT = Math.max(1, (+process.env.TW_STRESS_SEEDS | 0) || 40);
 const ONLY_SEED = process.env.TW_STRESS_SEED ? +process.env.TW_STRESS_SEED : null;
@@ -133,7 +134,6 @@ globalThis.clearInterval = (id) => { liveIntervals.delete(id); return realClearI
 window.addEventListener("error", (ev) => asyncErrors.push(["listener", ev.error ?? new Error(ev.message)]));
 process.on("unhandledRejection", (e) => asyncErrors.push(["unhandled rejection", e]));
 
-const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 // `__proto__` as an own, enumerable key — what JSON.parse hands a host, and the one spelling
 // an object literal can't produce (it sets the prototype instead).
 const defineKey = (obj, key, value) => { if (key === "__proto__") Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true }); else obj[key] = value; return obj; };

@@ -5,8 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSplit } from "./_helpers.mjs";
 
-const { tweaks, mountControl, enhance } = await import(new URL("../dist/tweaks/core.js", import.meta.url));
+const { tweaks, mountControl, enhance } = await loadSplit();
 
 test("every lazy control loads from the split build and registers", async () => {
   const p = tweaks("All", {

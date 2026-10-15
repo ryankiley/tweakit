@@ -6,9 +6,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSplit, tick } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks/core.js", import.meta.url));
-const tick = (ms) => new Promise((r) => setTimeout(r, ms));
+const { tweaks } = await loadSplit();
 const click = (el) => el.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
 
 test("a destroy() from a listener mid-replay drops the rest of the queue and arms no save", async () => {

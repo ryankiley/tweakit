@@ -5,10 +5,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, wait, mounter, distCss } from "./_helpers.mjs";
 
-const { tweaks, enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const mount = async (schema) => { const p = tweaks("S", schema); document.body.append(p.el); await p.ready; return p; };
+const { tweaks, enhance } = await loadSingle();
+const mount = mounter(tweaks, "S");
 const HOSTILE = "red 0%), url(https://x/p.png), linear-gradient(red";
 
 test("defaults, the value shape, and the CSS it resolves to", async () => {
@@ -105,7 +105,7 @@ test("the four length fields sit two by two (X Y / Blur Spread), not four across
   // later in the sheet, so the 2×2 rule needs more classes than it, or a later place. (jsdom's
   // getComputedStyle doesn't settle this the way a browser does, so the test reasons it out.)
   const { readFile } = await import("node:fs/promises");
-  const css = (await readFile(new URL("../dist/tweaks.css", import.meta.url), "utf8")).replace(/@media[^{]*\{([^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
+  const css = (distCss()).replace(/@media[^{]*\{([^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, sel, body], i) => ({ i, sels: sel.split(",").map((x) => x.trim()), body }));
   const classes = (sel) => (sel.match(/\.[\w-]+/g) || []).length;
   // Each property on its own: whichever matching rule wins it must be the 2×2 one, so a later

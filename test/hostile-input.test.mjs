@@ -7,8 +7,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import "./_setup-dom.mjs";
+import { loadSingle } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks } = await loadSingle();
 
 const SETUP = new URL("./_setup-dom.mjs", import.meta.url).href;
 const DIST = new URL("../dist/tweaks.js", import.meta.url).href;

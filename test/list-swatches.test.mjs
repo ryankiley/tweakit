@@ -3,8 +3,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks } = await loadSingle();
 
 test("coloured options get a swatch in the list and on the row; plain ones do not", async () => {
   const p = tweaks("S", { tone: { options: [{ value: "n10", label: "Neutral 10", color: "#f4f4f5" }, { value: "n90", label: "Neutral 90", color: "rgb(24 24 27 / 0.8)" }, "plain"], value: "n90" } });

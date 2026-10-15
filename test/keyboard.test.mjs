@@ -7,10 +7,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, wait, key } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const key = (target, props) => { const e = new window.KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...props }); target.dispatchEvent(e); return e; };
+const { tweaks } = await loadSingle();
 const mount = (schema, opts) => { const p = tweaks("K", schema, opts); document.body.append(p.el); return p; };
 
 test("opening the colour popover moves focus inside it, and Tab-out closes it", async () => {

@@ -4,10 +4,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, mounter } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks } = await loadSingle();
 const schema = () => ({ blur: [24, 0, 100, 1], on: true, shape: { radius: [8, 0, 40, 1], origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
-const mount = async () => { const p = tweaks("C", schema()); document.body.append(p.el); await p.ready; return p; };
+const mount = () => mountPanel(schema());
+const mountPanel = mounter(tweaks, "C");
 // Drive the real copy button with a stubbed clipboard; returns what it wrote (null = nothing).
 const copyVia = async (p, init) => {
   let copied = null;

@@ -4,10 +4,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { bundle } from "./_bundle.mjs";
+import { close } from "./_helpers.mjs";
 
 const { convert, toGamut, oklchToHex, hexToOklch, channelValues, withChannel, chromaCeil, oklchGamutProbe, serialize } = await bundle("src/wide-gamut.ts");
 
-const close = (a, b, eps = 1e-3) => Math.abs(a - b) < eps;
 const tripleClose = (got, want, eps = 1e-3) => got.every((c, i) => close(c, want[i], eps));
 
 test("sRGB red round-trips through OKLCH to the CSS Color 4 reference values", () => {

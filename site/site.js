@@ -1,7 +1,7 @@
 /* Docs shell runtime — copy buttons on snippets + the mobile nav drawer.
  * The copy/check icons are the kit's own (Hugeicons `copy-01` and `tick-02`, MIT — see
  * THIRD-PARTY-NOTICES.md), so the site's copy interaction matches the panels'; a test
- * (test/icons.test.mjs) holds these paths to src/tweaks/icons.ts. */
+ * (test/site.test.mjs) holds these paths to src/tweaks/icons.ts. */
 (() => {
   const ICON_COPY = '<svg class="ex-copy-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5.5 16.5-.7-.2q-1.5-.6-2.1-2.1-.2-.7-.2-2.7v-2c0-3.3 0-5 1-6s2.7-1 6-1h2c1.4 0 2 0 2.7.2q1.6.5 2.1 2.1l.2.7"/><path d="M7.5 14.5c0-3.3 0-5 1-6s2.7-1 6-1 5 0 6 1 1 2.7 1 6 0 5-1 6-2.7 1-6 1-5 0-6-1-1-2.7-1-6"/></svg>';
   const ICON_CHECK = '<svg class="ex-copy-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 14 3.5 3.5L19 6.5"/></svg>';

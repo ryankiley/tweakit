@@ -4,9 +4,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, mounter } from "./_helpers.mjs";
 
-const { tweaks, enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const mount = async (schema) => { const p = tweaks("B", schema); document.body.append(p.el); await p.ready; return p; };
+const { tweaks, enhance } = await loadSingle();
+const mount = mounter(tweaks, "B");
 const four = (v) => [v.top, v.right, v.bottom, v.left];
 
 test("every input form, and the CSS shorthand the four collapse to", async () => {

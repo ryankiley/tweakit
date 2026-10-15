@@ -3,10 +3,10 @@
  * panel has and the portal scope lacks left a bare control with no row height. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import { window } from "./_setup-dom.mjs";
+import { loadSingle, distCss } from "./_helpers.mjs";
 
-const css = await readFile(new URL("../dist/tweaks.css", import.meta.url), "utf8");
+const css = distCss();
 // Minified CSS: every `selector{declarations}` pair, outermost level only is enough here.
 const tokensFor = (cls) => {
   const out = new Set();
@@ -26,7 +26,7 @@ test("every token the panel declares is declared for .tw-portal too", () => {
 });
 
 test("a bare [data-tw] host outside a panel gets the token scope; one inside a panel doesn't", async () => {
-  const { enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
+  const { enhance } = await loadSingle();
   const bare = window.document.createElement("div"); bare.dataset.tw = "slider"; bare.dataset.value = "5"; bare.dataset.min = "0"; bare.dataset.max = "10";
   const panel = window.document.createElement("div"); panel.className = "tw-panel";
   const inner = window.document.createElement("div"); inner.dataset.tw = "slider"; inner.dataset.value = "5"; inner.dataset.min = "0"; inner.dataset.max = "10";

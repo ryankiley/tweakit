@@ -6,10 +6,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, loadSplit, key } from "./_helpers.mjs";
 
-const { mountControl, createColorPicker, enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const split = await import(new URL("../dist/tweaks/core.js", import.meta.url));
-const key = (target, props) => target.dispatchEvent(new window.KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...props }));
+const { mountControl, createColorPicker, enhance } = await loadSingle();
+const split = await loadSplit();
 
 test("mountControl mounts one control into a host; set() fires onChange; destroy() removes it", async () => {
   const host = document.createElement("div");
@@ -129,4 +129,25 @@ test("enhance(el) enhances el itself when it carries [data-tw]", async () => {
   await enhance(host);
   assert.equal(host.querySelectorAll(".tw-row").length, 1, "re-running is still idempotent");
   host.remove();
+});
+
+test("mountControl honours disabled and render on a verbose value, resolved once", async () => {
+  const host = document.createElement("div"); document.body.append(host);
+  const a = mountControl(host, { type: "slider", value: 1, min: 0, max: 10, disabled: true });
+  const b = mountControl(host, { type: "slider", value: 1, min: 0, max: 10, disabled: () => true });
+  const c = mountControl(host, { type: "slider", value: 1, min: 0, max: 10, render: () => false });
+  const d = mountControl(host, { type: "slider", value: 1, min: 0, max: 10, disabled: () => { throw new Error("boom"); } });
+  await Promise.all([a.ready, b.ready, c.ready, d.ready]);
+  for (const h of [a, b]) { const el = h.el.firstElementChild; assert.ok(el.classList.contains("is-disabled") && !el.inert && [...el.children].every((c) => c.inert), "disabled control is greyed, its contents inert, the row still a cursor target"); }
+  assert.ok(c.el.firstElementChild.classList.contains("tw-cond-hidden"), "render:false hides it");
+  assert.ok(!d.el.firstElementChild.classList.contains("is-disabled"), "a throwing predicate leaves the control as-is");
+  for (const h of [a, b, c, d]) h.destroy();
+});
+
+test("mountControl keeps a literal disabled when the render predicate throws", async () => {
+  const host = document.createElement("div"); document.body.append(host);
+  const h = mountControl(host, { type: "slider", value: 1, min: 0, max: 10, disabled: true, render: () => { throw new Error("boom"); } });
+  await h.ready;
+  assert.ok(h.el.firstElementChild.classList.contains("is-disabled"));
+  h.destroy();
 });
