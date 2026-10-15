@@ -5,9 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, wait } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const { tweaks } = await loadSingle();
 const rect = (top, left = 50, w = 200, h = 32) => ({ top, left, width: w, height: h, bottom: top + h, right: left + w, x: left, y: top, toJSON() {} });
 
 test("a scroll carries the popover with its row; the row leaving the viewport closes it", async () => {

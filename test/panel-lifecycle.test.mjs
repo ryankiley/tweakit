@@ -4,14 +4,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { window } from "./_setup-dom.mjs";
+import { loadSingle, loadSplit, tick, ptr } from "./_helpers.mjs";
 globalThis.MutationObserver = window.MutationObserver; // the kit guards on the global; the shared setup doesn't expose it
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const lazy = await import(new URL("../dist/tweaks/core.js", import.meta.url));
-const tick = (ms) => new Promise((r) => setTimeout(r, ms));
-// Synthetic pointer event — jsdom has no PointerEvent constructor; the drag paths only read
-// pointerId / button / buttons / clientX / clientY off it.
-const ptr = (type, props) => Object.assign(new Event(type, { bubbles: true, cancelable: true }), { pointerId: 1, button: 0, buttons: 1, pointerType: "mouse", ...props });
+const { tweaks } = await loadSingle();
+const lazy = await loadSplit();
 const drag = (p, dx) => {
   const header = p.el.querySelector(".tw-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};

@@ -5,10 +5,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { bundle } from "./_bundle.mjs";
+import { close } from "./_helpers.mjs";
 
 const { parseEasing, easingName, easingSamples, easingAt, gradientStops, gradientCss } = await bundle("src/tweaks/easing.ts");
 
-const close = (a, b, eps = 1e-3) => Math.abs(a - b) < eps;
 const LARSEN = [[0, 0], [.081, .013], [.155, .049], [.225, .104], [.29, .175], [.353, .259], [.412, .352], [.471, .45], [.529, .55], [.588, .648], [.647, .741], [.71, .825], [.775, .896], [.845, .951], [.919, .987], [1, 1]];
 const RED_BLUE = { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], interpolation: "oklch" };
 

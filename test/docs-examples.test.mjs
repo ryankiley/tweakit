@@ -13,8 +13,9 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import "./_setup-dom.mjs";
+import { loadSingle } from "./_helpers.mjs";
 
-const { tweaks, enhance, gradientCss } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks, enhance, gradientCss } = await loadSingle();
 const pagesDir = new URL("../site/pages/", import.meta.url);
 const files = (await readdir(pagesDir)).filter((f) => f.endsWith(".mjs")).sort();
 

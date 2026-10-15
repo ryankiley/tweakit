@@ -3,9 +3,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, tick } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const tick = (ms) => new Promise((r) => setTimeout(r, ms));
+const { tweaks } = await loadSingle();
 
 test("a monitor with no get and no value reads as a dash, not 'undefined'", async () => {
   const p = tweaks("M", { m: { type: "monitor", interval: 30 } });
@@ -130,7 +130,7 @@ test("a hint on a separator adds no marker to the divider", () => {
 });
 
 test("a markup bound that isn't a number counts as absent", async () => {
-  const { enhance } = await import(new URL("../dist/tweaks.js", import.meta.url));
+  const { enhance } = await loadSingle();
   const host = document.createElement("div"); host.dataset.tw = "interval"; host.dataset.value = "8,2"; host.dataset.min = "abc";
   document.body.append(host);
   try {

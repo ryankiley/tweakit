@@ -5,8 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSplit } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks/core.js", import.meta.url));
+const { tweaks } = await loadSplit();
 
 const pointer = (type, target, x, y, extra = {}) => target.dispatchEvent(Object.assign(new window.Event(type, { bubbles: true }), { pointerId: 1, button: 0, buttons: 1, clientX: x, clientY: y, isPrimary: true, ...extra }));
 

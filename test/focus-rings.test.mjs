@@ -5,11 +5,11 @@
  * single-file bundle and tweaks.css) under jsdom, so it is a coverage check, not a paint check. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import "./_setup-dom.mjs";
+import { loadSingle, distCss } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const css = readFileSync(new URL("../dist/tweaks.css", import.meta.url), "utf8");
+const { tweaks } = await loadSingle();
+const css = distCss();
 
 // Every selector list in the stylesheet that names :focus-visible, split into its selectors.
 // The @media wrappers go first: a rule inside one would otherwise be read as part of the

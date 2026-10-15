@@ -6,9 +6,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, tick } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const tick = (ms) => new Promise((r) => setTimeout(r, ms));
+const { tweaks } = await loadSingle();
 
 test("persist round-trips values through localStorage (debounced save, restore on build)", async () => {
   const a = tweaks("P", { x: [1, 0, 10, 1] }, { persist: "t-persist" });

@@ -4,9 +4,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, wait } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const { tweaks } = await loadSingle();
 
 test("the FPS graph reads out a whole frame rate once mounted, and stops with the panel", async () => {
   const p = tweaks("F", { fps: { type: "fpsgraph" } });

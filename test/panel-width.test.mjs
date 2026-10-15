@@ -2,11 +2,11 @@
  * number is px), at build or through setTheme(), and setTheme(null) puts the default back. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import "./_setup-dom.mjs";
+import { loadSingle, distCss } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const css = readFileSync(new URL("../dist/tweaks.css", import.meta.url), "utf8");
+const { tweaks } = await loadSingle();
+const css = distCss();
 
 test("the default width is the --tw-width token, 256px", () => {
   assert.match(css, /--tw-width:\s*256px/);

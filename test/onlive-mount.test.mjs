@@ -7,8 +7,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
+const { tweaks, mountControl } = await loadSingle();
 const frame = () => new Promise((r) => setTimeout(r, 40));
 
 test("a listener registered before the mount still releases after an unmount with no event in between", async () => {
@@ -37,4 +38,25 @@ test("an event before the mount is still skipped, not fatal", async () => {
   window.dispatchEvent(new window.Event("resize"));
   assert.ok(track.isConnected, "the panel is live and the listener still bound");
   p.destroy();
+});
+
+test("a destroy() within a frame of the build still releases the controls' window listeners", async () => {
+  // Track the listeners by identity: panels earlier tests destroyed release theirs on these
+  // same resize events, which a bare count would mistake for ours.
+  const added = new Set(), removed = new Set();
+  const add = window.addEventListener.bind(window), remove = window.removeEventListener.bind(window);
+  window.addEventListener = (t, fn, o) => { if (t === "resize") added.add(fn); return add(t, fn, o); };
+  window.removeEventListener = (t, fn, o) => { if (t === "resize") removed.add(fn); return remove(t, fn, o); };
+  const leftover = () => [...added].filter((fn) => !removed.has(fn)).length;
+  try {
+    const p = tweaks("R6D", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+    document.body.append(p.el);
+    p.destroy(); // same frame: onLive never saw the panel connected
+    window.dispatchEvent(new window.Event("resize")); window.dispatchEvent(new window.Event("resize"));
+    assert.ok(added.size >= 2); assert.equal(leftover(), 0, "every control listener released on the first event after the destroy");
+    const host = document.createElement("div"); document.body.append(host);
+    const m = mountControl(host, [1, 0, 10, 1]); await m.ready;
+    m.destroy(); window.dispatchEvent(new window.Event("resize"));
+    assert.equal(leftover(), 0, "the standalone control's listener released too");
+  } finally { window.addEventListener = add; window.removeEventListener = remove; }
 });
