@@ -274,6 +274,32 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // or `(get) => bool`) greys-out + locks; both re-evaluate on every change. `hint`
   // is a static tooltip. registerCond wires whichever a control declared.
   const conditionals: Array<{ node: HTMLElement; m: Meta }> = [];
+  // A row a render condition hides or shows folds the way a folder does: its height,
+  // the gap above it and its opacity together, on --tw-ease-fold over 0.35s. Flipped
+  // back mid-fold, it carries on from where it's drawn. The first pass, reduced motion
+  // (and a restore in the same task) and a DOM without the Animations API just toggle
+  // the class.
+  let folding = false;
+  const foldRow = (node: HTMLElement & { _fold?: Animation; _hid?: boolean }, hide: boolean) => {
+    if ((node._hid ?? node.classList.contains("tw-cond-hidden")) === hide) return false;
+    node._hid = hide;
+    const was = node._fold;
+    if (!folding || REDUCE_MOTION.matches || !node.animate) {
+      was?.cancel(); node._fold = undefined; node.style.overflow = "";
+      node.classList.toggle("tw-cond-hidden", hide);
+      return !hide;
+    }
+    const cs = getComputedStyle(node), shut = { height: 0, opacity: 0, marginTop: -parseFloat(getComputedStyle(node.parentElement!).rowGap) + "px" };
+    const open = () => ({ height: node.offsetHeight + "px", opacity: 1, marginTop: 0 });
+    // Where it's drawn now: mid-fold, as the running fold has it; else open, or shut.
+    const from = was ? { height: cs.height, opacity: cs.opacity, marginTop: cs.marginTop } : hide ? open() : shut;
+    was?.cancel();
+    node.classList.remove("tw-cond-hidden");
+    node.style.overflow = "clip";
+    const a = node._fold = node.animate([from, hide ? shut : open()], { duration: 350, easing: cs.getPropertyValue("--tw-ease-fold").trim() || "ease" });
+    a.onfinish = () => { node._fold = undefined; node.style.overflow = ""; if (hide) node.classList.add("tw-cond-hidden"); };
+    return !hide;
+  };
   const registerCond = (node: HTMLElement, m: Meta) => {
     if (m.hint) addHintMarker(node, m.hint);
     if (m.render || m.disabled != null) conditionals.push({ node, m });
@@ -654,13 +680,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
           // A throwing render/disabled predicate degrades to "leave the node as-is"
           // rather than aborting construction or the whole notify() pass.
           try {
-            if (m.render) { const hide = !m.render(getVal); if (!hide && node.classList.contains("tw-cond-hidden")) revealed = true; node.classList.toggle("tw-cond-hidden", hide); }
+            if (m.render && foldRow(node, !m.render(getVal))) revealed = true;
             if (m.disabled != null) { const d = typeof m.disabled === "function" ? m.disabled(getVal) : m.disabled; setDisabled(node, !!d); }
           } catch {}
         }
         if (revealed) requestReflow(); // a control built behind a false render condition measured 0×0 (blank canvas/SVG, a stuck pill) — once shown, let it re-measure, as a tab page does
       };
       listeners.add(applyConditionals); own.add(applyConditionals); applyConditionals();
+      setTimeout(() => { folding = true; });
     }
     // Restore last session, notifying: on the lazy path assemble runs after tweaks()
     // returned, so a host that already subscribed must hear the restored values (on the
