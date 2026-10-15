@@ -4,7 +4,7 @@
  * TYPED_META (and DATA_VALUE for the markup path) only when the verbose form needs
  * reshaping before the constructor sees it; a lazy control that reads its own fields
  * needs no entry — its form passes through. test/registry.test.mjs cross-checks the tables. */
-import { titleCase, isColorStr, inferStep, defaultRange, optValue, getControl } from "./shared.js";
+import { titleCase, isObj, isColorStr, inferStep, defaultRange, optValue, getControl } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
 import { showToast } from "./feedback.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
@@ -66,8 +66,6 @@ function metaFor(key: string, value: any, depth = 0): Meta | null {
   }
   return meta;
 }
-// True for an object-form schema value (the verbose `{ type, … }` shapes).
-const isObj = (v: unknown) => v && typeof v === "object";
 // Own-key lookup for objects used as maps — a stray key like "toString" must miss,
 // not hit Object.prototype (the dispatch tables + params bags below). A type guard, so
 // a hit narrows the key to the table's own (the typed dispatch tables index by it).

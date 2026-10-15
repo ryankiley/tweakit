@@ -6,7 +6,7 @@
 // every control). The value carries the CSS it resolves to — `duration` in ms and an
 // `easing` string, cubic-bezier() or a sampled linear() — so a host writes
 // `transition: transform ${duration}ms ${easing}` in either mode. Lazy. ──
-import { el, txt, clamp, createSegmented, getControl, popover, registerControl, REDUCE_MOTION } from "../shared.js";
+import { el, txt, clamp, isObj, createSegmented, getControl, popover, registerControl, REDUCE_MOTION } from "../shared.js";
 import { numField, triggerRow, svgEl, springCurve } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -20,7 +20,6 @@ interface SpringOut { stiffness: number; damping: number; mass: number; visualDu
 const EASES: Record<string, Curve> = { ease: [0.25, 0.1, 0.25, 1], linear: [0, 0, 1, 1], "ease-in": [0.42, 0, 1, 1], "ease-out": [0, 0, 0.58, 1], "ease-in-out": [0.42, 0, 0.58, 1] };
 const DUR_DEF = 300, DUR_MAX = 10000, STAGE_PAD = 16; // ms; the stage's side padding (tweaks.css)
 const BOUNCE_MAX = 0.9; // ζ ≥ 0.1: a spring with no damping never settles, and the emitted linear() has to end at rest
-const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object";
 const has = (x: unknown) => (typeof x === "number" ? Number.isFinite(x) : typeof x === "string" && x.trim() !== "" && Number.isFinite(+x)); // a number, or a numeric string — not `true`, `[]` or " "
 const curveOf = (c: unknown): Curve | null => {
   if (typeof c === "string") return Object.prototype.hasOwnProperty.call(EASES, c) ? (EASES[c].slice() as Curve) : null; // own key only — "constructor" is not an easing

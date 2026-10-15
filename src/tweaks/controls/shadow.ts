@@ -5,7 +5,7 @@
 // colour the picker re-serialized — never a host string verbatim (the gradient's lesson: a
 // string that reaches a `style` sink can splice in a url()). Lazy; depends on the colour
 // module. ──
-import { el, txt, popover, createSegmented, registerControl, btn, icon } from "../shared.js";
+import { el, txt, popover, createSegmented, registerControl, btn, icon, isObj } from "../shared.js";
 import { numField, triggerRow } from "../heavy.js";
 import { createPickerBody, isColor } from "./colour.js";
 import type { OnChange, NumField } from "../shared.js";
@@ -13,7 +13,6 @@ import type { Meta } from "../schema.js";
 import type { Control, ShadowValue, ShadowInput } from "../types.js";
 
 const DEF = { x: 0, y: 8, blur: 24, spread: 0, color: "rgb(0 0 0 / 0.18)" };
-const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object";
 const num = (v: unknown, d: number) => (v != null && v !== "" && Number.isFinite(+v) ? +v : d);
 const fmt = (n: number) => String(+n.toFixed(1));
 // A colour token the kit recognises: a hex, or one colour function (no nesting, so a

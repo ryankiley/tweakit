@@ -40,6 +40,7 @@ type ControlCtor<M = Meta, C = Control> = (meta: M, onChange?: OnChange) => C;
 // ── helpers ──
 const titleCase = (s: string) => s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim(); // a word starts at a camel hump or where a capital opens a lowercase word ("fontSize" → "Font Size", "myURLParser" → "My URL Parser", "level2Up" → "Level2 Up"); a run of capitals stays whole ("XS", "2XL", "RGB")
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
 // A colour-valued string: hex, or any CSS colour function (oklch/rgb/hsl/…). Used
 // to route a schema string to the colour control (a plain label stays a string).
 const isColorStr = (v: unknown) => typeof v === "string" && (/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v.trim()) || /^(oklch|oklab|rgba?|hsla?|hwb|lab|lch|color)\(/i.test(v.trim()));
@@ -559,7 +560,7 @@ export const registerControl = (type: string, ctor: ControlCtor<any, any>) => { 
 export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, C> | undefined => REGISTRY[type];
 
 export {
-  titleCase, clamp, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
+  titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
