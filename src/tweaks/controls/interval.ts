@@ -5,31 +5,19 @@ import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
 
-// ── Interval / range slider — a dual-handle slider bound to [lo, hi] inside
-// [min, max]. Reuses the
-// slider's track + fill + handle, so the range segment picks up the accent on
-// drag just like the single slider. Both handles are focusable role="slider"s. ──
 function createInterval(meta: Meta, onChange: OnChange): Control {
   const label = meta.label;
-  // Normalise the range first (normalizeRange — the slider's guard, shared):
-  // non-finite bounds fall back to the value tuple then 0/1, an inverted pair
-  // swaps, and a degenerate step re-infers — so markup like data-min="abc"
-  // can't ride in as NaN ("NaN – NaN").
+  // normalizeRange, the slider's guard: non-finite bounds fall back and an inverted pair swaps, so data-min="abc" can't ride in as NaN.
   const t0 = +(meta.value && meta.value[0]), t1 = +(meta.value && meta.value[1]);
   const lo0 = Number.isFinite(t0) ? t0 : 0, hi0 = Number.isFinite(t1) ? t1 : 1;
-  // An absent bound derives from the values the range must hold, as the shorthand and a verbose
-  // slider do: each end widens it, so [20, 80] spans 0–240, not just 20–80 (which pinned both
-  // handles at the ends).
+  // An absent bound derives from the values, each end widening it: [20, 80] spans 0–240, not 20–80 (which pinned both handles).
   const [a, b] = [defaultRange(lo0), defaultRange(hi0)];
   const given = (n: unknown) => n != null && n !== "" && Number.isFinite(+n!);
   let { min, max, step } = normalizeRange(given(meta.min) ? meta.min : Math.min(a[0], b[0]), given(meta.max) ? meta.max : Math.max(a[1], b[1]), meta.step, lo0, hi0);
-  [min, max] = gridEnds(min, max, step); // as the slider: the range is its reachable grid, so an off-grid bound never reports a value past it and every surface shares one lattice
+  [min, max] = gridEnds(min, max, step); // the slider's rule: no value past an off-grid bound
   const decimals = stepPrecision(step);
   const q = (v: number) => roundToStep(v, min, step);
-  // Missing/non-finite tuple entries fall back to the bounds (the .set path already
-  // guards this — match it at construction so e.g. value:[5] gives [5, max], not [5, NaN]).
-  // t0/t1 already read the tuple null-safely above — reuse them rather than re-reading
-  // meta.value[0] unguarded (a missing tuple threw here, dropping the whole control).
+  // Missing tuple entries fall back to the bounds, as .set does: value:[5] gives [5, max], not [5, NaN].
   let lo = clamp(q(Number.isFinite(t0) ? t0 : min), min, max), hi = clamp(q(Number.isFinite(t1) ? t1 : max), min, max);
   if (lo > hi) { const t = lo; lo = hi; hi = t; }
 
@@ -42,8 +30,6 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   track.append(fill, hLo, hHi, labelEl, valueEl);
   wrap.append(track);
 
-  // Keyboard: Tab to a handle, arrows move it (⇧ = coarse ×10), Home/End snap it
-  // to its neighbour-or-limit. The two handles can't cross.
   ([["minimum", hLo], ["maximum", hHi]] as const).forEach(([lab, h]) => {
     h.tabIndex = 0; h.setAttribute("role", "slider"); h.setAttribute("aria-label", `${label} ${lab}`);
     h.setAttribute("aria-valuemin", String(min)); h.setAttribute("aria-valuemax", String(max));
@@ -57,14 +43,10 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     hLo.style.left = handleLeft(a); hHi.style.left = handleLeft(b);
     valueEl.textContent = `${lo.toFixed(decimals)} – ${hi.toFixed(decimals)}`;
     hLo.setAttribute("aria-valuenow", String(lo)); hHi.setAttribute("aria-valuenow", String(hi));
-    // Value-dodge, the slider's shared overlap test (overlapsText) — per handle here:
-    // a handle that slides under the label (left) or the readout (right) yields so
-    // the text stays legible.
+    // Value-dodge (overlapsText), per handle: one sliding under the label or the readout yields so the text stays legible.
     const trackW = wrap.offsetWidth;
     if (trackW) {
-      // The label's room is whatever the dual readout leaves: measured, since "1234.567 –
-      // 9876.543" is far wider than the stylesheet's fixed reserve (which stays as the
-      // pre-layout fallback). 12px label inset + 8px gap + the readout's own right inset.
+      // The label's room is what the dual readout leaves, measured: 12px label inset + 8px gap + the readout's right inset.
       labelEl.style.maxWidth = Math.max(0, trackW - valueEl.offsetWidth - 12 - 8 - 10) + "px";
       const dodges = (pct: number) => overlapsText(labelEl, valueEl, (pct / 100) * trackW - 1.5, 3);
       hLo.classList.toggle("is-dodge", dodges(pctOf(lo)));
@@ -78,38 +60,30 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   const setHi = (v: number) => { hi = clamp(Math.max(q(v), lo), min, max); render(); };
 
   let rect: DOMRect | null = null, scale = 1, active: "lo" | "hi" | null = null;
-  // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px) —
-  // same correction as the single slider, so a scaled panel still tracks the cursor 1:1.
+  // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px), as the single slider does.
   const valFromX = (x: number) => { const native = wrap.offsetWidth || rect.width; const p = clamp((x - rect.left) / scale / native, 0, 1); return clamp(min + p * (max - min), min, max); };
   const grab = (x: number) => {
     const v = valFromX(x);
     if (!active) active = v < lo ? "lo" : v > hi ? "hi" : (Math.abs(v - lo) <= Math.abs(v - hi) ? "lo" : "hi");
     active === "lo" ? setLo(v) : setHi(v); emit();
   };
-  // The shared drag gesture: pointer capture, the single-pointer guard, and every
-  // end path (up / cancel / lost capture / buttons released off-element) in one
-  // place — the hand-rolled listener set this replaced re-implemented all of it.
   dragGesture(track, {
     onDown: (e) => {
       e.preventDefault();
       rect = wrap.getBoundingClientRect(); scale = rect.width / (wrap.offsetWidth || rect.width);
       track.classList.add("is-active", "is-dragging"); active = null;
       grab(e.clientX);
-      (active === "lo" ? hLo : hHi).focus({ focusVisible: false }); // hand keyboard to the grabbed handle (preventDefault suppressed click-to-focus) without the keyboard ring on a mouse press; Tab still rings
+      (active === "lo" ? hLo : hHi).focus({ focusVisible: false }); // preventDefault killed click-to-focus; focus without a ring
     },
     onMove: (e) => grab(e.clientX),
     onEnd: () => { rect = null; active = null; track.classList.remove("is-active", "is-dragging"); },
   });
-  wireHoverClass(track, render); // re-render the value-dodge with the real track width on first hover
-  // Harden the dodge against type metrics it can't predict: recompute once layout +
-  // fonts settle (a web-font swap or a custom --tw-font-sans shifts the label/value
-  // widths it measures), and on any track-width change. The dodge already reads the
-  // real offsetWidth, so it adapts to any font — this just keeps it in sync.
+  wireHoverClass(track, render); // re-run the dodge with the real track width on hover
+  // Recompute once layout and fonts settle (a web-font swap shifts the widths the dodge measures) and on track-width change.
   onReady(render);
-  onLive(track, [[window, "resize"], [window, "tw-reflow"]], render); // tw-reflow: a tab page revealing this control re-measures the value-dodge (it built at 0 width while hidden); self-cleans once the panel is gone
+  onLive(track, [[window, "resize"], [window, "tw-reflow"]], render); // tw-reflow: a tab page revealing this re-measures it
 
-  // The shared range keyboard model, bounded per handle: Home/End snap a handle to
-  // its neighbour-or-limit, so the two can't cross.
+  // Home/End snap a handle to its neighbour-or-limit, so the two can't cross.
   const onKey = (which: "lo" | "hi") => (e: KeyboardEvent) => {
     const nv = which === "lo" ? rangeStep(e, lo, step, min, hi) : rangeStep(e, hi, step, lo, max);
     if (nv == null) return;

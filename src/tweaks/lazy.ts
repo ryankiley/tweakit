@@ -1,23 +1,17 @@
-/* Lazy-control loading — the dynamic-import map behind the code-split build, plus
- * the schema scan that preloads whatever lazy modules a panel (or an enhance pass)
- * needs before it assembles. */
+/* Lazy-control loading — the dynamic-import map behind the code-split build, plus the schema
+ * scan that preloads what a panel needs before it assembles. */
 import { getControl } from "./shared.js";
 import type { Meta } from "./schema.js";
 
-/** What the preload scan reads off a meta: its type, and the metas nested under it. */
+/** What the preload scan reads off a meta. */
 type MetaNode = Pick<Meta, "type" | "children" | "pages">;
 
-// ── Lazy controls — each maps to a dynamic import of its module, which registers
-// its constructor(s) into the shared registry on load. ensure() kicks the import
-// (deduped); scanTypes walks a schema (into folders + tabs pages) for the lazy
-// types it uses, so the panel can preload them before it assembles.
-// TW_SPLIT is an esbuild `define`: `true` for the code-split build (each control loads
-// on demand via these dynamic imports), `false` for the single-file bundle — where
-// single.ts statically imports every control so they self-register, leaving this map
-// empty so esbuild drops the import()s and the whole kit inlines, synchronous.
+// ── Lazy controls — each import registers its constructor(s) into the shared registry ──
+// TW_SPLIT is an esbuild `define`: `false` for the single-file bundle, where single.ts imports
+// every control statically, so this map is empty and esbuild drops the import()s.
 declare const TW_SPLIT: boolean;
 const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
-  number: () => import("./heavy.js"), // the numField engine registers the Number control itself
+  number: () => import("./heavy.js"), // heavy.js registers the Number control itself
   interval: () => import("./controls/interval.js"),
   color: () => import("./controls/colour.js"),
   gradient: () => import("./controls/gradient.js"),
@@ -29,12 +23,13 @@ const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
   monitor: () => import("./controls/monitor.js"),
   spring: () => import("./controls/spring.js"),
   cubicbezier: () => import("./controls/bezier.js"),
-  motion: () => Promise.all([import("./controls/bezier.js"), import("./controls/spring.js")]).then(() => import("./controls/motion.js")), // hosts both editors, taken from the registry — and registers last, so a failed editor chunk leaves "motion" unregistered for the next panel to retry rather than registered and unbuildable
+  // motion registers last, so a failed editor chunk leaves it unregistered for the next panel to retry.
+  motion: () => Promise.all([import("./controls/bezier.js"), import("./controls/spring.js")]).then(() => import("./controls/motion.js")),
   point: () => import("./controls/point.js"),
   plot: () => import("./controls/plot.js"),
 } : {};
 const loading: Record<string, Promise<unknown>> = {};
-const ensure = (type: string) => (getControl(type) || !LAZY_IMPORT[type]) ? null : (loading[type] ||= LAZY_IMPORT[type]().catch((e) => { delete loading[type]; console.error(`[tweaks] control chunk "${type}" failed to load:`, e); throw e; })); // a rejection isn't cached — a later panel retries the chunk
+const ensure = (type: string) => (getControl(type) || !LAZY_IMPORT[type]) ? null : (loading[type] ||= LAZY_IMPORT[type]().catch((e) => { delete loading[type]; console.error(`[tweaks] control chunk "${type}" failed to load:`, e); throw e; })); // a rejection isn't cached, so a later panel retries
 const scanTypes = (metas: MetaNode[], set = new Set<string>()) => {
   for (const m of metas) {
     if (!m) continue;
@@ -44,8 +39,6 @@ const scanTypes = (metas: MetaNode[], set = new Set<string>()) => {
   }
   return set;
 };
-// Returns a Promise once all lazy modules a schema needs are loaded, or null if
-// none are missing (the synchronous fast path: monolith, or already warmed up).
 const ensureForMetas = (metas: MetaNode[]) => {
   const pend = [...scanTypes(metas)].map(ensure).filter(Boolean);
   return pend.length ? Promise.all(pend) : null;

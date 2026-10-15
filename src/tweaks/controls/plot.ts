@@ -10,16 +10,8 @@ type Expr = (x: number) => number;
 /** The tokens the expression lexer emits. */
 type Tok = { t: "num"; v: number } | { t: "id" | "op"; v: string } | { t: "lp" | "rp" | "comma"; v?: undefined };
 
-// ── A tiny, safe expression evaluator for the plot control. ──────────────────
-// Compiles "sin(x)/x" → a closure (x) => number. It is a hand-rolled
-// recursive-descent parser, NOT eval/Function: the only things it can ever do
-// are arithmetic and a fixed whitelist of Math calls on a single number. There
-// is no property access, no identifier outside the whitelist, no way to reach a
-// global — so a user-typed formula is harmless. Returns null on any parse error.
-// Both lookup tables are null-prototype: the parser checks `PLOT_FUNCS[name]` and
-// `name in PLOT_CONSTS`, and a plain object's prototype chain let "constructor" /
-// "toString" parse as valid identifiers (no escape — but they violated the whitelist
-// and "compiled" to garbage that silently plotted nothing).
+// ── A safe expression evaluator: recursive descent, not eval/Function, so a typed formula does only arithmetic and
+// whitelisted Math calls; null on any parse error. Null-prototype tables, so "constructor" can't parse as an identifier. ──
 const PLOT_FUNCS: Record<string, (...args: number[]) => number> = Object.assign(Object.create(null), {
   sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos,
   atan: Math.atan, atan2: Math.atan2, sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
@@ -30,7 +22,7 @@ const PLOT_FUNCS: Record<string, (...args: number[]) => number> = Object.assign(
 });
 const PLOT_CONSTS: Record<string, number> = Object.assign(Object.create(null), { pi: Math.PI, e: Math.E, tau: Math.PI * 2, phi: (1 + Math.sqrt(5)) / 2 });
 export function compileExpr(src: unknown): Expr | null {
-  if (typeof src !== "string" || !src.trim() || src.length > 512) return null; // the length cap also bounds recursion depth, so an absurdly nested formula can't overflow the stack mid-parse (a RangeError past the "null on parse error" contract — and the init call in createPlot is unguarded)
+  if (typeof src !== "string" || !src.trim() || src.length > 512) return null; // also bounds recursion depth, so no RangeError mid-parse
   const s = src, toks: Tok[] = [];
   const numRe = /\d*\.?\d+(?:[eE][+-]?\d+)?/y, idRe = /[A-Za-z_]\w*/y;
   let i = 0;
@@ -49,7 +41,7 @@ export function compileExpr(src: unknown): Expr | null {
     if (ch === "(") { toks.push({ t: "lp" }); i++; continue; }
     if (ch === ")") { toks.push({ t: "rp" }); i++; continue; }
     if (ch === ",") { toks.push({ t: "comma" }); i++; continue; }
-    return null; // an unrecognised character — reject the whole expression
+    return null;
   }
   if (!toks.length) return null;
   let p = 0;
@@ -106,25 +98,20 @@ export function compileExpr(src: unknown): Expr | null {
   return tree && p === toks.length ? tree : null; // leftover tokens ⇒ malformed
 }
 
-// ── Plot — graph y = f(x) across a range, with a live, editable expression.
-// The formula is parsed by compileExpr (no eval), so typing is safe. Pass `fn`
-// for a fixed JS function instead of an editable string. Y auto-ranges unless
-// yMin/yMax are given; the line breaks across asymptotes (non-finite samples). ──
+// ── Plot — y = f(x) across a range with an editable expression, or a fixed `fn`. Y auto-ranges unless yMin/yMax are
+// given; the line breaks across asymptotes. ──
 function createPlot(meta: Meta, onChange: OnChange): Control {
-  // Domain guard: non-finite bounds take the defaults, an inverted pair swaps, and an
-  // equal pair pads out — xMin === xMax used to divide the x-mapping into an all-NaN
-  // path (a silently blank plot). Same for a pinned y-range: equal/inverted falls back
-  // to auto-range rather than a ÷0.
+  // Non-finite bounds take the defaults, an inverted pair swaps, an equal pair pads out (÷0 drew nothing); a degenerate y-range falls back to auto.
   let xMin = Number(meta.xMin ?? meta.min), xMax = Number(meta.xMax ?? meta.max); // min/max are the verbose form's aliases
   if (!Number.isFinite(xMin)) xMin = -10;
   if (!Number.isFinite(xMax)) xMax = 10;
   if (xMax < xMin) { const t = xMin; xMin = xMax; xMax = t; }
   if (xMax === xMin) { xMin -= 1; xMax += 1; }
-  const samples = Math.max(2, Math.min(4096, (meta.samples | 0) || 256)); // capped: the curve redraws on every resize + expression keystroke, so an absurd sample count (1e8+) froze the tab
+  const samples = Math.max(2, Math.min(4096, (meta.samples | 0) || 256)); // capped: 1e8 samples per keystroke froze the tab
   const fixedY = Number.isFinite(meta.yMin) && Number.isFinite(meta.yMax) && +meta.yMax > +meta.yMin;
   const fn = typeof meta.fn === "function" ? meta.fn : null;
   const editable = meta.editable !== false && !fn;
-  let expr = meta.expr != null ? String(meta.expr) : fn ? "" : "sin(x)"; // no expression and no function: a sine to start from
+  let expr = meta.expr != null ? String(meta.expr) : fn ? "" : "sin(x)"; // a sine to start from
   let compiled = fn || compileExpr(expr);
 
   const root = el("div", "tw-plot");
@@ -139,13 +126,12 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
     const field = el("div", "tw-plot-field");
     input = el("input", "tw-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
     input.autocapitalize = "off"; quietFocus(input); /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`); input.setAttribute("aria-invalid", "false");
-    field.append(txt("span", "tw-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML, and no label in the kit goes through that door
+    field.append(txt("span", "tw-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML
   }
 
   const PAD = 6;
   const draw = () => {
-    // The invalid flag doesn't wait for a measurable graph: a plot in a hidden tab page
-    // still reports a bad expression, visually and to assistive tech.
+    // Flag invalid before the size guard, so a hidden tab page still reports a bad expression.
     const ok = typeof compiled === "function";
     root.classList.toggle("is-invalid", editable && !ok);
     if (input) input.setAttribute("aria-invalid", editable && !ok ? "true" : "false");
@@ -184,12 +170,12 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   });
 
   onReady(draw);
-  onLive(root, [[window, "resize"], [window, "tw-reflow"]], draw); // tw-reflow: a tab page revealing this control re-measures it (it built at 0×0 while hidden); self-cleans once the panel is gone
+  onLive(root, [[window, "resize"], [window, "tw-reflow"]], draw); // tw-reflow: a tab page revealing this re-measures it
 
   return {
     el: root,
     get: () => expr,
-    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!fn) compiled = compileExpr(expr); draw(); }, // an invalid expression nulls compiled + flags is-invalid via draw — same contract as typing, never silently keeps plotting the old one
+    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!fn) compiled = compileExpr(expr); draw(); }, // an invalid expression nulls compiled, as typing does
   };
 }
 

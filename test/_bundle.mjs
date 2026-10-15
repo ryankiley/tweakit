@@ -1,14 +1,11 @@
-/* In-memory bundle of a TS source entry — esbuild (the build's own dependency)
- * compiles it, and the output imports as a data: URL module. The pure-logic tests
- * (wide-gamut maths, the plot expression parser) run against src/ directly this
- * way: no dist required, and no dependence on Node's experimental type stripping
- * (which also couldn't resolve the kit's TS-style "./shared.js" specifiers). */
+/* In-memory esbuild bundle of a TS entry, imported as a data: URL. */
 import { build } from "esbuild";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+/** Bundle `entry` from src/ so pure-logic tests need no dist and no Node type stripping. */
 export async function bundle(entry, define = {}) {
   const r = await build({
     entryPoints: [path.join(ROOT, entry)],
