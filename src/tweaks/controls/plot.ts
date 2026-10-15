@@ -138,7 +138,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   if (editable) {
     const field = el("div", "tw-plot-field");
     input = el("input", "tw-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
-    input.autocapitalize = "off"; input.autocomplete = "off"; quietFocus(input); /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`); input.setAttribute("aria-invalid", "false");
+    input.autocapitalize = "off"; quietFocus(input); /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`); input.setAttribute("aria-invalid", "false");
     field.append(txt("span", "tw-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML, and no label in the kit goes through that door
   }
 

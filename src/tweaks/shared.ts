@@ -146,17 +146,24 @@ const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? titleC
 
 // el is the internal DOM factory, typed by tag the way createElement is (so a
 // div / input / canvas each read back as their own element; svgEl in heavy.ts is its SVG twin) — see Built above for
-// the one allowance they add. The public API (types.ts) is fully typed.
-const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string): Built<HTMLElementTagNameMap[K]> => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+// the one allowance they add. The public API (types.ts) is fully typed. A field it makes
+// is a setting, not a form: the browser's autofill and the password managers (1Password,
+// LastPass) leave it alone, as a host would otherwise have to tell each one.
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string): Built<HTMLElementTagNameMap[K]> => {
+  const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html;
+  if (tag == "input" || tag == "textarea") n.setAttribute("autocomplete", "off"), n.setAttribute("data-1p-ignore", ""), n.setAttribute("data-lpignore", "true");
+  return n;
+};
 // The two element shapes the kit builds everywhere: a non-submitting button (every
 // <button> here is type="button" — inside a host's <form>, the default "submit" would
 // post the page), and a text-bearing node (textContent, never innerHTML — labels are
 // host data). txt("button", …) is the text-labelled button, so it carries the same type.
 const btn = (cls: string, html?: string) => { const b = el("button", cls, html); b.type = "button"; return b; };
 const txt = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text: string) => { const n = el(tag, cls); n.textContent = text; if (tag === "button") (n as HTMLButtonElement).type = "button"; return n; };
-// Stop a node's pointer events leaking to the page behind it (the panel + the
-// popovers portaled to <body>, which sit outside the panel's own pointer-stop).
-const stopPointerLeak = (node: EventTarget) => ["pointerdown", "pointermove", "pointerup"].forEach((t) => node.addEventListener(t, (e) => e.stopPropagation()));
+// Stop a node's pointer events and clicks leaking to the page behind it (the panel +
+// the popovers portaled to <body>, which sit outside the panel's own pointer-stop), so a
+// host's own page-wide gestures and click handlers never see a press meant for the panel.
+const stopPointerLeak = (node: EventTarget) => ["pointerdown", "pointermove", "pointerup", "click"].forEach((t) => node.addEventListener(t, (e) => e.stopPropagation()));
 // Run fn next frame (after layout) and again once web fonts load — canvas/SVG
 // controls measure their box, and font swaps change metrics.
 const onReady = (fn: () => void) => { requestAnimationFrame(fn); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fn); };
