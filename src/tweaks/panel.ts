@@ -274,6 +274,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // or `(get) => bool`) greys-out + locks; both re-evaluate on every change. `hint`
   // is a static tooltip. registerCond wires whichever a control declared.
   const conditionals: Array<{ node: HTMLElement; m: Meta }> = [];
+  // A row a render condition hides or shows folds in and out (fold.ts, a lazy chunk the
+  // first pass imports, so that pass and a restore in the same task just toggle). It
+  // returns whether the row was revealed, which asks the panel for a re-measure.
+  let fold: typeof import("./fold.js").fold | undefined;
+  const foldRow = (node: HTMLElement & { _hid?: boolean }, hide: boolean) => {
+    if (!node._hid === !hide) return false;
+    node._hid = hide;
+    if (fold) fold(node, hide); else node.classList.toggle("tw-cond-hidden", hide);
+    return !hide;
+  };
   const registerCond = (node: HTMLElement, m: Meta) => {
     if (m.hint) addHintMarker(node, m.hint);
     if (m.render || m.disabled != null) conditionals.push({ node, m });
@@ -654,13 +664,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
           // A throwing render/disabled predicate degrades to "leave the node as-is"
           // rather than aborting construction or the whole notify() pass.
           try {
-            if (m.render) { const hide = !m.render(getVal); if (!hide && node.classList.contains("tw-cond-hidden")) revealed = true; node.classList.toggle("tw-cond-hidden", hide); }
+            if (m.render && foldRow(node, !m.render(getVal))) revealed = true;
             if (m.disabled != null) { const d = typeof m.disabled === "function" ? m.disabled(getVal) : m.disabled; setDisabled(node, !!d); }
           } catch {}
         }
         if (revealed) requestReflow(); // a control built behind a false render condition measured 0×0 (blank canvas/SVG, a stuck pill) — once shown, let it re-measure, as a tab page does
       };
       listeners.add(applyConditionals); own.add(applyConditionals); applyConditionals();
+      import("./fold.js").then((m) => { fold = m.fold; }, () => {}); // a fold chunk that fails to load leaves the rows toggling
     }
     // Restore last session, notifying: on the lazy path assemble runs after tweaks()
     // returned, so a host that already subscribed must hear the restored values (on the

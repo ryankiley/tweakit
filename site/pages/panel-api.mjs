@@ -147,7 +147,7 @@ export const examples = [
     id: "conditional",
     title: "render, disabled & hint",
     prose: `<p>Any object-form control can carry a <code>render</code> predicate
-      (show/hide on sibling values), a <code>disabled</code> flag or predicate
+      (show/hide on sibling values; the row folds in and out as a folder does), a <code>disabled</code> flag or predicate
       (gray out + lock), and a <code>hint</code> tooltip behind an ⓘ marker.
       Flip “Glow” and watch the other two rows.</p>`,
     target: `<div class="pa-chip">Glow me</div>`,
