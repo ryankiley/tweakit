@@ -1,21 +1,12 @@
-# Build the kit + docs site, run the tests, deploy dist/ to GitHub Pages.
-#
-# The build job runs on pushes to main AND on pull requests (so a PR carries a
-# build + test signal before merge). The deploy job runs only for main pushes,
-# and is SKIPPED while the repo is private — GitHub Pages needs a public repo on
-# the free plan — and starts deploying automatically on the first push after the
-# public flip. One-time step at the flip: Settings → Pages → Source: "GitHub
-# Actions". Custom domain later: drop a CNAME file into site/static/ and point
-# DNS at GitHub Pages (the site is relative-URL-only, so it works at a subpath
-# or a domain root unchanged).
+# Build the kit + docs site and run the tests on main pushes and PRs; deploy dist/ to
+# GitHub Pages on main pushes only (skipped while the repo is private).
 name: site
 
 on:
   push:
     branches: [main]
   pull_request:
-  # A published GitHub Release (the tag that triggers the npm publish) rebuilds the site
-  # from the tagged commit too, so the docs always match what was just released.
+  # A published Release rebuilds the site from the tagged commit, so docs match the release.
   release:
     types: [published]
   workflow_dispatch:
@@ -23,9 +14,7 @@ on:
 permissions:
   contents: read
 
-# Serialize per ref: main pushes still queue their deploys one at a time (the old
-# "pages" group, keyed to main's ref), while PR runs get their own lanes instead
-# of queueing behind a deploy.
+# Per ref: main deploys queue one at a time; PR runs get their own lanes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -41,7 +30,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test "test/*.test.mjs" # the suite runs against the dist the step above just built (`npm test` would rebuild); node expands the quoted glob itself, so only *.test.mjs files run (not the _helpers)
+      - run: node --test "test/*.test.mjs" # against the dist just built; the quoted glob skips the _helpers
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist

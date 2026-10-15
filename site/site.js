@@ -1,7 +1,5 @@
-/* Docs shell runtime — copy buttons on snippets + the mobile nav drawer.
- * The copy/check icons are the kit's own (Hugeicons `copy-01` and `tick-02`, MIT — see
- * THIRD-PARTY-NOTICES.md), so the site's copy interaction matches the panels'; a test
- * (test/site.test.mjs) holds these paths to src/tweaks/icons.ts. */
+/* Docs shell runtime: copy buttons, code folds, heading permalinks, the mobile nav drawer.
+ * The copy/check icons are the kit's own (Hugeicons); test/site.test.mjs holds them to icons.ts. */
 (() => {
   const ICON_COPY = '<svg class="ex-copy-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5.5 16.5-.7-.2q-1.5-.6-2.1-2.1-.2-.7-.2-2.7v-2c0-3.3 0-5 1-6s2.7-1 6-1h2c1.4 0 2 0 2.7.2q1.6.5 2.1 2.1l.2.7"/><path d="M7.5 14.5c0-3.3 0-5 1-6s2.7-1 6-1 5 0 6 1 1 2.7 1 6 0 5-1 6-2.7 1-6 1-5 0-6-1-1-2.7-1-6"/></svg>';
   const ICON_CHECK = '<svg class="ex-copy-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 14 3.5 3.5L19 6.5"/></svg>';
@@ -32,9 +30,7 @@
     wrap.append(btn);
   });
 
-  // Folded code (an example's foldCode): the toggle shows or hides its body. Closed is
-  // hidden="until-found", so find-in-page can still open it (beforematch keeps the toggle in
-  // step); a body that opens below the screen scrolls into view, or the click would look dead.
+  // Closed is hidden="until-found", so find-in-page can open a fold; beforematch keeps the toggle in step.
   document.querySelectorAll(".ex-fold-toggle").forEach((btn) => {
     const body = document.getElementById(btn.getAttribute("aria-controls"));
     if (!body) return;
@@ -68,9 +64,7 @@
   menu && menu.addEventListener("click", () => {
     setOpen(!document.body.classList.contains("nav-open"));
   });
-  // The dim scrim is pointer-events:none, so a dismissal tap lands on whatever sits
-  // under it — intercept at capture phase: close the drawer AND swallow the click so
-  // the underlying element doesn't activate (a link would navigate mid-dismiss).
+  // The scrim is pointer-events:none, so swallow the dismissal click at capture before what's under it activates.
   document.addEventListener("click", (e) => {
     if (!document.body.classList.contains("nav-open")) return;
     if (e.target.closest(".sb") || e.target.closest(".topbar-menu")) return;

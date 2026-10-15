@@ -1,30 +1,8 @@
-/* Tweakit docs site generator — zero dependencies (esbuild is passed in, only
- * to minify site.css / site.js). Pages are ES modules in site/pages/, imported RAW
- * by Node at build time.
- *
- * ⚠ Page modules must NEVER pass through esbuild/minification: each example's `run`
- * function is serialized with Function.prototype.toString(), and that exact text is
- * BOTH displayed as the snippet and inlined into the page's <script type="module">
- * for execution. One source, zero drift.
- *
- * A page module exports:
- *   meta     — { slug, title, nav?, description?, hero?, wide? }  (hero: page renders its own
- *              h1; wide: the reading column drops its max-width — the landing's specimen stage)
- *   intro    — HTML string placed under the h1
- *   examples — array of blocks; each block:
- *     id      anchor id (required when run/html present; unique per page)
- *     title   h2 heading (optional)
- *     prose   HTML string (optional)
- *     target  HTML injected as the demo surface (optional; run-mode only)
- *     css     page-scoped CSS — use example-unique class names, nothing auto-scopes
- *             (site.css already provides .demo-btn for a demo's own action buttons)
- *     run     ({ tweaks, enhance, gradientCss, mount, target }) => {}  — live example, single source
- *     html    string — [data-tw] markup-mode example: injected verbatim AND displayed
- *     code    extra display-only snippet: string (js) or { lang: "js"|"html"|"css"|"sh", text }
- *     noCaption  suppress the mount/target caption (it auto-shows on a page's first run)
- *     noMount    omit the panel slot — for runs that build panels into the target/body
- *     foldCode   a toggle label — the block's code folds away behind a button (needs id)
- */
+/* Tweakit docs site generator. Pages are ES modules in site/pages/, imported raw by Node and
+ * never transpiled: each example's `run` function is toString()-serialized into both the
+ * snippet and the page's module script, so the two can't drift.
+ * A page exports meta { slug, title, nav?, description?, hero?, wide? }, intro (HTML under the
+ * h1) and examples, blocks of { id, title, prose, target, css, run, html, code, noCaption, noMount, foldCode }. */
 import { readFile, writeFile, cp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -33,7 +11,7 @@ import { highlightJS, highlightHTML } from "./highlight.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-// Single source for the sidebar: section grouping + page order (also prev/next order).
+// Sidebar sections and page order (also prev/next).
 const NAV = [
   { section: "Guide", slugs: ["index", "getting-started", "quick-tour"] },
   { section: "Controls", slugs: ["numbers", "text-and-choices", "color-and-gradient", "motion", "monitors", "structure"] },
@@ -43,10 +21,8 @@ const NAV = [
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const href = (slug) => `./${slug}.html`;
 
-// `chunks` is every file of the code-split build (core + shared chunks + lazy controls):
-// a page that runs examples preloads them all, so the kit arrives in one round trip
-// instead of the four the import chain takes on its own (core → shared chunk → a lazy
-// control → its chunk) — the lazy path still runs for real, out of cache.
+/** Build the site into outDir. `chunks` is every file of the code-split build; a page that
+ * runs examples preloads them all, so the kit arrives in one round trip instead of four. */
 export async function buildSite({ outDir, esbuild, sizes, chunks = [], version }) {
   if (!version) throw new Error("buildSite: pass the package version (the sidebar shows it)");
   const shell = await readFile(path.join(HERE, "shell.html"), "utf8");
@@ -57,7 +33,7 @@ export async function buildSite({ outDir, esbuild, sizes, chunks = [], version }
   }
   if (existsSync(path.join(HERE, "static"))) await cp(path.join(HERE, "static"), outDir, { recursive: true });
 
-  // Import every page up front — any syntax error fails the build before files write.
+  // Import every page up front, so a syntax error fails before any file writes.
   const pages = [];
   for (const group of NAV) {
     for (const slug of group.slugs) {
@@ -68,9 +44,7 @@ export async function buildSite({ outDir, esbuild, sizes, chunks = [], version }
   }
 
   for (let i = 0; i < pages.length; i++) {
-    // Build-measured bundle sizes (hyphenated tokens, so the shell's {{\w+}} pass leaves
-    // them for here). A leaked token means buildSite was called without sizes — fail loud
-    // rather than ship "{{size-split}}" to a reader.
+    // Hyphenated size tokens survive the shell's {{\w+}} pass; a leaked one means no sizes were passed.
     let html = renderPage(shell, pages, i, chunks, version);
     if (sizes) for (const [k, v] of Object.entries(sizes)) html = html.replaceAll(`{{size-${k}}}`, v);
     const leak = html.match(/\{\{size-[\w-]+\}\}/);
@@ -99,9 +73,7 @@ function renderPage(shell, pages, idx, chunks = [], version = "") {
   const css = page.examples.map((ex) => ex.css || "").filter(Boolean).join("\n");
   const content = (meta.hero ? "" : `<h1>${esc(meta.title)}</h1>`) + page.intro + blocks.join("\n");
 
-  // Single-pass substitution: the function replacement disarms `$`-sequences in the
-  // values, and substituted content is never rescanned — so "{{content}}" inside page
-  // copy stays literal instead of acting as a reserved word.
+  // The function replacement disarms `$` in values and never rescans substituted content.
   const values = {
     title: esc(title),
     description: esc(meta.description || "Tweakit — a dependency-free, code-split, real-time parameter panel."),
@@ -157,11 +129,8 @@ function renderExample(ex, ids, captioned) {
     code += codeBlock(c.lang === "html" ? highlightHTML(text) : c.lang === "js" ? highlightJS(text) : esc(text), c.lang);
   }
 
-  // A fold is a toggle and a separate body (not one <details>), so a layout can set the toggle
-  // in one place and open the code in another; site.js wires the button to the body. In a run
-  // example the toggle sits inside the stage, between the demo and the panel, so the page's
-  // order (and so Tab's) matches a layout that shows it under the demo; the body follows the
-  // stage. hidden="until-found": closed, but find-in-page still reaches the code and opens it.
+  // A fold is a toggle plus a separate body (not one <details>) so the toggle can sit inside the
+  // stage; site.js wires them. hidden="until-found" keeps find-in-page able to open the code.
   if (ex.foldCode && !ex.id) throw new Error(`example "${ex.title || "?"}": foldCode needs an id (the toggle points at its body by it)`);
   let toggle = "";
   if (code && ex.foldCode) {
@@ -188,7 +157,7 @@ function renderExample(ex, ids, captioned) {
 
 const codeBlock = (html, lang) => `<div class="ex-codewrap"><pre class="ex-code" data-lang="${lang}"><code>${html}</code></pre></div>`;
 
-// The single-source trick: the displayed snippet is the run function's own body.
+// The displayed snippet is the run function's own body.
 function extractBody(fn) {
   const src = fn.toString();
   const arrow = src.indexOf("=>");
@@ -208,15 +177,13 @@ function renderScript(page) {
   const runs = page.examples.filter((ex) => ex.run);
   const hasMarkup = page.examples.some((ex) => ex.html);
   if (!runs.length && !hasMarkup) return "";
-  // Importing core also auto-runs enhance(document) on DOMContentLoaded — that alone
-  // powers the [data-tw] markup-mode examples; run-mode examples wire up below it.
+  // Importing core auto-runs enhance(document), which alone powers the [data-tw] markup examples.
   let js = `import { tweaks, enhance, gradientCss } from "./tweaks/core.js";\n`;
   if (runs.length) {
     js += `const wire = (id, fn) => { const ex = document.getElementById(id); fn({ tweaks, enhance, gradientCss, mount: ex.querySelector(".ex-mount"), target: ex.querySelector(".ex-target") }); };\n`;
     for (const ex of runs) {
       const src = ex.run.toString();
-      // "</script" closes the inline module; "<!--" flips the parser into the
-      // script-data-double-escape state — both corrupt the page, so refuse at build.
+      // "</script" closes the inline module and "<!--" corrupts the parser, so refuse at build.
       if (/<\/script|<!--/i.test(src)) throw new Error(`example "${ex.id}": "</script" and "<!--" cannot appear in run source`);
       js += `wire(${JSON.stringify(`ex-${ex.id}`)}, ${src});\n`;
     }

@@ -1,6 +1,5 @@
-/* Markup-driven enhancement — enhance() turns [data-tw] hosts into live controls
- * (the showcase path), sharing the panel's meta derivation via dataMeta. Imported
- * for its side effect too: it auto-runs over the document on load. */
+/* Markup-driven enhancement — enhance() turns [data-tw] hosts into live controls, sharing the
+ * panel's meta derivation via dataMeta. Imported for its side effect too: it auto-runs on load. */
 import { el, btn, setCollapsed } from "./shared.js";
 import { dataMeta, restoreDefault, hasOwn, valueChanged } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
@@ -8,37 +7,25 @@ import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
 import type { Control } from "./types.js";
 
-/** The handle enhance() hangs on a bound [data-tw] host: the control (its set() runs the
- *  change path), the pair reset restores, and the key the change event names. */
+/** The handle enhance() hangs on a bound [data-tw] host: its control, the reset pair and its key. */
 interface HostHandle { ctrl: Control; raw: unknown; def: unknown; key: string; host: HTMLElement; reset: () => void }
 interface HostEl extends HTMLElement { _tw?: HostHandle }
 
-// Echo a control's value back onto its host's data-value, in the comma form the parsers
-// in schema.ts read (interval / cubicbezier / point all split data-value on ","). An array
-// already stringifies that way; a plain object — the point's component map, the spring's
-// config — used to hit the default toString and write the literal "[object Object]", so
-// take its values in declaration order instead. Order matches the components/channels the
-// control was built from, so a point round-trips exactly.
+// Echo a control's value onto its host's data-value, in the comma form schema.ts parses. A plain
+// object (a point, a spring) would stringify as "[object Object]", so take its values in order.
 const writeDataValue = (host: HTMLElement, v: unknown) => {
   host.dataset.value = v == null ? "" : Array.isArray(v) ? v.join(",") : typeof v === "object" ? Object.values(v).join(",") : String(v);
 };
-// ONE change path for a markup host: echo the value onto data-value, then tell the page —
-// a bubbling tw:change carrying { key, value }, so the declarative path is observable
-// without a MutationObserver on the attribute. The control's own edits, the handle's set()
-// and the toolbar's reset all announce through here.
+// One change path for a markup host: echo onto data-value, then a bubbling tw:change with { key, value }.
 const announce = (host: HTMLElement, key: string, v: unknown) => {
   writeDataValue(host, v);
   host.dispatchEvent(new CustomEvent("tw:change", { bubbles: true, detail: { key, value: v } }));
 };
-// querySelectorAll sees descendants only — a root that is itself a host or a panel shell
-// (enhance(hostEl) for one element added later) counts too. Typed by what the selector
-// matches, as querySelectorAll<T> is (a Document has no matches(), so the root counts
-// only when it is an element).
+// querySelectorAll sees descendants only — a root that is itself a host counts too (a Document has no matches()).
 const select = <T extends Element = HTMLElement>(root: Document | Element, sel: string): T[] => [...(typeof (root as Element).matches === "function" && (root as Element).matches(sel) ? [root as T] : []), ...root.querySelectorAll<T>(sel)];
+/** Bind every unbound [data-tw] host under `root` (the document by default). */
 export async function enhance(root: Document | Element = document): Promise<void> {
-  // Static showcase panels collapse like the real one: wrap the controls in a
-  // .tw-body and turn the header title into a collapse toggle.
-  // Panels built by tweaks() already nest controls in .tw-body, so they're skipped.
+  // Static showcase panels collapse like the real one: wrap the controls in a .tw-body, make the title the toggle.
   select(root, '.tw-panel[data-mode="inline"]:not([data-tw-panel-bound])').forEach((panel) => {
     const header = panel.querySelector(":scope > .tw-header");
     const controls = panel.querySelector(":scope > .tw-controls");
@@ -51,17 +38,13 @@ export async function enhance(root: Document | Element = document): Promise<void
     if (!toggle) return;
     toggle.setAttribute("aria-expanded", "true");
     toggle.addEventListener("click", () => setCollapsed(panel, toggle, body, !panel.classList.contains("is-collapsed")));
-    // Copy + reset are part of the component, so the static samples carry them too —
-    // the same toolbar tweaks() builds, operating over this panel's own [data-tw]
-    // controls (gathered lazily at click time; they're created in the pass below).
+    // The same toolbar tweaks() builds, over this panel's own [data-tw] controls (gathered at click time).
     if (!header.querySelector(".tw-toolbar")) {
       const name = (title && title.textContent) || "Panel";
       const live = () => [...panel.querySelectorAll<HostEl>("[data-tw]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);
-      // Two controls can legitimately share a key (a data-key repeated, or two hosts
-      // with the same label and no data-key at all) — suffix the duplicates instead of
-      // letting the later one overwrite the earlier and drop a value from the copy.
+      // Two hosts can share a key (a repeated data-key, or the same label): suffix the duplicates.
       const values = () => {
-        const vals: Record<string, unknown> = Object.create(null); // a data-key of "__proto__" is an ordinary key here, not a prototype assignment that drops the value from the copy
+        const vals: Record<string, unknown> = Object.create(null); // null-proto: a "__proto__" data-key is an ordinary key
         for (const t of live()) {
           let k = t.key, n = 2; while (hasOwn(vals, k)) k = `${t.key}-${n++}`;
           vals[k] = t.ctrl.get();
@@ -70,40 +53,35 @@ export async function enhance(root: Document | Element = document): Promise<void
       };
       const reset = () => { for (const t of live()) t.reset(); };
       const toolbar = el("div", "tw-toolbar");
-      toolbar.append(makeCopyBtn(panel, () => name, () => [values(), -1]), makeResetBtn(reset)); header.append(toolbar); // a markup panel has no defaults to diff against: ⇧ or not, the copy is every value
+      toolbar.append(makeCopyBtn(panel, () => name, () => [values(), -1]), makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
     }
   });
-  // Folders first: build the collapsible chrome and move child [data-tw] hosts into it.
+  // Folders first: move child hosts into the collapsible chrome.
   select(root, '[data-tw="folder"]:not([data-tw-bound])').forEach((host) => {
     host.setAttribute("data-tw-bound", "");
     const f = createFolder({ label: host.dataset.label || "Folder" });
     [...host.children].forEach((c) => f.body.append(c));
     host.append(f.el);
   });
-  // Claim each host + its meta synchronously (so a re-entrant enhance can't double-bind),
-  // load any lazy modules they need, then build. Markup enhancement is fire-and-forget,
-  // so awaiting here is fine — a lazy control simply pops in once its chunk resolves.
+  // Claim each host synchronously, so a re-entrant enhance can't double-bind; then load and build.
   const hosts = select<HostEl>(root, "[data-tw]:not([data-tw-bound])")
     .map((h) => ({ host: h, meta: dataMeta(h) }))
     .filter((x) => x.meta);
   hosts.forEach(({ host }) => host.setAttribute("data-tw-bound", ""));
   const pend = ensureForMetas(hosts.map((x) => x.meta));
-  if (pend) await pend.catch(() => {}); // a failed chunk degrades to skipping its controls (createControl finds no constructor), not an unhandled rejection out of the auto-run
+  if (pend) await pend.catch(() => {}); // a failed chunk skips its controls instead of rejecting
   for (const { host, meta } of hosts) {
     const key = host.dataset.key || meta.label;
-    // Gated the way the panel gates notify(): a same-value emit (a discrete drag inside one
-    // detent, a page mirroring the value back through set()) announces nothing.
+    // Gated the way the panel gates notify(): a same-value emit announces nothing.
     let last: unknown;
     const emit = (v: unknown) => { if (!valueChanged(last, v)) return; last = v; announce(host, key, v); };
     const ctrl = createControl(meta, emit);
     if (!ctrl) continue;
-    if (!host.closest(".tw-panel, .tw-portal")) host.classList.add("tw-portal"); // a bare host outside any panel gets the token scope, else the control has no row height, no surface and no type
+    if (!host.closest(".tw-panel, .tw-portal")) host.classList.add("tw-portal"); // a bare host gets the token scope
     host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint);
-    // raw = the markup's value, def = the form the control opened on — the panel's entries hold the same pair for reset (restoreDefault).
+    // raw = the markup's value, def = the form the control opened on: the panel's reset pair.
     const def = ctrl.get(); last = def;
-    // host._tw is the host's handle. Its ctrl.set() applies the value AND runs the change path
-    // (data-value + tw:change) where the bare control's set() is silent — a page restoring
-    // state programmatically used to have to write data-value by hand and saw nothing fire.
+    // The handle's set() runs the change path too, where the bare control's set() is silent.
     const handle = { ...ctrl, set: (v: unknown) => { ctrl.set(v); emit(ctrl.get()); } };
     host._tw = { ctrl: handle, raw: meta.value, def, key, host, reset: () => { restoreDefault(ctrl, meta.value, def); emit(ctrl.get()); } };
   }
