@@ -78,6 +78,7 @@ test("a floating panel taller than the viewport caps at the viewport below its t
   const css = distCss();
   assert.match(css, /\.tw-panel\[data-mode=floating\]\{[^}]*max-height:calc\(100dvh - var\(--tw-top,\s*16px\) - 8px\)/, "the cap reads the panel's top offset");
   assert.match(css, /\.tw-panel\[data-mode=floating\]>\.tw-body>\.tw-controls\{[^}]*overflow:hidden auto/, "the controls scroll, the header stays out of the scroller");
+  assert.match(css, /\.tw-panel\[data-mode=floating\]>\.tw-body>\.tw-controls\{[^}]*scrollbar-width:none/, "the scrollbar is hidden");
   assert.match(css, /:is\(\.tw-body,\s*\.tw-folder-body\)>\.tw-controls>\*\{flex-shrink:0\}/, "a capped column scrolls its rows instead of squashing them (a slider's row has no min-content height)");
   assert.match(css, /\.tw-panel\[data-mode=floating\]\.is-collapsed>\.tw-body>\.tw-controls\{padding-bottom:0\}/, "collapsed, the scroller's bottom padding goes, or a 0fr row shows a sliver of the first control");
   const h = window.innerHeight; window.innerHeight = 400; // a short window
