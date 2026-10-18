@@ -8,7 +8,7 @@ import {
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, toolbarBtn, flashCopied, readText, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, toolbarBtn, flashCopied, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
@@ -27,6 +27,9 @@ interface FolderItem { el: HTMLElement; label: string; body: HTMLElement }
 
 let topFloating: HTMLElement | null = null; // the floating panel raised last (raise())
 let picked: [HTMLElement, () => void] | null = null; // the panel holding the page's one pick, and how to drop it
+// The page's one hidden field that a picked ⌘C / ⌘V focuses for the keypress, so the browser's own copy and paste run on
+// it: the system clipboard both ways, with no permission to ask. `onCatch` is that keypress's answer.
+let catchEl: HTMLTextAreaElement | null = null, onCatch: ((e: ClipboardEvent) => void) | null = null;
 
 /** Build a panel from `schema`; the shell and API exist synchronously, lazy controls fill in on `ready`. */
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
@@ -559,8 +562,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     choose(...hit);
   }, true); // capture: a label's own pointerdown stops the event before it bubbles here
   const inEditable = (t: Element | null) => !!(t && (t as HTMLElement).matches && ((t as HTMLElement).matches("input, textarea, select") || (t as HTMLElement).isContentEditable));
-  // Called from the panel's one keydown listener (registered by assemble(), beside the undo keys). The copy is written
-  // and the paste read started here, inside the keypress, where the browser counts them as the user's gesture.
+  // Called from the panel's one keydown listener (registered by assemble(), beside the undo keys). Focus steps to the
+  // hidden field for the keypress (the copy selected in it), the browser copies or pastes there, and focus steps back.
   const onClipKey = (e: KeyboardEvent) => {
     if (e.key === "Escape") return unpick();
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.target as Element)) return;
@@ -569,16 +572,23 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (pick && hidden(pick[0])) unpick(); // a pick out of sight takes nothing
     const fe = document.activeElement, s = pick ? pick[1] : picked || !fe || hidden(fe) ? undefined : scopeAt(fe); // focus on a hidden row takes nothing either
     if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
-    e.preventDefault();
-    if (k === "v") {
-      // The paste answers on the pick's band (a picked row; a focused one without a pick just takes the value).
-      const read = readText(), band = pick?.[0];
-      const pulse = (cls: string) => { if (!band) return; band.classList.remove("is-pasted", "is-refused"); band.classList.add(cls); setTimeout(() => band.classList.remove(cls), 450); };
-      import("./clip.js").then((m) => m.pasteInto(read, (t) => m.pasteScope(ctx, s, t), ctx)).then((ok) => { if (ok != null) pulse(ok ? "is-pasted" : "is-refused"); }, () => pulse("is-refused"));
-      return;
-    }
-    copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
-      .then((ok) => { if (destroyed) return; if (ok) flashCopied(copyBtn); announce(ok ? `${s.label} copied` : "Copy failed"); }); // the copy icon's check, and words for a screen reader
+    const json = k === "c" ? JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2) : "";
+    const copied = (ok: boolean) => { if (destroyed) return; if (ok) flashCopied(copyBtn); announce(ok ? `${s.label} copied` : "Copy failed"); }; // the copy icon's check, and words for a screen reader
+    const band = pick?.[0], back = document.activeElement as HTMLElement | null, ring = !!back?.matches(":focus-visible");
+    let caught = false;
+    onCatch = (ev) => {
+      caught = true; if (k === "c") return copied(true);
+      ev.preventDefault(); const t = ev.clipboardData?.getData("text/plain") ?? null;
+      import("./clip.js").then((m) => m.pasteInto(t, (t) => m.pasteScope(ctx, s, t), ctx, band), () => {});
+    };
+    if (!catchEl) { catchEl = el("textarea", "tw-sr"); catchEl.tabIndex = -1; catchEl.setAttribute("aria-hidden", "true"); for (const t of ["copy", "paste"]) catchEl.addEventListener(t, (ev) => onCatch?.(ev as ClipboardEvent)); }
+    if (!catchEl.isConnected) document.body.appendChild(catchEl);
+    const ta = catchEl; ta.value = json; ta.focus({ preventScroll: true }); ta.select();
+    setTimeout(() => { // after the browser's copy or paste, which runs right after this keydown
+      onCatch = null;
+      if (document.activeElement === ta) { ta.blur(); back?.focus?.({ preventScroll: true, focusVisible: ring } as FocusOptions); }
+      if (!caught && json) copyText(json).then(copied); // no copy event (a browser that ran none): write it directly
+    });
   };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,

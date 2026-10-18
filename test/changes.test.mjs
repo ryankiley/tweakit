@@ -21,27 +21,37 @@ const copyVia = async (p, init) => {
   return copied;
 };
 
-// ⌘C / ⌘V on `target` with a stubbed clipboard holding `text` (an Error rejects the read): what was written, whether the
-// key was taken, and how it went: "ok" or "failed" from the copy icon's check, the picked band's flash, or with nothing
+// ⌘C / ⌘V on `target`, then the browser's own copy or paste on the hidden field the keypress focused, carrying `text`
+// (an Error: a paste with no clipboard data): what was copied, whether the key was taken, and how it went: "ok" or "failed" from the copy icon's check, the picked band's flash, or with nothing
 // picked the words a screen reader heard; "none" when nothing answered.
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// What the browser does after the keydown when focus sits in the panel's hidden field: copies its selected text, or
+// pastes `text` into it. Returns the copied text, true for a paste, or false when the keypress left focus where it was.
+const browserClip = (k, text) => {
+  const ta = document.activeElement; if (!ta?.matches("textarea.tw-sr")) return false;
+  const ev = new window.Event(k === "c" ? "copy" : "paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(ev, "clipboardData", { value: text instanceof Error ? null : { getData: (t) => (t === "text/plain" ? text ?? "" : "") } });
+  ta.dispatchEvent(ev);
+  return k === "c" ? ta.value.slice(ta.selectionStart, ta.selectionEnd) : true;
+};
 const clipKey = async (target, k, text, props = {}) => {
   let copied = null;
   const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: async () => { if (text instanceof Error) throw text; return text; }, writeText: async (t) => { copied = t; } }, configurable: true });
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
   for (const b of document.querySelectorAll(".tw-toolbar-btn--swap")) b.classList.remove("is-copied");
   for (const b of document.querySelectorAll(".is-pasted, .is-refused")) b.classList.remove("is-pasted", "is-refused");
-  const sr = document.querySelector(".tw-sr"); if (sr) sr.textContent = "";
+  const sr = document.querySelector(".tw-sr[role=status]"); if (sr) sr.textContent = "";
   try {
     const pick = document.querySelector(".is-picked");
-    const e = key(target, { key: k, metaKey: true, ...props }); await wait(10);
+    key(target, { key: k, metaKey: true, ...props });
+    const taken = browserClip(k, text); if (k === "c" && taken) copied = taken; await wait(10);
     let flash = "none";
     if (k === "c") flash = document.querySelector(".tw-toolbar-btn--swap.is-copied") ? "ok" : "none";
-    else if (pick && e.defaultPrevented) { // the band answers once the read and the chunk have landed
+    else if (pick && taken) { // the band answers once the read and the chunk have landed
       for (let i = 0; i < 40 && !pick.matches(".is-pasted, .is-refused"); i++) await wait(5);
       flash = pick.classList.contains("is-pasted") ? "ok" : pick.classList.contains("is-refused") ? "failed" : "none";
-    } else if (e.defaultPrevented) { await wait(130); const w = document.querySelector(".tw-sr")?.textContent || ""; flash = / pasted$/.test(w) ? "ok" : w ? "failed" : "none"; }
-    return { copied, prevented: e.defaultPrevented, flash };
+    } else if (taken) { await wait(130); const w = document.querySelector(".tw-sr[role=status]")?.textContent || ""; flash = / pasted$/.test(w) ? "ok" : w ? "failed" : "none"; }
+    return { copied, prevented: !!taken, flash };
   } finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
 };
 const scoped = () => ({ a: { x: [1, 0, 10, 1], y: [2, 0, 10, 1] }, b: { x: [5, 0, 10, 1], y: [6, 0, 10, 1] }, blur: [24, 0, 100, 1], name: { type: "text", value: "hi" } });
@@ -54,7 +64,7 @@ const pressBeside = (p, node, props = {}) => {
   try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { if (box) delete box.getBoundingClientRect; }
 };
 const picked = () => [...document.querySelectorAll(".is-picked")];
-const said = () => document.querySelector(".tw-sr")?.textContent;
+const said = () => document.querySelector(".tw-sr[role=status]")?.textContent;
 const safety = () => ({ f: { blur: [24, 0, 100, 1], on: true, tint: "#ff0000", pick: { type: "list", value: "a", options: ["a", "b"] }, span: { type: "interval", value: [2, 8], min: 0, max: 10 }, locked: { type: "slider", value: 3, min: 0, max: 10, disabled: true }, origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
 
 test("a paste onto a pick lands only what fits; with nothing fitting the band flashes red and nothing changes", async () => {
@@ -85,18 +95,15 @@ test("a picked paste tells a screen reader what it did, and a pasted key can't w
   p.destroy();
 });
 
-test("a folder whose keys hold a literal dot pastes its own copy back; a read after destroy() changes and shows nothing", async () => {
+test("a folder whose keys hold a literal dot pastes its own copy back; a paste landing after destroy() changes and shows nothing", async () => {
   const p = await mountPanel({ f: { "a.b": [1, 0, 10, 1], c: [1, 0, 10, 1] } });
   const head = p.el.querySelector(".tw-folder-header"); pressBeside(p, head);
   const c = await clipKey(head, "c");
   p.fromJSON({ values: { f: { "a.b": 5, c: 5 } } });
   assert.equal((await clipKey(head, "v", c.copied)).flash, "ok");
   assert.deepEqual(p.params.f, { "a.b": 1, c: 1 });
-  let resolve; const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: () => new Promise((r) => { resolve = r; }) }, configurable: true });
   const band = p.el.querySelector(".tw-folder"); band.classList.remove("is-pasted", "is-refused"); // the last paste's flash
-  try { key(head, { key: "v", metaKey: true }); p.destroy(); resolve(JSON.stringify({ c: 9 })); await wait(20); }
-  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+  key(head, { key: "v", metaKey: true }); browserClip("v", JSON.stringify({ c: 9 })); p.destroy(); await wait(20); // destroyed while the chunk loads
   assert.ok(!band.classList.contains("is-pasted") && !band.classList.contains("is-refused"), "the panel is gone: no flash");
 });
 
@@ -107,7 +114,7 @@ test("⌘C on a folder copies its values object; ⌘V on a folder with the same 
   const c = await clipKey(heads[0], "c");
   assert.deepEqual([JSON.parse(c.copied), c.prevented, c.flash], [{ x: 1, y: 2 }, true, "ok"], "the folder's subtree, not the whole panel; the copy icon's check");
   await new Promise((r) => setTimeout(r, 150));
-  assert.equal(document.querySelector(".tw-sr")?.textContent, "A copied", "and a screen reader hears what was copied");
+  assert.equal(document.querySelector(".tw-sr[role=status]")?.textContent, "A copied", "and a screen reader hears what was copied");
   assert.ok(p.el.querySelector(".tw-toolbar-btn--swap").classList.contains("is-copied"), "the toolbar's copy shows the check");
   await new Promise((r) => setTimeout(r, 400)); // past the undo debounce
   let notified = 0; p.on(() => notified++);
@@ -239,6 +246,7 @@ test("picking focuses what it picked, never a text field, and drops the selectio
   assert.deepEqual([picked(), document.activeElement === input], [[input.closest(".tw-controls > *")], false], "a picked text row isn't focused, so ⌘V pastes the row, not text into it");
   pressBeside(p, ax);
   assert.equal((await clipKey(document.body, "c")).copied, "1");
+  assert.equal(document.activeElement, ax, "focus stepped to the hidden field for the copy and back to the slider");
   pressBeside(p, p.el.querySelectorAll(".tw-folder .tw-slider")[1], { pointerType: "touch" });
   assert.deepEqual(picked(), [], "a touch dropped the pick and picked nothing");
   pressBeside(p, p.el.querySelector(".tw-folder-header"));

@@ -112,10 +112,6 @@ function addHintMarker(node: Element, hint: string) {
   mark.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }); // and (inside a control button) mustn't toggle the parent
   label.appendChild(mark);
 }
-/** The clipboard's text, or null when it can't be read: no API (an insecure context), a denied permission. */
-async function readText(): Promise<string | null> {
-  try { const t = await navigator.clipboard.readText(); return typeof t === "string" ? t : null; } catch { return null; }
-}
 async function copyText(text: string) {
   try { await navigator.clipboard.writeText(text); return true; } catch {}
   // Fallback when the clipboard API is blocked (no user activation): textarea + execCommand.
@@ -127,4 +123,4 @@ async function copyText(text: string) {
   return ok;
 }
 
-export { toolbarBtn, makeCopyBtn, makeResetBtn, flashCopied, readText, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };
+export { toolbarBtn, makeCopyBtn, makeResetBtn, flashCopied, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };

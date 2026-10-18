@@ -1,7 +1,7 @@
 /* Copy and paste across every valued row type: a row copied from one folder pastes onto the same row in a folder with
  * the same keys and lands exactly; a whole folder does the same; and a value pasted onto a row of another type is refused
  * without moving anything. Drives the real pick (a press beside the row, the probe across the controls stubbed: jsdom
- * lays nothing out) and the real ⌘C / ⌘V against a stubbed clipboard, on the single-file bundle under jsdom. */
+ * lays nothing out) and the real ⌘C / ⌘V with the browser's copy and paste events stood in for, on the single-file bundle under jsdom. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
@@ -41,17 +41,20 @@ const pressBeside = (p, node, props = {}) => {
   if (box) box.getBoundingClientRect = () => ({ top: 40, bottom: 72, height: 32, left: 0, right: 0, width: 0 });
   try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { if (box) delete box.getBoundingClientRect; }
 };
-// ⌘C / ⌘V with a stubbed clipboard; returns how the picked band flashed for a paste: "ok", "failed" or "none".
+// ⌘C / ⌘V, then what the browser does on the hidden field the keypress focused: copies its selection onto `board`, or
+// pastes `board`. Returns how the picked band flashed for a paste: "ok", "failed" or "none".
 let board = null;
 const press = async (k) => {
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: async () => board, writeText: async (t) => { board = t; } }, configurable: true });
   const band = document.querySelector(".is-picked"); band?.classList.remove("is-pasted", "is-refused");
-  try {
-    key(document.body, { key: k, metaKey: true }); await new Promise((r) => setTimeout(r, 10));
-    for (let i = 0; k === "v" && band && i < 400 && !band.matches(".is-pasted, .is-refused"); i++) await new Promise((r) => setTimeout(r, 5)); // the band answers once the read lands (up to 2s on a loaded runner)
+  key(document.body, { key: k, metaKey: true });
+  const ta = document.activeElement;
+  if (ta?.matches("textarea.tw-sr")) {
+    const ev = new window.Event(k === "c" ? "copy" : "paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, "clipboardData", { value: { getData: () => board } });
+    ta.dispatchEvent(ev); if (k === "c") board = ta.value.slice(ta.selectionStart, ta.selectionEnd);
   }
-  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+  await new Promise((r) => setTimeout(r, 10));
+  for (let i = 0; k === "v" && band && i < 400 && !band.matches(".is-pasted, .is-refused"); i++) await new Promise((r) => setTimeout(r, 5)); // the band answers once the chunk lands (up to 2s on a loaded runner)
   return band?.classList.contains("is-pasted") ? "ok" : band?.classList.contains("is-refused") ? "failed" : "none";
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);

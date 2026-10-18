@@ -78,14 +78,14 @@ export function pasteScope(ctx: ClipCtx, s: Scope, text: string): number | false
   return hits.length;
 }
 
-/** Every paste ends here. `read` is the clipboard read the keypress started (null: no API, denied, an insecure
- *  context); `apply` returns how many values it took, or false for nothing usable (a throw counts the same). A screen
- *  reader hears which; the result is whether anything landed, or undefined when the panel went meanwhile. */
-export async function pasteInto(read: Promise<string | null>, apply: (text: string) => number | false, r: Report) {
-  const text = await read;
+/** Every paste ends here. `text` is what the browser's paste event carried (null: none); `apply` returns how many
+ *  values it took, or false for nothing usable (a throw counts the same). A screen reader hears which, and a picked
+ *  `band` flashes it; the result is whether anything landed, or undefined when the panel went while this chunk loaded. */
+export function pasteInto(text: string | null, apply: (text: string) => number | false, r: Report, band?: Element) {
   if (!r.alive()) return;
   let n: number | false = false;
   if (text !== null) try { n = apply(text); } catch {}
   r.announce(!n ? (text === null ? "Couldn't read the clipboard" : "Nothing to paste") : `${n} value${n === 1 ? "" : "s"} pasted`);
+  if (band) { const c = n ? "is-pasted" : "is-refused"; band.classList.remove("is-pasted", "is-refused"); band.classList.add(c); setTimeout(() => band.classList.remove(c), 450); }
   return !!n;
 }

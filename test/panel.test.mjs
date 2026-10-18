@@ -842,7 +842,7 @@ test("copy and presets announce what they did to a screen reader, from one hidde
   localStorage.clear();
   const p = tweaks("Heard", { blur: [24, 0, 100, 1] }, { persist: true });
   document.body.append(p.el); await p.ready;
-  const said = async (act) => { act(); await new Promise((r) => setTimeout(r, 150)); return document.querySelector(".tw-sr")?.textContent; };
+  const said = async (act) => { act(); await new Promise((r) => setTimeout(r, 150)); return document.querySelector(".tw-sr[role=status]")?.textContent; };
   const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
   const copy = p.el.querySelector(".tw-toolbar-btn--swap");
   try {
@@ -856,8 +856,8 @@ test("copy and presets announce what they did to a screen reader, from one hidde
   const input = document.querySelector(".tw-presets-input"); input.value = "Warm";
   assert.equal(await said(() => document.querySelector(".tw-presets-savebtn").click()), "Saved preset Warm");
   assert.equal(await said(() => document.querySelector(".tw-presets-load").click()), "Loaded preset Warm");
-  const sr = document.querySelector(".tw-sr");
-  assert.deepEqual([sr.getAttribute("role"), sr.classList.contains("tw-portal"), document.querySelectorAll(".tw-sr").length], ["status", false, 1], "one status region for the page, not a visible surface");
+  const sr = document.querySelector(".tw-sr[role=status]");
+  assert.deepEqual([sr.getAttribute("role"), sr.classList.contains("tw-portal"), document.querySelectorAll(".tw-sr[role=status]").length], ["status", false, 1], "one status region for the page, not a visible surface");
   p.destroy(); localStorage.clear();
 });
 
