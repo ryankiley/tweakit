@@ -65,7 +65,7 @@ export const examples = [
       any load. A value only lands where it fits, the same type as the control holds (a
       colour string for a colour, one of a list's options), so a stray key or a mistyped
       value is skipped rather than coerced. To copy a single row or folder, press in the
-      space beside it, in the panel's side padding, to pick it (a ring shows), then press
+      space beside it, in the panel's side padding, to pick it (it fills), then press
       ⌘C (ctrl elsewhere); pick another and press ⌘V. A row copies its value and pastes one
       back, and a folder copies its values object and pastes one into its own keys, so two
       folders with the same keys trade values. With nothing picked, the keys act on the row
