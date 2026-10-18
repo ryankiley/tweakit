@@ -49,7 +49,7 @@ const press = async (k) => {
   const band = document.querySelector(".is-picked"); band?.classList.remove("is-pasted", "is-refused");
   try {
     key(document.body, { key: k, metaKey: true }); await new Promise((r) => setTimeout(r, 10));
-    for (let i = 0; k === "v" && band && i < 40 && !band.matches(".is-pasted, .is-refused"); i++) await new Promise((r) => setTimeout(r, 5)); // the band answers once the read lands
+    for (let i = 0; k === "v" && band && i < 400 && !band.matches(".is-pasted, .is-refused"); i++) await new Promise((r) => setTimeout(r, 5)); // the band answers once the read lands (up to 2s on a loaded runner)
   }
   finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
   return band?.classList.contains("is-pasted") ? "ok" : band?.classList.contains("is-refused") ? "failed" : "none";
@@ -88,6 +88,7 @@ test("a value pasted onto a row of another type is refused and moves nothing", a
       const before = JSON.stringify(p.params.B);
       pressBeside(p, rowOf(p, "B", to));
       const flash = await press("v");
+      assert.notEqual(flash, "none", `${from} → ${to}: the band answered`);
       if (flash === "failed") { refused++; assert.equal(JSON.stringify(p.params.B), before, `${from} → ${to}: refused, nothing moved`); }
       else landed.push(`${from} → ${to}`);
     }
