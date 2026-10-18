@@ -556,9 +556,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const s = pick ? pick[1] : picked ? undefined : scopeAt(document.activeElement);
     if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
     e.preventDefault();
-    if (k === "v") { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, s.label), () => flash(pasteBtn, "is-failed")); return; }
+    if (k === "v") { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, true), () => flash(pasteBtn, "is-failed")); return; }
     copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
-      .then((ok) => { if (destroyed) return; if (ok) flash(copyBtn, "is-copied"); showToast(ok ? `${s.label} copied` : "Copy failed", panel); });
+      .then((ok) => { if (ok && !destroyed) flash(copyBtn, "is-copied"); }); // the pick is in view: the toolbar's check says it, no toast
   };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,
