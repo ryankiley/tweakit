@@ -837,23 +837,46 @@ test("destroy() closes its own popover and hint, not another panel's", async () 
   await wait(220); // the portaled menu node is removed 200ms after close
 });
 
-// panel.setName() retitles a live panel: the header and the copy toast follow, the storage key
+// With no toast, a screen reader hears what a click did from one visually hidden status region instead.
+test("copy and presets announce what they did to a screen reader, from one hidden status region", async () => {
+  localStorage.clear();
+  const p = tweaks("Heard", { blur: [24, 0, 100, 1] }, { persist: true });
+  document.body.append(p.el); await p.ready;
+  const said = async (act) => { act(); await new Promise((r) => setTimeout(r, 150)); return document.querySelector(".tw-sr")?.textContent; };
+  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  const copy = p.el.querySelector(".tw-toolbar-btn--swap");
+  try {
+    Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async () => {} }, configurable: true });
+    assert.equal(await said(() => copy.click()), "Values copied");
+    assert.equal(await said(() => copy.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }))), "Nothing has changed");
+    p.set("blur", 40);
+    assert.equal(await said(() => copy.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }))), "1 changed value copied");
+  } finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+  p.el.querySelector('[aria-label="Presets"]').click(); await new Promise((r) => setTimeout(r, 30));
+  const input = document.querySelector(".tw-presets-input"); input.value = "Warm";
+  assert.equal(await said(() => document.querySelector(".tw-presets-savebtn").click()), "Saved preset Warm");
+  assert.equal(await said(() => document.querySelector(".tw-presets-load").click()), "Loaded preset Warm");
+  const sr = document.querySelector(".tw-sr");
+  assert.deepEqual([sr.getAttribute("role"), sr.classList.contains("tw-portal"), document.querySelectorAll(".tw-sr").length], ["status", false, 1], "one status region for the page, not a visible surface");
+  p.destroy(); localStorage.clear();
+});
+
+// panel.setName() retitles a live panel: the header follows, the storage key
 // does not (a rename never moves persisted values or presets).
-test("setName() moves the header and the copy toast, and leaves the storage key on the built-with name", async () => {
+test("setName() moves the header, and leaves the storage key on the built-with name", async () => {
   localStorage.clear();
   const p = tweaks("Card", { blur: [24, 0, 100, 1] }, { persist: true });
   document.body.append(p.el); await p.ready;
   assert.equal(p.el.querySelector(".tw-title").textContent, "Card");
   p.setName("Lock screen");
   assert.equal(p.el.querySelector(".tw-title").textContent, "Lock screen", "the header follows");
-  // The copy toast names the panel as it is now.
   let copied = null;
   const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
   Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
   try { p.el.querySelector(".tw-toolbar-btn--swap").click(); await new Promise((r) => setTimeout(r, 0)); }
   finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
   assert.ok(copied, "the copy still writes");
-  assert.equal(document.querySelector(".tw-toast").textContent, "Lock screen values copied", "the toast follows");
+  assert.equal(document.querySelector(".tw-toast"), null, "and shows no toast");
   // Persisted values stay under the original key.
   p.set("blur", 40); await new Promise((r) => setTimeout(r, 200)); // past the persist debounce
   assert.equal(JSON.parse(localStorage.getItem("tw:Card")).blur, 40, "saved under the built-with name");

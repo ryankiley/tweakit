@@ -79,7 +79,7 @@
 /* Scrollbars and carets follow the kit's palette, not the host's color-scheme. */
 .tw-panel, .tw-portal { color-scheme: dark; }
 
-/* Floating mode. The z ladder (panel 99990 < popovers 99999 < tip/toast 100000 < grab
+/* Floating mode. The z ladder (panel 99990 < popovers 99999 < tip 100000 < grab
  * guide 100001) sits above the 100–9999 band host sticky headers occupy. */
 .tw-panel[data-mode="floating"] { position: fixed; z-index: 99990; box-shadow: var(--tw-shadow-panel-lifted); transition: box-shadow 0.25s var(--tw-ease-out); }
 /* The footprint a lifted panel leaves in its old slot, so the host layout holds still. */
@@ -163,8 +163,9 @@
 .tw-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 8px 12px; font-size: 12px; line-height: 1.4; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
 .tw-tip.is-open { opacity: 1; transform: none; }
 /* Toast — the kit's feedback pill (copy / preset confirmations), portaled to <body>. */
-.tw-toast { position: fixed; left: 50%; bottom: 24px; z-index: 100000; max-width: min(320px, calc(100vw - 32px)); padding: 8px 16px; font-size: 12px; font-weight: 500; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 999px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translate(-50%, 6px); transition: opacity 0.16s, transform 0.22s var(--tw-ease-spring); }
-.tw-toast.is-open { opacity: 1; transform: translate(-50%, 0); }
+
+/* The screen-reader status region (announce() in feedback.ts): in the page, drawn as nothing. */
+.tw-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Collapse — grid-rows 1fr→0fr animates the body height, dependency-free */
 .tw-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.25s var(--tw-ease-inout); }

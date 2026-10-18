@@ -53,7 +53,7 @@ export async function enhance(root: Document | Element = document): Promise<void
       };
       const reset = () => { for (const t of live()) t.reset(); };
       const toolbar = el("div", "tw-toolbar");
-      toolbar.append(makeCopyBtn(panel, () => name, () => [values(), -1]), makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
+      toolbar.append(makeCopyBtn(() => [values(), -1]), makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
     }
   });
   // Folders first: move child hosts into the collapsible chrome.

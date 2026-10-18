@@ -59,8 +59,7 @@ export const examples = [
       <p>The reverse, <code>panel.changes()</code>, is a flat map of every value that has
       moved off its default, in the same shape (what you paste to bake tuned values into
       source). ⇧-click the toolbar's copy button to copy that instead of the full snapshot.
-      <code>panel.setName(name)</code> retitles the panel live (the header and the copy
-      toast follow); the name it was built with stays its storage key, so saved values and
+      <code>panel.setName(name)</code> retitles the panel live; the name it was built with stays its storage key, so saved values and
       presets survive a rename.</p>`,
     target: `
       <div class="pa-remote">
