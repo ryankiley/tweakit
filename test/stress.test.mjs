@@ -474,10 +474,10 @@ async function runSeed(seed) {
     assert.equal(liveIntervals.size, 0, "a poll interval outlived destroy()");
     for (let i = 0; i < 6 && rafQueue.size; i++) runFrame(); // drain one-shot frames; a loop keeps re-arming
     assert.equal(rafQueue.size, 0, "a rAF loop outlived destroy()");
-    // Popovers fade out before their node leaves the DOM (200ms); the toast and the hint tip
-    // are page-wide singletons that stay mounted (closed) by design — only an open one is a leak.
-    if (document.querySelector(".tw-portal:not(.tw-toast):not(.tw-tip)")) await tick(220);
-    assert.equal(document.querySelector(".tw-portal:not(.tw-toast):not(.tw-tip)"), null, "a portaled surface outlived destroy()");
+    // Popovers fade out before their node leaves the DOM (200ms); the hint tip is a page-wide
+    // singleton that stays mounted (closed) by design — only an open one is a leak.
+    if (document.querySelector(".tw-portal:not(.tw-tip)")) await tick(220);
+    assert.equal(document.querySelector(".tw-portal:not(.tw-tip)"), null, "a portaled surface outlived destroy()");
     assert.equal(document.querySelector(".tw-tip.is-open"), null, "the hint tip stayed open past destroy()");
     if (asyncErrors.length) { const [[src, e]] = asyncErrors.splice(0); throw new Error(`destroy: ${src} threw: ${e && e.stack || e}`, { cause: e }); }
   } catch (e) {

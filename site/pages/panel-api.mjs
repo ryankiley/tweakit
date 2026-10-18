@@ -60,8 +60,8 @@ export const examples = [
       moved off its default, in the same shape (what you paste to bake tuned values into
       source). ⇧-click the toolbar's copy button to copy that instead of the full snapshot
       (copy and paste have their own section below).
-      <code>panel.setName(name)</code> retitles the panel live (the header and the copy
-      toast follow); the name it was built with stays its storage key, so saved values and
+      <code>panel.setName(name)</code> retitles the panel live; the name it was built with
+      stays its storage key, so saved values and
       presets survive a rename.</p>`,
     target: `
       <div class="pa-remote">
