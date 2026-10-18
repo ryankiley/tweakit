@@ -93,6 +93,14 @@
 .tw-panel[data-draggable="true"] > .tw-header,
 .tw-panel[data-mode="floating"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
 .tw-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--tw-shadow-panel-lifted); z-index: 99991; }
+/* A fixed box ignores page scroll, so a floating panel caps at the viewport below its top
+ * edge (--tw-top, written with the position) and its controls scroll under the header, which
+ * stays the drag handle. The panel's lower padding moves into the scroller so the scrollbar
+ * rides the panel's edge and rounds with its corners, as the colour pop's does. */
+.tw-panel[data-mode="floating"] { display: flex; flex-direction: column; max-height: calc(100dvh - var(--tw-top, 16px) - 8px); }
+.tw-panel[data-mode="floating"] > .tw-header { flex: none; }
+.tw-panel[data-mode="floating"] > .tw-body { min-height: 0; margin: 0 -10px -10px; }
+.tw-panel[data-mode="floating"] > .tw-body > .tw-controls { overflow: hidden auto; overscroll-behavior: contain; padding: 0 10px 10px; border-radius: 0 0 calc(var(--tw-radius) + 10px) calc(var(--tw-radius) + 10px); }
 .tw-panel.is-dragging > .tw-header,
 .tw-panel.is-dragging > .tw-header .tw-header-toggle { cursor: grabbing; }
 
