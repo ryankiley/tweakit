@@ -1,7 +1,7 @@
-/* Panel feedback chrome — the toolbar button factories (copy / paste / reset and their one-shot
- * animations), the screen-reader announcer, the hint tooltip and the clipboard helpers. */
+/* Panel feedback chrome — the toolbar button factories (copy / reset and their one-shot
+ * animations), the screen-reader announcer, the hint tooltip and the clipboard helper. */
 import { el, btn, carrySkin, placeBelow } from "./shared.js";
-import { ICON_COPY, ICON_CHECK, ICON_PASTE, ICON_FAIL, ICON_RESET, ICON_INFO } from "./icons.js";
+import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 
 /** A toolbar button with its one-shot animation state: timer, spin settle hook, last click time. */
 interface ToolbarBtn extends HTMLButtonElement { _t?: number; _spinSettle?: () => void; _spinT?: number }
@@ -18,7 +18,7 @@ const makeCopyBtn = (text: (changedOnly: boolean) => [string, number]) => {
     const [t, n] = text(e.shiftKey);
     if (!n) return announce("Nothing has changed");
     if (!(await copyText(t))) return announce("Copy failed");
-    flash(b, "is-copied"); announce(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : "Values copied");
+    flashCopied(b); announce(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : "Values copied");
   });
   return b;
 };
@@ -30,17 +30,9 @@ const announce = (msg: string) => {
   if (!srEl.isConnected) document.body.appendChild(srEl); // re-home after a host replaced <body>'s content
   srEl.textContent = ""; clearTimeout(srT); srT = setTimeout(() => { srEl!.textContent = msg; }, 100);
 };
-/** Paste: starts the clipboard read inside the click, where the browser counts it as the user's gesture, and hands the
- *  pending read to `run`, which parses, applies and reports it (pasteInto, in the lazy clip chunk). */
-const makePasteBtn = (run: (read: Promise<string | null>, b: ToolbarBtn) => void) => {
-  const b = toolbarBtn("tw-toolbar-btn--swap tw-toolbar-btn--paste", `<span class="tw-toolbar-btn__icons">${ICON_PASTE}${ICON_CHECK}${ICON_FAIL}</span>`, "Paste values");
-  b.addEventListener("click", () => { if (!b.disabled) run(readText(), b); });
-  return b;
-};
 /** Reset: runs `onReset` behind the icon's one-shot spin. */
 const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
-// The swap's one-shot state, the check or the cross; the other leaves first, so a failure can follow a success mid-flash.
-const flash = (btn: ToolbarBtn, cls: "is-copied" | "is-failed") => { btn.classList.remove("is-copied", "is-failed"); btn.classList.add(cls); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove(cls), 1400); };
+const flashCopied = (btn: ToolbarBtn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
 /** Reset spin — an accumulated rotation on --tw-spin driven by the transform transition, so a
  *  second click mid-spin retargets smoothly instead of snapping back. Once settled the counter
  *  renormalises to 0 with the transition suppressed (−n·360° is the same angle). "Settled" is the
@@ -135,4 +127,4 @@ async function copyText(text: string) {
   return ok;
 }
 
-export { toolbarBtn, makeCopyBtn, makePasteBtn, makeResetBtn, flash, readText, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };
+export { toolbarBtn, makeCopyBtn, makeResetBtn, flashCopied, readText, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };

@@ -38,15 +38,18 @@ const pressBeside = (p, node) => {
   const probe = document.elementFromPoint; document.elementFromPoint = () => node;
   try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50 })); } finally { document.elementFromPoint = probe; }
 };
-// ⌘C / ⌘V with a stubbed clipboard; returns what the toolbar's paste icon flashed: "ok", "failed" or "none".
+// ⌘C / ⌘V with a stubbed clipboard; returns how the picked band flashed for a paste: "ok", "failed" or "none".
 let board = null;
 const press = async (k) => {
   const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
   Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: async () => board, writeText: async (t) => { board = t; } }, configurable: true });
-  const paste = document.querySelector(".tw-toolbar-btn--paste"); paste.classList.remove("is-copied", "is-failed");
-  try { key(document.body, { key: k, metaKey: true }); await new Promise((r) => setTimeout(r, 15)); }
+  const band = document.querySelector(".is-picked"); band?.classList.remove("is-pasted", "is-refused");
+  try {
+    key(document.body, { key: k, metaKey: true }); await new Promise((r) => setTimeout(r, 10));
+    for (let i = 0; k === "v" && band && i < 40 && !band.matches(".is-pasted, .is-refused"); i++) await new Promise((r) => setTimeout(r, 5)); // the band answers once the read lands
+  }
   finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
-  return paste.classList.contains("is-copied") ? "ok" : paste.classList.contains("is-failed") ? "failed" : "none";
+  return band?.classList.contains("is-pasted") ? "ok" : band?.classList.contains("is-refused") ? "failed" : "none";
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 

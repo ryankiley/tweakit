@@ -8,7 +8,7 @@ import {
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makePasteBtn, makeResetBtn, toolbarBtn, flash, readText, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, toolbarBtn, flashCopied, readText, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
@@ -109,9 +109,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const changed = (): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.path.join(".")] = e.get(); return JSON.parse(JSON.stringify(out, replacer)); };
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
   const copyBtn = makeCopyBtn((changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // snapshot() falls back on a bad bag value, not throws
-  // Paste takes a copy back (pasteValues, in the lazy clip chunk; ctx lends it the panel). A chunk that can't load shows the cross.
-  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), ui: () => collectUI(), flash, announce, alive: () => !destroyed };
-  const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, (t) => m.pasteValues(ctx, t), ctx), () => flash(b, "is-failed")); });
+  // A picked row's paste (pasteScope, in the lazy clip chunk) writes through the panel's own load path; ctx lends it.
+  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), announce, alive: () => !destroyed };
   const resetBtn = makeResetBtn(resetAll);
   // Presets share persistence's storage, so the button needs it on.
   let presetsBtn: HTMLButtonElement | null = null;
@@ -129,12 +128,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     quietFocus(searchInput);
     toolbar.append(searchBtn);
   }
-  toolbar.append(copyBtn, pasteBtn, resetBtn);
+  toolbar.append(copyBtn, resetBtn);
   header.append(titleBtn);
   if (filterOn) header.append(searchInput);
   if (opts.toolbar !== false) header.append(toolbar); // toolbar:false → a bare panel, e.g. an embedded demo
   // The buttons act on controls that only exist once assemble() has built them: inert until then.
-  const toolbarBtns = [copyBtn, pasteBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
+  const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
   for (const b of toolbarBtns) b.disabled = true;
   // swallowClick lives on the header, not the title: once the header holds pointer capture, the click ending a drag is dispatched there.
   let dragMoved = false, swallowClick = false;
@@ -556,9 +555,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const s = pick ? pick[1] : picked ? undefined : scopeAt(document.activeElement);
     if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
     e.preventDefault();
-    if (k === "v") { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, (t) => m.pasteScope(ctx, s, t), ctx), () => flash(pasteBtn, "is-failed")); return; }
+    if (k === "v") {
+      // The paste answers on the pick's band (a picked row; a focused one without a pick just takes the value).
+      const read = readText(), band = pick?.[0];
+      const pulse = (cls: string) => { if (!band) return; band.classList.remove("is-pasted", "is-refused"); band.classList.add(cls); setTimeout(() => band.classList.remove(cls), 450); };
+      import("./clip.js").then((m) => m.pasteInto(read, (t) => m.pasteScope(ctx, s, t), ctx)).then((ok) => { if (ok != null) pulse(ok ? "is-pasted" : "is-refused"); }, () => pulse("is-refused"));
+      return;
+    }
     copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
-      .then((ok) => { if (destroyed) return; if (ok) flash(copyBtn, "is-copied"); announce(ok ? `${s.label} copied` : "Copy failed"); }); // the copy icon's check, and words for a screen reader
+      .then((ok) => { if (destroyed) return; if (ok) flashCopied(copyBtn); announce(ok ? `${s.label} copied` : "Copy failed"); }); // the copy icon's check, and words for a screen reader
   };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,

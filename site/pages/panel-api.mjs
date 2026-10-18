@@ -59,7 +59,7 @@ export const examples = [
       <p>The reverse, <code>panel.changes()</code>, is a flat map of every value that has
       moved off its default, in the same shape (what you paste to bake tuned values into
       source). ⇧-click the toolbar's copy button to copy that instead of the full snapshot
-      (copy and paste have their own section below).
+      (copying one row or folder has its own section below).
       <code>panel.setName(name)</code> retitles the panel live; the name it was built with
       stays its storage key, so saved values and
       presets survive a rename.</p>`,
@@ -100,21 +100,18 @@ export const examples = [
   {
     id: "copy-paste",
     title: "Copy & paste",
-    prose: `<p>The toolbar's copy button puts every value on the clipboard as JSON, and the
-      paste button beside it takes JSON back: the values object a copy produces, the
-      changed-only map ⇧-click copies, or a whole <code>toJSON()</code> state. It applies
-      through <code>fromJSON</code>, so a paste is one undo step, saved and announced like any
-      load. A value only lands where it fits, the same type as the control holds (a colour
-      string for a colour, one of a list's options), so a stray key or a mistyped value is
-      skipped rather than coerced.</p>
-      <p>One row or folder copies on its own. Press in the space beside it, in the panel's
+    prose: `<p>A row or folder copies on its own. Press in the space beside it, in the panel's
       side padding, to pick it (it fills), then press ⌘C (Ctrl on Windows and Linux); pick
       another and press ⌘V. A row copies its value and pastes one back; a folder copies its
       values object and pastes it into its own keys, so two folders with the same keys trade
       values. Try it below: pick Key by pressing beside its title, ⌘C, pick Fill, ⌘V, and
-      the second light takes the first's look. With nothing picked, the keys act on the row
-      holding focus; Escape or a press elsewhere drops the pick, and in a text field or over
-      selected text the keys stay the browser's.</p>`,
+      the second light takes the first's look.</p>
+      <p>A paste goes through <code>fromJSON</code>, so it's one undo step, saved and
+      announced like any load, and the band flashes as it lands. A value only lands where it
+      fits, the same type as the control holds (a colour for a colour, one of a list's
+      options); if nothing fits, the band flashes red and nothing changes. With nothing
+      picked, the keys act on the row holding focus; Escape or a press elsewhere drops the
+      pick, and in a text field or over selected text the keys stay the browser's.</p>`,
     target: `<div class="cp-stage"><div class="cp-light"></div><div class="cp-light"></div></div>`,
     css: `
       .cp-stage { display: flex; align-items: center; justify-content: center; gap: 36px; min-height: 140px; }
@@ -388,7 +385,7 @@ export const examples = [
         <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title); it needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
         <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
         <tr><td><code>draggable</code></td><td>header dragging, on by default; <code>false</code> pins</td></tr>
-        <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / paste / reset / presets)</td></tr>
+        <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>
         <tr><td><code>undo</code></td><td>debounced undo/redo history</td></tr>
         <tr><td><code>onReset</code></td><td>replace the default reset behavior</td></tr>
         <tr><td><code>onEditStart</code> / <code>onEditEnd</code></td><td>bracket a continuous drag, to pause expensive work mid-scrub</td></tr>

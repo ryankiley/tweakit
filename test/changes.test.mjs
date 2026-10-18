@@ -1,13 +1,13 @@
 /* panel.changes() — the values that have moved off their defaults, keyed by dotted path
  * in setMany()'s shape — the toolbar copy's ⇧-click, which copies that instead of the
- * full snapshot, the toolbar paste, which takes either back off the clipboard, and the
- * picked row or folder's ⌘C / ⌘V. Runs against the built single-file bundle under jsdom. */
+ * full snapshot, and a picked row or folder's ⌘C / ⌘V. Runs against the built single-file
+ * bundle under jsdom. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 import { loadSingle, mounter, key, ptr, distCss } from "./_helpers.mjs";
 
-const { tweaks, enhance } = await loadSingle();
+const { tweaks } = await loadSingle();
 const schema = () => ({ blur: [24, 0, 100, 1], on: true, shape: { radius: [8, 0, 40, 1], origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
 const mount = () => mountPanel(schema());
 const mountPanel = mounter(tweaks, "C");
@@ -21,169 +21,28 @@ const copyVia = async (p, init) => {
   return copied;
 };
 
-// Drive the real paste button under `root` with a stubbed clipboard: `read` is readText (resolving or rejecting);
-// undefined stands for no clipboard API at all. Returns what its icon flashed: "ok", "failed" or "none".
-const pasteVia = async (root, read) => {
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: read === undefined ? undefined : { readText: read }, configurable: true });
-  root.querySelector(".tw-toolbar-btn--paste").classList.remove("is-copied", "is-failed");
-  try { root.querySelector(".tw-toolbar-btn--paste").click(); await new Promise((r) => setTimeout(r, 10)); }
-  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
-  return pasteState(root);
-};
-const pasteState = (root) => { const c = root.querySelector(".tw-toolbar-btn--paste").classList; return c.contains("is-copied") ? "ok" : c.contains("is-failed") ? "failed" : "none"; };
-const text = (v) => async () => JSON.stringify(v);
-
-test("paste takes a toJSON() state back: values and ui, one notify, one undo step", async () => {
-  const p = await mountPanel(schema(), { undo: true });
-  p.set("blur", 60); p.set("shape.radius", 20); p.fromJSON({ ui: { folders: { shape: true } } });
-  const state = p.toJSON();
-  p.reset(); p.fromJSON({ ui: { folders: { shape: false } } });
-  await new Promise((r) => setTimeout(r, 400)); // past the undo history's debounce: the reset is its own step
-  let notified = 0; p.on(() => notified++);
-  assert.equal(await pasteVia(p.el, text(state)), "ok");
-  assert.equal(pasteState(p.el), "ok", "the check swaps in, as copy's does");
-  assert.deepEqual([p.params.blur, p.params.shape.radius, notified], [60, 20, 1], "the values landed in one notify");
-  assert.ok(p.el.querySelector(".tw-folder").classList.contains("is-collapsed"), "the ui came too");
-  p.undo();
-  assert.deepEqual([p.params.blur, p.params.shape.radius], [24, 8], "one step back is the state before the paste");
-  assert.equal(await pasteVia(p.el, text({ ui: { folders: { shape: false } } })), "ok", "a state with only its ui still lands");
-  assert.ok(!p.el.querySelector(".tw-folder").classList.contains("is-collapsed"));
-  p.destroy();
-});
-
-test("paste takes a copy's values or ⇧-copy's dotted map; keys with no control are skipped", async () => {
-  const p = await mount();
-  assert.equal(await pasteVia(p.el, text({ blur: 50, shape: { radius: 5, ghost: 1 }, nope: 3 })), "ok");
-  assert.deepEqual([p.params.blur, p.params.shape.radius, p.params.nope, p.params.shape.ghost], [50, 5, undefined, undefined]);
-  assert.equal(await pasteVia(p.el, text({ "shape.radius": 9, blur: 1 })), "ok");
-  assert.deepEqual(p.changes(), { blur: 1, "shape.radius": 9 }, "the dotted form lands where setMany would put it, and ⇧-copy hands it straight back");
-  p.destroy();
-});
-
-test("a value lands only where it fits; one set() would coerce is skipped, and none at all shows the cross", async () => {
-  const p = await mountPanel({ ...schema(), tint: "#ff0000", pick: { type: "select", value: "a", options: ["a", "b"] } });
-  let notified = 0; p.on(() => notified++);
-  const before = JSON.stringify(p.toJSON().values);
-  assert.equal(await pasteVia(p.el, text({ blur: null, on: "yes", shape: { radius: "abc", origin: { x: 1 } }, tint: "notacolor", pick: "zzz" })), "failed");
-  assert.deepEqual([pasteState(p.el), JSON.stringify(p.toJSON().values), notified], ["failed", before, 0], "nothing coerced, nobody told");
-  assert.equal(await pasteVia(p.el, text({ blur: 40, on: null, tint: "#00ff00", pick: "b", shape: { origin: { x: 2, y: 3 } } })), "ok");
-  assert.deepEqual([p.params.blur, p.params.on, p.params.pick, p.params.shape.origin], [40, true, "b", { x: 2, y: 3 }], "the ones that fit landed; the null left its control alone");
-  assert.notEqual(p.params.tint, JSON.parse(before).tint, "a colour string is a colour");
-  p.destroy();
-});
-
-test("a pasted key can't write onto Object.prototype, nor over a bag key the host parked", async () => {
-  const p = await mount();
-  const canvas = { live: true }; p.params.canvas = canvas;
-  assert.equal(await pasteVia(p.el, text({ "__proto__.polluted": "yes", "constructor.prototype.bad": 1, blur: 50, canvas: {} })), "ok");
-  assert.deepEqual([({}).polluted, ({}).bad, p.params.blur, p.params.canvas], [undefined, undefined, 50, canvas]);
-  p.destroy();
-});
-
-test("a panel whose own folder is called values pastes its own copy back", async () => {
-  const p = await mountPanel({ values: { a: [1, 0, 10, 1] } });
-  const copy = { values: { a: 1 } };
-  p.set("values.a", 5);
-  assert.equal(await pasteVia(p.el, text(copy)), "ok");
-  assert.equal(p.params.values.a, 1);
-  p.destroy();
-});
-
-test("a disabled control takes nothing; a tuple must keep its length; a colour must parse", async () => {
-  const p = await mountPanel({ locked: { type: "slider", value: 3, min: 0, max: 10, disabled: true }, span: { type: "interval", value: [2, 8], min: 0, max: 10 }, tint: "#ff0000", blur: [24, 0, 100, 1] });
-  const css = globalThis.CSS; globalThis.CSS = { supports: (_, v) => !/nonsense|NaN|;/.test(v) }; // what a browser's parser says
-  try {
-    let notified = 0; p.on(() => notified++);
-    for (const v of [{ locked: 9 }, { span: [] }, { span: [5] }, { span: [1, 2, 3] }, { tint: "rgb(nonsense)" }, { tint: "oklch(NaN 0 0)" }, { tint: "rgb(1,2,3); background:url(x)" }])
-      assert.equal(await pasteVia(p.el, text(v)), "failed", JSON.stringify(v));
-    assert.deepEqual([p.params.locked, p.params.span, notified], [3, [2, 8], 0], "nothing landed, nobody told");
-    assert.equal(await pasteVia(p.el, text({ locked: 9, span: [3, 4], tint: "#00ff00", blur: 50 })), "ok", "the disabled one is skipped, the rest land");
-    assert.deepEqual([p.params.locked, p.params.span, p.params.blur], [3, [3, 4], 50]);
-  } finally { globalThis.CSS = css; p.destroy(); }
-});
-
-test("a key with a literal dot pastes back from the panel's own copy; a layout that changes nothing is nothing pasted", async () => {
-  const p = await mountPanel({ "a.b": [1, 0, 10, 1], c: [1, 0, 10, 1], f: { x: [1, 0, 10, 1] } });
-  const copy = JSON.stringify(p.toJSON().values);
-  p.fromJSON({ values: { "a.b": 5, c: 5 } });
-  assert.equal(await pasteVia(p.el, async () => copy), "ok");
-  assert.deepEqual([p.params["a.b"], p.params.c], [1, 1]);
-  let notified = 0; p.on(() => notified++);
-  assert.equal(await pasteVia(p.el, text({ ui: { folders: { nope: true } } })), "failed");
-  assert.equal(notified, 0, "and nobody was told");
-  p.destroy();
-});
-
-test("bad JSON, a non-object, a rejected read and no clipboard API change nothing and show the cross", async () => {
-  const p = await mount();
-  let notified = 0; p.on(() => notified++);
-  const before = JSON.stringify(p.toJSON());
-  for (const [read, flash] of [
-    [async () => "not json", "failed"],
-    [async () => "[1, 2]", "failed"],
-    [text({ zzz: 1 }), "failed"],
-    [async () => { throw new Error("denied"); }, "failed"],
-    [undefined, "failed"],
-  ]) {
-    assert.equal(await pasteVia(p.el, read), flash);
-    assert.equal(pasteState(p.el), "failed");
-  }
-  assert.deepEqual([JSON.stringify(p.toJSON()), notified], [before, 0], "nothing moved, nobody told");
-  p.destroy();
-});
-
-test("a paste tells a screen reader what it did", async () => {
-  const p = await mount();
-  const said = async (read) => { await pasteVia(p.el, read); await new Promise((r) => setTimeout(r, 150)); return document.querySelector(".tw-sr")?.textContent; };
-  assert.equal(await said(text({ blur: 50, on: false })), "2 values pasted");
-  assert.equal(await said(text({ zzz: 1 })), "Nothing to paste");
-  assert.equal(await said(async () => { throw new Error("denied"); }), "Couldn't read the clipboard");
-  p.destroy();
-});
-
-test("a read that resolves after destroy() reports nothing", async () => {
-  const p = await mount();
-  let resolve; const read = () => new Promise((r) => { resolve = r; });
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: read }, configurable: true });
-  try {
-    p.el.querySelector(".tw-toolbar-btn--paste").click();
-    const btn = p.el.querySelector(".tw-toolbar-btn--paste");
-    p.destroy(); resolve(JSON.stringify({ blur: 50 })); await new Promise((r) => setTimeout(r, 10));
-    assert.equal(pasteState({ querySelector: () => btn }), "none", "no check, no cross");
-  } finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
-});
-
-test("the markup toolbar pastes over its hosts by the keys its copy writes, and skips what doesn't fit", async () => {
-  const holder = document.createElement("div");
-  holder.innerHTML = `<div class="tw-panel" data-mode="inline"><div class="tw-header"><span class="tw-title">M</span></div><div class="tw-controls">
-    <div data-tw="slider" data-key="size" data-value="1" data-min="0" data-max="10"></div>
-    <div data-tw="slider" data-key="size" data-value="2" data-min="0" data-max="10"></div>
-  </div></div>`;
-  document.body.append(holder);
-  await enhance(holder);
-  const hosts = [...holder.querySelectorAll("[data-tw]")];
-  assert.equal(await pasteVia(holder, text({ size: 7, "size-2": 8, other: 1 })), "ok");
-  assert.deepEqual([hosts.map((h) => h._tw.ctrl.get()), hosts.map((h) => h.dataset.value)], [[7, 8], ["7", "8"]], "the suffixed duplicate is addressed as the copy names it, and each host echoes it");
-  assert.equal(await pasteVia(holder, text({ size: "zz", "size-2": null })), "failed");
-  assert.deepEqual(hosts.map((h) => h._tw.ctrl.get()), [7, 8]);
-  holder.remove();
-});
-
-// ⌘C / ⌘V on `target` with a stubbed clipboard holding `text` (an Error rejects the read): what was written, whether
-// the key was taken, what the toolbar's copy or paste icon flashed ("ok", "failed" or "none"), and the toast, which a
-// picked row's copy and paste leave alone (QUIET).
-const QUIET = "(no toast)";
-const flashed = (k) => { const b = document.querySelector(k === "c" ? ".tw-toolbar-btn--swap:not(.tw-toolbar-btn--paste).is-copied, .tw-toolbar-btn--swap:not(.tw-toolbar-btn--paste).is-failed" : ".tw-toolbar-btn--paste.is-copied, .tw-toolbar-btn--paste.is-failed"); return !b ? "none" : b.classList.contains("is-copied") ? "ok" : "failed"; };
+// ⌘C / ⌘V on `target` with a stubbed clipboard holding `text` (an Error rejects the read): what was written, whether the
+// key was taken, and how it went: "ok" or "failed" from the copy icon's check, the picked band's flash, or with nothing
+// picked the words a screen reader heard; "none" when nothing answered.
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const clipKey = async (target, k, text, props = {}) => {
   let copied = null;
   const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
   Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: async () => { if (text instanceof Error) throw text; return text; }, writeText: async (t) => { copied = t; } }, configurable: true });
-  for (const b of document.querySelectorAll(".tw-toolbar-btn--swap")) b.classList.remove("is-copied", "is-failed");
-  const toast = document.querySelector(".tw-toast"); if (toast) toast.textContent = QUIET;
-  try { const e = key(target, { key: k, metaKey: true, ...props }); await new Promise((r) => setTimeout(r, 10)); return { copied, prevented: e.defaultPrevented, flash: flashed(k), toast: toast ? toast.textContent : QUIET }; }
-  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+  for (const b of document.querySelectorAll(".tw-toolbar-btn--swap")) b.classList.remove("is-copied");
+  for (const b of document.querySelectorAll(".is-pasted, .is-refused")) b.classList.remove("is-pasted", "is-refused");
+  const sr = document.querySelector(".tw-sr"); if (sr) sr.textContent = "";
+  try {
+    const pick = document.querySelector(".is-picked");
+    const e = key(target, { key: k, metaKey: true, ...props }); await wait(10);
+    let flash = "none";
+    if (k === "c") flash = document.querySelector(".tw-toolbar-btn--swap.is-copied") ? "ok" : "none";
+    else if (pick && e.defaultPrevented) { // the band answers once the read and the chunk have landed
+      for (let i = 0; i < 40 && !pick.matches(".is-pasted, .is-refused"); i++) await wait(5);
+      flash = pick.classList.contains("is-pasted") ? "ok" : pick.classList.contains("is-refused") ? "failed" : "none";
+    } else if (e.defaultPrevented) { await wait(130); const w = document.querySelector(".tw-sr")?.textContent || ""; flash = / pasted$/.test(w) ? "ok" : w ? "failed" : "none"; }
+    return { copied, prevented: e.defaultPrevented, flash };
+  } finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
 };
 const scoped = () => ({ a: { x: [1, 0, 10, 1], y: [2, 0, 10, 1] }, b: { x: [5, 0, 10, 1], y: [6, 0, 10, 1] }, blur: [24, 0, 100, 1], name: { type: "text", value: "hi" } });
 const mount2 = () => mountPanel(scoped());
@@ -193,13 +52,58 @@ const pressBeside = (p, node, props = {}) => {
   try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { document.elementFromPoint = probe; }
 };
 const picked = () => [...document.querySelectorAll(".is-picked")];
+const said = () => document.querySelector(".tw-sr")?.textContent;
+const safety = () => ({ f: { blur: [24, 0, 100, 1], on: true, tint: "#ff0000", pick: { type: "list", value: "a", options: ["a", "b"] }, span: { type: "interval", value: [2, 8], min: 0, max: 10 }, locked: { type: "slider", value: 3, min: 0, max: 10, disabled: true }, origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
+
+test("a paste onto a pick lands only what fits; with nothing fitting the band flashes red and nothing changes", async () => {
+  const p = await mountPanel(safety());
+  const head = p.el.querySelector(".tw-folder-header"); pressBeside(p, head);
+  let notified = 0; p.on(() => notified++);
+  const before = JSON.stringify(p.params.f);
+  const css = globalThis.CSS; globalThis.CSS = { supports: (_, v) => !/nonsense|NaN|;/.test(v) }; // what a browser's parser says
+  try {
+    for (const v of [{ blur: null, on: "yes", tint: "rgb(nonsense)", pick: "zzz", span: [5], locked: 9, origin: { x: 1 } }, { span: [1, 2, 3] }, { tint: "oklch(NaN 0 0)" }, { tint: "rgb(1,2,3); background:url(x)" }, "not json", "[1, 2]"])
+      assert.equal((await clipKey(head, "v", typeof v === "string" ? v : JSON.stringify(v))).flash, "failed", JSON.stringify(v));
+    assert.deepEqual([JSON.stringify(p.params.f), notified], [before, 0], "nothing coerced, nobody told");
+    assert.equal((await clipKey(head, "v", JSON.stringify({ blur: 40, on: null, tint: "#00ff00", pick: "b", span: [3, 4], locked: 9, origin: { x: 2, y: 3 } }))).flash, "ok");
+    assert.deepEqual([p.params.f.blur, p.params.f.on, p.params.f.pick, p.params.f.span, p.params.f.locked, p.params.f.origin], [40, true, "b", [3, 4], 3, { x: 2, y: 3 }], "what fits landed; a null and a disabled row stayed");
+    assert.notEqual(p.params.f.tint, JSON.parse(before).tint, "a colour that parses is a colour");
+  } finally { globalThis.CSS = css; p.destroy(); }
+});
+
+test("a picked paste tells a screen reader what it did, and a pasted key can't write onto Object.prototype", async () => {
+  const p = await mountPanel(safety());
+  const head = p.el.querySelector(".tw-folder-header"); pressBeside(p, head);
+  await clipKey(head, "v", JSON.stringify({ "__proto__.polluted": "yes", "constructor.prototype.bad": 1, blur: 50 })); await wait(130);
+  assert.deepEqual([said(), ({}).polluted, ({}).bad, p.params.f.blur], ["1 value pasted", undefined, undefined, 50]);
+  await clipKey(head, "v", JSON.stringify({ zzz: 1 })); await wait(130);
+  assert.equal(said(), "Nothing to paste");
+  await clipKey(head, "v", new Error("denied")); await wait(130);
+  assert.equal(said(), "Couldn't read the clipboard");
+  p.destroy();
+});
+
+test("a folder whose keys hold a literal dot pastes its own copy back; a read after destroy() changes and shows nothing", async () => {
+  const p = await mountPanel({ f: { "a.b": [1, 0, 10, 1], c: [1, 0, 10, 1] } });
+  const head = p.el.querySelector(".tw-folder-header"); pressBeside(p, head);
+  const c = await clipKey(head, "c");
+  p.fromJSON({ values: { f: { "a.b": 5, c: 5 } } });
+  assert.equal((await clipKey(head, "v", c.copied)).flash, "ok");
+  assert.deepEqual(p.params.f, { "a.b": 1, c: 1 });
+  let resolve; const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: () => new Promise((r) => { resolve = r; }) }, configurable: true });
+  const band = p.el.querySelector(".tw-folder"); band.classList.remove("is-pasted", "is-refused"); // the last paste's flash
+  try { key(head, { key: "v", metaKey: true }); p.destroy(); resolve(JSON.stringify({ c: 9 })); await wait(20); }
+  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+  assert.ok(!band.classList.contains("is-pasted") && !band.classList.contains("is-refused"), "the panel is gone: no flash");
+});
 
 test("⌘C on a folder copies its values object; ⌘V on a folder with the same keys takes it, in one notify and one undo step", async () => {
   const p = await mountPanel(scoped(), { undo: true });
   const heads = [...p.el.querySelectorAll(".tw-folder-header")];
   heads[0].focus();
   const c = await clipKey(heads[0], "c");
-  assert.deepEqual([JSON.parse(c.copied), c.prevented, c.flash, c.toast], [{ x: 1, y: 2 }, true, "ok", QUIET], "the folder's subtree, not the whole panel; the copy icon's check, no toast");
+  assert.deepEqual([JSON.parse(c.copied), c.prevented, c.flash], [{ x: 1, y: 2 }, true, "ok"], "the folder's subtree, not the whole panel; the copy icon's check");
   await new Promise((r) => setTimeout(r, 150));
   assert.equal(document.querySelector(".tw-sr")?.textContent, "A copied", "and a screen reader hears what was copied");
   assert.ok(p.el.querySelector(".tw-toolbar-btn--swap").classList.contains("is-copied"), "the toolbar's copy shows the check");
@@ -207,8 +111,7 @@ test("⌘C on a folder copies its values object; ⌘V on a folder with the same 
   let notified = 0; p.on(() => notified++);
   heads[1].focus();
   const v = await clipKey(heads[1], "v", c.copied);
-  assert.deepEqual([v.prevented, v.flash, v.toast, p.params.b, p.params.a, notified], [true, "ok", QUIET, { x: 1, y: 2 }, { x: 1, y: 2 }, 1], "the sibling took them; the source kept its own; no toast");
-  assert.equal(pasteState(p.el), "ok");
+  assert.deepEqual([v.prevented, v.flash, p.params.b, p.params.a, notified], [true, "ok", { x: 1, y: 2 }, { x: 1, y: 2 }, 1], "the sibling took them; the source kept its own");
   p.undo();
   assert.deepEqual(p.params.b, { x: 5, y: 6 }, "one step back");
   p.destroy();
@@ -235,7 +138,6 @@ test("⌘C on a row copies its value; ⌘V takes a bare value or the row's one-k
   assert.deepEqual([p.params.a.x, p.params.a.y, notified], [3, 2, 2], "just that slider, once per paste");
   for (const bad of ["null", "[]", "true", JSON.stringify({ x: 1, y: 2 }), "nope"]) {
     assert.equal((await clipKey(track, "v", bad)).flash, "failed", bad);
-    assert.equal(pasteState(p.el), "failed");
   }
   assert.deepEqual([p.params.a.x, notified], [3, 2], "nothing coerced, nobody told");
   assert.equal((await clipKey(track, "v", new Error("denied"))).flash, "failed");
@@ -268,7 +170,7 @@ test("a press beside a row picks it with an even band, and ⌘C / ⌘V act on th
   assert.match(css, /\.tw-panel \.is-picked:not\(\.tw-folder\)\{margin-block:3px\}/, "a picked row eases 3px of room open above and below");
   assert.match(css, /\.tw-panel \.is-picked:before\{[^}]*inset:-6px -100vmax/, "so its band clears its surface by 6px on both sides, edge to edge");
   const c = await clipKey(document.activeElement, "c");
-  assert.deepEqual([c.copied, c.flash, c.toast], ["1", "ok", QUIET], "its value, not the focused folder's");
+  assert.deepEqual([c.copied, c.flash], ["1", "ok"], "its value, not the focused folder's");
   pressBeside(p, bx);
   assert.deepEqual(picked(), [row(bx)], "a new pick moves the ring");
   assert.equal((await clipKey(document.activeElement, "v", c.copied)).flash, "ok");

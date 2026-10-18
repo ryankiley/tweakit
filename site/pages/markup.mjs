@@ -19,7 +19,7 @@ export const examples = [
     id: "static-panel",
     title: "A static panel shell",
     prose: `<p>A <code>.tw-panel</code> shell with <code>[data-tw]</code> hosts inside
-      becomes the real thing: collapsible header, copy / paste / reset toolbar operating over
+      becomes the real thing: collapsible header, copy + reset toolbar operating over
       its controls, the works. Each control writes its live value back onto its host's
       <code>data-value</code> attribute. A <code>data-key</code> names the control in
       the toolbar's copied JSON (and stands in for a missing <code>data-label</code>);
