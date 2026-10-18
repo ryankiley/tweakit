@@ -99,10 +99,14 @@
  * scrollbar is hidden: wheel, trackpad, touch and keyboard focus still scroll it. Collapsed, the padding goes back: a
  * 0fr row still holds its item's padding. */
 .tw-panel[data-mode="floating"] > .tw-body { min-height: 0; margin: 0 -10px -10px; }
-.tw-panel[data-mode="floating"] > .tw-body > .tw-controls { overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: none; padding: 0 10px 10px; border-radius: 0 0 calc(var(--tw-radius) + 10px) calc(var(--tw-radius) + 10px); }
+/* The header's 8px gap below its hairline moves in too, as the scroller's top padding: at rest the rows sit where they
+ * did, and scrolled they run right up to the line. */
+.tw-panel[data-mode="floating"] > .tw-header { margin-bottom: 0; }
+.tw-panel[data-mode="floating"] > .tw-body > .tw-controls { overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: none; padding: 8px 10px 10px; border-radius: 0 0 calc(var(--tw-radius) + 10px) calc(var(--tw-radius) + 10px); transition: padding 0.25s var(--tw-ease-inout); }
+.tw-panel[data-mode="floating"] > .tw-body > .tw-controls:has(> .tw-folder:first-child) { padding-top: 0; } /* a first folder brings its own spacing */
 .tw-panel[data-mode="floating"] > .tw-body > .tw-controls::-webkit-scrollbar { display: none; } /* Safari before scrollbar-width */
 .tw-panel[data-mode="floating"].is-collapsed > .tw-body { margin-bottom: 0; }
-.tw-panel[data-mode="floating"].is-collapsed > .tw-body > .tw-controls { padding-bottom: 0; }
+.tw-panel[data-mode="floating"].is-collapsed > .tw-body > .tw-controls { padding-top: 0; padding-bottom: 0; }
 /* A slider covers its row and takes every touch; in the scroller a vertical swipe pans instead, a sideways one still scrubs. */
 .tw-panel[data-mode="floating"] .tw-slider { touch-action: pan-y; }
 .tw-panel.is-dragging > .tw-header,

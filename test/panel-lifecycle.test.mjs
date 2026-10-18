@@ -80,7 +80,8 @@ test("a floating panel taller than the viewport caps at the viewport below its t
   assert.match(css, /\.tw-panel\[data-mode=floating\]>\.tw-body>\.tw-controls\{[^}]*overflow:hidden auto/, "the controls scroll, the header stays out of the scroller");
   assert.match(css, /\.tw-panel\[data-mode=floating\]>\.tw-body>\.tw-controls\{[^}]*scrollbar-width:none/, "the scrollbar is hidden");
   assert.match(css, /:is\(\.tw-body,\s*\.tw-folder-body\)>\.tw-controls>\*\{flex-shrink:0\}/, "a capped column scrolls its rows instead of squashing them (a slider's row has no min-content height)");
-  assert.match(css, /\.tw-panel\[data-mode=floating\]\.is-collapsed>\.tw-body>\.tw-controls\{padding-bottom:0\}/, "collapsed, the scroller's bottom padding goes, or a 0fr row shows a sliver of the first control");
+  assert.match(css, /\.tw-panel\[data-mode=floating\]>\.tw-header\{margin-bottom:0\}/, "the header's gap moves into the scroller, so scrolled rows reach its hairline");
+  assert.match(css, /\.tw-panel\[data-mode=floating\]\.is-collapsed>\.tw-body>\.tw-controls\{padding-top:0;padding-bottom:0\}/, "collapsed, the scroller's bottom padding goes, or a 0fr row shows a sliver of the first control");
   const h = window.innerHeight; window.innerHeight = 400; // a short window
   const schema = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`folder${i}`, { a: [1, 0, 10, 1], b: [2, 0, 10, 1] }]));
   const p = tweaks("Tall", schema, { floating: { x: 16, y: 120 } }); document.body.append(p.el);
