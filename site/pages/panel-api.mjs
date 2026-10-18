@@ -68,7 +68,9 @@ export const examples = [
       row or folder under the pointer, or the one holding focus: a row copies its value and
       pastes one back, and a folder copies its values object and pastes one into its own
       keys, so two folders with the same keys trade values. In a text field, over selected
-      text, or with focus elsewhere on the page, the keys stay the browser's.
+      text, or with focus elsewhere on the page, the keys stay the browser's. Right-click
+      a row or a folder for the same Copy and Paste in a menu, plus Reset for just that row
+      or folder; hold Shift to get the browser's own menu instead.
       <code>panel.setName(name)</code> retitles the panel live (the header and the copy
       toast follow); the name it was built with stays its storage key, so saved values and
       presets survive a rename.</p>`,

@@ -74,7 +74,7 @@
 .tw-panel *::after { box-sizing: border-box; }
 
 :is(.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu) ::selection { background: var(--tw-selection); color: var(--tw-text-focus); }
-.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu { -webkit-tap-highlight-color: transparent; }
+.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu, .tw-ctx-menu { -webkit-tap-highlight-color: transparent; }
 
 /* Scrollbars and carets follow the kit's palette, not the host's color-scheme. */
 .tw-panel, .tw-portal { color-scheme: dark; }
@@ -462,6 +462,24 @@
 .tw-select-option[data-selected="true"] { color: var(--tw-text-primary); background: var(--tw-accent, var(--tw-surface-active)); }
 .tw-option-swatch { flex-shrink: 0; width: 12px; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
 .tw-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Row / folder menu — portaled at the pointer on a right-click: Copy, Paste, Reset ── */
+.tw-ctx-menu {
+  position: fixed; z-index: 99999; min-width: 168px; max-width: 240px;
+  display: flex; flex-direction: column; gap: 2px; padding: 4px; outline: none;
+  background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) + 2px); box-shadow: var(--tw-shadow-dropdown); /* concentric: item (radius − 2) + padding 4 */
+  line-height: normal; -webkit-user-select: none; user-select: none;
+  opacity: 0; transform: scale(0.97); pointer-events: none; transition: opacity 0.12s var(--tw-ease-out), transform 0.2s var(--tw-ease-spring);
+}
+.tw-ctx-menu.is-open { opacity: 1; transform: none; pointer-events: auto; }
+.tw-ctx-title { padding: 4px 8px 2px; font-size: 11px; font-weight: 600; color: var(--tw-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tw-ctx-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; padding: 6px 8px; font: inherit; font-size: 12px; font-weight: 500; text-align: left; color: var(--tw-text-label); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); outline: none; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.tw-ctx-item:focus-visible { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+@media (hover: hover) and (pointer: fine) {
+  .tw-ctx-item:not(:disabled):hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+}
+.tw-ctx-item:disabled { cursor: default; color: var(--tw-text-tertiary); }
+.tw-ctx-hint { font-size: 11px; font-weight: 500; color: var(--tw-text-tertiary); white-space: nowrap; }
 
 /* ── Presets menu — portaled; save / load / delete named snapshots ── */
 .tw-presets-menu {

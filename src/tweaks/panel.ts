@@ -110,7 +110,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
   const copyBtn = makeCopyBtn(panel, () => title, (changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // snapshot() falls back on a bad bag value, not throws
   // Paste takes a copy back (pasteValues, in the lazy clip chunk; ctx lends it the panel). A chunk that can't load shows the cross.
-  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), flash, showToast, alive: () => !destroyed };
+  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), flash, showToast, alive: () => !destroyed, copy: (s) => doCopy(s), paste: (s) => doPaste(s), reset: (es) => { for (const e of es) try { assignDefault(e); } catch {} params._last = undefined; notify(); } };
   const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, panel, (t) => m.pasteValues(ctx, t), ctx), () => flash(b, "is-failed")); });
   const resetBtn = makeResetBtn(resetAll);
   // Presets share persistence's storage, so the button needs it on.
@@ -533,10 +533,25 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const s = pointerPanel ? (pointerPanel === panel ? scopeAt(hovered) : undefined) : scopeAt(a);
     if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
     e.preventDefault();
-    if (k === "v") { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, s.label), () => flash(pasteBtn, "is-failed")); return; }
-    copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
-      .then((ok) => { if (ok) flash(copyBtn, "is-copied"); showToast(ok ? `${s.label} copied` : "Copy failed", panel); });
+    (k === "v" ? doPaste : doCopy)(s);
   };
+  const doPaste = (s: Scope) => { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, s.label), () => flash(pasteBtn, "is-failed")); };
+  const doCopy = (s: Scope) => copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
+    .then((ok) => { if (ok) flash(copyBtn, "is-copied"); showToast(ok ? `${s.label} copied` : "Copy failed", panel); });
+  // A right-click on a row or folder opens Copy / Paste / Reset for it (the menu is built in the clip chunk). Shift, a text
+  // field, a selection inside the panel, anywhere else in the panel, and a touch or pen long-press (the hold-reset's) keep
+  // the browser's menu. contextmenu names its pointer where it's a PointerEvent; elsewhere the last press's type stands in.
+  let press = "", menuOff: (() => void) | undefined;
+  panel.addEventListener("pointerdown", (e) => { press = e.pointerType; }, true);
+  cleanups.push(() => menuOff?.());
+  panel.addEventListener("contextmenu", (e) => {
+    const t = e.target as Element, pt = (e as PointerEvent).pointerType || press, sel = document.getSelection?.();
+    if (e.shiftKey || pt === "touch" || pt === "pen" || inEditable(t) || (sel && String(sel) && panel.contains(sel.anchorNode))) return;
+    const s = scopeAt(t); if (!s) return;
+    e.preventDefault();
+    const at = e.clientX || e.clientY ? [e.clientX, e.clientY] : null; // the menu key or ⇧F10 may carry no point: under the row
+    import("./clip.js").then((m) => { if (!destroyed) menuOff = m.openMenu(ctx, s, t, at); }, () => {});
+  });
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,
   // the undo seed, the queued API calls. Synchronous when every control type is registered, else behind panel.ready.

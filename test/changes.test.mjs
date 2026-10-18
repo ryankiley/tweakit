@@ -1,11 +1,12 @@
 /* panel.changes() — the values that have moved off their defaults, keyed by dotted path
  * in setMany()'s shape — the toolbar copy's ⇧-click, which copies that instead of the
  * full snapshot, the toolbar paste, which takes either back off the clipboard, and the
- * scoped ⌘C / ⌘V on a row or folder. Runs against the built single-file bundle under jsdom. */
+ * scoped ⌘C / ⌘V on a row or folder, and the right-click menu that offers the same plus Reset.
+ * Runs against the built single-file bundle under jsdom. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, mounter, key } from "./_helpers.mjs";
+import { loadSingle, mounter, key, ptr } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const schema = () => ({ blur: [24, 0, 100, 1], on: true, shape: { radius: [8, 0, 40, 1], origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
@@ -224,6 +225,91 @@ test("a text field, a selection, focus on the page, the panel header and a held 
   head.focus();
   assert.equal((await clipKey(head, "v", "{}", { repeat: true })).prevented, false, "a held key doesn't paste again and again");
   p.destroy();
+});
+
+// Right-click `target` (a mouse unless props say otherwise); returns whether the browser's menu was kept off.
+const rightClick = async (target, props = {}) => {
+  const e = Object.assign(new window.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 50, ...props }), props.pointerType ? { pointerType: props.pointerType } : {});
+  target.dispatchEvent(e); await new Promise((r) => setTimeout(r, 30)); // the menu's chunk, then its open frame
+  return e.defaultPrevented;
+};
+const menuEl = () => [...document.querySelectorAll(".tw-ctx-menu")].find((m) => !m.inert) || null;
+const items = () => [...menuEl().querySelectorAll(".tw-ctx-item")].map((b) => `${b.querySelector(".tw-ctx-label").textContent}${b.disabled ? " (off)" : ""}`);
+// Click a menu item with a stubbed clipboard holding `text`; returns what was written.
+const choose = async (i, text = "") => {
+  let copied = null;
+  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: async () => text, writeText: async (t) => { copied = t; } }, configurable: true });
+  try { menuEl().querySelectorAll(".tw-ctx-item")[i].click(); await new Promise((r) => setTimeout(r, 10)); } finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+  return copied;
+};
+
+test("right-clicking a row opens Copy, Paste and Reset for it; Copy copies its value and closes the menu", async () => {
+  const p = await mount2();
+  const track = p.el.querySelector(".tw-folder .tw-slider");
+  assert.equal(await rightClick(track), true, "the browser's menu is kept off");
+  const m = menuEl();
+  assert.ok(m && m.classList.contains("is-open"), "the menu is open");
+  assert.deepEqual([m.getAttribute("role"), m.getAttribute("aria-label"), m.querySelector(".tw-ctx-title").textContent], ["menu", "X", "X"]);
+  assert.deepEqual(items(), ["Copy", "Paste", "Reset (off)"], "Reset is off while the row sits at its default");
+  assert.deepEqual([m.style.left, m.style.top, m.style.transformOrigin], ["40px", "50px", "top left"], "opened at the pointer");
+  assert.equal(await choose(0), "1");
+  assert.equal(menuEl(), null, "choosing closes it");
+  p.destroy();
+});
+
+test("a folder's menu pastes into that folder and resets only it, in one notify each", async () => {
+  const p = await mount2();
+  const heads = [...p.el.querySelectorAll(".tw-folder-header")];
+  p.set("a.x", 9);
+  let notified = 0; p.on(() => notified++);
+  await rightClick(heads[1]);
+  assert.deepEqual([menuEl().getAttribute("aria-label"), items()], ["B", ["Copy", "Paste", "Reset (off)"]]);
+  await choose(1, JSON.stringify({ x: 3, y: 4, blur: 99 }));
+  assert.deepEqual([p.params.b, p.params.blur, notified], [{ x: 3, y: 4 }, 24, 1], "the folder took its own keys, nothing else");
+  await rightClick(heads[1]);
+  assert.deepEqual(items(), ["Copy", "Paste", "Reset"], "Reset is on once the folder has moved");
+  await choose(2);
+  assert.deepEqual([p.params.b, p.params.a.x, notified, document.querySelector(".tw-toast").textContent], [{ x: 5, y: 6 }, 9, 2, "B reset"], "only this folder went back");
+  p.destroy();
+});
+
+test("shift, a text field, the panel header, a selection in the panel and a touch long-press keep the browser's menu", async () => {
+  const p = await mount2();
+  const track = p.el.querySelector(".tw-folder .tw-slider");
+  assert.equal(await rightClick(track, { shiftKey: true }), false, "shift");
+  assert.equal(await rightClick(p.el.querySelector(".tw-text")), false, "a text field");
+  assert.equal(await rightClick(p.el.querySelector(".tw-header")), false, "the panel header");
+  assert.equal(await rightClick(track, { pointerType: "touch" }), false, "a touch long-press stays the hold-reset");
+  track.dispatchEvent(ptr("pointerdown", { pointerType: "pen" })); // where contextmenu names no pointer, the press does
+  assert.equal(await rightClick(track), false, "a pen press then a pointerless contextmenu");
+  track.dispatchEvent(ptr("pointerdown", { pointerType: "mouse", button: 2 }));
+  const sel = window.getSelection(), range = document.createRange(); range.selectNodeContents(p.el.querySelector(".tw-folder-title")); sel.removeAllRanges(); sel.addRange(range);
+  assert.equal(await rightClick(track), false, "a selection inside the panel");
+  const page = document.createElement("p"); page.textContent = "page text"; document.body.append(page); range.selectNodeContents(page); sel.removeAllRanges(); sel.addRange(range);
+  assert.equal(await rightClick(track), true, "a selection elsewhere on the page doesn't stand in the way");
+  sel.removeAllRanges(); page.remove();
+  document.body.dispatchEvent(ptr("pointerdown")); // an outside press closes the menu that last click opened
+  p.destroy();
+});
+
+test("the menu's arrows move between items, Escape hands focus back, it flips at the edges, and destroy() closes it", async () => {
+  const p = await mount2();
+  const track = p.el.querySelector(".tw-folder .tw-slider"); track.focus();
+  await rightClick(track, { clientX: 0, clientY: 0 }); // the menu key: no point, so under the row
+  const m = menuEl(), its = [...m.querySelectorAll(".tw-ctx-item")];
+  assert.equal(document.activeElement, its[0], "focus lands on the first item");
+  key(m, { key: "ArrowDown" }); assert.equal(document.activeElement, its[1]);
+  key(m, { key: "ArrowDown" }); assert.equal(document.activeElement, its[0], "Reset is off at the default, so it's skipped and the arrow wraps");
+  key(m, { key: "Escape" });
+  assert.deepEqual([menuEl(), document.activeElement], [null, track], "closed, focus back on the row");
+  await rightClick(track, { clientX: window.innerWidth - 2, clientY: window.innerHeight - 2 });
+  assert.equal(menuEl().style.transformOrigin, "bottom right", "flipped up and left, grown from the corner it hangs from");
+  p.el.dispatchEvent(new window.Event("pointerdown", { bubbles: true }));
+  assert.equal(menuEl(), null, "an outside press closes it");
+  await rightClick(track);
+  p.destroy();
+  assert.equal(menuEl(), null, "destroy() closes it too");
 });
 
 test("changes() is empty at the defaults, lists moved values by dotted path, and empties again on reset", async () => {
