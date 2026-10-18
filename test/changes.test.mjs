@@ -133,6 +133,15 @@ test("bad JSON, a non-object, a rejected read and no clipboard API change nothin
   p.destroy();
 });
 
+test("a paste tells a screen reader what it did", async () => {
+  const p = await mount();
+  const said = async (read) => { await pasteVia(p.el, read); await new Promise((r) => setTimeout(r, 150)); return document.querySelector(".tw-sr")?.textContent; };
+  assert.equal(await said(text({ blur: 50, on: false })), "2 values pasted");
+  assert.equal(await said(text({ zzz: 1 })), "Nothing to paste");
+  assert.equal(await said(async () => { throw new Error("denied"); }), "Couldn't read the clipboard");
+  p.destroy();
+});
+
 test("a read that resolves after destroy() reports nothing", async () => {
   const p = await mount();
   let resolve; const read = () => new Promise((r) => { resolve = r; });

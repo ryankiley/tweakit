@@ -164,6 +164,9 @@
 .tw-tip.is-open { opacity: 1; transform: none; }
 /* Toast — the kit's feedback pill (copy / preset confirmations), portaled to <body>. */
 
+/* The screen-reader status region (announce() in feedback.ts): in the page, drawn as nothing. */
+.tw-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 /* Collapse — grid-rows 1fr→0fr animates the body height, dependency-free */
 .tw-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.25s var(--tw-ease-inout); }
 /* Clip y only, so a slider rubber-banding past its end still shows. Must be `clip`,
