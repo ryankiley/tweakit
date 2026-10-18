@@ -64,7 +64,11 @@ export const examples = [
       and applies it through <code>fromJSON</code>: one undo step, saved and announced like
       any load. A value only lands where it fits, the same type as the control holds (a
       colour string for a colour, one of a list's options), so a stray key or a mistyped
-      value is skipped rather than coerced.
+      value is skipped rather than coerced. ⌘C and ⌘V (ctrl elsewhere) do the same for the
+      row or folder under the pointer, or the one holding focus: a row copies its value and
+      pastes one back, and a folder copies its values object and pastes one into its own
+      keys, so two folders with the same keys trade values. In a text field, over selected
+      text, or with focus elsewhere on the page, the keys stay the browser's.
       <code>panel.setName(name)</code> retitles the panel live (the header and the copy
       toast follow); the name it was built with stays its storage key, so saved values and
       presets survive a rename.</p>`,

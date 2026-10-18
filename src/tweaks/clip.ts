@@ -14,6 +14,8 @@ export interface Slot { path: string[]; get: () => unknown; m: Meta }
 export interface Report { flash: typeof flash; showToast: typeof showToast; alive: () => boolean }
 /** What a panel lends the paste. */
 export interface ClipCtx extends Report { panel: HTMLElement; entries: Entry[]; fromJSON: (state: PanelState) => void }
+/** What a scoped ⌘C / ⌘V acts on: one row, or every row under a folder's path. */
+export type Scope = { kind: "row"; entry: Entry; label: string } | { kind: "folder"; path: string[]; label: string };
 
 const RESERVED = new Set(["__proto__", "constructor", "prototype"]);
 const atPath = (obj: unknown, path: string[]): unknown => path.reduce<any>((o, k) => (isObj(o) && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined), obj);
@@ -58,21 +60,42 @@ export function pasteValues(ctx: ClipCtx, text: string): number | false {
   const values = state ? data.values : unflatten(data), ui = state && isObj(data.ui) && Object.keys(data.ui).length ? data.ui : undefined;
   const hits = pick(ctx.entries, isObj(values) ? values : {});
   if (!hits.length && !ui) return false;
-  // Only what fits is written: a bag key or a value set() would coerce stays as it is.
+  write(ctx, hits, ui);
+  return hits.length || -1;
+}
+// Only what fits is written, through fromJSON: a bag key or a value set() would coerce stays as it is.
+const write = (ctx: ClipCtx, hits: Array<[Entry, unknown]>, ui?: PanelState["ui"]) => {
   const out: Snapshot = {};
   for (const [e, v] of hits) { let o = out; for (const k of e.path.slice(0, -1)) o = o[k] ||= {}; o[e.path[e.path.length - 1]] = v; }
   ctx.fromJSON({ values: out, ui });
-  return hits.length || -1;
+};
+
+/** ⌘V on a row or folder. A row takes a bare value or its own one-key object; a folder takes its values object, or any
+ *  copy that holds the folder at its own path (a whole-panel copy, a changed-only map), and only into its own rows. */
+export function pasteScope(ctx: ClipCtx, s: Scope, text: string): number | false {
+  const data = JSON.parse(text);
+  let hits: Array<[Entry, unknown]>;
+  if (s.kind === "row") {
+    const e = s.entry, v = isObj(data) && !Array.isArray(data) && Object.keys(data).length === 1 && Object.prototype.hasOwnProperty.call(data, e.key) ? data[e.key] : data;
+    hits = fits(e, v) ? [[e, v]] : [];
+  } else {
+    if (!isObj(data) || Array.isArray(data)) return false;
+    const values = unflatten(data), own = atPath(values, s.path);
+    hits = pick(ctx.entries.filter((e) => e.path.length > s.path.length && s.path.every((k, i) => e.path[i] === k)), isObj(own) ? own : values, s.path);
+  }
+  if (!hits.length) return false;
+  write(ctx, hits);
+  return hits.length;
 }
 
 /** Every paste ends here. `read` is the clipboard read the click started (null: no API, denied, an insecure context);
  *  `apply` returns how many values it took, -1 for a layout only, false for nothing usable (a throw counts the same).
  *  The paste button swaps in the check or the cross and the toast says which; a panel gone meanwhile hears nothing. */
-export async function pasteInto(read: Promise<string | null>, b: HTMLButtonElement, anchor: Element, apply: (text: string) => number | false, r: Report) {
+export async function pasteInto(read: Promise<string | null>, b: HTMLButtonElement, anchor: Element, apply: (text: string) => number | false, r: Report, into?: string) {
   const text = await read;
   if (!r.alive()) return;
   let n: number | false = false;
   if (text !== null) try { n = apply(text); } catch {}
   if (!n) { r.flash(b, "is-failed"); r.showToast(text === null ? "Couldn't read the clipboard" : "No values to paste", anchor); return; }
-  r.flash(b, "is-copied"); r.showToast(n < 0 ? "Layout pasted" : `${plural(n)} pasted`, anchor);
+  r.flash(b, "is-copied"); r.showToast(n < 0 ? "Layout pasted" : `${plural(n)} pasted${into ? ` into ${into}` : ""}`, anchor);
 }

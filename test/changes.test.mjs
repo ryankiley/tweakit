@@ -1,11 +1,11 @@
 /* panel.changes() — the values that have moved off their defaults, keyed by dotted path
  * in setMany()'s shape — the toolbar copy's ⇧-click, which copies that instead of the
- * full snapshot, and the toolbar paste, which takes either back off the clipboard.
- * Runs against the built single-file bundle under jsdom. */
+ * full snapshot, the toolbar paste, which takes either back off the clipboard, and the
+ * scoped ⌘C / ⌘V on a row or folder. Runs against the built single-file bundle under jsdom. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, mounter } from "./_helpers.mjs";
+import { loadSingle, mounter, key } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const schema = () => ({ blur: [24, 0, 100, 1], on: true, shape: { radius: [8, 0, 40, 1], origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
@@ -134,6 +134,96 @@ test("the markup toolbar pastes over its hosts by the keys its copy writes, and 
   assert.equal(await pasteVia(holder, text({ size: "zz", "size-2": null })), "No values to paste");
   assert.deepEqual(hosts.map((h) => h._tw.ctrl.get()), [7, 8]);
   holder.remove();
+});
+
+// ⌘C / ⌘V on `target` with a stubbed clipboard holding `text` (an Error rejects the read): what was written,
+// whether the key was taken, and the toast.
+const clipKey = async (target, k, text, props = {}) => {
+  let copied = null;
+  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: async () => { if (text instanceof Error) throw text; return text; }, writeText: async (t) => { copied = t; } }, configurable: true });
+  try { const e = key(target, { key: k, metaKey: true, ...props }); await new Promise((r) => setTimeout(r, 10)); return { copied, prevented: e.defaultPrevented, toast: document.querySelector(".tw-toast")?.textContent }; }
+  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+};
+const scoped = () => ({ a: { x: [1, 0, 10, 1], y: [2, 0, 10, 1] }, b: { x: [5, 0, 10, 1], y: [6, 0, 10, 1] }, blur: [24, 0, 100, 1], name: { type: "text", value: "hi" } });
+const mount2 = () => mountPanel(scoped());
+const over = (node) => node.dispatchEvent(new window.Event("pointerover", { bubbles: true }));
+const leave = (p) => p.el.dispatchEvent(new window.Event("pointerleave"));
+
+test("⌘C on a folder copies its values object; ⌘V on a folder with the same keys takes it, in one notify and one undo step", async () => {
+  const p = await mountPanel(scoped(), { undo: true });
+  const heads = [...p.el.querySelectorAll(".tw-folder-header")];
+  heads[0].focus();
+  const c = await clipKey(heads[0], "c");
+  assert.deepEqual([JSON.parse(c.copied), c.prevented, c.toast], [{ x: 1, y: 2 }, true, "A copied"], "the folder's subtree, not the whole panel");
+  assert.ok(p.el.querySelector(".tw-toolbar-btn--swap").classList.contains("is-copied"), "the toolbar's copy shows the check");
+  await new Promise((r) => setTimeout(r, 400)); // past the undo debounce
+  let notified = 0; p.on(() => notified++);
+  heads[1].focus();
+  const v = await clipKey(heads[1], "v", c.copied);
+  assert.deepEqual([v.prevented, v.toast, p.params.b, p.params.a, notified], [true, "2 values pasted into B", { x: 1, y: 2 }, { x: 1, y: 2 }, 1], "the sibling took them; the source kept its own");
+  assert.equal(pasteState(p.el), "ok");
+  p.undo();
+  assert.deepEqual(p.params.b, { x: 5, y: 6 }, "one step back");
+  p.destroy();
+});
+
+test("a folder reads a whole-panel copy or a changed-only map at its own path, and only into its own rows", async () => {
+  const p = await mount2();
+  const head = p.el.querySelectorAll(".tw-folder-header")[1]; head.focus();
+  assert.equal((await clipKey(head, "v", JSON.stringify({ a: { x: 9 }, b: { x: 3 }, blur: 70 }))).toast, "1 value pasted into B");
+  assert.deepEqual([p.params.a.x, p.params.b.x, p.params.blur], [1, 3, 24], "B's own x from the whole-panel copy, nothing else");
+  assert.equal((await clipKey(head, "v", JSON.stringify({ "b.y": 8, "a.y": 0 }))).toast, "1 value pasted into B");
+  assert.deepEqual([p.params.a.y, p.params.b.y], [2, 8], "the dotted form too");
+  assert.equal((await clipKey(head, "v", JSON.stringify({ x: 4, zzz: 1 }))).toast, "1 value pasted into B", "a bare values object is the folder's own");
+  p.destroy();
+});
+
+test("⌘C on a row copies its value; ⌘V takes a bare value or the row's one-key object, and skips what doesn't fit", async () => {
+  const p = await mount2();
+  const track = p.el.querySelector(".tw-folder .tw-slider"); track.focus();
+  assert.deepEqual(Object.values(await clipKey(track, "c")).slice(0, 1), ["1"]);
+  let notified = 0; p.on(() => notified++);
+  assert.equal((await clipKey(track, "v", "7")).toast, "1 value pasted into X");
+  assert.equal((await clipKey(track, "v", JSON.stringify({ x: 3 }))).toast, "1 value pasted into X");
+  assert.deepEqual([p.params.a.x, p.params.a.y, notified], [3, 2, 2], "just that slider, once per paste");
+  for (const bad of ["null", "[]", "true", JSON.stringify({ x: 1, y: 2 }), "nope"]) {
+    assert.equal((await clipKey(track, "v", bad)).toast, "No values to paste", bad);
+    assert.equal(pasteState(p.el), "failed");
+  }
+  assert.deepEqual([p.params.a.x, notified], [3, 2], "nothing coerced, nobody told");
+  assert.equal((await clipKey(track, "v", new Error("denied"))).toast, "Couldn't read the clipboard");
+  p.destroy();
+});
+
+test("only the panel under the pointer takes the keys; with the pointer over none, the focused panel does", async () => {
+  const p = await mount2(), q = await mount2();
+  const pr = p.el.querySelector(".tw-folder .tw-slider"), qr = q.el.querySelector(".tw-folder .tw-slider");
+  qr.focus(); over(pr);
+  await clipKey(qr, "v", "7");
+  assert.deepEqual([p.params.a.x, q.params.a.x], [7, 1], "the hovered panel pasted; the focused one didn't too");
+  leave(p);
+  await clipKey(qr, "v", "4");
+  assert.deepEqual([p.params.a.x, q.params.a.x], [7, 4], "pointer gone: focus decides");
+  p.destroy(); q.destroy();
+});
+
+test("a text field, a selection, focus on the page, the panel header and a held key all stay the browser's", async () => {
+  const p = await mount2();
+  const input = p.el.querySelector(".tw-text"); input.focus();
+  assert.deepEqual([(await clipKey(input, "c")).prevented, (await clipKey(input, "v", "{}")).prevented], [false, false], "a text field");
+  const head = p.el.querySelector(".tw-folder-header"); head.focus();
+  const sel = window.getSelection(), range = document.createRange(); range.selectNodeContents(p.el.querySelector(".tw-folder-title")); sel.removeAllRanges(); sel.addRange(range);
+  const c = await clipKey(head, "c"); sel.removeAllRanges();
+  assert.deepEqual([c.prevented, c.copied], [false, null], "selected text copies as text");
+  const pageBtn = document.createElement("button"); document.body.append(pageBtn); pageBtn.focus(); over(head);
+  assert.equal((await clipKey(pageBtn, "v", "{}")).prevented, false, "focus on the page keeps its keys, even with the pointer over the panel");
+  pageBtn.remove(); leave(p);
+  const title = p.el.querySelector(".tw-header-toggle"); title.focus();
+  assert.equal((await clipKey(title, "c")).prevented, false, "the panel header: the toolbar buttons copy the whole panel");
+  head.focus();
+  assert.equal((await clipKey(head, "v", "{}", { repeat: true })).prevented, false, "a held key doesn't paste again and again");
+  p.destroy();
 });
 
 test("changes() is empty at the defaults, lists moved values by dotted path, and empties again on reset", async () => {

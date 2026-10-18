@@ -8,11 +8,11 @@ import {
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makePasteBtn, makeResetBtn, toolbarBtn, flash, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
+import { makeCopyBtn, makePasteBtn, makeResetBtn, toolbarBtn, flash, readText, copyText, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
-import type { ClipCtx } from "./clip.js";
+import type { ClipCtx, Scope } from "./clip.js";
 import type { PanelEl } from "./shared.js";
 import type { TabsControl } from "./controls/tabs.js";
 
@@ -26,6 +26,7 @@ export type Snapshot = Record<string, any>;
 interface FolderItem { el: HTMLElement; label: string; body: HTMLElement }
 
 let topFloating: HTMLElement | null = null; // the floating panel raised last (raise())
+let pointerPanel: HTMLElement | null = null; // the panel under the pointer: it alone takes a scoped ⌘C / ⌘V
 
 /** Build a panel from `schema`; the shell and API exist synchronously, lazy controls fill in on `ready`. */
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
@@ -248,6 +249,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         const sub: Target = {}; subTrees.add(sub); target[m.key] = sub;
         const f = createFolder(m);
         folderEls.push({ path: [...basePath, m.key], el: f.el, setCollapsed: f.setCollapsed });
+        scopes.set(f.el, { kind: "folder", path: [...basePath, m.key], label: m.label });
         const fi = filterOn ? { el: f.el, label: m.label, body: f.body } : null;
         if (fi) filterFolders.push(fi);
         build(f.body, m.children, sub, [...basePath, m.key], fi); registerCond(f.el, m); container.append(f.el);
@@ -264,7 +266,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
         const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m };
-        entries.push(entry); wireReset(ctrl.el, entry);
+        entries.push(entry); wireReset(ctrl.el, entry); scopes.set(ctrl.el, { kind: "row", entry, label: m.label });
       }
       registerCond(ctrl.el, m);
       if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); // every control is searchable except the separator
@@ -508,8 +510,33 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
     };
-    return { undo, redo, arm: () => { history = [snapshot()]; histIdx = 0; cleanups.push(onLive(panel, [[document, "keydown"]], onKey)); } };
+    return { undo, redo, onKey, arm: () => { history = [snapshot()]; histIdx = 0; } };
   })() : null;
+
+  // ── Scoped copy / paste — ⌘C / ⌘V (ctrl elsewhere) on the row or folder under the pointer, else the one holding
+  // focus. A row copies its value and pastes one back; a folder copies its values object and pastes one into its own
+  // keys, so two folders with the same keys trade values. Only the panel under the pointer acts (focus decides when the
+  // pointer is over none); focus elsewhere on the page, a text field or a text selection keeps the browser's own keys. ──
+  const scopes = new Map<Element, Scope>(); // a row's or folder's root → its scope, filled by build()
+  let hovered: Element | null = null;
+  panel.addEventListener("pointerover", (e) => { hovered = e.target as Element; pointerPanel = panel; });
+  panel.addEventListener("pointerleave", () => { hovered = null; if (pointerPanel === panel) pointerPanel = null; });
+  cleanups.push(() => { if (pointerPanel === panel) pointerPanel = null; });
+  const scopeAt = (n: Element | null): Scope | undefined => { for (; n && n !== panel && panel.contains(n); n = n.parentElement) { const s = scopes.get(n); if (s) return s; } };
+  const inEditable = (t: Element | null) => !!(t && (t as HTMLElement).matches && ((t as HTMLElement).matches("input, textarea, select") || (t as HTMLElement).isContentEditable));
+  // Called from the panel's one keydown listener (registered by assemble(), beside the undo keys). The copy is written
+  // and the paste read started here, inside the keypress, where the browser counts them as the user's gesture.
+  const onClipKey = (e: KeyboardEvent) => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.target as Element)) return;
+    const k = e.key.toLowerCase(), a = document.activeElement;
+    if ((k !== "c" && k !== "v") || (a && a !== document.body && !a.closest(".tw-panel, .tw-portal"))) return;
+    const s = pointerPanel ? (pointerPanel === panel ? scopeAt(hovered) : undefined) : scopeAt(a);
+    if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
+    e.preventDefault();
+    if (k === "v") { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, s.label), () => flash(pasteBtn, "is-failed")); return; }
+    copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
+      .then((ok) => { if (ok) flash(copyBtn, "is-copied"); showToast(ok ? `${s.label} copied` : "Copy failed", panel); });
+  };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,
   // the undo seed, the queued API calls. Synchronous when every control type is registered, else behind panel.ready.
@@ -537,6 +564,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (persistKey) applySnapshot(unsaved(readStore(persistKey)));
     if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm(); watchResize();
+    cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); })); // one document listener per panel for its keys
     assembled = true;
     // Replay after the restore, so an explicit host set() wins over a stored value; a destroy() mid-replay drops the rest.
     for (const fn of queue.splice(0)) { if (destroyed) break; try { fn(); } catch (e) { console.error("[tweaks] a call queued before ready failed:", e); } }
