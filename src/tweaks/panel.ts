@@ -19,7 +19,7 @@ import type { TabsControl } from "./controls/tabs.js";
 /** A params object or one of its folder/tabs sub-objects — the holder a control writes into. */
 type Target = Record<string, unknown>;
 /** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def) and its dotted path. */
-export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta }
+export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement }
 /** A values snapshot — params minus `_last`, as JSON round-trips it. */
 export type Snapshot = Record<string, any>;
 /** A folder in the filter index: its node, label and body (for the child scan). */
@@ -110,7 +110,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
   const copyBtn = makeCopyBtn(panel, () => title, (changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // snapshot() falls back on a bad bag value, not throws
   // Paste takes a copy back (pasteValues, in the lazy clip chunk; ctx lends it the panel). A chunk that can't load shows the cross.
-  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), flash, showToast, alive: () => !destroyed, copy: (s) => doCopy(s), paste: (s) => doPaste(s), reset: (es) => { for (const e of es) try { assignDefault(e); } catch {} params._last = undefined; notify(); } };
+  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), ui: () => collectUI(), flash, showToast, alive: () => !destroyed, copy: (s) => doCopy(s), paste: (s) => doPaste(s), reset: (es) => { for (const e of es) try { assignDefault(e); } catch {} params._last = undefined; notify(); } };
   const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, panel, (t) => m.pasteValues(ctx, t), ctx), () => flash(b, "is-failed")); });
   const resetBtn = makeResetBtn(resetAll);
   // Presets share persistence's storage, so the button needs it on.
@@ -270,7 +270,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // A value a host parked on params before assemble ran wins over the schema default.
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m };
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el };
         entries.push(entry); wireReset(ctrl.el, entry); scopes.set(ctrl.el, { kind: "row", entry, label: m.label });
       }
       registerCond(ctrl.el, m);
@@ -560,7 +560,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
   const doPaste = (s: Scope) => { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, s.label), () => flash(pasteBtn, "is-failed")); };
   const doCopy = (s: Scope) => copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
-    .then((ok) => { if (ok) flash(copyBtn, "is-copied"); showToast(ok ? `${s.label} copied` : "Copy failed", panel); });
+    .then((ok) => { if (destroyed) return; if (ok) flash(copyBtn, "is-copied"); showToast(ok ? `${s.label} copied` : "Copy failed", panel); });
   // A right-click on a row or folder picks it and opens Copy / Paste / Reset for it (the menu is built in the clip chunk).
   // Shift, a text field, a selection inside the panel, anywhere else in the panel, and a touch or pen long-press (the
   // hold-reset's) keep the browser's menu. contextmenu names its pointer where it's a PointerEvent; elsewhere the last
@@ -569,11 +569,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   cleanups.push(() => menuOff?.());
   panel.addEventListener("contextmenu", (e) => {
     const t = e.target as Element, pt = (e as PointerEvent).pointerType || press, sel = document.getSelection?.();
-    if (e.shiftKey || pt === "touch" || pt === "pen" || inEditable(t) || (sel && String(sel) && panel.contains(sel.anchorNode))) return;
+    const at = e.clientX || e.clientY ? [e.clientX, e.clientY] : null; // the menu key or ⇧F10 may carry no point: under the row
+    if ((e.shiftKey && at) || pt === "touch" || pt === "pen" || inEditable(t) || (sel && String(sel) && panel.contains(sel.anchorNode))) return; // ⇧ with a pointer: the browser's menu; ⇧F10 is the keyboard's way to this one
     let el: Element | null = t; while (el && el !== panel && !scopes.has(el)) el = el.parentElement;
     const s = el && scopes.get(el); if (!s) return;
     e.preventDefault(); choose(el, s);
-    const at = e.clientX || e.clientY ? [e.clientX, e.clientY] : null; // the menu key or ⇧F10 may carry no point: under the row
     import("./clip.js").then((m) => { if (!destroyed) menuOff = m.openMenu(ctx, s, t, at); }, () => {});
   });
 

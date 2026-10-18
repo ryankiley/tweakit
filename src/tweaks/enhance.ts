@@ -44,17 +44,17 @@ export async function enhance(root: Document | Element = document): Promise<void
       const name = (title && title.textContent) || "Panel";
       const live = () => [...panel.querySelectorAll<HostEl>("[data-tw]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);
       // Two hosts can share a key (a repeated data-key, or the same label): suffix the duplicates. Copy and paste key them alike.
-      const keyed = () => { const seen = new Set<string>(); return live().map((t) => { let k = t.key, n = 2; while (seen.has(k)) k = `${t.key}-${n++}`; seen.add(k); return { path: [k], get: t.ctrl.get, m: t.m, t }; }); };
+      const keyed = () => { const seen = new Set<string>(); return live().map((t) => { let k = t.key, n = 2; while (seen.has(k)) k = `${t.key}-${n++}`; seen.add(k); return { path: [k], get: t.ctrl.get, m: t.m, el: t.host, t }; }); };
       const values = () => JSON.stringify(Object.fromEntries(keyed().map((s) => [s.path[0], s.get()])), null, 2); // fromEntries: a "__proto__" data-key is an ordinary key
       // The copy's object back (or a panel's { values } state): the values that fit their hosts, each through its change path.
-      const paste = (pick: typeof import("./clip.js").pick) => (text: string) => {
+      const paste = (pick: typeof import("./clip.js").pickBest) => (text: string) => {
         const data = JSON.parse(text), vals = data && Object.keys(data).every((k) => k === "values" || k === "ui") && data.values ? data.values : data;
         const hits = pick(keyed(), vals); for (const [s, v] of hits) s.t.ctrl.set(v);
         return hits.length || false;
       };
       const reset = () => { for (const t of live()) t.reset(); };
       const toolbar = el("div", "tw-toolbar");
-      const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, panel, paste(m.pick), { flash, showToast, alive: () => panel.isConnected }), () => flash(b, "is-failed")); });
+      const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, panel, paste(m.pickBest), { flash, showToast, alive: () => panel.isConnected }), () => flash(b, "is-failed")); });
       toolbar.append(makeCopyBtn(panel, () => name, () => [values(), -1]), pasteBtn, makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
     }
   });

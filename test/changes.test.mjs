@@ -90,6 +90,31 @@ test("a panel whose own folder is called values pastes its own copy back", async
   p.destroy();
 });
 
+test("a disabled control takes nothing; a tuple must keep its length; a colour must parse", async () => {
+  const p = await mountPanel({ locked: { type: "slider", value: 3, min: 0, max: 10, disabled: true }, span: { type: "interval", value: [2, 8], min: 0, max: 10 }, tint: "#ff0000", blur: [24, 0, 100, 1] });
+  const css = globalThis.CSS; globalThis.CSS = { supports: (_, v) => !/nonsense|NaN|;/.test(v) }; // what a browser's parser says
+  try {
+    let notified = 0; p.on(() => notified++);
+    for (const v of [{ locked: 9 }, { span: [] }, { span: [5] }, { span: [1, 2, 3] }, { tint: "rgb(nonsense)" }, { tint: "oklch(NaN 0 0)" }, { tint: "rgb(1,2,3); background:url(x)" }])
+      assert.equal(await pasteVia(p.el, text(v)), "No values to paste", JSON.stringify(v));
+    assert.deepEqual([p.params.locked, p.params.span, notified], [3, [2, 8], 0], "nothing landed, nobody told");
+    assert.equal(await pasteVia(p.el, text({ locked: 9, span: [3, 4], tint: "#00ff00", blur: 50 })), "3 values pasted", "the disabled one is skipped, the rest land");
+    assert.deepEqual([p.params.locked, p.params.span, p.params.blur], [3, [3, 4], 50]);
+  } finally { globalThis.CSS = css; p.destroy(); }
+});
+
+test("a key with a literal dot pastes back from the panel's own copy; a layout that changes nothing is nothing pasted", async () => {
+  const p = await mountPanel({ "a.b": [1, 0, 10, 1], c: [1, 0, 10, 1], f: { x: [1, 0, 10, 1] } });
+  const copy = JSON.stringify(p.toJSON().values);
+  p.fromJSON({ values: { "a.b": 5, c: 5 } });
+  assert.equal(await pasteVia(p.el, async () => copy), "3 values pasted");
+  assert.deepEqual([p.params["a.b"], p.params.c], [1, 1]);
+  let notified = 0; p.on(() => notified++);
+  assert.equal(await pasteVia(p.el, text({ ui: { folders: { nope: true } } })), "No values to paste");
+  assert.equal(notified, 0, "and nobody was told");
+  p.destroy();
+});
+
 test("bad JSON, a non-object, a rejected read and no clipboard API change nothing and show the cross", async () => {
   const p = await mount();
   let notified = 0; p.on(() => notified++);
@@ -201,6 +226,23 @@ test("⌘C on a row copies its value; ⌘V takes a bare value or the row's one-k
   p.destroy();
 });
 
+test("a folder pastes its own copy back even when a subfolder shares its name; a copy after destroy() says nothing", async () => {
+  const p = await mountPanel({ look: { look: { x: [1, 0, 10, 1] }, y: [2, 0, 10, 1] } });
+  const head = p.el.querySelector(".tw-folder-header"); head.focus();
+  const c = await clipKey(head, "c");
+  assert.deepEqual(JSON.parse(c.copied), { look: { x: 1 }, y: 2 });
+  p.fromJSON({ values: { look: { look: { x: 7 }, y: 7 } } });
+  assert.equal((await clipKey(head, "v", c.copied)).toast, "2 values pasted into Look");
+  assert.deepEqual(p.params.look, { look: { x: 1 }, y: 2 });
+  const toast = document.querySelector(".tw-toast");
+  toast.textContent = "before";
+  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async () => {} }, configurable: true });
+  try { key(head, { key: "c", metaKey: true }); p.destroy(); await new Promise((r) => setTimeout(r, 10)); }
+  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+  assert.equal(toast.textContent, "before", "the panel is gone: no toast");
+});
+
 test("a press beside a row picks it with a ring, and ⌘C / ⌘V act on the pick, not on focus", async () => {
   const p = await mount2();
   const [ax, , bx] = [...p.el.querySelectorAll(".tw-folder .tw-slider")], row = (t) => t.closest(".tw-folder-body > .tw-controls > *");
@@ -302,10 +344,22 @@ test("a folder's menu pastes into that folder and resets only it, in one notify 
   p.destroy();
 });
 
+test("a folder's Reset leaves its disabled rows alone", async () => {
+  const p = await mountPanel({ f: { a: [1, 0, 10, 1], b: { type: "slider", value: 2, min: 0, max: 10, disabled: true } } });
+  p.set("f.a", 7); p.set("f.b", 9);
+  await rightClick(p.el.querySelector(".tw-folder-header"));
+  await choose(2);
+  assert.deepEqual(p.params.f, { a: 1, b: 9 }, "the enabled row reset; the disabled one kept its value");
+  p.destroy();
+});
+
 test("shift, a text field, the panel header, a selection in the panel and a touch long-press keep the browser's menu", async () => {
   const p = await mount2();
   const track = p.el.querySelector(".tw-folder .tw-slider");
-  assert.equal(await rightClick(track, { shiftKey: true }), false, "shift");
+  assert.equal(await rightClick(track, { shiftKey: true }), false, "shift with a pointer");
+  track.focus();
+  assert.equal(await rightClick(track, { shiftKey: true, clientX: 0, clientY: 0 }), true, "⇧F10, the keyboard's way in, opens the row menu");
+  document.body.dispatchEvent(ptr("pointerdown"));
   assert.equal(await rightClick(p.el.querySelector(".tw-text")), false, "a text field");
   assert.equal(await rightClick(p.el.querySelector(".tw-header")), false, "the panel header");
   assert.equal(await rightClick(track, { pointerType: "touch" }), false, "a touch long-press stays the hold-reset");
