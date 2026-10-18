@@ -59,6 +59,12 @@ export const examples = [
       <p>The reverse, <code>panel.changes()</code>, is a flat map of every value that has
       moved off its default, in the same shape (what you paste to bake tuned values into
       source). ⇧-click the toolbar's copy button to copy that instead of the full snapshot.
+      The paste button beside it takes that JSON back off the clipboard, the bare values
+      object a copy produces, the changed-only map, or a whole <code>toJSON()</code> state,
+      and applies it through <code>fromJSON</code>: one undo step, saved and announced like
+      any load. A value only lands where it fits, the same type as the control holds (a
+      colour string for a colour, one of a list's options), so a stray key or a mistyped
+      value is skipped rather than coerced.
       <code>panel.setName(name)</code> retitles the panel live (the header and the copy
       toast follow); the name it was built with stays its storage key, so saved values and
       presets survive a rename.</p>`,
@@ -347,7 +353,7 @@ export const examples = [
         <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title); it needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
         <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
         <tr><td><code>draggable</code></td><td>header dragging, on by default; <code>false</code> pins</td></tr>
-        <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>
+        <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / paste / reset / presets)</td></tr>
         <tr><td><code>undo</code></td><td>debounced undo/redo history</td></tr>
         <tr><td><code>onReset</code></td><td>replace the default reset behavior</td></tr>
         <tr><td><code>onEditStart</code> / <code>onEditEnd</code></td><td>bracket a continuous drag, to pause expensive work mid-scrub</td></tr>

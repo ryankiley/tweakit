@@ -13,10 +13,11 @@ reproduced below.
 | `ICON_CHECK` | Hugeicons `tick-02` | MIT |
 | `ICON_CHEVRON` | Hugeicons `arrow-down-01` | MIT |
 | `ICON_INFO` | Hugeicons `information-circle`, two paths merged | MIT |
-| `ICON_X` | Hugeicons `cancel-01` | MIT |
+| `ICON_X`, `ICON_FAIL` | Hugeicons `cancel-01` | MIT |
 | `ICON_PLUS` | Hugeicons `add-01`, two paths merged | MIT |
 | `ICON_SEARCH` | Hugeicons `search-01`, two paths merged | MIT |
 | `ICON_COPY` | Hugeicons `copy-01`, back sheet's ends trimmed | MIT |
+| `ICON_PASTE` | Hugeicons `clipboard-copy`, board and clip merged | MIT |
 | `ICON_PRESETS` | Hugeicons `layer` | MIT |
 | `ICON_RESET` | Hugeicons `undo` | MIT |
 | `ICON_GRIP` | original to this project | — |

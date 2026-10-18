@@ -8,19 +8,20 @@ import {
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
+import { makeCopyBtn, makePasteBtn, makeResetBtn, toolbarBtn, flash, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
+import type { ClipCtx } from "./clip.js";
 import type { PanelEl } from "./shared.js";
 import type { TabsControl } from "./controls/tabs.js";
 
 /** A params object or one of its folder/tabs sub-objects — the holder a control writes into. */
 type Target = Record<string, unknown>;
 /** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def) and its dotted path. */
-interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean }
+export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta }
 /** A values snapshot — params minus `_last`, as JSON round-trips it. */
-type Snapshot = Record<string, any>;
+export type Snapshot = Record<string, any>;
 /** A folder in the filter index: its node, label and body (for the child scan). */
 interface FolderItem { el: HTMLElement; label: string; body: HTMLElement }
 
@@ -107,6 +108,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const changed = (): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.path.join(".")] = e.get(); return JSON.parse(JSON.stringify(out, replacer)); };
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
   const copyBtn = makeCopyBtn(panel, () => title, (changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // snapshot() falls back on a bad bag value, not throws
+  // Paste takes a copy back (pasteValues, in the lazy clip chunk; ctx lends it the panel). A chunk that can't load shows the cross.
+  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), flash, showToast, alive: () => !destroyed };
+  const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, panel, (t) => m.pasteValues(ctx, t), ctx), () => flash(b, "is-failed")); });
   const resetBtn = makeResetBtn(resetAll);
   // Presets share persistence's storage, so the button needs it on.
   let presetsBtn: HTMLButtonElement | null = null;
@@ -124,12 +128,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     quietFocus(searchInput);
     toolbar.append(searchBtn);
   }
-  toolbar.append(copyBtn, resetBtn);
+  toolbar.append(copyBtn, pasteBtn, resetBtn);
   header.append(titleBtn);
   if (filterOn) header.append(searchInput);
   if (opts.toolbar !== false) header.append(toolbar); // toolbar:false → a bare panel, e.g. an embedded demo
   // The buttons act on controls that only exist once assemble() has built them: inert until then.
-  const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
+  const toolbarBtns = [copyBtn, pasteBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
   for (const b of toolbarBtns) b.disabled = true;
   // swallowClick lives on the header, not the title: once the header holds pointer capture, the click ending a drag is dispatched there.
   let dragMoved = false, swallowClick = false;
@@ -259,7 +263,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // A value a host parked on params before assemble ran wins over the schema default.
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false };
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m };
         entries.push(entry); wireReset(ctrl.el, entry);
       }
       registerCond(ctrl.el, m);

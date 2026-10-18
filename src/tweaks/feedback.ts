@@ -1,7 +1,7 @@
-/* Panel feedback chrome — the toolbar button factories (copy / reset and their one-shot
- * animations), the shared toast pill, the hint tooltip and the clipboard helper. */
+/* Panel feedback chrome — the toolbar button factories (copy / paste / reset and their one-shot
+ * animations), the shared toast pill, the hint tooltip and the clipboard helpers. */
 import { el, btn, carrySkin, placeBelow } from "./shared.js";
-import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
+import { ICON_COPY, ICON_CHECK, ICON_PASTE, ICON_FAIL, ICON_RESET, ICON_INFO } from "./icons.js";
 
 /** A toolbar button with its one-shot animation state: timer, spin settle hook, last click time. */
 interface ToolbarBtn extends HTMLButtonElement { _t?: number; _spinSettle?: () => void; _spinT?: number }
@@ -17,14 +17,22 @@ const makeCopyBtn = (anchor: Element, name: () => string, text: (changedOnly: bo
     if (b.disabled) return;
     const [t, n] = text(e.shiftKey);
     if (!n) { showToast("Nothing has changed", anchor); return; }
-    if (await copyText(t)) { flashCopied(b); showToast(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : `${name()} values copied`, anchor); }
+    if (await copyText(t)) { flash(b, "is-copied"); showToast(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : `${name()} values copied`, anchor); }
     else showToast("Copy failed", anchor);
   });
   return b;
 };
+/** Paste: starts the clipboard read inside the click, where the browser counts it as the user's gesture, and hands the
+ *  pending read to `run`, which parses, applies and reports it (pasteInto, in the lazy clip chunk). */
+const makePasteBtn = (run: (read: Promise<string | null>, b: ToolbarBtn) => void) => {
+  const b = toolbarBtn("tw-toolbar-btn--swap tw-toolbar-btn--paste", `<span class="tw-toolbar-btn__icons">${ICON_PASTE}${ICON_CHECK}${ICON_FAIL}</span>`, "Paste values");
+  b.addEventListener("click", () => { if (!b.disabled) run(readText(), b); });
+  return b;
+};
 /** Reset: runs `onReset` behind the icon's one-shot spin. */
 const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
-const flashCopied = (btn: ToolbarBtn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
+// The swap's one-shot state, the check or the cross; the other leaves first, so a failure can follow a success mid-flash.
+const flash = (btn: ToolbarBtn, cls: "is-copied" | "is-failed") => { btn.classList.remove("is-copied", "is-failed"); btn.classList.add(cls); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove(cls), 1400); };
 /** Reset spin — an accumulated rotation on --tw-spin driven by the transform transition, so a
  *  second click mid-spin retargets smoothly instead of snapping back. Once settled the counter
  *  renormalises to 0 with the transition suppressed (−n·360° is the same angle). "Settled" is the
@@ -114,6 +122,10 @@ function addHintMarker(node: Element, hint: string) {
   mark.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }); // and (inside a control button) mustn't toggle the parent
   label.appendChild(mark);
 }
+/** The clipboard's text, or null when it can't be read: no API (an insecure context), a denied permission. */
+async function readText(): Promise<string | null> {
+  try { const t = await navigator.clipboard.readText(); return typeof t === "string" ? t : null; } catch { return null; }
+}
 async function copyText(text: string) {
   try { await navigator.clipboard.writeText(text); return true; } catch {}
   // Fallback when the clipboard API is blocked (no user activation): textarea + execCommand.
@@ -125,4 +137,4 @@ async function copyText(text: string) {
   return ok;
 }
 
-export { toolbarBtn, makeCopyBtn, makeResetBtn, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL };
+export { toolbarBtn, makeCopyBtn, makePasteBtn, makeResetBtn, flash, readText, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL };

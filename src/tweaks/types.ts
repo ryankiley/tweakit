@@ -182,7 +182,7 @@ export interface TweaksOptions {
   /** Drag the header to reposition the panel — on by default. An inline panel lifts into a
    *  floating layer on first drag; set `false` to pin it in place. */
   draggable?: boolean;
-  /** Set `false` for a bare panel (no copy/reset/presets toolbar). */
+  /** Set `false` for a bare panel (no copy/paste/reset/presets toolbar). */
   toolbar?: boolean;
   /** Enable debounced undo/redo (⌘Z / ⇧⌘Z while the panel is hovered/focused). */
   undo?: boolean;

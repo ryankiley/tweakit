@@ -1,14 +1,15 @@
 /* Markup-driven enhancement — enhance() turns [data-tw] hosts into live controls, sharing the
  * panel's meta derivation via dataMeta. Imported for its side effect too: it auto-runs on load. */
 import { el, btn, setCollapsed } from "./shared.js";
-import { dataMeta, restoreDefault, hasOwn, valueChanged } from "./schema.js";
+import { dataMeta, restoreDefault, valueChanged } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
+import { makeCopyBtn, makePasteBtn, makeResetBtn, addHintMarker, flash, showToast } from "./feedback.js";
 import type { Control } from "./types.js";
+import type { Meta } from "./schema.js";
 
 /** The handle enhance() hangs on a bound [data-tw] host: its control, the reset pair and its key. */
-interface HostHandle { ctrl: Control; raw: unknown; def: unknown; key: string; host: HTMLElement; reset: () => void }
+interface HostHandle { ctrl: Control; raw: unknown; def: unknown; key: string; host: HTMLElement; reset: () => void; m: Meta }
 interface HostEl extends HTMLElement { _tw?: HostHandle }
 
 // Echo a control's value onto its host's data-value, in the comma form schema.ts parses. A plain
@@ -42,18 +43,19 @@ export async function enhance(root: Document | Element = document): Promise<void
     if (!header.querySelector(".tw-toolbar")) {
       const name = (title && title.textContent) || "Panel";
       const live = () => [...panel.querySelectorAll<HostEl>("[data-tw]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);
-      // Two hosts can share a key (a repeated data-key, or the same label): suffix the duplicates.
-      const values = () => {
-        const vals: Record<string, unknown> = Object.create(null); // null-proto: a "__proto__" data-key is an ordinary key
-        for (const t of live()) {
-          let k = t.key, n = 2; while (hasOwn(vals, k)) k = `${t.key}-${n++}`;
-          vals[k] = t.ctrl.get();
-        }
-        return JSON.stringify(vals, null, 2);
+      // Two hosts can share a key (a repeated data-key, or the same label): suffix the duplicates. Copy and paste key them alike.
+      const keyed = () => { const seen = new Set<string>(); return live().map((t) => { let k = t.key, n = 2; while (seen.has(k)) k = `${t.key}-${n++}`; seen.add(k); return { path: [k], get: t.ctrl.get, m: t.m, t }; }); };
+      const values = () => JSON.stringify(Object.fromEntries(keyed().map((s) => [s.path[0], s.get()])), null, 2); // fromEntries: a "__proto__" data-key is an ordinary key
+      // The copy's object back (or a panel's { values } state): the values that fit their hosts, each through its change path.
+      const paste = (pick: typeof import("./clip.js").pick) => (text: string) => {
+        const data = JSON.parse(text), vals = data && Object.keys(data).every((k) => k === "values" || k === "ui") && data.values ? data.values : data;
+        const hits = pick(keyed(), vals); for (const [s, v] of hits) s.t.ctrl.set(v);
+        return hits.length || false;
       };
       const reset = () => { for (const t of live()) t.reset(); };
       const toolbar = el("div", "tw-toolbar");
-      toolbar.append(makeCopyBtn(panel, () => name, () => [values(), -1]), makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
+      const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, panel, paste(m.pick), { flash, showToast, alive: () => panel.isConnected }), () => flash(b, "is-failed")); });
+      toolbar.append(makeCopyBtn(panel, () => name, () => [values(), -1]), pasteBtn, makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
     }
   });
   // Folders first: move child hosts into the collapsible chrome.
@@ -83,7 +85,7 @@ export async function enhance(root: Document | Element = document): Promise<void
     const def = ctrl.get(); last = def;
     // The handle's set() runs the change path too, where the bare control's set() is silent.
     const handle = { ...ctrl, set: (v: unknown) => { ctrl.set(v); emit(ctrl.get()); } };
-    host._tw = { ctrl: handle, raw: meta.value, def, key, host, reset: () => { restoreDefault(ctrl, meta.value, def); emit(ctrl.get()); } };
+    host._tw = { ctrl: handle, raw: meta.value, def, key, host, m: meta, reset: () => { restoreDefault(ctrl, meta.value, def); emit(ctrl.get()); } };
   }
 }
 
