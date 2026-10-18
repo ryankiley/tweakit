@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { window } from "./_setup-dom.mjs";
-import { loadSingle, loadSplit, tick, ptr } from "./_helpers.mjs";
+import { loadSingle, loadSplit, tick, ptr, distCss } from "./_helpers.mjs";
 globalThis.MutationObserver = window.MutationObserver; // the kit guards on the global; the shared setup doesn't expose it
 
 const { tweaks } = await loadSingle();
@@ -69,6 +69,37 @@ test("the click that ends a drag is swallowed once; the next title click still c
   title.click();
   assert.ok(!p.el.classList.contains("is-collapsed"), "and the one after re-expands");
   p.destroy();
+});
+
+// A fixed box ignores page scroll, so a floating panel taller than the window used to run off
+// it with its last folders unreachable. The CSS caps it at the viewport below its top edge
+// (--tw-top, written with every position) and the whole panel scrolls, header and all.
+test("a floating panel taller than the viewport caps at the viewport below its top and scrolls", async () => {
+  const css = distCss();
+  assert.match(css, /\.tw-panel\[data-mode=floating\]\{max-height:calc\(100dvh - var\(--tw-top,\s*16px\) - 8px\);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none\}/, "capped by its top offset, scrolling, the scrollbar hidden");
+  const h = window.innerHeight; window.innerHeight = 400; // a short window
+  const schema = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`folder${i}`, { a: [1, 0, 10, 1], b: [2, 0, 10, 1] }]));
+  const p = tweaks("Tall", schema, { floating: { x: 16, y: 120 } }); document.body.append(p.el);
+  const header = p.el.querySelector(".tw-header");
+  header.setPointerCapture = header.releasePointerCapture = () => {};
+  const drag = (dx, dy) => { header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 20 })); header.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: 20 + dy })); header.dispatchEvent(ptr("pointerup", { clientX: 100 + dx, clientY: 20 + dy, buttons: 0 })); };
+  // jsdom lays nothing out: stand in for the panel's box (offsetHeight, rounded) and its scroll (what the cap hides).
+  const box = (offset, hidden) => { for (const [k, v] of [["offsetHeight", offset], ["clientHeight", offset], ["scrollHeight", offset + hidden]]) Object.defineProperty(p.el, k, { value: v, configurable: true }); };
+  try {
+    assert.equal(p.el.style.getPropertyValue("--tw-top"), "120px", "the cap's offset is written with the position");
+    box(271, 1328); // capped at 272 (400 − 120 − 8) less the pixel of slack, wanting 1600
+    window.dispatchEvent(new Event("resize"));
+    assert.equal(p.el.style.top, "8px", "a panel taller than the window clamps to the top margin on its natural height, not the capped one");
+    assert.equal(p.el.style.getPropertyValue("--tw-top"), "8px", "and the cap follows: 100dvh − 8px − 8px");
+    drag(40, 200);
+    assert.deepEqual([p.el.style.top, p.el.style.left], ["8px", "56px"], "dragging down can't push a too-tall panel off the bottom, however short the cap made it");
+    // A panel that fits moves freely, the cap recomputed from where it lands.
+    box(100, 0); // offsetHeight rounds a fractional layout, so the clamp allows a pixel of slack
+    drag(0, 150);
+    assert.deepEqual([p.el.style.top, p.el.style.getPropertyValue("--tw-top")], ["158px", "158px"], "recomputed after the drag");
+    drag(0, 900);
+    assert.equal(p.el.style.top, `${400 - 101 - 8}px`, "parked at the bottom on the rounded-up height");
+  } finally { window.innerHeight = h; p.destroy(); }
 });
 
 test("draggable: false pins a floating panel too", () => {

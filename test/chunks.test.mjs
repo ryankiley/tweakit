@@ -56,9 +56,10 @@ test("the split build has exactly three shared chunks, and core imports exactly 
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
-// Raised 22 → 23 KiB for the toolbar's paste button: its icon and failure cross beside copy's, and the click that starts
-// the clipboard read (the parse and checks are the lazy clip chunk). CI's Node 22 measures ~100 B more than a local
-// Node 24: judge closeness to the gate by CI's figure.
+// Raised 22 → 23 KiB for the floating panel's height cap (the clamp on its natural height, and closing a popover whose
+// row scrolls out of the panel), which main took ~30 B under 22 KiB on CI, and the toolbar's paste button (its icon and
+// failure cross beside copy's, and the click that starts the clipboard read; the parse and checks are the lazy clip
+// chunk). CI's Node 22 measures ~100 B more than a local Node 24: judge closeness to the gate by CI's figure.
 // Raised 21 → 22 KiB for the unit suffix on sliders/number fields and the motion and shadow
 // controls' registry lines (schema handler, markup parser, lazy import), which together cross
 // 21 KiB by a few dozen bytes; the controls themselves are lazy chunks.

@@ -156,12 +156,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // the moment tweaks() returns instead of jumping when the lazy chunks land. ──
   const draggable = opts.draggable !== false;
   const MARGIN = 8, SNAP = 28; // px: viewport inset; snap distance to park against an edge
-  const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - panel.offsetHeight - MARGIN) });
+  // The clamp uses the panel's natural height — what it would be uncapped (the CSS max-height caps a floating panel at
+  // the viewport below its top, and it scrolls). Clamping on the capped height would ratchet: every position fits, so a
+  // tall panel could be dragged up but never back down. +1: offsetHeight rounds, so a panel parked at the bottom isn't
+  // capped a fraction short of its rows.
+  const natural = () => panel.offsetHeight + 1 + panel.scrollHeight - panel.clientHeight;
+  const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - natural() - MARGIN) });
   const posKey = persistKey ? `${persistKey}:pos` : null;
   const saved = (draggable || opts.floating) && posKey ? readStore(posKey) : null;
   const start = saved || (typeof opts.floating === "object" ? opts.floating : null) || { x: 16, y: 16 };
   let px = +start.x || 16, py = +start.y || 16;
-  const apply = () => { panel.style.left = px + "px"; panel.style.top = py + "px"; };
+  const apply = () => { panel.style.left = px + "px"; panel.style.top = py + "px"; panel.style.setProperty("--tw-top", py + "px"); }; // --tw-top: the CSS height cap reads it
   const clampPos = () => { const { maxX, maxY } = bounds(); px = clamp(px, MARGIN, maxX); py = clamp(py, MARGIN, maxY); };
   if ((draggable || opts.floating) && (opts.floating || saved)) {
     panel.dataset.mode = "floating"; clampPos(); apply();
