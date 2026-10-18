@@ -8,7 +8,7 @@ import {
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
@@ -445,13 +445,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       for (const nm of names) {
         const row = el("div", "tw-presets-row");
         const load = txt("button", "tw-presets-load", nm);
-        load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); });
+        load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); announce(`Loaded preset ${nm}`); });
         const del = btn("tw-presets-del", ICON_X); del.setAttribute("aria-label", `Delete preset ${nm}`);
         del.addEventListener("click", (e) => { e.stopPropagation(); deletePreset(nm); renderList(); });
         row.append(load, del); list.append(row);
       }
     };
-    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } savePreset(nm); input.value = ""; renderList(); };
+    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } savePreset(nm); input.value = ""; renderList(); announce(`Saved preset ${nm}`); };
     // The shared popover shell; align:"end" hangs it off the button's right edge.
     const menuPop = popover(presetsBtn, presetsBtn, menu, {
       width: 208, fallbackH: 160, gap: 6, align: "end",

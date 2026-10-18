@@ -1,5 +1,5 @@
 /* Panel feedback chrome — the toolbar button factories (copy / reset and their one-shot
- * animations), the hint tooltip and the clipboard helper. */
+ * animations), the screen-reader announcer, the hint tooltip and the clipboard helper. */
 import { el, btn, carrySkin, placeBelow } from "./shared.js";
 import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 
@@ -8,7 +8,7 @@ interface ToolbarBtn extends HTMLButtonElement { _t?: number; _spinSettle?: () =
 
 /** An icon toolbar button with matching title and aria-label. */
 const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => { const b = btn("tw-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
-/** Copy: puts `text(changedOnly)` on the clipboard and confirms with the check swap.
+/** Copy: puts `text(changedOnly)` on the clipboard and confirms with the check swap, and to a screen reader in words.
  *  `text` returns the payload and a count (-1 for the full snapshot; 0 copies nothing).
  *  Both handlers bail while `disabled`: a synthetic dispatchEvent(click) reaches a disabled button. */
 const makeCopyBtn = (text: (changedOnly: boolean) => [string, number]) => {
@@ -16,9 +16,19 @@ const makeCopyBtn = (text: (changedOnly: boolean) => [string, number]) => {
   b.addEventListener("click", async (e) => {
     if (b.disabled) return;
     const [t, n] = text(e.shiftKey);
-    if (n && await copyText(t)) flashCopied(b);
+    if (!n) return announce("Nothing has changed");
+    if (!(await copyText(t))) return announce("Copy failed");
+    flashCopied(b); announce(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : "Values copied");
   });
   return b;
+};
+// What a click did, in words, for a screen reader: one visually hidden status region for the page, where the toast used
+// to speak. It's cleared and written a beat later, so the same words twice are read twice.
+let srEl: HTMLDivElement | null = null, srT = 0;
+const announce = (msg: string) => {
+  if (!srEl) { srEl = el("div", "tw-sr"); srEl.setAttribute("role", "status"); }
+  if (!srEl.isConnected) document.body.appendChild(srEl); // re-home after a host replaced <body>'s content
+  srEl.textContent = ""; clearTimeout(srT); srT = setTimeout(() => { srEl!.textContent = msg; }, 100);
 };
 /** Reset: runs `onReset` behind the icon's one-shot spin. */
 const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
@@ -113,4 +123,4 @@ async function copyText(text: string) {
   return ok;
 }
 
-export { toolbarBtn, makeCopyBtn, makeResetBtn, spinReset, hideHintNow, addHintMarker, LABEL_SEL };
+export { toolbarBtn, makeCopyBtn, makeResetBtn, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };
