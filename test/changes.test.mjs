@@ -167,8 +167,10 @@ test("a press beside a row picks it with an even band, and ⌘C / ⌘V act on th
   pressBeside(p, ax);
   assert.deepEqual(picked(), [row(ax)], "the row level with the press is picked");
   const css = distCss();
-  assert.match(css, /\.tw-panel \.is-picked:not\(\.tw-folder\)\{margin-block:3px\}/, "a picked row eases 3px of room open above and below");
-  assert.match(css, /\.tw-panel \.is-picked:before\{[^}]*inset:-6px -100vmax/, "so its band clears its surface by 6px on both sides, edge to edge");
+  assert.doesNotMatch(css, /is-picked[^{]*\{[^}]*margin/, "picking moves nothing");
+  assert.match(css, /\.tw-panel \.is-picked:before\{[^}]*inset:-3px -100vmax/, "the band reaches 3px past the row on both sides, halfway to its neighbours, edge to edge");
+  assert.match(css, /\.tw-body>\.tw-controls\{[^}]*padding-block:3px;margin-block:-3px\}/, "the body's clip edges sit 3px out, offset so nothing moves, so a first or last row's band isn't cut");
+  assert.match(css, /\.tw-folder-body>\.tw-controls\{[^}]*padding:3px 0 8px;margin-top:-3px/, "and a folder's top clip edge too");
   const c = await clipKey(document.activeElement, "c");
   assert.deepEqual([c.copied, c.flash], ["1", "ok"], "its value, not the focused folder's");
   pressBeside(p, bx);
