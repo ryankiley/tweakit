@@ -477,7 +477,7 @@
 .tw-panel .tw-controls > * { transition: margin-block 0.2s var(--tw-ease-out); }
 .tw-panel .is-picked { position: relative; isolation: isolate; }
 .tw-panel .is-picked:not(.tw-folder) { margin-block: 3px; }
-.tw-panel .is-picked::before { content: ""; position: absolute; inset: -6px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 16%, transparent); }
+.tw-panel .is-picked::before { content: ""; position: absolute; inset: -6px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 9%, transparent); }
 .tw-panel .tw-folder.is-picked::before { inset-block: 0; }
 
 /* ── Presets menu — portaled; save / load / delete named snapshots ── */
