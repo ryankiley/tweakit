@@ -64,13 +64,15 @@ export const examples = [
       and applies it through <code>fromJSON</code>: one undo step, saved and announced like
       any load. A value only lands where it fits, the same type as the control holds (a
       colour string for a colour, one of a list's options), so a stray key or a mistyped
-      value is skipped rather than coerced. ⌘C and ⌘V (ctrl elsewhere) do the same for the
-      row or folder under the pointer, or the one holding focus: a row copies its value and
-      pastes one back, and a folder copies its values object and pastes one into its own
-      keys, so two folders with the same keys trade values. In a text field, over selected
-      text, or with focus elsewhere on the page, the keys stay the browser's. Right-click
-      a row or a folder for the same Copy and Paste in a menu, plus Reset for just that row
-      or folder; hold Shift to get the browser's own menu instead.
+      value is skipped rather than coerced. To copy a single row or folder, press in the
+      space beside it, in the panel's side padding, to pick it (a ring shows), then press
+      ⌘C (ctrl elsewhere); pick another and press ⌘V. A row copies its value and pastes one
+      back, and a folder copies its values object and pastes one into its own keys, so two
+      folders with the same keys trade values. With nothing picked, the keys act on the row
+      holding focus. Escape or a press elsewhere drops the pick, and in a text field or over
+      selected text the keys stay the browser's. Right-click a row or folder to pick it and
+      open the same Copy and Paste in a menu, plus Reset for just that row or folder; hold
+      Shift for the browser's own menu.
       <code>panel.setName(name)</code> retitles the panel live (the header and the copy
       toast follow); the name it was built with stays its storage key, so saved values and
       presets survive a rename.</p>`,
@@ -282,7 +284,9 @@ export const examples = [
     prose: `<p>Every panel is draggable by its header: an inline panel lifts into a
       floating layer on first drag (<code>draggable: false</code> pins it). Pass
       <code>floating: true</code> or <code>{ x, y }</code> to start it floated, like a
-      classic debug overlay.</p>`,
+      classic debug overlay. A floating panel never runs off the window: it caps at the
+      viewport below its top edge and scrolls, header and all, so a tall panel reaches its
+      last folder by scrolling and drags by its title once scrolled back up.</p>`,
     target: `<button class="demo-btn fl-spawn" type="button">Spawn a floating panel</button>`,
     noMount: true,
     run: ({ tweaks, target }) => {

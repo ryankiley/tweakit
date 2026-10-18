@@ -26,7 +26,7 @@ export type Snapshot = Record<string, any>;
 interface FolderItem { el: HTMLElement; label: string; body: HTMLElement }
 
 let topFloating: HTMLElement | null = null; // the floating panel raised last (raise())
-let pointerPanel: HTMLElement | null = null; // the panel under the pointer: it alone takes a scoped ⌘C / ⌘V
+let picked: [HTMLElement, () => void] | null = null; // the panel holding the page's one pick, and how to drop it
 
 /** Build a panel from `schema`; the shell and API exist synchronously, lazy controls fill in on `ready`. */
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
@@ -157,12 +157,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // the moment tweaks() returns instead of jumping when the lazy chunks land. ──
   const draggable = opts.draggable !== false;
   const MARGIN = 8, SNAP = 28; // px: viewport inset; snap distance to park against an edge
-  const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - panel.offsetHeight - MARGIN) });
+  // The clamp uses the panel's natural height — what it would be uncapped (the CSS max-height caps a floating panel at
+  // the viewport below its top, and it scrolls). Clamping on the capped height would ratchet: every position fits, so a
+  // tall panel could be dragged up but never back down. +1: offsetHeight rounds, so a panel parked at the bottom isn't
+  // capped a fraction short of its rows.
+  const natural = () => panel.offsetHeight + 1 + panel.scrollHeight - panel.clientHeight;
+  const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - natural() - MARGIN) });
   const posKey = persistKey ? `${persistKey}:pos` : null;
   const saved = (draggable || opts.floating) && posKey ? readStore(posKey) : null;
   const start = saved || (typeof opts.floating === "object" ? opts.floating : null) || { x: 16, y: 16 };
   let px = +start.x || 16, py = +start.y || 16;
-  const apply = () => { panel.style.left = px + "px"; panel.style.top = py + "px"; };
+  const apply = () => { panel.style.left = px + "px"; panel.style.top = py + "px"; panel.style.setProperty("--tw-top", py + "px"); }; // --tw-top: the CSS height cap reads it
   const clampPos = () => { const { maxX, maxY } = bounds(); px = clamp(px, MARGIN, maxX); py = clamp(py, MARGIN, maxY); };
   if ((draggable || opts.floating) && (opts.floating || saved)) {
     panel.dataset.mode = "floating"; clampPos(); apply();
@@ -513,24 +518,42 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     return { undo, redo, onKey, arm: () => { history = [snapshot()]; histIdx = 0; } };
   })() : null;
 
-  // ── Scoped copy / paste — ⌘C / ⌘V (ctrl elsewhere) on the row or folder under the pointer, else the one holding
-  // focus. A row copies its value and pastes one back; a folder copies its values object and pastes one into its own
-  // keys, so two folders with the same keys trade values. Only the panel under the pointer acts (focus decides when the
-  // pointer is over none); focus elsewhere on the page, a text field or a text selection keeps the browser's own keys. ──
+  // ── Pick and copy / paste — a press beside a row (in the panel's side padding, or a gap between rows) picks it, as
+  // a layer is picked in a design tool; beside a folder's header, the folder. ⌘C / ⌘V (ctrl elsewhere) then act on the
+  // pick, or with none on the page, on the row holding focus. A row copies its value and pastes one back; a folder copies
+  // its values object and pastes one into its own keys, so two folders with the same keys trade values. Escape, or a
+  // press anywhere else, drops the pick; a text field or a text selection keeps the browser's own keys. ──
   const scopes = new Map<Element, Scope>(); // a row's or folder's root → its scope, filled by build()
-  let hovered: Element | null = null;
-  panel.addEventListener("pointerover", (e) => { hovered = e.target as Element; pointerPanel = panel; });
-  panel.addEventListener("pointerleave", () => { hovered = null; if (pointerPanel === panel) pointerPanel = null; });
-  cleanups.push(() => { if (pointerPanel === panel) pointerPanel = null; });
   const scopeAt = (n: Element | null): Scope | undefined => { for (; n && n !== panel && panel.contains(n); n = n.parentElement) { const s = scopes.get(n); if (s) return s; } };
+  const rowAt = (n: Element | null): Element | undefined => { for (; n && n !== panel; n = n.parentElement) if (scopes.get(n)?.kind === "row") return n; };
+  let pick: [Element, Scope] | undefined, press = ""; // press: the last pointer's type, for the right-click menu below
+  const away = (e: Event) => { const t = e.target as Element; if (!panel.contains(t) && !t.closest?.(".tw-portal")) unpick(); };
+  const unpick = () => { if (!pick) return; pick[0].classList.remove("is-picked"); pick = undefined; document.removeEventListener("pointerdown", away, true); if (picked?.[0] === panel) picked = null; };
+  const choose = (el: Element, s: Scope) => {
+    if (picked && picked[0] !== panel) picked[1](); // one pick on the page
+    unpick(); pick = [el, s]; picked = [panel, unpick]; el.classList.add("is-picked");
+    document.addEventListener("pointerdown", away, true); // only while something is picked
+  };
+  cleanups.push(unpick);
+  panel.addEventListener("pointerdown", (e) => {
+    const t = e.target as Element; press = e.pointerType;
+    if (pick?.[0].contains(t)) return; // working the picked row keeps it
+    if (e.button !== 0 || rowAt(t) || t.closest(".tw-header, .tw-folder-header, button, input, textarea, select")) return unpick();
+    // Beside a row: find what's level with the press across the middle of the controls.
+    const r = controls.getBoundingClientRect(), hit = document.elementFromPoint?.(r.left + r.width / 2, e.clientY) ?? null;
+    const head = hit?.closest(".tw-folder-header"), el = head ? head.parentElement : rowAt(hit), s = el && scopes.get(el);
+    if (!s) return unpick();
+    e.preventDefault(); // no text selection, no focus change
+    choose(el, s);
+  }, true); // capture: a label's own pointerdown stops the event before it bubbles here
   const inEditable = (t: Element | null) => !!(t && (t as HTMLElement).matches && ((t as HTMLElement).matches("input, textarea, select") || (t as HTMLElement).isContentEditable));
   // Called from the panel's one keydown listener (registered by assemble(), beside the undo keys). The copy is written
   // and the paste read started here, inside the keypress, where the browser counts them as the user's gesture.
   const onClipKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape") return unpick();
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.target as Element)) return;
-    const k = e.key.toLowerCase(), a = document.activeElement;
-    if ((k !== "c" && k !== "v") || (a && a !== document.body && !a.closest(".tw-panel, .tw-portal"))) return;
-    const s = pointerPanel ? (pointerPanel === panel ? scopeAt(hovered) : undefined) : scopeAt(a);
+    const k = e.key.toLowerCase(); if (k !== "c" && k !== "v") return;
+    const s = pick ? pick[1] : picked ? undefined : scopeAt(document.activeElement);
     if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
     e.preventDefault();
     (k === "v" ? doPaste : doCopy)(s);
@@ -538,17 +561,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const doPaste = (s: Scope) => { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, s.label), () => flash(pasteBtn, "is-failed")); };
   const doCopy = (s: Scope) => copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
     .then((ok) => { if (ok) flash(copyBtn, "is-copied"); showToast(ok ? `${s.label} copied` : "Copy failed", panel); });
-  // A right-click on a row or folder opens Copy / Paste / Reset for it (the menu is built in the clip chunk). Shift, a text
-  // field, a selection inside the panel, anywhere else in the panel, and a touch or pen long-press (the hold-reset's) keep
-  // the browser's menu. contextmenu names its pointer where it's a PointerEvent; elsewhere the last press's type stands in.
-  let press = "", menuOff: (() => void) | undefined;
-  panel.addEventListener("pointerdown", (e) => { press = e.pointerType; }, true);
+  // A right-click on a row or folder picks it and opens Copy / Paste / Reset for it (the menu is built in the clip chunk).
+  // Shift, a text field, a selection inside the panel, anywhere else in the panel, and a touch or pen long-press (the
+  // hold-reset's) keep the browser's menu. contextmenu names its pointer where it's a PointerEvent; elsewhere the last
+  // press's type stands in.
+  let menuOff: (() => void) | undefined;
   cleanups.push(() => menuOff?.());
   panel.addEventListener("contextmenu", (e) => {
     const t = e.target as Element, pt = (e as PointerEvent).pointerType || press, sel = document.getSelection?.();
     if (e.shiftKey || pt === "touch" || pt === "pen" || inEditable(t) || (sel && String(sel) && panel.contains(sel.anchorNode))) return;
-    const s = scopeAt(t); if (!s) return;
-    e.preventDefault();
+    let el: Element | null = t; while (el && el !== panel && !scopes.has(el)) el = el.parentElement;
+    const s = el && scopes.get(el); if (!s) return;
+    e.preventDefault(); choose(el, s);
     const at = e.clientX || e.clientY ? [e.clientX, e.clientY] : null; // the menu key or ⇧F10 may carry no point: under the row
     import("./clip.js").then((m) => { if (!destroyed) menuOff = m.openMenu(ctx, s, t, at); }, () => {});
   });
