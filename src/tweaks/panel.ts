@@ -558,7 +558,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     e.preventDefault();
     if (k === "v") { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, (t) => m.pasteScope(ctx, s, t), ctx), () => flash(pasteBtn, "is-failed")); return; }
     copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
-      .then((ok) => { if (ok && !destroyed) flash(copyBtn, "is-copied"); }); // the pick is in view: the toolbar's check says it, no toast
+      .then((ok) => { if (ok && !destroyed) flash(copyBtn, "is-copied"); }); // the toolbar copy icon flashes its check
   };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,
