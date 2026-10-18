@@ -272,21 +272,28 @@ export const examples = [
       <code>floating: true</code> or <code>{ x, y }</code> to start it floated, like a
       classic debug overlay. A floating panel never runs off the window: it caps at the
       viewport below its top edge and scrolls, header and all, so a tall panel reaches its
-      last folder by scrolling and drags by its title once scrolled back up.</p>`,
-    target: `<button class="demo-btn fl-spawn" type="button">Spawn a floating panel</button>`,
+      last folder by scrolling and drags by its title once scrolled back up. Spawn the tall
+      one to see it.</p>`,
+    target: `<div class="fl-row">
+        <button class="demo-btn fl-spawn" type="button">Spawn a floating panel</button>
+        <button class="demo-btn fl-tall" type="button">Spawn a tall one</button>
+      </div>`,
+    css: `.fl-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }`,
     noMount: true,
     run: ({ tweaks, target }) => {
-      const btn = target.querySelector(".fl-spawn");
+      // Eight folders run past most windows, so the tall one scrolls inside its cap.
+      const tall = Object.fromEntries(["Key", "Fill", "Rim", "Bounce", "Fog", "Bloom", "Grain", "Lens"].map((f) => [f, { amount: [50, 0, 100, 1], size: [24, 0, 64, 1], hue: [200, 0, 360, 1] }]));
       let floater = null;
-      btn.addEventListener("click", () => {
-        if (floater) { floater.el.remove(); floater = null; btn.textContent = "Spawn a floating panel"; return; }
-        floater = tweaks("Floating", {
-          note: "Drag my header",
-          hue: [280, 0, 360, 1],
-        }, { floating: { x: 24, y: 96 } });
-        document.body.append(floater.el);
-        btn.textContent = "Dismiss it";
+      const spawn = (btn, label, schema) => btn.addEventListener("click", () => {
+        const mine = floater?.btn === btn;
+        if (floater) { floater.panel.el.remove(); floater.btn.textContent = floater.label; floater = null; }
+        if (mine) return;
+        const panel = tweaks("Floating", schema, { floating: { x: 24, y: 96 } });
+        document.body.append(panel.el);
+        floater = { panel, btn, label }; btn.textContent = "Dismiss it";
       });
+      spawn(target.querySelector(".fl-spawn"), "Spawn a floating panel", { note: "Drag my header", hue: [280, 0, 360, 1] });
+      spawn(target.querySelector(".fl-tall"), "Spawn a tall one", { note: "Scroll me; drag my header", ...tall });
     },
   },
   {
