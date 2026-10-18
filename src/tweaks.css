@@ -475,9 +475,9 @@
  * depth (the panel clips it to its rounded edge while something is picked). A row's band reaches 3px past it, halfway
  * across the 6px gap to its neighbours, the same on both sides wherever it sits; nothing moves. A folder's band runs
  * between its own rules. */
-.tw-panel:has(.is-picked) { overflow-x: clip; }
+.tw-panel:not([data-mode="floating"]):has(.is-picked) { overflow: clip; } /* both axes, so it follows the rounded corners; a floating panel already clips, scrolling */
 .tw-panel .is-picked { position: relative; isolation: isolate; }
-.tw-panel .is-picked::before { content: ""; position: absolute; inset: -3px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 9%, transparent); }
+.tw-panel .is-picked::before { content: ""; position: absolute; inset: -3px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 5%, transparent); }
 .tw-panel .tw-folder.is-picked::before { inset-block: 0; }
 /* A paste onto the pick answers on the band: a brief brightening when it lands, a brief danger tint when nothing fits. */
 .tw-panel .is-picked::before { transition: background 0.35s var(--tw-ease-out); }

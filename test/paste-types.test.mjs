@@ -34,9 +34,12 @@ const all = (b) => ({
 const KEYS = Object.keys(all(false));
 const mount = async () => { const p = tweaks("Types", { A: all(false), B: all(true) }); document.body.append(p.el); await p.ready; return p; };
 const rowOf = (p, folder, k) => p.el.querySelectorAll(".tw-folder")[folder === "A" ? 0 : 1].querySelectorAll(".tw-folder-body > .tw-controls > *")[KEYS.indexOf(k)];
-const pressBeside = (p, node) => {
-  const probe = document.elementFromPoint; document.elementFromPoint = () => node;
-  try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50 })); } finally { document.elementFromPoint = probe; }
+// A press in the panel's side padding level with `node` (jsdom lays nothing out, so the row or folder header it sits in
+// is given a box at the press's height for the moment of the press).
+const pressBeside = (p, node, props = {}) => {
+  const box = node && (node.closest(".tw-folder-header") || node.closest(".tw-controls > *"));
+  if (box) box.getBoundingClientRect = () => ({ top: 40, bottom: 72, height: 32, left: 0, right: 0, width: 0 });
+  try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { if (box) delete box.getBoundingClientRect; }
 };
 // ⌘C / ⌘V with a stubbed clipboard; returns how the picked band flashed for a paste: "ok", "failed" or "none".
 let board = null;

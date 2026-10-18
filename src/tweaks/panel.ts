@@ -110,7 +110,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
   const copyBtn = makeCopyBtn((changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // snapshot() falls back on a bad bag value, not throws
   // A picked row's paste (pasteScope, in the lazy clip chunk) writes through the panel's own load path; ctx lends it.
-  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), announce, alive: () => !destroyed };
+  // A paste is its own undo step: what was pending commits first, the paste right after, so neither merges with a drag.
+  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => { undoApi?.flush(); api.fromJSON(st); undoApi?.flush(); }, announce, alive: () => !destroyed };
   const resetBtn = makeResetBtn(resetAll);
   // Presets share persistence's storage, so the button needs it on.
   let presetsBtn: HTMLButtonElement | null = null;
@@ -513,7 +514,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
     };
-    return { undo, redo, onKey, arm: () => { history = [snapshot()]; histIdx = 0; } };
+    return { undo, redo, onKey, flush, arm: () => { history = [snapshot()]; histIdx = 0; } };
   })() : null;
 
   // ── Pick and copy / paste — a press beside a row (in the panel's side padding, or a gap between rows) picks it, as
@@ -524,6 +525,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const scopes = new Map<Element, Scope>(); // a row's or folder's root → its scope, filled by build()
   const scopeAt = (n: Element | null): Scope | undefined => { for (; n && n !== panel && panel.contains(n); n = n.parentElement) { const s = scopes.get(n); if (s) return s; } };
   const rowAt = (n: Element | null): Element | undefined => { for (; n && n !== panel; n = n.parentElement) if (scopes.get(n)?.kind === "row") return n; };
+  // Out of sight: filtered, hidden by its condition, on a tab page not showing, or inside a collapsed folder or panel.
+  const hidden = (el: Element) => !!(el.closest(".tw-filter-hidden, .tw-cond-hidden, .tw-tabs-page:not([data-active=true])") || el.parentElement?.closest(".is-collapsed"));
   let pick: [Element, Scope] | undefined;
   const away = (e: Event) => { const t = e.target as Element; if (!panel.contains(t) && !t.closest?.(".tw-portal")) unpick(); };
   const unpick = () => { if (!pick) return; pick[0].classList.remove("is-picked"); pick = undefined; document.removeEventListener("pointerdown", away, true); if (picked?.[0] === panel) picked = null; };
@@ -531,18 +534,27 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (picked && picked[0] !== panel) picked[1](); // one pick on the page
     unpick(); pick = [el, s]; picked = [panel, unpick]; el.classList.add("is-picked");
     document.addEventListener("pointerdown", away, true); // only while something is picked
+    // The press was cancelled (no text selection), so focus and any selection stayed where they were: let them go, or
+    // the keys would answer to them instead of the pick.
+    (document.activeElement as HTMLElement | null)?.blur?.(); document.getSelection?.()?.removeAllRanges();
   };
   cleanups.push(unpick);
   panel.addEventListener("pointerdown", (e) => {
     const t = e.target as Element;
-    if (pick?.[0].contains(t)) return; // working the picked row keeps it
-    if (e.button !== 0 || rowAt(t) || t.closest(".tw-header, .tw-folder-header, button, input, textarea, select")) return unpick();
-    // Beside a row: find what's level with the press across the middle of the controls.
-    const r = controls.getBoundingClientRect(), hit = document.elementFromPoint?.(r.left + r.width / 2, e.clientY) ?? null;
-    const head = hit?.closest(".tw-folder-header"), el = head ? head.parentElement : rowAt(hit), s = el && scopes.get(el);
-    if (!s) return unpick();
-    e.preventDefault(); // no text selection, no focus change
-    choose(el, s);
+    // On a control, or a header: working the picked row keeps the pick, anything else drops it. A touch never picks:
+    // a phone has no ⌘C, and a scroll that starts in the padding shouldn't pick what it passes.
+    if (rowAt(t) || t.closest(".tw-header, .tw-folder-header, button, input, textarea, select")) { if (!pick?.[0].contains(t)) unpick(); return; }
+    if (e.button !== 0 || e.pointerType === "touch") return unpick();
+    // Beside a row: the row (or folder header) level with the press, by its own box, so nothing overlapping the panel
+    // can stand in the way. The last match is the deepest: a folder's rows come after it.
+    let hit: [Element, Scope] | undefined;
+    for (const [el, s] of scopes) {
+      const r = (s.kind === "folder" ? el.firstElementChild! : el).getBoundingClientRect();
+      if (r.height && e.clientY >= r.top && e.clientY < r.bottom && !hidden(el)) hit = [el, s];
+    }
+    if (!hit) return unpick();
+    e.preventDefault(); // no text selection
+    choose(...hit);
   }, true); // capture: a label's own pointerdown stops the event before it bubbles here
   const inEditable = (t: Element | null) => !!(t && (t as HTMLElement).matches && ((t as HTMLElement).matches("input, textarea, select") || (t as HTMLElement).isContentEditable));
   // Called from the panel's one keydown listener (registered by assemble(), beside the undo keys). The copy is written
@@ -551,6 +563,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (e.key === "Escape") return unpick();
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.target as Element)) return;
     const k = e.key.toLowerCase(); if (k !== "c" && k !== "v") return;
+    if (picked && !picked[0].isConnected) picked[1](); // the picking panel left the page without destroy(): free the slot
+    if (pick && hidden(pick[0])) unpick(); // a pick out of sight takes nothing
     const s = pick ? pick[1] : picked ? undefined : scopeAt(document.activeElement);
     if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
     e.preventDefault();

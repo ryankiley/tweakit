@@ -46,10 +46,12 @@ const clipKey = async (target, k, text, props = {}) => {
 };
 const scoped = () => ({ a: { x: [1, 0, 10, 1], y: [2, 0, 10, 1] }, b: { x: [5, 0, 10, 1], y: [6, 0, 10, 1] }, blur: [24, 0, 100, 1], name: { type: "text", value: "hi" } });
 const mount2 = () => mountPanel(scoped());
-// A press in the panel's side padding level with `node` (jsdom lays nothing out, so the probe across the controls is stubbed).
+// A press in the panel's side padding level with `node` (jsdom lays nothing out, so the row or folder header it sits in
+// is given a box at the press's height for the moment of the press).
 const pressBeside = (p, node, props = {}) => {
-  const probe = document.elementFromPoint; document.elementFromPoint = () => node;
-  try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { document.elementFromPoint = probe; }
+  const box = node && (node.closest(".tw-folder-header") || node.closest(".tw-controls > *"));
+  if (box) box.getBoundingClientRect = () => ({ top: 40, bottom: 72, height: 32, left: 0, right: 0, width: 0 });
+  try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { if (box) delete box.getBoundingClientRect; }
 };
 const picked = () => [...document.querySelectorAll(".is-picked")];
 const said = () => document.querySelector(".tw-sr")?.textContent;
@@ -168,6 +170,7 @@ test("a press beside a row picks it with an even band, and ⌘C / ⌘V act on th
   assert.deepEqual(picked(), [row(ax)], "the row level with the press is picked");
   const css = distCss();
   assert.doesNotMatch(css, /is-picked[^{]*\{[^}]*margin/, "picking moves nothing");
+  assert.match(css, /\.tw-panel:not\(\[data-mode=floating\]\):has\(\.is-picked\)\{overflow:clip\}/, "an inline panel clips the band on both axes, so it follows the rounded corners");
   assert.match(css, /\.tw-panel \.is-picked:before\{[^}]*inset:-3px -100vmax/, "the band reaches 3px past the row on both sides, halfway to its neighbours, edge to edge");
   assert.match(css, /\.tw-body>\.tw-controls\{[^}]*padding-block:3px;margin-block:-3px\}/, "the body's clip edges sit 3px out, offset so nothing moves, so a first or last row's band isn't cut");
   assert.match(css, /\.tw-folder-body>\.tw-controls\{[^}]*padding:3px 0 8px;margin-top:-3px/, "and a folder's top clip edge too");
@@ -200,6 +203,60 @@ test("beside a folder's header picks the folder; a press elsewhere drops it; the
   pressBeside(p, null);
   pressBeside(p, p.el.querySelector(".tw-folder .tw-slider"), { button: 2 });
   assert.deepEqual(picked(), [], "beside nothing, or with another button, picks nothing");
+  p.destroy(); q.destroy();
+});
+
+test("a pick out of sight takes nothing: filtered, hidden by its condition, folded away, or on another tab", async () => {
+  const p = await mountPanel({ show: true, x: { type: "slider", value: 1, min: 0, max: 10, render: (get) => get("show") }, f: { y: [1, 0, 10, 1] }, t: { type: "tabs", pages: { One: { z: [1, 0, 10, 1] }, Two: { w: [1, 0, 10, 1] } } } }, { filter: true });
+  const row = (k) => [...p.el.querySelectorAll(".tw-controls > .tw-slider-wrap")].find((r) => r.querySelector(".tw-slider-label")?.textContent === k);
+  const tries = [
+    ["X", () => p.set("show", false), () => p.set("show", true)],
+    ["Y", () => p.el.querySelector(".tw-folder-header").click(), () => p.el.querySelector(".tw-folder-header").click()],
+    ["Z", () => p.el.querySelectorAll(".tw-tabs-tab")[1].click(), () => p.el.querySelectorAll(".tw-tabs-tab")[0].click()],
+  ];
+  for (const [k, hide, show] of tries) {
+    pressBeside(p, row(k)); assert.deepEqual(picked(), [row(k)], `${k} picked`);
+    hide(); await wait(20);
+    const v = await clipKey(document.body, "v", "9");
+    assert.equal(v.prevented, false, `${k}: out of sight, the keys stay the browser's`);
+    assert.deepEqual(picked(), [], `${k}: and the pick is dropped`);
+    show(); await wait(20);
+  }
+  assert.deepEqual([p.params.x, p.params.f.y, p.params.t.one.z], [1, 1, 1], "nothing pasted into a row nobody could see");
+  p.destroy();
+});
+
+test("picking lets go of focus and selection; a touch never picks; a press in a picked folder's indent picks the row", async () => {
+  const p = await mount2();
+  const input = p.el.querySelector(".tw-text"); input.focus();
+  const sel = window.getSelection(), range = document.createRange(); range.selectNodeContents(p.el.querySelector(".tw-folder-title")); sel.removeAllRanges(); sel.addRange(range);
+  const ax = p.el.querySelector(".tw-folder .tw-slider");
+  pressBeside(p, ax);
+  assert.deepEqual([document.activeElement === input, String(window.getSelection())], [false, ""], "the text field and the selection let go, so ⌘C / ⌘V answer to the pick");
+  assert.equal((await clipKey(document.body, "c")).copied, "1");
+  pressBeside(p, p.el.querySelectorAll(".tw-folder .tw-slider")[1], { pointerType: "touch" });
+  assert.deepEqual(picked(), [], "a touch dropped the pick and picked nothing");
+  pressBeside(p, p.el.querySelector(".tw-folder-header"));
+  pressBeside(p, ax);
+  assert.deepEqual(picked(), [ax.closest(".tw-folder-body > .tw-controls > *")], "a press beside a row inside the picked folder picks the row");
+  p.destroy();
+});
+
+test("a panel that leaves the page without destroy() frees the page's pick; two quick pastes are two undo steps", async () => {
+  const p = await mount2(), q = await mountPanel(scoped(), { undo: true });
+  pressBeside(p, p.el.querySelector(".tw-folder .tw-slider"));
+  p.el.remove();
+  const qx = q.el.querySelector(".tw-folder .tw-slider"); qx.focus();
+  assert.equal((await clipKey(qx, "v", "7")).flash, "ok", "the focused row in the other panel takes the keys");
+  assert.equal(q.params.a.x, 7);
+  await wait(400);
+  pressBeside(q, qx); await clipKey(qx, "v", "5");
+  pressBeside(q, q.el.querySelectorAll(".tw-folder .tw-slider")[1]); await clipKey(qx, "v", "6");
+  await wait(400);
+  q.undo();
+  assert.deepEqual([q.params.a.x, q.params.a.y], [5, 2], "one undo takes back only the last paste");
+  q.undo();
+  assert.equal(q.params.a.x, 7, "and the next the one before");
   p.destroy(); q.destroy();
 });
 
