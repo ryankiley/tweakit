@@ -78,6 +78,7 @@ export function pasteScope(ctx: ClipCtx, s: Scope, text: string): number | false
   return hits.length;
 }
 
+const flashes = new WeakMap<Element, ReturnType<typeof setTimeout>>();
 /** Every paste ends here. `text` is what the browser's paste event carried (null: none); `apply` returns how many
  *  values it took, or false for nothing usable (a throw counts the same). A screen reader hears which, and a picked
  *  `band` flashes it; the result is whether anything landed, or undefined when the panel went while this chunk loaded. */
@@ -86,6 +87,9 @@ export function pasteInto(text: string | null, apply: (text: string) => number |
   let n: number | false = false;
   if (text !== null) try { n = apply(text); } catch {}
   r.announce(!n ? (text === null ? "Couldn't read the clipboard" : "Nothing to paste") : `${n} value${n === 1 ? "" : "s"} pasted`);
-  if (band) { const c = n ? "is-pasted" : "is-refused"; band.classList.remove("is-pasted", "is-refused"); band.classList.add(c); setTimeout(() => band.classList.remove(c), 450); }
+  if (band) { // a quick second paste on the same row restarts the flash: the first one's timer mustn't cut it short
+    const c = n ? "is-pasted" : "is-refused"; band.classList.remove("is-pasted", "is-refused"); band.classList.add(c);
+    clearTimeout(flashes.get(band)); flashes.set(band, setTimeout(() => band.classList.remove(c), 450));
+  }
   return !!n;
 }

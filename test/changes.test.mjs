@@ -314,3 +314,13 @@ test("the toolbar copy: plain click copies the full snapshot, Shift-click only t
   assert.deepEqual(full, { blur: 31, on: true, shape: { radius: 8, origin: { x: 0, y: 0 } } }, "plain click: the nested snapshot, defaults included — unchanged behaviour");
   p.destroy();
 });
+
+test("a second paste on the same row keeps its own flash: the first one's timer doesn't cut it short", async () => {
+  const p = await mountPanel(scoped());
+  const x = p.el.querySelector(".tw-folder .tw-slider"), band = x.closest(".tw-folder-body > .tw-controls > *");
+  pressBeside(p, x);
+  await clipKey(x, "v", "3"); await wait(300);
+  await clipKey(x, "v", "4"); await wait(200); // past the first flash's 450ms, inside the second's
+  assert.ok(band.classList.contains("is-pasted"), "the second paste's flash still shows");
+  p.destroy();
+});
