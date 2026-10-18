@@ -56,6 +56,8 @@ test("the split build has exactly three shared chunks, and core imports exactly 
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
+// Raised 23 → 24 KiB for picking a row or folder (a press beside it) and the ⌘C / ⌘V that act on the pick, which core
+// must run inside the press and the keypress; the paste's parse and checks are the lazy clip chunk.
 // Raised 22 → 23 KiB for the floating panel's height cap (the clamp on its natural height, and closing a popover whose
 // row scrolls out of the panel), which main took ~30 B under 22 KiB on CI, and the toolbar's paste button (its icon and
 // failure cross beside copy's, and the click that starts the clipboard read; the parse and checks are the lazy clip
@@ -65,14 +67,14 @@ test("the split build has exactly three shared chunks, and core imports exactly 
 // 21 KiB by a few dozen bytes; the controls themselves are lazy chunks.
 // Raised 20 → 21 KiB for the gradient's easing (#101): gradientCss() is a core export so a
 // host templates from one place, and it is ~700 B gzip of pure string work.
-test("a basic panel's code-split download stays under 23 KiB gzip", async () => {
+test("a basic panel's code-split download stays under 24 KiB gzip", async () => {
   const { readFile } = await import("node:fs/promises");
   const { gzipSync } = await import("node:zlib");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const core = await readFile(new URL("core.js", dir));
   let bytes = gzipSync(core).length;
   for (const [, c] of String(core).matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)) bytes += gzipSync(await readFile(new URL(c, dir))).length;
-  assert.ok(bytes < 23552, `core + shared chunk is ${bytes} B gzip — over the 23 KiB budget`);
+  assert.ok(bytes < 24576, `core + shared chunk is ${bytes} B gzip — over the 24 KiB budget`);
 });
 
 // Number is lazy on the split build (no shorthand infers it): the standalone and markup

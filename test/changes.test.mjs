@@ -1,11 +1,11 @@
 /* panel.changes() — the values that have moved off their defaults, keyed by dotted path
  * in setMany()'s shape — the toolbar copy's ⇧-click, which copies that instead of the
  * full snapshot, the toolbar paste, which takes either back off the clipboard, and the
- * scoped ⌘C / ⌘V on a row or folder. Runs against the built single-file bundle under jsdom. */
+ * picked row or folder's ⌘C / ⌘V. Runs against the built single-file bundle under jsdom. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, mounter, key } from "./_helpers.mjs";
+import { loadSingle, mounter, key, ptr } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const schema = () => ({ blur: [24, 0, 100, 1], on: true, shape: { radius: [8, 0, 40, 1], origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
@@ -147,8 +147,12 @@ const clipKey = async (target, k, text, props = {}) => {
 };
 const scoped = () => ({ a: { x: [1, 0, 10, 1], y: [2, 0, 10, 1] }, b: { x: [5, 0, 10, 1], y: [6, 0, 10, 1] }, blur: [24, 0, 100, 1], name: { type: "text", value: "hi" } });
 const mount2 = () => mountPanel(scoped());
-const over = (node) => node.dispatchEvent(new window.Event("pointerover", { bubbles: true }));
-const leave = (p) => p.el.dispatchEvent(new window.Event("pointerleave"));
+// A press in the panel's side padding level with `node` (jsdom lays nothing out, so the probe across the controls is stubbed).
+const pressBeside = (p, node, props = {}) => {
+  const probe = document.elementFromPoint; document.elementFromPoint = () => node;
+  try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { document.elementFromPoint = probe; }
+};
+const picked = () => [...document.querySelectorAll(".is-picked")];
 
 test("⌘C on a folder copies its values object; ⌘V on a folder with the same keys takes it, in one notify and one undo step", async () => {
   const p = await mountPanel(scoped(), { undo: true });
@@ -196,19 +200,45 @@ test("⌘C on a row copies its value; ⌘V takes a bare value or the row's one-k
   p.destroy();
 });
 
-test("only the panel under the pointer takes the keys; with the pointer over none, the focused panel does", async () => {
+test("a press beside a row picks it with a ring, and ⌘C / ⌘V act on the pick, not on focus", async () => {
+  const p = await mount2();
+  const [ax, , bx] = [...p.el.querySelectorAll(".tw-folder .tw-slider")], row = (t) => t.closest(".tw-folder-body > .tw-controls > *");
+  p.el.querySelectorAll(".tw-folder-header")[1].focus(); // focus elsewhere in the panel: the pick wins
+  pressBeside(p, ax);
+  assert.deepEqual(picked(), [row(ax)], "the row level with the press is ringed");
+  const c = await clipKey(document.activeElement, "c");
+  assert.deepEqual([c.copied, c.toast], ["1", "X copied"], "its value, not the focused folder's");
+  pressBeside(p, bx);
+  assert.deepEqual(picked(), [row(bx)], "a new pick moves the ring");
+  assert.equal((await clipKey(document.activeElement, "v", c.copied)).toast, "1 value pasted into X");
+  assert.deepEqual([p.params.a.x, p.params.b.x], [1, 1]);
+  key(document.activeElement, { key: "Escape" });
+  assert.deepEqual(picked(), [], "Escape drops it");
+  p.destroy();
+});
+
+test("beside a folder's header picks the folder; a press elsewhere drops it; the page holds one pick", async () => {
   const p = await mount2(), q = await mount2();
-  const pr = p.el.querySelector(".tw-folder .tw-slider"), qr = q.el.querySelector(".tw-folder .tw-slider");
-  qr.focus(); over(pr);
-  await clipKey(qr, "v", "7");
-  assert.deepEqual([p.params.a.x, q.params.a.x], [7, 1], "the hovered panel pasted; the focused one didn't too");
-  leave(p);
-  await clipKey(qr, "v", "4");
-  assert.deepEqual([p.params.a.x, q.params.a.x], [7, 4], "pointer gone: focus decides");
+  pressBeside(p, p.el.querySelector(".tw-folder-header .tw-folder-title"));
+  assert.deepEqual(picked(), [p.el.querySelector(".tw-folder")], "the whole folder");
+  p.el.querySelectorAll(".tw-folder .tw-slider")[2].dispatchEvent(ptr("pointerdown"));
+  assert.deepEqual(picked(), [], "working another row drops the pick");
+  pressBeside(p, p.el.querySelector(".tw-folder-header"));
+  const qx = q.el.querySelector(".tw-folder .tw-slider");
+  pressBeside(q, qx);
+  assert.deepEqual(picked(), [qx.closest(".tw-folder-body > .tw-controls > *")], "picking in another panel drops this one's");
+  p.el.querySelector(".tw-folder .tw-slider").focus(); // focus in the other panel
+  await clipKey(document.activeElement, "v", "7");
+  assert.deepEqual([q.params.a.x, p.params.a.x], [7, 1], "the pick takes the paste; the focused panel doesn't too");
+  document.body.dispatchEvent(ptr("pointerdown"));
+  assert.deepEqual(picked(), [], "a press on the page drops it");
+  pressBeside(p, null);
+  pressBeside(p, p.el.querySelector(".tw-folder .tw-slider"), { button: 2 });
+  assert.deepEqual(picked(), [], "beside nothing, or with another button, picks nothing");
   p.destroy(); q.destroy();
 });
 
-test("a text field, a selection, focus on the page, the panel header and a held key all stay the browser's", async () => {
+test("a text field, a selection, the panel header and a held key stay the browser's", async () => {
   const p = await mount2();
   const input = p.el.querySelector(".tw-text"); input.focus();
   assert.deepEqual([(await clipKey(input, "c")).prevented, (await clipKey(input, "v", "{}")).prevented], [false, false], "a text field");
@@ -216,9 +246,6 @@ test("a text field, a selection, focus on the page, the panel header and a held 
   const sel = window.getSelection(), range = document.createRange(); range.selectNodeContents(p.el.querySelector(".tw-folder-title")); sel.removeAllRanges(); sel.addRange(range);
   const c = await clipKey(head, "c"); sel.removeAllRanges();
   assert.deepEqual([c.prevented, c.copied], [false, null], "selected text copies as text");
-  const pageBtn = document.createElement("button"); document.body.append(pageBtn); pageBtn.focus(); over(head);
-  assert.equal((await clipKey(pageBtn, "v", "{}")).prevented, false, "focus on the page keeps its keys, even with the pointer over the panel");
-  pageBtn.remove(); leave(p);
   const title = p.el.querySelector(".tw-header-toggle"); title.focus();
   assert.equal((await clipKey(title, "c")).prevented, false, "the panel header: the toolbar buttons copy the whole panel");
   head.focus();
