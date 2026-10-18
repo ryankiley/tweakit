@@ -3,7 +3,6 @@
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
 import { titleCase, isObj, isColorStr, inferStep, defaultRange, optValue, getControl } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
-import { showToast } from "./feedback.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
 /** A point control's component spec, as the public verbose form declares it. */
@@ -210,8 +209,8 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
   radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
   list: (d) => ({ options: splitList(d.options), value: d.value }),
-  button: (d, host, label) => ({ action: () => showToast(`${label} pressed`, host) }),
-  buttongroup: (d, host) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab, action: () => showToast(`${lab} pressed`, host) })) }),
+  button: () => ({}), // markup has no handler to call; a host listens on the button itself
+  buttongroup: (d) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab })) }),
   separator: () => ({}),
   number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), unit: d.unit }),
   text: (d) => ({ value: d.value ?? "", placeholder: d.placeholder, rows: num(d.rows) }),

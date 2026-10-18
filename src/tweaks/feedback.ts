@@ -1,5 +1,5 @@
 /* Panel feedback chrome — the toolbar button factories (copy / paste / reset and their one-shot
- * animations), the shared toast pill, the hint tooltip and the clipboard helpers. */
+ * animations), the hint tooltip and the clipboard helpers. */
 import { el, btn, carrySkin, placeBelow } from "./shared.js";
 import { ICON_COPY, ICON_CHECK, ICON_PASTE, ICON_FAIL, ICON_RESET, ICON_INFO } from "./icons.js";
 
@@ -8,17 +8,15 @@ interface ToolbarBtn extends HTMLButtonElement { _t?: number; _spinSettle?: () =
 
 /** An icon toolbar button with matching title and aria-label. */
 const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => { const b = btn("tw-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
-/** Copy: puts `text(changedOnly)` on the clipboard and confirms with the check swap and a toast.
- *  `text` returns the payload and a count (-1 for the full snapshot; 0 copies nothing and says so).
+/** Copy: puts `text(changedOnly)` on the clipboard and confirms with the check swap.
+ *  `text` returns the payload and a count (-1 for the full snapshot; 0 copies nothing).
  *  Both handlers bail while `disabled`: a synthetic dispatchEvent(click) reaches a disabled button. */
-const makeCopyBtn = (anchor: Element, name: () => string, text: (changedOnly: boolean) => [string, number]) => { // name is read at click time — the panel can be renamed
+const makeCopyBtn = (text: (changedOnly: boolean) => [string, number]) => {
   const b = toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values (⇧: changed only)");
   b.addEventListener("click", async (e) => {
     if (b.disabled) return;
     const [t, n] = text(e.shiftKey);
-    if (!n) { showToast("Nothing has changed", anchor); return; }
-    if (await copyText(t)) { flash(b, "is-copied"); showToast(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : `${name()} values copied`, anchor); }
-    else showToast("Copy failed", anchor);
+    if (n && await copyText(t)) flash(b, "is-copied");
   });
   return b;
 };
@@ -63,16 +61,6 @@ const spinReset = (btn: ToolbarBtn) => {
   btn._t = setTimeout(fallback, 600);
 };
 
-let toastEl: HTMLDivElement | null = null, toastTimer = 0;
-/** The kit's feedback pill — one shared node, portaled to <body> bottom-centre, skinned from `anchor`. */
-function showToast(msg: string, anchor?: Element) {
-  if (!toastEl) { toastEl = el("div", "tw-toast tw-portal"); toastEl.setAttribute("role", "status"); }
-  if (!toastEl.isConnected) document.body.appendChild(toastEl); // re-home after a host replaced <body>'s content
-  toastEl.textContent = msg;
-  carrySkin(toastEl, anchor);
-  toastEl.classList.add("is-open");
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("is-open"), 1600);
-}
 // Hint tooltip — one shared bubble, portaled to <body> so it clears the panel's overflow clip.
 let hintTip: HTMLDivElement | null = null, hintTimer = 0, hintAnchor: Element | null = null;
 const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") hideHintNow(); }; // bound only while open; WCAG 1.4.13 (dismissable)
@@ -80,7 +68,7 @@ const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") hideHintNow();
 const hideHintNow = (owner?: Element) => { if (owner && hintAnchor && !owner.contains(hintAnchor)) return; clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
 function showHint(anchor: Element, text: string) {
   if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); }
-  if (!hintTip.isConnected) document.body.appendChild(hintTip); // as the toast: re-home after a body replacement
+  if (!hintTip.isConnected) document.body.appendChild(hintTip); // re-home after a host replaced <body>'s content
   clearTimeout(hintTimer);
   hintTip.textContent = text;
   carrySkin(hintTip, anchor); // resolved at show time: setTheme may have run since build
@@ -137,4 +125,4 @@ async function copyText(text: string) {
   return ok;
 }
 
-export { toolbarBtn, makeCopyBtn, makePasteBtn, makeResetBtn, flash, readText, spinReset, showToast, hideHintNow, addHintMarker, LABEL_SEL };
+export { toolbarBtn, makeCopyBtn, makePasteBtn, makeResetBtn, flash, readText, spinReset, hideHintNow, addHintMarker, LABEL_SEL };

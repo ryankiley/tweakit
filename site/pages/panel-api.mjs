@@ -62,11 +62,11 @@ export const examples = [
       The paste button beside it takes that JSON back off the clipboard, the bare values
       object a copy produces, the changed-only map, or a whole <code>toJSON()</code> state,
       and applies it through <code>fromJSON</code>: one undo step, saved and announced like
-      any load. A value only lands where it fits, the same type as the control holds (a
+      any load, and its icon flashes a check, or a cross when nothing fits. A value only lands where it fits, the same type as the control holds (a
       colour string for a colour, one of a list's options), so a stray key or a mistyped
       value is skipped rather than coerced.
-      <code>panel.setName(name)</code> retitles the panel live (the header and the copy
-      toast follow); the name it was built with stays its storage key, so saved values and
+      <code>panel.setName(name)</code> retitles the panel live; the name it was built with
+      stays its storage key, so saved values and
       presets survive a rename.</p>`,
     target: `
       <div class="pa-remote">
