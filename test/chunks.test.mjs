@@ -56,8 +56,8 @@ test("the split build has exactly three shared chunks, and core imports exactly 
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
-// Raised 22 → 23 KiB for the floating panel's height cap: the clamp on its natural height (collapsed or not) and
-// closing a popover whose row scrolls out of the panel's own scroller. main sat ~30 B under 22 KiB on CI's Node 22,
+// Raised 22 → 23 KiB for the floating panel's height cap: the clamp on its natural height and closing a popover
+// whose row scrolls out of the panel. main sat ~30 B under 22 KiB on CI's Node 22,
 // which measures ~100 B more than a local Node 24: judge closeness to the gate by CI's figure.
 // Raised 21 → 22 KiB for the unit suffix on sliders/number fields and the motion and shadow
 // controls' registry lines (schema handler, markup parser, lazy import), which together cross

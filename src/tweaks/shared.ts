@@ -258,7 +258,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   const follow = () => {
     if (!open) return; if (!root.isConnected) return close();
     const r = trigger.getBoundingClientRect();
-    const sr = trigger.closest(".tw-body>.tw-controls")?.getBoundingClientRect(); // a floating panel's scroller clips its rows (an inline panel's holds them all)
+    const sr = trigger.closest(".tw-panel")?.getBoundingClientRect(); // a floating panel scrolls, and clips its rows (an inline one holds them all)
     if (!(r.width || r.height) || r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth || (sr?.height && (r.bottom < sr.top || r.top > sr.bottom))) return close(); // hidden, or scrolled out
     pop.style.left = r.left + dx + "px"; pop.style.top = r.top + dy + "px";
   };

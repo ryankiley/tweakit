@@ -271,8 +271,8 @@ export const examples = [
       floating layer on first drag (<code>draggable: false</code> pins it). Pass
       <code>floating: true</code> or <code>{ x, y }</code> to start it floated, like a
       classic debug overlay. A floating panel never runs off the window: it caps at the
-      viewport below its top edge and its controls scroll under the header, so a tall
-      panel still drags by its title and reaches its last folder by scrolling.</p>`,
+      viewport below its top edge and scrolls, header and all, so a tall panel reaches its
+      last folder by scrolling and drags by its title once scrolled back up.</p>`,
     target: `<button class="demo-btn fl-spawn" type="button">Spawn a floating panel</button>`,
     noMount: true,
     run: ({ tweaks, target }) => {
