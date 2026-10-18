@@ -108,14 +108,15 @@ export function pasteScope(ctx: ClipCtx, s: Scope, text: string): number | false
 
 /** Every paste ends here. `read` is the clipboard read the click started (null: no API, denied, an insecure context);
  *  `apply` returns how many values it took, -1 for a layout only, false for nothing usable (a throw counts the same).
- *  The paste button swaps in the check or the cross and the toast says which; a panel gone meanwhile hears nothing. */
-export async function pasteInto(read: Promise<string | null>, b: HTMLButtonElement, anchor: Element, apply: (text: string) => number | false, r: Report, into?: string) {
+ *  The paste button swaps in the check or the cross, and the toast says which unless `quiet` (a picked row's paste,
+ *  where the row itself is in view); a panel gone meanwhile hears nothing. */
+export async function pasteInto(read: Promise<string | null>, b: HTMLButtonElement, anchor: Element, apply: (text: string) => number | false, r: Report, quiet = false) {
   const text = await read;
   if (!r.alive()) return;
   let n: number | false = false;
   if (text !== null) try { n = apply(text); } catch {}
-  if (!n) { r.flash(b, "is-failed"); r.showToast(text === null ? "Couldn't read the clipboard" : "No values to paste", anchor); return; }
-  r.flash(b, "is-copied"); r.showToast(n < 0 ? "Layout pasted" : `${plural(n)} pasted${into ? ` into ${into}` : ""}`, anchor);
+  r.flash(b, n ? "is-copied" : "is-failed");
+  if (!quiet) r.showToast(!n ? (text === null ? "Couldn't read the clipboard" : "No values to paste") : n < 0 ? "Layout pasted" : `${plural(n)} pasted`, anchor);
 }
 
 // ── The row menu — Copy, Paste and Reset for one row or folder, at the pointer or under the row. One at a time page-wide;
@@ -139,7 +140,7 @@ export function openMenu(ctx: ClipCtx, s: Scope, anchor: Element, at: number[] |
   };
   item("Copy", keyHint("C"), () => ctx.copy(s));
   item("Paste", keyHint("V"), () => ctx.paste(s));
-  item("Reset", s.kind === "row" ? "Double-click" : "", () => { ctx.reset(scoped); ctx.showToast(`${s.label} reset`, ctx.panel); },
+  item("Reset", s.kind === "row" ? "Double-click" : "", () => ctx.reset(scoped),
     scoped.every((e) => JSON.stringify(e.get()) === JSON.stringify(e.def))); // nothing moved: nothing to reset
   const live = () => items.filter((b) => !b.disabled);
   const onKey = (e: KeyboardEvent) => {

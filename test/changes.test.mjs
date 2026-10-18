@@ -162,13 +162,18 @@ test("the markup toolbar pastes over its hosts by the keys its copy writes, and 
   holder.remove();
 });
 
-// ⌘C / ⌘V on `target` with a stubbed clipboard holding `text` (an Error rejects the read): what was written,
-// whether the key was taken, and the toast.
+// ⌘C / ⌘V on `target` with a stubbed clipboard holding `text` (an Error rejects the read): what was written, whether
+// the key was taken, what the toolbar's copy or paste icon flashed ("ok", "failed" or "none"), and the toast, which a
+// picked row's copy and paste leave alone (QUIET).
+const QUIET = "(no toast)";
+const flashed = (k) => { const b = document.querySelector(k === "c" ? ".tw-toolbar-btn--swap:not(.tw-toolbar-btn--paste).is-copied, .tw-toolbar-btn--swap:not(.tw-toolbar-btn--paste).is-failed" : ".tw-toolbar-btn--paste.is-copied, .tw-toolbar-btn--paste.is-failed"); return !b ? "none" : b.classList.contains("is-copied") ? "ok" : "failed"; };
 const clipKey = async (target, k, text, props = {}) => {
   let copied = null;
   const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
   Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: async () => { if (text instanceof Error) throw text; return text; }, writeText: async (t) => { copied = t; } }, configurable: true });
-  try { const e = key(target, { key: k, metaKey: true, ...props }); await new Promise((r) => setTimeout(r, 10)); return { copied, prevented: e.defaultPrevented, toast: document.querySelector(".tw-toast")?.textContent }; }
+  for (const b of document.querySelectorAll(".tw-toolbar-btn--swap")) b.classList.remove("is-copied", "is-failed");
+  const toast = document.querySelector(".tw-toast"); if (toast) toast.textContent = QUIET;
+  try { const e = key(target, { key: k, metaKey: true, ...props }); await new Promise((r) => setTimeout(r, 10)); return { copied, prevented: e.defaultPrevented, flash: flashed(k), toast: toast ? toast.textContent : QUIET }; }
   finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
 };
 const scoped = () => ({ a: { x: [1, 0, 10, 1], y: [2, 0, 10, 1] }, b: { x: [5, 0, 10, 1], y: [6, 0, 10, 1] }, blur: [24, 0, 100, 1], name: { type: "text", value: "hi" } });
@@ -185,13 +190,13 @@ test("⌘C on a folder copies its values object; ⌘V on a folder with the same 
   const heads = [...p.el.querySelectorAll(".tw-folder-header")];
   heads[0].focus();
   const c = await clipKey(heads[0], "c");
-  assert.deepEqual([JSON.parse(c.copied), c.prevented, c.toast], [{ x: 1, y: 2 }, true, "A copied"], "the folder's subtree, not the whole panel");
+  assert.deepEqual([JSON.parse(c.copied), c.prevented, c.flash, c.toast], [{ x: 1, y: 2 }, true, "ok", QUIET], "the folder's subtree, not the whole panel; the copy icon's check, no toast");
   assert.ok(p.el.querySelector(".tw-toolbar-btn--swap").classList.contains("is-copied"), "the toolbar's copy shows the check");
   await new Promise((r) => setTimeout(r, 400)); // past the undo debounce
   let notified = 0; p.on(() => notified++);
   heads[1].focus();
   const v = await clipKey(heads[1], "v", c.copied);
-  assert.deepEqual([v.prevented, v.toast, p.params.b, p.params.a, notified], [true, "2 values pasted into B", { x: 1, y: 2 }, { x: 1, y: 2 }, 1], "the sibling took them; the source kept its own");
+  assert.deepEqual([v.prevented, v.flash, v.toast, p.params.b, p.params.a, notified], [true, "ok", QUIET, { x: 1, y: 2 }, { x: 1, y: 2 }, 1], "the sibling took them; the source kept its own; no toast");
   assert.equal(pasteState(p.el), "ok");
   p.undo();
   assert.deepEqual(p.params.b, { x: 5, y: 6 }, "one step back");
@@ -201,11 +206,11 @@ test("⌘C on a folder copies its values object; ⌘V on a folder with the same 
 test("a folder reads a whole-panel copy or a changed-only map at its own path, and only into its own rows", async () => {
   const p = await mount2();
   const head = p.el.querySelectorAll(".tw-folder-header")[1]; head.focus();
-  assert.equal((await clipKey(head, "v", JSON.stringify({ a: { x: 9 }, b: { x: 3 }, blur: 70 }))).toast, "1 value pasted into B");
+  assert.equal((await clipKey(head, "v", JSON.stringify({ a: { x: 9 }, b: { x: 3 }, blur: 70 }))).flash, "ok");
   assert.deepEqual([p.params.a.x, p.params.b.x, p.params.blur], [1, 3, 24], "B's own x from the whole-panel copy, nothing else");
-  assert.equal((await clipKey(head, "v", JSON.stringify({ "b.y": 8, "a.y": 0 }))).toast, "1 value pasted into B");
+  assert.equal((await clipKey(head, "v", JSON.stringify({ "b.y": 8, "a.y": 0 }))).flash, "ok");
   assert.deepEqual([p.params.a.y, p.params.b.y], [2, 8], "the dotted form too");
-  assert.equal((await clipKey(head, "v", JSON.stringify({ x: 4, zzz: 1 }))).toast, "1 value pasted into B", "a bare values object is the folder's own");
+  assert.equal((await clipKey(head, "v", JSON.stringify({ x: 4, zzz: 1 }))).flash, "ok", "a bare values object is the folder's own");
   p.destroy();
 });
 
@@ -214,15 +219,15 @@ test("⌘C on a row copies its value; ⌘V takes a bare value or the row's one-k
   const track = p.el.querySelector(".tw-folder .tw-slider"); track.focus();
   assert.deepEqual(Object.values(await clipKey(track, "c")).slice(0, 1), ["1"]);
   let notified = 0; p.on(() => notified++);
-  assert.equal((await clipKey(track, "v", "7")).toast, "1 value pasted into X");
-  assert.equal((await clipKey(track, "v", JSON.stringify({ x: 3 }))).toast, "1 value pasted into X");
+  assert.equal((await clipKey(track, "v", "7")).flash, "ok");
+  assert.equal((await clipKey(track, "v", JSON.stringify({ x: 3 }))).flash, "ok");
   assert.deepEqual([p.params.a.x, p.params.a.y, notified], [3, 2, 2], "just that slider, once per paste");
   for (const bad of ["null", "[]", "true", JSON.stringify({ x: 1, y: 2 }), "nope"]) {
-    assert.equal((await clipKey(track, "v", bad)).toast, "No values to paste", bad);
+    assert.equal((await clipKey(track, "v", bad)).flash, "failed", bad);
     assert.equal(pasteState(p.el), "failed");
   }
   assert.deepEqual([p.params.a.x, notified], [3, 2], "nothing coerced, nobody told");
-  assert.equal((await clipKey(track, "v", new Error("denied"))).toast, "Couldn't read the clipboard");
+  assert.equal((await clipKey(track, "v", new Error("denied"))).flash, "failed");
   p.destroy();
 });
 
@@ -232,7 +237,7 @@ test("a folder pastes its own copy back even when a subfolder shares its name; a
   const c = await clipKey(head, "c");
   assert.deepEqual(JSON.parse(c.copied), { look: { x: 1 }, y: 2 });
   p.fromJSON({ values: { look: { look: { x: 7 }, y: 7 } } });
-  assert.equal((await clipKey(head, "v", c.copied)).toast, "2 values pasted into Look");
+  assert.equal((await clipKey(head, "v", c.copied)).flash, "ok");
   assert.deepEqual(p.params.look, { look: { x: 1 }, y: 2 });
   const toast = document.querySelector(".tw-toast");
   toast.textContent = "before";
@@ -253,10 +258,10 @@ test("a press beside a row picks it with an even band, and ⌘C / ⌘V act on th
   assert.match(css, /\.tw-panel \.is-picked:not\(\.tw-folder\)\{margin-block:3px\}/, "a picked row eases 3px of room open above and below");
   assert.match(css, /\.tw-panel \.is-picked:before\{[^}]*inset:-6px -100vmax/, "so its band clears its surface by 6px on both sides, edge to edge");
   const c = await clipKey(document.activeElement, "c");
-  assert.deepEqual([c.copied, c.toast], ["1", "X copied"], "its value, not the focused folder's");
+  assert.deepEqual([c.copied, c.flash, c.toast], ["1", "ok", QUIET], "its value, not the focused folder's");
   pressBeside(p, bx);
   assert.deepEqual(picked(), [row(bx)], "a new pick moves the ring");
-  assert.equal((await clipKey(document.activeElement, "v", c.copied)).toast, "1 value pasted into X");
+  assert.equal((await clipKey(document.activeElement, "v", c.copied)).flash, "ok");
   assert.deepEqual([p.params.a.x, p.params.b.x], [1, 1]);
   key(document.activeElement, { key: "Escape" });
   assert.deepEqual(picked(), [], "Escape drops it");
@@ -343,7 +348,7 @@ test("a folder's menu pastes into that folder and resets only it, in one notify 
   await rightClick(heads[1]);
   assert.deepEqual(items(), ["Copy", "Paste", "Reset"], "Reset is on once the folder has moved");
   await choose(2);
-  assert.deepEqual([p.params.b, p.params.a.x, notified, document.querySelector(".tw-toast").textContent], [{ x: 5, y: 6 }, 9, 2, "B reset"], "only this folder went back");
+  assert.deepEqual([p.params.b, p.params.a.x, notified], [{ x: 5, y: 6 }, 9, 2], "only this folder went back, no toast");
   p.destroy();
 });
 

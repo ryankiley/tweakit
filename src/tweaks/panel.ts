@@ -558,9 +558,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     e.preventDefault();
     (k === "v" ? doPaste : doCopy)(s);
   };
-  const doPaste = (s: Scope) => { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, s.label), () => flash(pasteBtn, "is-failed")); };
+  const doPaste = (s: Scope) => { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, panel, (t) => m.pasteScope(ctx, s, t), ctx, true), () => flash(pasteBtn, "is-failed")); };
   const doCopy = (s: Scope) => copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
-    .then((ok) => { if (destroyed) return; if (ok) flash(copyBtn, "is-copied"); showToast(ok ? `${s.label} copied` : "Copy failed", panel); });
+    .then((ok) => { if (ok && !destroyed) flash(copyBtn, "is-copied"); }); // the pick is in view: the toolbar's check says it, no toast
   // A right-click on a row or folder picks it and opens Copy / Paste / Reset for it (the menu is built in the clip chunk).
   // Shift, a text field, a selection inside the panel, anywhere else in the panel, and a touch or pen long-press (the
   // hold-reset's) keep the browser's menu. contextmenu names its pointer where it's a PointerEvent; elsewhere the last

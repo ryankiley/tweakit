@@ -38,14 +38,15 @@ const pressBeside = (p, node) => {
   const probe = document.elementFromPoint; document.elementFromPoint = () => node;
   try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50 })); } finally { document.elementFromPoint = probe; }
 };
-// ⌘C / ⌘V with a stubbed clipboard; returns what was copied and the toast.
+// ⌘C / ⌘V with a stubbed clipboard; returns what the toolbar's paste icon flashed: "ok", "failed" or "none".
 let board = null;
 const press = async (k) => {
   const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
   Object.defineProperty(globalThis.navigator, "clipboard", { value: { readText: async () => board, writeText: async (t) => { board = t; } }, configurable: true });
+  const paste = document.querySelector(".tw-toolbar-btn--paste"); paste.classList.remove("is-copied", "is-failed");
   try { key(document.body, { key: k, metaKey: true }); await new Promise((r) => setTimeout(r, 15)); }
   finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
-  return document.querySelector(".tw-toast")?.textContent;
+  return paste.classList.contains("is-copied") ? "ok" : paste.classList.contains("is-failed") ? "failed" : "none";
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -55,7 +56,7 @@ test("every type's row copies from one folder and pastes onto its twin, landing 
     assert.ok(!same(p.params.A[k], p.params.B[k]), `${k}: the two settings differ to start with`);
     pressBeside(p, rowOf(p, "A", k)); await press("c");
     pressBeside(p, rowOf(p, "B", k));
-    assert.match(await press("v"), /^1 value pasted into /, `${k}: pasted`);
+    assert.equal(await press("v"), "ok", `${k}: pasted`);
     assert.deepEqual(p.params.B[k], p.params.A[k], `${k}: landed exactly`);
   }
   p.destroy();
@@ -66,7 +67,7 @@ test("a whole folder of every type pastes onto its twin in one step", async () =
   pressBeside(p, p.el.querySelectorAll(".tw-folder-header")[0]); await press("c");
   pressBeside(p, p.el.querySelectorAll(".tw-folder-header")[1]);
   let notified = 0; p.on(() => notified++);
-  assert.equal(await press("v"), `${KEYS.length} values pasted into B`);
+  assert.equal(await press("v"), "ok");
   assert.deepEqual([p.params.B, notified], [p.params.A, 1], "every type landed, in one notify");
   p.destroy();
 });
@@ -80,8 +81,8 @@ test("a value pasted onto a row of another type is refused and moves nothing", a
       if (to === from) continue;
       const before = JSON.stringify(p.params.B);
       pressBeside(p, rowOf(p, "B", to));
-      const toast = await press("v");
-      if (toast === "No values to paste") { refused++; assert.equal(JSON.stringify(p.params.B), before, `${from} → ${to}: refused, nothing moved`); }
+      const flash = await press("v");
+      if (flash === "failed") { refused++; assert.equal(JSON.stringify(p.params.B), before, `${from} → ${to}: refused, nothing moved`); }
       else landed.push(`${from} → ${to}`);
     }
   }
