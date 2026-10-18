@@ -270,7 +270,9 @@ export const examples = [
     prose: `<p>Every panel is draggable by its header: an inline panel lifts into a
       floating layer on first drag (<code>draggable: false</code> pins it). Pass
       <code>floating: true</code> or <code>{ x, y }</code> to start it floated, like a
-      classic debug overlay.</p>`,
+      classic debug overlay. A floating panel never runs off the window: it caps at the
+      viewport below its top edge and scrolls, header and all, so a tall panel reaches its
+      last folder by scrolling and drags by its title once scrolled back up.</p>`,
     target: `<button class="demo-btn fl-spawn" type="button">Spawn a floating panel</button>`,
     noMount: true,
     run: ({ tweaks, target }) => {
