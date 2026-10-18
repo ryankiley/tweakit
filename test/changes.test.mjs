@@ -89,6 +89,31 @@ test("a panel whose own folder is called values pastes its own copy back", async
   p.destroy();
 });
 
+test("a disabled control takes nothing; a tuple must keep its length; a colour must parse", async () => {
+  const p = await mountPanel({ locked: { type: "slider", value: 3, min: 0, max: 10, disabled: true }, span: { type: "interval", value: [2, 8], min: 0, max: 10 }, tint: "#ff0000", blur: [24, 0, 100, 1] });
+  const css = globalThis.CSS; globalThis.CSS = { supports: (_, v) => !/nonsense|NaN|;/.test(v) }; // what a browser's parser says
+  try {
+    let notified = 0; p.on(() => notified++);
+    for (const v of [{ locked: 9 }, { span: [] }, { span: [5] }, { span: [1, 2, 3] }, { tint: "rgb(nonsense)" }, { tint: "oklch(NaN 0 0)" }, { tint: "rgb(1,2,3); background:url(x)" }])
+      assert.equal(await pasteVia(p.el, text(v)), "No values to paste", JSON.stringify(v));
+    assert.deepEqual([p.params.locked, p.params.span, notified], [3, [2, 8], 0], "nothing landed, nobody told");
+    assert.equal(await pasteVia(p.el, text({ locked: 9, span: [3, 4], tint: "#00ff00", blur: 50 })), "3 values pasted", "the disabled one is skipped, the rest land");
+    assert.deepEqual([p.params.locked, p.params.span, p.params.blur], [3, [3, 4], 50]);
+  } finally { globalThis.CSS = css; p.destroy(); }
+});
+
+test("a key with a literal dot pastes back from the panel's own copy; a layout that changes nothing is nothing pasted", async () => {
+  const p = await mountPanel({ "a.b": [1, 0, 10, 1], c: [1, 0, 10, 1], f: { x: [1, 0, 10, 1] } });
+  const copy = JSON.stringify(p.toJSON().values);
+  p.fromJSON({ values: { "a.b": 5, c: 5 } });
+  assert.equal(await pasteVia(p.el, async () => copy), "3 values pasted");
+  assert.deepEqual([p.params["a.b"], p.params.c], [1, 1]);
+  let notified = 0; p.on(() => notified++);
+  assert.equal(await pasteVia(p.el, text({ ui: { folders: { nope: true } } })), "No values to paste");
+  assert.equal(notified, 0, "and nobody was told");
+  p.destroy();
+});
+
 test("bad JSON, a non-object, a rejected read and no clipboard API change nothing and show the cross", async () => {
   const p = await mount();
   let notified = 0; p.on(() => notified++);
