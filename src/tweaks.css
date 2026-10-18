@@ -469,8 +469,13 @@
 .tw-option-swatch { flex-shrink: 0; width: 12px; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
 .tw-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* A row or folder picked for ⌘C / ⌘V (a press beside it): ringed inside the panel's side padding. */
-.tw-panel .is-picked { outline: 1.5px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 3px; border-radius: var(--tw-radius); }
+/* A row or folder picked for ⌘C / ⌘V (a press beside it): a filled band behind it, edge to edge across the panel at any
+ * depth (the panel clips it to its rounded edge while something is picked), a row's band meeting its neighbours'
+ * halfway across the 6px gap. */
+.tw-panel:has(.is-picked) { overflow-x: clip; }
+.tw-panel .is-picked { position: relative; isolation: isolate; }
+.tw-panel .is-picked::before { content: ""; position: absolute; inset: -3px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 16%, transparent); }
+.tw-panel .tw-folder.is-picked::before { inset-block: 0; }
 
 /* ── Presets menu — portaled; save / load / delete named snapshots ── */
 .tw-presets-menu {
