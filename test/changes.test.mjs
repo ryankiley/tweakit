@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, mounter, key, ptr } from "./_helpers.mjs";
+import { loadSingle, mounter, key, ptr, distCss } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const schema = () => ({ blur: [24, 0, 100, 1], on: true, shape: { radius: [8, 0, 40, 1], origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
@@ -243,12 +243,15 @@ test("a folder pastes its own copy back even when a subfolder shares its name; a
   assert.equal(toast.textContent, "before", "the panel is gone: no toast");
 });
 
-test("a press beside a row picks it with a ring, and ⌘C / ⌘V act on the pick, not on focus", async () => {
+test("a press beside a row picks it with an even band, and ⌘C / ⌘V act on the pick, not on focus", async () => {
   const p = await mount2();
   const [ax, , bx] = [...p.el.querySelectorAll(".tw-folder .tw-slider")], row = (t) => t.closest(".tw-folder-body > .tw-controls > *");
   p.el.querySelectorAll(".tw-folder-header")[1].focus(); // focus elsewhere in the panel: the pick wins
   pressBeside(p, ax);
-  assert.deepEqual(picked(), [row(ax)], "the row level with the press is ringed");
+  assert.deepEqual(picked(), [row(ax)], "the row level with the press is picked");
+  const css = distCss();
+  assert.match(css, /\.tw-panel \.is-picked:not\(\.tw-folder\)\{margin-block:3px\}/, "a picked row eases 3px of room open above and below");
+  assert.match(css, /\.tw-panel \.is-picked:before\{[^}]*inset:-6px -100vmax/, "so its band clears its surface by 6px on both sides, edge to edge");
   const c = await clipKey(document.activeElement, "c");
   assert.deepEqual([c.copied, c.toast], ["1", "X copied"], "its value, not the focused folder's");
   pressBeside(p, bx);
