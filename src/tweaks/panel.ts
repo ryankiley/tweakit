@@ -534,9 +534,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (picked && picked[0] !== panel) picked[1](); // one pick on the page
     unpick(); pick = [el, s]; picked = [panel, unpick]; el.classList.add("is-picked");
     document.addEventListener("pointerdown", away, true); // only while something is picked
-    // The press was cancelled (no text selection), so focus and any selection stayed where they were: let them go, or
-    // the keys would answer to them instead of the pick.
-    (document.activeElement as HTMLElement | null)?.blur?.(); document.getSelection?.()?.removeAllRanges();
+    // Focus moves to what was picked (a folder's header, a row's control), so its keys work and a screen reader names
+    // it; a press shows no ring. A text field isn't focused, or ⌘V would paste into it as text, and any selection goes.
+    const f = [...el.querySelectorAll<HTMLElement>('button:not(:disabled):not([tabindex="-1"]), [tabindex="0"]')].find((n) => !n.closest(".tw-hint, .tw-portal, [inert]")); // its tab stop, not a hint or a closed pop's
+    if (f) f.focus({ preventScroll: true, focusVisible: false } as FocusOptions); else (document.activeElement as HTMLElement | null)?.blur?.();
+    document.getSelection?.()?.removeAllRanges();
   };
   cleanups.push(unpick);
   panel.addEventListener("pointerdown", (e) => {
@@ -565,7 +567,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const k = e.key.toLowerCase(); if (k !== "c" && k !== "v") return;
     if (picked && !picked[0].isConnected) picked[1](); // the picking panel left the page without destroy(): free the slot
     if (pick && hidden(pick[0])) unpick(); // a pick out of sight takes nothing
-    const s = pick ? pick[1] : picked ? undefined : scopeAt(document.activeElement);
+    const fe = document.activeElement, s = pick ? pick[1] : picked || !fe || hidden(fe) ? undefined : scopeAt(fe); // focus on a hidden row takes nothing either
     if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
     e.preventDefault();
     if (k === "v") {

@@ -226,13 +226,18 @@ test("a pick out of sight takes nothing: filtered, hidden by its condition, fold
   p.destroy();
 });
 
-test("picking lets go of focus and selection; a touch never picks; a press in a picked folder's indent picks the row", async () => {
+test("picking focuses what it picked, never a text field, and drops the selection; a touch never picks; a press in a picked folder's indent picks the row", async () => {
   const p = await mount2();
   const input = p.el.querySelector(".tw-text"); input.focus();
   const sel = window.getSelection(), range = document.createRange(); range.selectNodeContents(p.el.querySelector(".tw-folder-title")); sel.removeAllRanges(); sel.addRange(range);
   const ax = p.el.querySelector(".tw-folder .tw-slider");
   pressBeside(p, ax);
-  assert.deepEqual([document.activeElement === input, String(window.getSelection())], [false, ""], "the text field and the selection let go, so ⌘C / ⌘V answer to the pick");
+  assert.deepEqual([document.activeElement === ax, String(window.getSelection())], [true, ""], "the picked row's slider has focus and the selection let go, so ⌘C / ⌘V answer to the pick");
+  pressBeside(p, p.el.querySelector(".tw-folder-header"));
+  assert.equal(document.activeElement, p.el.querySelector(".tw-folder-header"), "a picked folder's header has focus");
+  input.focus(); pressBeside(p, input);
+  assert.deepEqual([picked(), document.activeElement === input], [[input.closest(".tw-controls > *")], false], "a picked text row isn't focused, so ⌘V pastes the row, not text into it");
+  pressBeside(p, ax);
   assert.equal((await clipKey(document.body, "c")).copied, "1");
   pressBeside(p, p.el.querySelectorAll(".tw-folder .tw-slider")[1], { pointerType: "touch" });
   assert.deepEqual(picked(), [], "a touch dropped the pick and picked nothing");
