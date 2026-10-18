@@ -93,10 +93,10 @@
 .tw-panel[data-draggable="true"] > .tw-header,
 .tw-panel[data-mode="floating"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
 .tw-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--tw-shadow-panel-lifted); z-index: 99991; }
-/* A fixed box ignores page scroll, so a floating panel caps at the viewport below its top edge (--tw-top, written
- * with the position) and scrolls, header and all. The scrollbar is hidden: wheel, trackpad, touch and keyboard focus
- * still scroll it. A slider covers its row and takes every touch; here a vertical swipe pans, a sideways one scrubs. */
-.tw-panel[data-mode="floating"] { max-height: calc(100dvh - var(--tw-top, 16px) - 8px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+/* A floating panel scrolls, header and all, inside the height cap its position sets (panel.ts apply()). The scrollbar
+ * is hidden: wheel, trackpad, touch and keyboard focus still scroll it. A slider covers its row and takes every touch;
+ * here a vertical swipe pans, a sideways one scrubs. */
+.tw-panel[data-mode="floating"] { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
 .tw-panel[data-mode="floating"]::-webkit-scrollbar { display: none; } /* Safari before scrollbar-width */
 .tw-panel[data-mode="floating"] .tw-slider { touch-action: pan-y; }
 .tw-panel.is-dragging > .tw-header,
