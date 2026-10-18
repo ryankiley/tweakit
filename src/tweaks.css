@@ -470,11 +470,14 @@
 .tw-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* A row or folder picked for ⌘C / ⌘V (a press beside it): a filled band behind it, edge to edge across the panel at any
- * depth (the panel clips it to its rounded edge while something is picked), a row's band meeting its neighbours'
- * halfway across the 6px gap. */
+ * depth (the panel clips it to its rounded edge while something is picked). A picked row eases 3px of room open above
+ * and below, so its band clears its surface by 6px on both sides wherever it sits (under a folder's header, at a run's
+ * end) and still stops 3px short of its neighbours. A folder's band runs between its own rules. */
 .tw-panel:has(.is-picked) { overflow-x: clip; }
+.tw-panel .tw-controls > * { transition: margin-block 0.2s var(--tw-ease-out); }
 .tw-panel .is-picked { position: relative; isolation: isolate; }
-.tw-panel .is-picked::before { content: ""; position: absolute; inset: -3px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 16%, transparent); }
+.tw-panel .is-picked:not(.tw-folder) { margin-block: 3px; }
+.tw-panel .is-picked::before { content: ""; position: absolute; inset: -6px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 16%, transparent); }
 .tw-panel .tw-folder.is-picked::before { inset-block: 0; }
 
 /* ── Presets menu — portaled; save / load / delete named snapshots ── */
