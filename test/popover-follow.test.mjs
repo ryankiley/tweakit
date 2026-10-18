@@ -31,6 +31,19 @@ test("a scroll carries the popover with its row; the row leaving the viewport cl
   p.destroy();
 });
 
+test("a row scrolled out of a floating panel's own scroller closes its pop, though it's still in the viewport", async () => {
+  const p = tweaks("FS", { tint: "#0000ff" }, { floating: { x: 16, y: 16 } }); document.body.append(p.el); await p.ready;
+  const root = p.el.querySelector(".tw-color"), trigger = root.querySelector(".tw-trigger");
+  p.el.querySelector(".tw-body > .tw-controls").getBoundingClientRect = () => rect(60, 16, 236, 300); // the scroller shows 60..360
+  let r = rect(100); trigger.getBoundingClientRect = () => r;
+  trigger.click(); await wait(60);
+  r = rect(40); p.el.dispatchEvent(new window.Event("scroll")); // partly under the header's edge (bottom 72): still attached
+  assert.ok(root.classList.contains("is-open"), "a row still partly in the scroller keeps its pop");
+  r = rect(10); p.el.dispatchEvent(new window.Event("scroll")); // bottom 42, above the scroller's top: hidden by it
+  assert.ok(!root.classList.contains("is-open"), "the row left the scroller's view: its pop closes");
+  p.destroy();
+});
+
 test("an inner scroller's scroll (capture) is heard too, and a hidden row closes", async () => {
   const p = tweaks("F", { tint: "#00ff00" }); const box = document.createElement("div"); box.append(p.el); document.body.append(box); await p.ready;
   const root = p.el.querySelector(".tw-color"), trigger = root.querySelector(".tw-trigger");

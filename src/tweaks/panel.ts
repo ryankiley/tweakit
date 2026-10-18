@@ -154,8 +154,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const MARGIN = 8, SNAP = 28; // px: viewport inset; snap distance to park against an edge
   // The clamp uses the panel's natural height — what it would be uncapped (the CSS max-height caps a floating
   // panel at the viewport below its top, and the controls scroll). Clamping on the capped height would ratchet:
-  // every position fits, so a tall panel could be dragged up but never back down.
-  const natural = () => panel.offsetHeight + controls.scrollHeight - controls.clientHeight;
+  // every position fits, so a tall panel could be dragged up but never back down. Collapsed, the hidden controls
+  // don't count. +1: offsetHeight rounds, so a panel parked at the bottom isn't capped a fraction short of its rows.
+  const natural = () => panel.offsetHeight + 1 + (panel.classList.contains("is-collapsed") ? 0 : controls.scrollHeight - controls.clientHeight);
   const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - natural() - MARGIN) });
   const posKey = persistKey ? `${persistKey}:pos` : null;
   const saved = (draggable || opts.floating) && posKey ? readStore(posKey) : null;

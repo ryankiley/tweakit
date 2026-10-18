@@ -81,7 +81,9 @@
 
 /* Floating mode. The z ladder (panel 99990 < popovers 99999 < tip/toast 100000 < grab
  * guide 100001) sits above the 100–9999 band host sticky headers occupy. */
-.tw-panel[data-mode="floating"] { position: fixed; z-index: 99990; box-shadow: var(--tw-shadow-panel-lifted); transition: box-shadow 0.25s var(--tw-ease-out); }
+/* A fixed box ignores page scroll, so a floating panel caps at the viewport below its top edge (--tw-top, written
+ * with the position) and its controls scroll under the header, which stays the drag handle. */
+.tw-panel[data-mode="floating"] { position: fixed; z-index: 99990; box-shadow: var(--tw-shadow-panel-lifted); transition: box-shadow 0.25s var(--tw-ease-out); display: flex; flex-direction: column; max-height: calc(100dvh - var(--tw-top, 16px) - 8px); }
 /* The footprint a lifted panel leaves in its old slot, so the host layout holds still. */
 .tw-lift-slot { display: block; flex: none; pointer-events: none; }
 /* The header is the drag handle. The negative margin (cancelled by an equal padding-top)
@@ -93,14 +95,14 @@
 .tw-panel[data-draggable="true"] > .tw-header,
 .tw-panel[data-mode="floating"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
 .tw-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--tw-shadow-panel-lifted); z-index: 99991; }
-/* A fixed box ignores page scroll, so a floating panel caps at the viewport below its top
- * edge (--tw-top, written with the position) and its controls scroll under the header, which
- * stays the drag handle. The panel's lower padding moves into the scroller so the scrollbar
- * rides the panel's edge and rounds with its corners, as the colour pop's does. */
-.tw-panel[data-mode="floating"] { display: flex; flex-direction: column; max-height: calc(100dvh - var(--tw-top, 16px) - 8px); }
-.tw-panel[data-mode="floating"] > .tw-header { flex: none; }
+/* The panel's side and bottom padding move into the scroller, so the scrollbar rides the panel's edge and rounds with
+ * its corners, as the colour pop's does. Collapsed, the padding goes back: a 0fr row still holds its item's padding. */
 .tw-panel[data-mode="floating"] > .tw-body { min-height: 0; margin: 0 -10px -10px; }
 .tw-panel[data-mode="floating"] > .tw-body > .tw-controls { overflow: hidden auto; overscroll-behavior: contain; padding: 0 10px 10px; border-radius: 0 0 calc(var(--tw-radius) + 10px) calc(var(--tw-radius) + 10px); }
+.tw-panel[data-mode="floating"].is-collapsed > .tw-body { margin-bottom: 0; }
+.tw-panel[data-mode="floating"].is-collapsed > .tw-body > .tw-controls { padding-bottom: 0; }
+/* A slider covers its row and takes every touch; in the scroller a vertical swipe pans instead, a sideways one still scrubs. */
+.tw-panel[data-mode="floating"] .tw-slider { touch-action: pan-y; }
 .tw-panel.is-dragging > .tw-header,
 .tw-panel.is-dragging > .tw-header .tw-header-toggle { cursor: grabbing; }
 
@@ -703,7 +705,9 @@
 /* The 8px only clears the bottom hairline, which the last folder drops. */
 .tw-folder:last-child .tw-folder-body > .tw-controls { padding-bottom: 0; }
 /* As a flex column the stack would squash its rows to fit the collapsing track; hold them. */
-.tw-folder-body > .tw-controls > * { flex-shrink: 0; }
+/* A column with a definite height shrinks its rows before it overflows, and a slider's row has no min-content height:
+ * it would squash to nothing instead of scrolling (a folder's body, or a capped floating panel's controls). */
+:is(.tw-body, .tw-folder-body) > .tw-controls > * { flex-shrink: 0; }
 
 /* ── Shadow, sides, motion and spring ── */
 /* The shadow control (shadow.ts). */

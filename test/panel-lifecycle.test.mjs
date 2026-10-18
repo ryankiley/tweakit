@@ -74,10 +74,12 @@ test("the click that ends a drag is swallowed once; the next title click still c
 // A fixed box ignores page scroll, so a floating panel taller than the window used to run off
 // it with its last folders unreachable. The CSS caps it at the viewport below its top edge
 // (--tw-top, written with every position) and scrolls the controls under the header.
-test("a floating panel taller than the viewport caps at the viewport below its top and scrolls its controls", () => {
+test("a floating panel taller than the viewport caps at the viewport below its top and scrolls its controls", async () => {
   const css = distCss();
   assert.match(css, /\.tw-panel\[data-mode=floating\]\{[^}]*max-height:calc\(100dvh - var\(--tw-top,\s*16px\) - 8px\)/, "the cap reads the panel's top offset");
   assert.match(css, /\.tw-panel\[data-mode=floating\]>\.tw-body>\.tw-controls\{[^}]*overflow:hidden auto/, "the controls scroll, the header stays out of the scroller");
+  assert.match(css, /:is\(\.tw-body,\s*\.tw-folder-body\)>\.tw-controls>\*\{flex-shrink:0\}/, "a capped column scrolls its rows instead of squashing them (a slider's row has no min-content height)");
+  assert.match(css, /\.tw-panel\[data-mode=floating\]\.is-collapsed>\.tw-body>\.tw-controls\{padding-bottom:0\}/, "collapsed, the scroller's bottom padding goes, or a 0fr row shows a sliver of the first control");
   const h = window.innerHeight; window.innerHeight = 400; // a short window
   const schema = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`folder${i}`, { a: [1, 0, 10, 1], b: [2, 0, 10, 1] }]));
   const p = tweaks("Tall", schema, { floating: { x: 16, y: 120 } }); document.body.append(p.el);
@@ -87,7 +89,7 @@ test("a floating panel taller than the viewport caps at the viewport below its t
   try {
     assert.equal(p.el.style.getPropertyValue("--tw-top"), "120px", "the cap's offset is written with the position");
     // jsdom lays nothing out: stand in for a panel the cap leaves 272px of on screen (400 − 120 − 8) whose controls want 1600.
-    Object.defineProperty(p.el, "offsetHeight", { value: 272, configurable: true });
+    let h0 = 271; Object.defineProperty(p.el, "offsetHeight", { get: () => h0, configurable: true }); // +1 rounding slack makes 272
     Object.defineProperty(controls, "scrollHeight", { value: 1600, configurable: true });
     window.dispatchEvent(new Event("resize"));
     assert.equal(p.el.style.top, "8px", "a panel taller than the window clamps to the top margin on its natural height, not the capped one");
@@ -95,12 +97,20 @@ test("a floating panel taller than the viewport caps at the viewport below its t
     drag(40, 200);
     assert.equal(p.el.style.top, "8px", "dragging down can't push a too-tall panel off the bottom, however short the cap made it");
     assert.equal(p.el.style.left, "56px");
+    // Collapsed, the hidden controls don't count: the title bar alone moves to the bottom margin.
+    await tick(); // the click right after a drag is the drag's own, and swallowed
+    p.el.querySelector(".tw-header-toggle").click(); h0 = 45;
+    drag(0, 900);
+    assert.equal(p.el.style.top, `${400 - 46 - 8}px`, "a collapsed panel parks at the bottom, not held up by its folded rows");
+    await tick(); p.el.querySelector(".tw-header-toggle").click();
     // A panel that fits moves freely, the cap recomputed from where it lands.
     Object.defineProperty(controls, "scrollHeight", { value: 0, configurable: true });
-    Object.defineProperty(p.el, "offsetHeight", { value: 100, configurable: true });
-    drag(0, 150);
+    h0 = 100; // offsetHeight rounds a fractional layout, so the clamp allows a pixel of slack
+    drag(0, -900); drag(0, 150);
     assert.equal(p.el.style.top, "158px");
     assert.equal(p.el.style.getPropertyValue("--tw-top"), "158px", "recomputed after the drag");
+    drag(0, 900);
+    assert.equal(p.el.style.top, `${400 - 101 - 8}px`, "parked at the bottom on the rounded-up height");
   } finally { window.innerHeight = h; p.destroy(); }
 });
 
