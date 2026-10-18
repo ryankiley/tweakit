@@ -8,7 +8,7 @@ import {
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makePasteBtn, makeResetBtn, toolbarBtn, flash, readText, copyText, spinReset, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
+import { makeCopyBtn, makePasteBtn, makeResetBtn, toolbarBtn, flash, readText, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
@@ -110,7 +110,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
   const copyBtn = makeCopyBtn((changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // snapshot() falls back on a bad bag value, not throws
   // Paste takes a copy back (pasteValues, in the lazy clip chunk; ctx lends it the panel). A chunk that can't load shows the cross.
-  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), ui: () => collectUI(), flash, alive: () => !destroyed };
+  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => api.fromJSON(st), ui: () => collectUI(), flash, announce, alive: () => !destroyed };
   const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, (t) => m.pasteValues(ctx, t), ctx), () => flash(b, "is-failed")); });
   const resetBtn = makeResetBtn(resetAll);
   // Presets share persistence's storage, so the button needs it on.
@@ -451,13 +451,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       for (const nm of names) {
         const row = el("div", "tw-presets-row");
         const load = txt("button", "tw-presets-load", nm);
-        load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); });
+        load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); announce(`Loaded preset ${nm}`); });
         const del = btn("tw-presets-del", ICON_X); del.setAttribute("aria-label", `Delete preset ${nm}`);
         del.addEventListener("click", (e) => { e.stopPropagation(); deletePreset(nm); renderList(); });
         row.append(load, del); list.append(row);
       }
     };
-    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } savePreset(nm); input.value = ""; renderList(); };
+    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } savePreset(nm); input.value = ""; renderList(); announce(`Saved preset ${nm}`); };
     // The shared popover shell; align:"end" hangs it off the button's right edge.
     const menuPop = popover(presetsBtn, presetsBtn, menu, {
       width: 208, fallbackH: 160, gap: 6, align: "end",
@@ -558,7 +558,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     e.preventDefault();
     if (k === "v") { const read = readText(); import("./clip.js").then((m) => m.pasteInto(read, pasteBtn, (t) => m.pasteScope(ctx, s, t), ctx), () => flash(pasteBtn, "is-failed")); return; }
     copyText(JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2))
-      .then((ok) => { if (ok && !destroyed) flash(copyBtn, "is-copied"); }); // the toolbar copy icon flashes its check
+      .then((ok) => { if (destroyed) return; if (ok) flash(copyBtn, "is-copied"); announce(ok ? `${s.label} copied` : "Copy failed"); }); // the copy icon's check, and words for a screen reader
   };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,

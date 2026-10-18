@@ -133,6 +133,15 @@ test("bad JSON, a non-object, a rejected read and no clipboard API change nothin
   p.destroy();
 });
 
+test("a paste tells a screen reader what it did", async () => {
+  const p = await mount();
+  const said = async (read) => { await pasteVia(p.el, read); await new Promise((r) => setTimeout(r, 150)); return document.querySelector(".tw-sr")?.textContent; };
+  assert.equal(await said(text({ blur: 50, on: false })), "2 values pasted");
+  assert.equal(await said(text({ zzz: 1 })), "Nothing to paste");
+  assert.equal(await said(async () => { throw new Error("denied"); }), "Couldn't read the clipboard");
+  p.destroy();
+});
+
 test("a read that resolves after destroy() reports nothing", async () => {
   const p = await mount();
   let resolve; const read = () => new Promise((r) => { resolve = r; });
@@ -191,6 +200,8 @@ test("⌘C on a folder copies its values object; ⌘V on a folder with the same 
   heads[0].focus();
   const c = await clipKey(heads[0], "c");
   assert.deepEqual([JSON.parse(c.copied), c.prevented, c.flash, c.toast], [{ x: 1, y: 2 }, true, "ok", QUIET], "the folder's subtree, not the whole panel; the copy icon's check, no toast");
+  await new Promise((r) => setTimeout(r, 150));
+  assert.equal(document.querySelector(".tw-sr")?.textContent, "A copied", "and a screen reader hears what was copied");
   assert.ok(p.el.querySelector(".tw-toolbar-btn--swap").classList.contains("is-copied"), "the toolbar's copy shows the check");
   await new Promise((r) => setTimeout(r, 400)); // past the undo debounce
   let notified = 0; p.on(() => notified++);

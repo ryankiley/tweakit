@@ -837,6 +837,30 @@ test("destroy() closes its own popover and hint, not another panel's", async () 
   await wait(220); // the portaled menu node is removed 200ms after close
 });
 
+// With no toast, a screen reader hears what a click did from one visually hidden status region instead.
+test("copy and presets announce what they did to a screen reader, from one hidden status region", async () => {
+  localStorage.clear();
+  const p = tweaks("Heard", { blur: [24, 0, 100, 1] }, { persist: true });
+  document.body.append(p.el); await p.ready;
+  const said = async (act) => { act(); await new Promise((r) => setTimeout(r, 150)); return document.querySelector(".tw-sr")?.textContent; };
+  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  const copy = p.el.querySelector(".tw-toolbar-btn--swap");
+  try {
+    Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async () => {} }, configurable: true });
+    assert.equal(await said(() => copy.click()), "Values copied");
+    assert.equal(await said(() => copy.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }))), "Nothing has changed");
+    p.set("blur", 40);
+    assert.equal(await said(() => copy.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }))), "1 changed value copied");
+  } finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
+  p.el.querySelector('[aria-label="Presets"]').click(); await new Promise((r) => setTimeout(r, 30));
+  const input = document.querySelector(".tw-presets-input"); input.value = "Warm";
+  assert.equal(await said(() => document.querySelector(".tw-presets-savebtn").click()), "Saved preset Warm");
+  assert.equal(await said(() => document.querySelector(".tw-presets-load").click()), "Loaded preset Warm");
+  const sr = document.querySelector(".tw-sr");
+  assert.deepEqual([sr.getAttribute("role"), sr.classList.contains("tw-portal"), document.querySelectorAll(".tw-sr").length], ["status", false, 1], "one status region for the page, not a visible surface");
+  p.destroy(); localStorage.clear();
+});
+
 // panel.setName() retitles a live panel: the header follows, the storage key
 // does not (a rename never moves persisted values or presets).
 test("setName() moves the header, and leaves the storage key on the built-with name", async () => {

@@ -4,7 +4,7 @@ import { el, btn, setCollapsed } from "./shared.js";
 import { dataMeta, restoreDefault, valueChanged } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makePasteBtn, makeResetBtn, addHintMarker, flash } from "./feedback.js";
+import { makeCopyBtn, makePasteBtn, makeResetBtn, addHintMarker, flash, announce as speak } from "./feedback.js"; // this module's own announce() echoes a host's value
 import type { Control } from "./types.js";
 import type { Meta } from "./schema.js";
 
@@ -54,7 +54,7 @@ export async function enhance(root: Document | Element = document): Promise<void
       };
       const reset = () => { for (const t of live()) t.reset(); };
       const toolbar = el("div", "tw-toolbar");
-      const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, paste(m.pickBest), { flash, alive: () => panel.isConnected }), () => flash(b, "is-failed")); });
+      const pasteBtn = makePasteBtn((read, b) => { import("./clip.js").then((m) => m.pasteInto(read, b, paste(m.pickBest), { flash, announce: speak, alive: () => panel.isConnected }), () => flash(b, "is-failed")); });
       toolbar.append(makeCopyBtn(() => [values(), -1]), pasteBtn, makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
     }
   });
