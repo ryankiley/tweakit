@@ -25,14 +25,16 @@ const copyVia = async (p, init) => {
 // (an Error: a paste with no clipboard data): what was copied, whether the key was taken, and how it went: "ok" or "failed" from the copy icon's check, the picked band's flash, or with nothing
 // picked the words a screen reader heard; "none" when nothing answered.
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-// What the browser does after the keydown when focus sits in the panel's hidden field: copies its selected text, or
-// pastes `text` into it. Returns the copied text, true for a paste, or false when the keypress left focus where it was.
-const browserClip = (k, text) => {
+// What the browser does after the keydown when focus sits in the panel's hidden field: a copy event whose data the
+// panel sets, or a paste event carrying `text`, fired on `on` (default: the field; a slower browser fires it wherever
+// focus is by then). Returns the copied text, true for a paste, or false when the keypress left focus where it was.
+const browserClip = (k, text, on) => {
   const ta = document.activeElement; if (!ta?.matches("textarea.tw-sr")) return false;
+  let set = null;
   const ev = new window.Event(k === "c" ? "copy" : "paste", { bubbles: true, cancelable: true });
-  Object.defineProperty(ev, "clipboardData", { value: text instanceof Error ? null : { getData: (t) => (t === "text/plain" ? text ?? "" : "") } });
-  ta.dispatchEvent(ev);
-  return k === "c" ? ta.value.slice(ta.selectionStart, ta.selectionEnd) : true;
+  Object.defineProperty(ev, "clipboardData", { value: text instanceof Error ? null : { getData: (t) => (t === "text/plain" ? text ?? "" : ""), setData: (t, v) => { if (t === "text/plain") set = v; } } });
+  (on || ta).dispatchEvent(ev);
+  return k === "c" ? set : true;
 };
 const clipKey = async (target, k, text, props = {}) => {
   let copied = null;
@@ -322,5 +324,19 @@ test("a second paste on the same row keeps its own flash: the first one's timer 
   await clipKey(x, "v", "3"); await wait(300);
   await clipKey(x, "v", "4"); await wait(200); // past the first flash's 450ms, inside the second's
   assert.ok(band.classList.contains("is-pasted"), "the second paste's flash still shows");
+  p.destroy();
+});
+
+test("a copy or paste the browser fires late, after focus could have moved, still lands; until it does focus waits in the field", async () => {
+  const p = await mountPanel(scoped());
+  const [x, y] = p.el.querySelectorAll(".tw-folder .tw-slider");
+  pressBeside(p, x); key(x, { key: "c", metaKey: true });
+  await wait(20); // the browser's copy comes later than a timer's turn
+  assert.ok(document.activeElement.matches("textarea.tw-sr"), "focus waits in the hidden field for it");
+  assert.equal(browserClip("c", null, document.body), "1", "a late copy, fired on the page, still gets the row's value");
+  assert.equal(document.activeElement, x, "and focus steps back once it lands");
+  pressBeside(p, y); key(y, { key: "v", metaKey: true }); await wait(20);
+  browserClip("v", "1", y); await wait(30);
+  assert.equal(p.params.a.y, 1, "a late paste fired on the slider lands too");
   p.destroy();
 });

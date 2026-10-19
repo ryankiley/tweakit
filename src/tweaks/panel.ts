@@ -575,20 +575,20 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const json = k === "c" ? JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2) : "";
     const copied = (ok: boolean) => { if (destroyed) return; if (ok) flashCopied(copyBtn); announce(ok ? `${s.label} copied` : "Copy failed"); }; // the copy icon's check, and words for a screen reader
     const band = pick?.[0], back = document.activeElement as HTMLElement | null, ring = !!back?.matches(":focus-visible");
-    let caught = false;
-    onCatch = (ev) => {
-      caught = true; if (k === "c") return copied(true);
-      ev.preventDefault(); const t = ev.clipboardData?.getData("text/plain") ?? null;
+    // The browser's copy or paste can land some milliseconds after this keydown (an app's menu passes it on), so focus
+    // steps back only when it lands, or after a second with none; it's caught page-wide, wherever focus is by then.
+    if (!catchEl) { catchEl = el("textarea", "tw-sr"); catchEl.tabIndex = -1; catchEl.setAttribute("aria-hidden", "true"); for (const t of ["copy", "paste"]) document.addEventListener(t, (e) => onCatch?.(e as ClipboardEvent), true); }
+    const ta = catchEl, done = () => { onCatch = null; if (document.activeElement === ta) { ta.blur(); back?.focus?.({ preventScroll: true, focusVisible: ring } as FocusOptions); } };
+    const h = onCatch = (ev) => {
+      if (ev.target !== ta && inEditable(ev.target as Element)) return; // a field focused meanwhile keeps its own paste
+      ev.preventDefault(); done();
+      if (json) return ev.clipboardData?.setData("text/plain", json), copied(!!ev.clipboardData);
+      const t = ev.clipboardData?.getData("text/plain") ?? null;
       import("./clip.js").then((m) => m.pasteInto(t, (t) => m.pasteScope(ctx, s, t), ctx, band), () => {});
     };
-    if (!catchEl) { catchEl = el("textarea", "tw-sr"); catchEl.tabIndex = -1; catchEl.setAttribute("aria-hidden", "true"); for (const t of ["copy", "paste"]) catchEl.addEventListener(t, (ev) => onCatch?.(ev as ClipboardEvent)); }
-    if (!catchEl.isConnected) document.body.appendChild(catchEl);
-    const ta = catchEl; ta.value = json; ta.focus({ preventScroll: true }); ta.select();
-    setTimeout(() => { // after the browser's copy or paste, which runs right after this keydown
-      onCatch = null;
-      if (document.activeElement === ta) { ta.blur(); back?.focus?.({ preventScroll: true, focusVisible: ring } as FocusOptions); }
-      if (!caught && json) copyText(json).then(copied); // no copy event (a browser that ran none): write it directly
-    });
+    if (!ta.isConnected) document.body.appendChild(ta);
+    ta.value = json; ta.focus({ preventScroll: true }); ta.select();
+    setTimeout(() => { if (onCatch === h) { done(); if (json) copyText(json).then(copied); } }, 1000); // none came: write the copy directly
   };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,

@@ -50,8 +50,8 @@ const press = async (k) => {
   const ta = document.activeElement;
   if (ta?.matches("textarea.tw-sr")) {
     const ev = new window.Event(k === "c" ? "copy" : "paste", { bubbles: true, cancelable: true });
-    Object.defineProperty(ev, "clipboardData", { value: { getData: () => board } });
-    ta.dispatchEvent(ev); if (k === "c") board = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+    Object.defineProperty(ev, "clipboardData", { value: { getData: () => board, setData: (t, v) => { board = v; } } });
+    ta.dispatchEvent(ev);
   }
   await new Promise((r) => setTimeout(r, 10));
   for (let i = 0; k === "v" && band && i < 400 && !band.matches(".is-pasted, .is-refused"); i++) await new Promise((r) => setTimeout(r, 5)); // the band answers once the chunk lands (up to 2s on a loaded runner)
