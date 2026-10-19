@@ -8,7 +8,7 @@ import {
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, toolbarBtn, flashCopied, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, toolbarBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
@@ -573,7 +573,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const fe = document.activeElement, s = pick ? pick[1] : picked || !fe || hidden(fe) ? undefined : scopeAt(fe); // focus on a hidden row takes nothing either
     if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
     const json = k === "c" ? JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2) : "";
-    const copied = (ok: boolean) => { if (destroyed) return; if (ok) flashCopied(copyBtn); announce(ok ? `${s.label} copied` : "Copy failed"); }; // the copy icon's check, and words for a screen reader
+    const copied = (ok: boolean) => { if (!destroyed) announce(ok ? `${s.label} copied` : "Copy failed"); }; // words for a screen reader; the toolbar's copy button stays as it is
     const band = pick?.[0], back = document.activeElement as HTMLElement | null, ring = !!back?.matches(":focus-visible");
     // The browser's copy or paste can land some milliseconds after this keydown (an app's menu passes it on), so focus
     // steps back only when it lands, or after a second with none; it's caught page-wide, wherever focus is by then.

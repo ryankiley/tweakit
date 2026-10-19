@@ -48,7 +48,7 @@ const clipKey = async (target, k, text, props = {}) => {
     key(target, { key: k, metaKey: true, ...props });
     const taken = browserClip(k, text); if (k === "c" && taken) copied = taken; await wait(10);
     let flash = "none";
-    if (k === "c") flash = document.querySelector(".tw-toolbar-btn--swap.is-copied") ? "ok" : "none";
+    if (k === "c") { await wait(130); flash = / copied$/.test(document.querySelector(".tw-sr[role=status]")?.textContent || "") ? "ok" : "none"; }
     else if (pick && taken) { // the band answers once the read and the chunk have landed
       for (let i = 0; i < 40 && !pick.matches(".is-pasted, .is-refused"); i++) await wait(5);
       flash = pick.classList.contains("is-pasted") ? "ok" : pick.classList.contains("is-refused") ? "failed" : "none";
@@ -114,10 +114,10 @@ test("⌘C on a folder copies its values object; ⌘V on a folder with the same 
   const heads = [...p.el.querySelectorAll(".tw-folder-header")];
   heads[0].focus();
   const c = await clipKey(heads[0], "c");
-  assert.deepEqual([JSON.parse(c.copied), c.prevented, c.flash], [{ x: 1, y: 2 }, true, "ok"], "the folder's subtree, not the whole panel; the copy icon's check");
+  assert.deepEqual([JSON.parse(c.copied), c.prevented, c.flash], [{ x: 1, y: 2 }, true, "ok"], "the folder's subtree, not the whole panel");
   await new Promise((r) => setTimeout(r, 150));
   assert.equal(document.querySelector(".tw-sr[role=status]")?.textContent, "A copied", "and a screen reader hears what was copied");
-  assert.ok(p.el.querySelector(".tw-toolbar-btn--swap").classList.contains("is-copied"), "the toolbar's copy shows the check");
+  assert.ok(!p.el.querySelector(".tw-toolbar-btn--swap").classList.contains("is-copied"), "the toolbar's copy button shows nothing: it didn't copy");
   await new Promise((r) => setTimeout(r, 400)); // past the undo debounce
   let notified = 0; p.on(() => notified++);
   heads[1].focus();
@@ -163,12 +163,9 @@ test("a folder pastes its own copy back even when a subfolder shares its name; a
   p.fromJSON({ values: { look: { look: { x: 7 }, y: 7 } } });
   assert.equal((await clipKey(head, "v", c.copied)).flash, "ok");
   assert.deepEqual(p.params.look, { look: { x: 1 }, y: 2 });
-  const copyBtn = p.el.querySelector(".tw-toolbar-btn--swap:not(.tw-toolbar-btn--paste)"); copyBtn.classList.remove("is-copied");
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async () => {} }, configurable: true });
-  try { key(head, { key: "c", metaKey: true }); p.destroy(); await new Promise((r) => setTimeout(r, 10)); }
-  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
-  assert.ok(!copyBtn.classList.contains("is-copied"), "the panel is gone: its icon doesn't flash");
+  document.querySelector(".tw-sr[role=status]").textContent = "";
+  key(head, { key: "c", metaKey: true }); p.destroy(); browserClip("c"); await wait(150);
+  assert.equal(document.querySelector(".tw-sr[role=status]").textContent, "", "the panel is gone: nothing is said");
 });
 
 test("a press beside a row picks it with an even band, and ⌘C / ⌘V act on the pick, not on focus", async () => {
