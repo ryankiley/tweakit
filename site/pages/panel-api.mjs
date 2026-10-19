@@ -58,8 +58,10 @@ export const examples = [
       it on touch, or press ⌥+Backspace with focus inside it.</p>
       <p>The reverse, <code>panel.changes()</code>, is a flat map of every value that has
       moved off its default, in the same shape (what you paste to bake tuned values into
-      source). ⇧-click the toolbar's copy button to copy that instead of the full snapshot.
-      <code>panel.setName(name)</code> retitles the panel live; the name it was built with stays its storage key, so saved values and
+      source). ⇧-click the toolbar's copy button to copy that instead of the full snapshot
+      (copying one row or folder has its own section below).
+      <code>panel.setName(name)</code> retitles the panel live; the name it was built with
+      stays its storage key, so saved values and
       presets survive a rename.</p>`,
     target: `
       <div class="pa-remote">
@@ -93,6 +95,41 @@ export const examples = [
         panel.setMany({ hue: Math.round(Math.random() * 360), lift: Math.round(Math.random() * 40) });
       });
       target.querySelector(".pa-restore").addEventListener("click", () => panel.reset());
+    },
+  },
+  {
+    id: "copy-paste",
+    title: "Copy & paste",
+    prose: `<p>A row or folder copies on its own. Press in the space beside it, in the panel's
+      side padding, to pick it (it fills), then press ⌘C (Ctrl on Windows and Linux); pick
+      another and press ⌘V. A row copies its value and pastes one back; a folder copies its
+      values object and pastes it into its own keys, so two folders with the same keys trade
+      values. Try it below: pick Key by pressing beside its title, ⌘C, pick Fill, ⌘V, and
+      the second light takes the first's look.</p>
+      <p>A paste goes through <code>fromJSON</code>, so it's one undo step, saved and
+      announced like any load, and the band flashes as it lands. A value only lands where it
+      fits, the same type as the control holds (a colour for a colour, one of a list's
+      options); if nothing fits, the band flashes red and nothing changes. With nothing
+      picked, the keys act on the row holding focus; Escape or a press elsewhere drops the
+      pick, and in a text field or over selected text the keys stay the browser's.</p>`,
+    target: `<div class="cp-stage"><div class="cp-light"></div><div class="cp-light"></div></div>`,
+    css: `
+      .cp-stage { display: flex; align-items: center; justify-content: center; gap: 36px; min-height: 140px; }
+      .cp-light { border-radius: 50%; transition: width 0.15s, height 0.15s, background 0.15s, filter 0.15s; }`,
+    run: ({ tweaks, mount, target }) => {
+      const lights = target.querySelectorAll(".cp-light");
+      const light = (hue, size, soft) => ({ hue: [hue, 0, 360, 1], size: [size, 40, 120, 1], soft: [soft, 0, 30, 1] });
+      const panel = tweaks("Lights", { key: light(40, 96, 4), fill: light(220, 60, 18) });
+      mount.append(panel.el);
+
+      const paint = (el, l) => {
+        el.style.width = el.style.height = `${l.size}px`;
+        el.style.background = `oklch(0.78 0.14 ${l.hue})`;
+        el.style.filter = `blur(${l.soft}px)`;
+      };
+      const apply = (p) => { paint(lights[0], p.key); paint(lights[1], p.fill); };
+      panel.on(apply);
+      apply(panel.params);
     },
   },
   {

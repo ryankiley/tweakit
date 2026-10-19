@@ -8,23 +8,28 @@ import {
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, toolbarBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
 import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
+import type { ClipCtx, Scope } from "./clip.js";
 import type { PanelEl } from "./shared.js";
 import type { TabsControl } from "./controls/tabs.js";
 
 /** A params object or one of its folder/tabs sub-objects — the holder a control writes into. */
 type Target = Record<string, unknown>;
 /** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def) and its dotted path. */
-interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean }
+export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement }
 /** A values snapshot — params minus `_last`, as JSON round-trips it. */
-type Snapshot = Record<string, any>;
+export type Snapshot = Record<string, any>;
 /** A folder in the filter index: its node, label and body (for the child scan). */
 interface FolderItem { el: HTMLElement; label: string; body: HTMLElement }
 
 let topFloating: HTMLElement | null = null; // the floating panel raised last (raise())
+let picked: [HTMLElement, () => void] | null = null; // the panel holding the page's one pick, and how to drop it
+// The page's one hidden field that a picked ⌘C / ⌘V focuses for the keypress, so the browser's own copy and paste run on
+// it: the system clipboard both ways, with no permission to ask. `onCatch` is that keypress's answer.
+let catchEl: HTMLTextAreaElement | null = null, onCatch: ((e: ClipboardEvent) => void) | null = null;
 
 /** Build a panel from `schema`; the shell and API exist synchronously, lazy controls fill in on `ready`. */
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
@@ -107,6 +112,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const changed = (): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.path.join(".")] = e.get(); return JSON.parse(JSON.stringify(out, replacer)); };
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
   const copyBtn = makeCopyBtn((changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // snapshot() falls back on a bad bag value, not throws
+  // A picked row's paste (pasteScope, in the lazy clip chunk) writes through the panel's own load path; ctx lends it.
+  // A paste is its own undo step: what was pending commits first, the paste right after, so neither merges with a drag.
+  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => { undoApi?.flush(); api.fromJSON(st); undoApi?.flush(); }, announce, alive: () => !destroyed };
   const resetBtn = makeResetBtn(resetAll);
   // Presets share persistence's storage, so the button needs it on.
   let presetsBtn: HTMLButtonElement | null = null;
@@ -248,6 +256,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         const sub: Target = {}; subTrees.add(sub); target[m.key] = sub;
         const f = createFolder(m);
         folderEls.push({ path: [...basePath, m.key], el: f.el, setCollapsed: f.setCollapsed });
+        scopes.set(f.el, { kind: "folder", path: [...basePath, m.key], label: m.label });
         const fi = filterOn ? { el: f.el, label: m.label, body: f.body } : null;
         if (fi) filterFolders.push(fi);
         build(f.body, m.children, sub, [...basePath, m.key], fi); registerCond(f.el, m); container.append(f.el);
@@ -263,8 +272,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // A value a host parked on params before assemble ran wins over the schema default.
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false };
-        entries.push(entry); wireReset(ctrl.el, entry);
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el };
+        entries.push(entry); wireReset(ctrl.el, entry); scopes.set(ctrl.el, { kind: "row", entry, label: m.label });
       }
       registerCond(ctrl.el, m);
       if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); // every control is searchable except the separator
@@ -508,8 +517,79 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
     };
-    return { undo, redo, arm: () => { history = [snapshot()]; histIdx = 0; cleanups.push(onLive(panel, [[document, "keydown"]], onKey)); } };
+    return { undo, redo, onKey, flush, arm: () => { history = [snapshot()]; histIdx = 0; } };
   })() : null;
+
+  // ── Pick and copy / paste — a press beside a row (in the panel's side padding, or a gap between rows) picks it, as
+  // a layer is picked in a design tool; beside a folder's header, the folder. ⌘C / ⌘V (ctrl elsewhere) then act on the
+  // pick, or with none on the page, on the row holding focus. A row copies its value and pastes one back; a folder copies
+  // its values object and pastes one into its own keys, so two folders with the same keys trade values. Escape, or a
+  // press anywhere else, drops the pick; a text field or a text selection keeps the browser's own keys. ──
+  const scopes = new Map<Element, Scope>(); // a row's or folder's root → its scope, filled by build()
+  const scopeAt = (n: Element | null): Scope | undefined => { for (; n && n !== panel && panel.contains(n); n = n.parentElement) { const s = scopes.get(n); if (s) return s; } };
+  const rowAt = (n: Element | null): Element | undefined => { for (; n && n !== panel; n = n.parentElement) if (scopes.get(n)?.kind === "row") return n; };
+  // Out of sight: filtered, hidden by its condition, on a tab page not showing, or inside a collapsed folder or panel.
+  const hidden = (el: Element) => !!(el.closest(".tw-filter-hidden, .tw-cond-hidden, .tw-tabs-page:not([data-active=true])") || el.parentElement?.closest(".is-collapsed"));
+  let pick: [Element, Scope] | undefined;
+  const away = (e: Event) => { const t = e.target as Element; if (!panel.contains(t) && !t.closest?.(".tw-portal")) unpick(); };
+  const unpick = () => { if (!pick) return; pick[0].classList.remove("is-picked"); pick = undefined; document.removeEventListener("pointerdown", away, true); if (picked?.[0] === panel) picked = null; };
+  const choose = (el: Element, s: Scope) => {
+    if (picked && picked[0] !== panel) picked[1](); // one pick on the page
+    unpick(); pick = [el, s]; picked = [panel, unpick]; el.classList.add("is-picked");
+    document.addEventListener("pointerdown", away, true); // only while something is picked
+    // Focus moves to what was picked (a folder's header, a row's control), so its keys work and a screen reader names
+    // it; a press shows no ring. A text field isn't focused, or ⌘V would paste into it as text, and any selection goes.
+    const f = [...el.querySelectorAll<HTMLElement>('button:not(:disabled):not([tabindex="-1"]), [tabindex="0"]')].find((n) => !n.closest(".tw-hint, .tw-portal, [inert]")); // its tab stop, not a hint or a closed pop's
+    if (f) f.focus({ preventScroll: true, focusVisible: false } as FocusOptions); else (document.activeElement as HTMLElement | null)?.blur?.();
+    document.getSelection?.()?.removeAllRanges();
+  };
+  cleanups.push(unpick);
+  panel.addEventListener("pointerdown", (e) => {
+    const t = e.target as Element;
+    // On a control, or a header: working the picked row keeps the pick, anything else drops it. A touch never picks:
+    // a phone has no ⌘C, and a scroll that starts in the padding shouldn't pick what it passes.
+    if (rowAt(t) || t.closest(".tw-header, .tw-folder-header, button, input, textarea, select")) { if (!pick?.[0].contains(t)) unpick(); return; }
+    if (e.button !== 0 || e.pointerType === "touch") return unpick();
+    // Beside a row: the row (or folder header) level with the press, by its own box, so nothing overlapping the panel
+    // can stand in the way. The last match is the deepest: a folder's rows come after it.
+    let hit: [Element, Scope] | undefined;
+    for (const [el, s] of scopes) {
+      const r = (s.kind === "folder" ? el.firstElementChild! : el).getBoundingClientRect();
+      if (r.height && e.clientY >= r.top && e.clientY < r.bottom && !hidden(el)) hit = [el, s];
+    }
+    if (!hit) return unpick();
+    e.preventDefault(); // no text selection
+    choose(...hit);
+  }, true); // capture: a label's own pointerdown stops the event before it bubbles here
+  const inEditable = (t: Element | null) => !!(t && (t as HTMLElement).matches && ((t as HTMLElement).matches("input, textarea, select") || (t as HTMLElement).isContentEditable));
+  // Called from the panel's one keydown listener (registered by assemble(), beside the undo keys). Focus steps to the
+  // hidden field for the keypress (the copy selected in it), the browser copies or pastes there, and focus steps back.
+  const onClipKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape") return unpick();
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.target as Element)) return;
+    const k = e.key.toLowerCase(); if (k !== "c" && k !== "v") return;
+    if (picked && !picked[0].isConnected) picked[1](); // the picking panel left the page without destroy(): free the slot
+    if (pick && hidden(pick[0])) unpick(); // a pick out of sight takes nothing
+    const fe = document.activeElement, s = pick ? pick[1] : picked || !fe || hidden(fe) ? undefined : scopeAt(fe); // focus on a hidden row takes nothing either
+    if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
+    const json = k === "c" ? JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2) : "";
+    const copied = (ok: boolean) => { if (!destroyed) announce(ok ? `${s.label} copied` : "Copy failed"); }; // words for a screen reader; the toolbar's copy button stays as it is
+    const band = pick?.[0], back = document.activeElement as HTMLElement | null, ring = !!back?.matches(":focus-visible");
+    // The browser's copy or paste can land some milliseconds after this keydown (an app's menu passes it on), so focus
+    // steps back only when it lands, or after a second with none; it's caught page-wide, wherever focus is by then.
+    if (!catchEl) { catchEl = el("textarea", "tw-sr"); catchEl.tabIndex = -1; catchEl.setAttribute("aria-hidden", "true"); for (const t of ["copy", "paste"]) document.addEventListener(t, (e) => onCatch?.(e as ClipboardEvent), true); }
+    const ta = catchEl, done = () => { onCatch = null; if (document.activeElement === ta) { ta.blur(); back?.focus?.({ preventScroll: true, focusVisible: ring } as FocusOptions); } };
+    const h = onCatch = (ev) => {
+      if (ev.target !== ta && inEditable(ev.target as Element)) return; // a field focused meanwhile keeps its own paste
+      ev.preventDefault(); done();
+      if (json) return ev.clipboardData?.setData("text/plain", json), copied(!!ev.clipboardData);
+      const t = ev.clipboardData?.getData("text/plain") ?? null;
+      import("./clip.js").then((m) => m.pasteInto(t, (t) => m.pasteScope(ctx, s, t), ctx, band), () => {});
+    };
+    if (!ta.isConnected) document.body.appendChild(ta);
+    ta.value = json; ta.focus({ preventScroll: true }); ta.select();
+    setTimeout(() => { if (onCatch === h) { done(); if (json) copyText(json).then(copied); } }, 1000); // none came: write the copy directly
+  };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,
   // the undo seed, the queued API calls. Synchronous when every control type is registered, else behind panel.ready.
@@ -537,6 +617,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (persistKey) applySnapshot(unsaved(readStore(persistKey)));
     if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm(); watchResize();
+    cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); })); // one document listener per panel for its keys
     assembled = true;
     // Replay after the restore, so an explicit host set() wins over a stored value; a destroy() mid-replay drops the rest.
     for (const fn of queue.splice(0)) { if (destroyed) break; try { fn(); } catch (e) { console.error("[tweaks] a call queued before ready failed:", e); } }

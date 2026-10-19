@@ -342,6 +342,28 @@
       "ui": {}
     }
   ],
+  "panel-api.mjs › copy-paste": [
+    {
+      "values": {
+        "key": {
+          "hue": 40,
+          "size": 96,
+          "soft": 4
+        },
+        "fill": {
+          "hue": 220,
+          "size": 60,
+          "soft": 18
+        }
+      },
+      "ui": {
+        "folders": {
+          "key": false,
+          "fill": false
+        }
+      }
+    }
+  ],
   "panel-api.mjs › save-load": [
     {
       "values": {

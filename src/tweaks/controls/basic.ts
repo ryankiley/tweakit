@@ -325,7 +325,7 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
 
 function createButton(meta: Meta) {
   const b = txt("button", "tw-button", meta.label);
-  b.addEventListener("click", () => meta.action && meta.action());
+  b.addEventListener("click", () => typeof meta.action === "function" && meta.action()); // a verbose form can carry a non-function action; as the group does, ignore it
   return blade(b);
 }
 

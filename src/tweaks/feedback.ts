@@ -123,4 +123,4 @@ async function copyText(text: string) {
   return ok;
 }
 
-export { toolbarBtn, makeCopyBtn, makeResetBtn, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };
+export { toolbarBtn, makeCopyBtn, makeResetBtn, flashCopied, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };

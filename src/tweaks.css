@@ -171,7 +171,11 @@
 .tw-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.25s var(--tw-ease-inout); }
 /* Clip y only, so a slider rubber-banding past its end still shows. Must be `clip`,
  * not `hidden`: `hidden` on one axis forces the other to compute to `auto`. */
-.tw-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; }
+/* The 3px padding, offset by an equal negative margin so nothing moves, sets the clip edges out far enough not to cut a
+ * first or last row's pick band (3px past the row). A collapsed panel drops the pair, or its 0fr row would show 3px of
+ * the first row. */
+.tw-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding-block: 3px; margin-block: -3px; }
+.tw-panel.is-collapsed .tw-body > .tw-controls { padding-block: 0; margin-block: 0; }
 .tw-panel.is-collapsed .tw-body { grid-template-rows: 0fr; }
 .tw-header { transition: margin-bottom 0.25s, padding-bottom 0.25s, border-color 0.25s; }
 /* Collapsed, the header is the whole panel; drop its separator so the padding is even. */
@@ -467,6 +471,19 @@
 .tw-option-swatch { flex-shrink: 0; width: 12px; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
 .tw-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* A row or folder picked for ⌘C / ⌘V (a press beside it): a filled band behind it, edge to edge across the panel at any
+ * depth (the panel clips it to its rounded edge while something is picked). A row's band reaches 3px past it, halfway
+ * across the 6px gap to its neighbours, the same on both sides wherever it sits; nothing moves. A folder's band runs
+ * between its own rules. */
+.tw-panel:not([data-mode="floating"]):has(.is-picked) { overflow: clip; } /* both axes, so it follows the rounded corners; a floating panel already clips, scrolling */
+.tw-panel .is-picked { position: relative; isolation: isolate; }
+.tw-panel .is-picked::before { content: ""; position: absolute; inset: -3px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 5%, transparent); }
+.tw-panel .tw-folder.is-picked::before { inset-block: 0; }
+/* A paste onto the pick answers on the band: a brief brightening when it lands, a brief danger tint when nothing fits. */
+.tw-panel .is-picked::before { transition: background 0.35s var(--tw-ease-out); }
+.tw-panel .is-picked.is-pasted::before { background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 20%, transparent); transition-duration: 0.08s; }
+.tw-panel .is-picked.is-refused::before { background: color-mix(in srgb, var(--tw-danger) 18%, transparent); transition-duration: 0.08s; }
+
 /* ── Presets menu — portaled; save / load / delete named snapshots ── */
 .tw-presets-menu {
   position: fixed; z-index: 99999; width: 208px;
@@ -696,11 +713,12 @@
 .tw-folder-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s var(--tw-ease-fold); contain: layout; }
 .tw-folder.is-collapsed .tw-folder-body { grid-template-rows: 0fr; }
 /* Height and opacity share the --fold clock; y-clip only, as on .tw-body > .tw-controls. */
-.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding-bottom: 8px; opacity: 1; transition: opacity 0.35s var(--tw-ease-fold), padding-bottom 0.35s var(--tw-ease-fold); }
+.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding: 3px 0 8px; margin-top: -3px; opacity: 1; /* top: the pick band's clip edge, as on .tw-body */ transition: opacity 0.35s var(--tw-ease-fold), padding-bottom 0.35s var(--tw-ease-fold), margin-bottom 0.35s var(--tw-ease-fold); }
 /* Collapse the padding too, so a collapsed group is exactly its header. */
 .tw-folder.is-collapsed .tw-folder-body > .tw-controls { opacity: 0; padding-bottom: 0; }
 /* The 8px only clears the bottom hairline, which the last folder drops. */
 .tw-folder:last-child .tw-folder-body > .tw-controls { padding-bottom: 0; }
+.tw-folder:last-child:not(.is-collapsed) .tw-folder-body > .tw-controls { padding-bottom: 3px; margin-bottom: -3px; } /* the pick band's clip edge; both fold away together */
 /* As a flex column the stack would squash its rows to fit the collapsing track; hold them. */
 .tw-folder-body > .tw-controls > * { flex-shrink: 0; }
 
