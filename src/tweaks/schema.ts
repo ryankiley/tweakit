@@ -1,5 +1,5 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
- * or verbose `{ type }`) or a [data-tw] dataset parses into the same control meta. A lazy
+ * or verbose `{ type }`), and a [data-tw] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
 import { titleCase, isObj, isColorStr, inferStep, defaultRange, optValue, getControl } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
@@ -201,46 +201,5 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
 }
 // Display/action controls carry no value; the panel build skips entry/reset/persist wiring.
 const VALUELESS = new Set<string>(["button", "fpsgraph", "monitor", "buttongroup", "separator"]);
-// ── Markup-driven enhancement — each [data-tw] type parses its dataset into the same verbose
-// schema value TYPED_META consumes, then rides metaFor: ONE derivation, so markup defaults can't drift. ──
-const springData = (d: DOMStringMap) => ({ ...Object.fromEntries(SPRING_KEYS.map((k) => [k, num(d[k])])), mode: d.mode }); // the motion control reads the same markup
-const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: HTMLElement, label: string) => object>> = {
-  slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft), unit: d.unit }), // absent bounds derive from the value, like the schema
-  checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
-  radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
-  list: (d) => ({ options: splitList(d.options), value: d.value }),
-  buttongroup: (d) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab })) }),
-  separator: () => ({}),
-  number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), unit: d.unit }),
-  text: (d) => ({ value: d.value ?? "", placeholder: d.placeholder, rows: num(d.rows) }),
-  fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
-  interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
-  sides: (d) => ({ value: d.value ?? d, corners: flag(d.corners), unit: d.unit, step: num(d.step), min: num(d.min), max: num(d.max) }), // "8px 16px", or data-top / -right / -bottom / -left
-  shadow: (d) => ({ value: d.value ?? { ...d, inset: flag(d.inset) } }), // a box-shadow string, or data-x / -y / -blur / -color
-  spring: springData,
-  motion: (d) => ({ ...springData(d), curve: d.curve && d.curve.includes(",") ? d.curve.split(",").map(Number) : d.curve, duration: num(d.duration) }), // plus data-curve and data-duration
-  cubicbezier: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined }),
-  point: (d) => {
-    const vals = (d.value || "").split(",").map((s) => parseFloat(s));
-    return {
-      components: splitList(d.components || "X,Y").map((lab, i) => ({ key: lab.toLowerCase(), label: lab, value: isNaN(vals[i]) ? 0 : vals[i], step: num(d.step), min: num(d.min), max: num(d.max) })), // no step: the control derives a continuous one
-      pad: flag(d.pad), invertY: d.invertY === "true",
-    };
-  },
-  plot: (d) => ({ expr: d.expr, xMin: num(d.xmin), xMax: num(d.xmax), yMin: num(d.ymin), yMax: num(d.ymax), samples: num(d.samples), editable: d.editable !== "false" }),
-};
-const num = (s: string | undefined) => { if (s == null || s === "") return undefined; const n = +s; return Number.isFinite(n) ? n : undefined; }; // non-numeric → undefined, so the default applies
-const flag = (s: string | undefined) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
-const splitList = (s: string | undefined) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
-const dataMeta = (host: HTMLElement) => {
-  const d = host.dataset, type = d.tw;
-  const label = d.label ?? titleCase(d.key || type); // data-label="" means no label, like `label: ""`
-  // A lazy type with no parser takes the dataset as its fields.
-  const v = hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
-  if (!v) return null;
-  // The label rides the verbose value; v spreads after, so a parser's own type or label wins.
-  return metaFor("v", { type, label, ...v });
-};
-
-export { metaFor, dataMeta, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS, TYPED_META, DATA_VALUE };
+export { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS, TYPED_META, SPRING_KEYS };
 export type { Meta, TabPage, PointComponent };
