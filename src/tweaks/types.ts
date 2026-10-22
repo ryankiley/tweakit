@@ -167,6 +167,13 @@ export interface SetOptions {
 }
 
 /** Panel options (third arg to `tweaks()`). */
+/** The corner a floating panel anchors to. */
+export type FloatingCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+/** Where a floating panel starts: `x` / `y` are its insets in px (16 by default) from the two
+ *  edges of `corner` (top-left by default), and it keeps that corner as the window resizes.
+ *  The far edge keeps a gap of `y` when the height caps; CSS `--tw-float-gap` overrides it. */
+export interface FloatingPlacement { x?: number; y?: number; corner?: FloatingCorner }
+
 export interface TweaksOptions {
   /** Theme overrides (friendly names or raw `--tw-*`); `null` / omitted = default monochrome. */
   theme?: Theme | null;
@@ -177,8 +184,9 @@ export interface TweaksOptions {
   presets?: boolean;
   /** Add a filter/search field to the toolbar. */
   filter?: boolean;
-  /** Start the panel already floated (fixed-positioned): `true` → top-left, or an explicit `{x,y}`. */
-  floating?: boolean | { x: number; y: number };
+  /** Start the panel already floated (fixed-positioned): `true` → 16px from the top-left, or a
+   *  placement `{ x, y, corner }`. Its height caps at the window and it scrolls, header and all. */
+  floating?: boolean | FloatingPlacement;
   /** Drag the header to reposition the panel — on by default. An inline panel lifts into a
    *  floating layer on first drag; set `false` to pin it in place. */
   draggable?: boolean;

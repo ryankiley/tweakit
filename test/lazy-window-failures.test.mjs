@@ -142,7 +142,7 @@ test("a resize during the lazy window is applied once the panel is ready", async
   try {
     window.innerWidth = 500; window.dispatchEvent(new window.Event("resize"));
     await p.ready;
-    assert.equal(p.el.style.left, "492px", "clamped into the narrowed viewport at ready");
+    assert.equal(p.el.style.getPropertyValue("--tw-float-x"), "492px", "clamped into the narrowed viewport at ready");
   } finally { window.innerWidth = w0; p.destroy(); }
 });
 

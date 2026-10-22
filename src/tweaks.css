@@ -80,20 +80,32 @@
 .tw-panel, .tw-portal { color-scheme: dark; }
 
 /* Floating mode. The z ladder (panel 99990 < popovers 99999 < tip 100000 < grab
- * guide 100001) sits above the 100–9999 band host sticky headers occupy. */
-.tw-panel[data-mode="floating"] { position: fixed; z-index: 99990; box-shadow: var(--tw-shadow-panel-lifted); transition: box-shadow 0.25s var(--tw-ease-out); }
+ * guide 100001) sits above the 100–9999 band host sticky headers occupy. The placement
+ * (panel.ts apply() writes the --tw-float-* insets and height cap), z-index and shadow sit at
+ * plain .tw-panel specificity, so a host class loaded after this sheet overrides any of them. */
+.tw-panel[data-mode="floating"] { position: fixed; }
+.tw-panel:where([data-mode="floating"]) { left: var(--tw-float-x); top: var(--tw-float-y); max-height: var(--tw-float-max-h); z-index: 99990; box-shadow: var(--tw-shadow-panel-lifted); }
+.tw-panel:where([data-mode="floating"][data-corner$="right"]) { left: auto; right: var(--tw-float-x); }
+.tw-panel:where([data-mode="floating"][data-corner^="bottom"]) { top: auto; bottom: var(--tw-float-y); }
+.tw-panel:where(.is-raised) { z-index: 99991; } /* the floating panel touched last (panel.ts raise()) */
+/* The lift into the floating shadow eases on a draggable panel only: a pinned one starts floated, with nothing to ease,
+ * and an inline one keeps its shadow still. */
+.tw-panel[data-draggable="true"][data-mode="floating"] { transition: box-shadow 0.25s var(--tw-ease-out); }
+/* Registered as a <length>, so a host's --tw-float-gap in rem, vh or calc() computes to px for panel.ts to read; the
+ * negative initial value reads as unset. */
+@property --tw-float-gap { syntax: "<length>"; inherits: true; initial-value: -1px; }
 /* The footprint a lifted panel leaves in its old slot, so the host layout holds still. */
 .tw-lift-slot { display: block; flex: none; pointer-events: none; }
 /* The header is the drag handle. The negative margin (cancelled by an equal padding-top)
- * stretches its hit area up through the panel's top padding to the edge. */
+ * stretches its hit area up through the panel's top padding to the edge. Draggable panels
+ * only: a pinned floating one keeps a plain cursor, and a swipe on its header scrolls it. */
 .tw-panel[data-draggable="true"] > .tw-header,
-.tw-panel[data-draggable="true"] > .tw-header .tw-header-toggle,
-.tw-panel[data-mode="floating"] > .tw-header,
-.tw-panel[data-mode="floating"] > .tw-header .tw-header-toggle { cursor: grab; }
-.tw-panel[data-draggable="true"] > .tw-header,
-.tw-panel[data-mode="floating"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
+.tw-panel[data-draggable="true"] > .tw-header .tw-header-toggle { cursor: grab; }
+.tw-panel[data-draggable="true"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
+/* A drop near an edge eases the rest of the way to the margin (panel.ts endDrag()). */
+.tw-panel.is-snapping { transition: left 0.32s var(--tw-ease-spring), top 0.32s var(--tw-ease-spring), right 0.32s var(--tw-ease-spring), bottom 0.32s var(--tw-ease-spring); }
 .tw-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--tw-shadow-panel-lifted); z-index: 99991; }
-/* A floating panel scrolls, header and all, inside the height cap its position sets (panel.ts apply()). The scrollbar
+/* A floating panel scrolls, header and all, inside the height cap its position sets (--tw-float-max-h). The scrollbar
  * is hidden: wheel, trackpad, touch and keyboard focus still scroll it. A slider covers its row and takes every touch;
  * here a vertical swipe pans, a sideways one scrubs. */
 .tw-panel[data-mode="floating"] { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }

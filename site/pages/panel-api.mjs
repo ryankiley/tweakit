@@ -306,9 +306,18 @@ export const examples = [
     prose: `<p>Every panel is draggable by its header: an inline panel lifts into a
       floating layer on first drag (<code>draggable: false</code> pins it). Pass
       <code>floating: true</code> or <code>{ x, y }</code> to start it floated, like a
-      classic debug overlay. A floating panel never runs off the window: it caps at the
-      viewport below its top edge and scrolls, header and all, so a tall panel reaches its
-      last folder by scrolling and drags by its title once scrolled back up.</p>`,
+      classic debug overlay; add <code>corner: "top-right"</code> (or a bottom corner) to
+      measure <code>x</code> and <code>y</code> from that corner, which it keeps as the
+      window resizes. A floating panel never runs off the window: it caps at the viewport
+      with a gap of <code>y</code> at the far edge (8px once dragged) and scrolls, header and all, so a tall
+      panel reaches its last folder by scrolling and drags by its title once scrolled back
+      up. A pinned panel ignores a position <code>persist</code> saved; a draggable one
+      restores it.</p>
+      <p>The placement, z-index and shadow sit at plain <code>.tw-panel</code> specificity,
+      so a class of your own loaded after the stylesheet overrides them: <code>top</code>,
+      <code>right</code> and <code>left</code> for the inset, <code>--tw-float-gap</code>
+      for the far-edge gap or <code>max-height</code> for the whole cap, and
+      <code>z-index</code> and <code>box-shadow</code> as usual.</p>`,
     target: `<button class="demo-btn fl-spawn" type="button">Spawn a floating panel</button>`,
     noMount: true,
     run: ({ tweaks, target }) => {
@@ -383,7 +392,7 @@ export const examples = [
         <tr><td><code>persist</code></td><td>localStorage key (or <code>true</code> to key by panel name); enables presets</td></tr>
         <tr><td><code>presets</code></td><td><code>false</code> keeps <code>persist</code>'s saving without the Presets menu</td></tr>
         <tr><td><code>filter</code></td><td>adds a fuzzy search toggle to the toolbar (the field swaps in for the title); it needs the toolbar, so it is ignored with <code>toolbar: false</code></td></tr>
-        <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y }</code></td></tr>
+        <tr><td><code>floating</code></td><td>start floated: <code>true</code> or <code>{ x, y, corner }</code></td></tr>
         <tr><td><code>draggable</code></td><td>header dragging, on by default; <code>false</code> pins</td></tr>
         <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>
         <tr><td><code>undo</code></td><td>debounced undo/redo history</td></tr>

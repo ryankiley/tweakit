@@ -70,7 +70,8 @@ test("the markup chunk is lazy and imports only the shared chunk; a page without
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
 // Trimmed ~1 KB under the 23 KiB gate by moving the markup layer (enhance() and the [data-tw] parsers) into a lazy
-// chunk that only a page with markup fetches: 23,393 → 22,341 B on a local Node 24.
+// chunk that only a page with markup fetches: 23,393 → 22,341 B on a local Node 24. floating.corner and the
+// --tw-float-* placement then took ~380 B of that back.
 // Raised 22 → 23 KiB for the floating panel's height cap: the clamp on its natural height and closing a popover
 // whose row scrolls out of the panel. main sat ~30 B under 22 KiB on CI's Node 22,
 // which measures ~100 B more than a local Node 24: judge closeness to the gate by CI's figure.

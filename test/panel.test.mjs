@@ -776,13 +776,13 @@ test("a global listener on a panel built before it mounted survives an event in 
   // owner disconnected — including the window between tweaks() and the host's append,
   // so a resize there permanently unsubscribed the floating panel's viewport clamp.
   const p = tweaks("Live", { a: 1 }, { floating: { x: 500, y: 16 } });
-  assert.equal(p.el.style.left, "500px");
+  assert.equal(p.el.style.getPropertyValue("--tw-float-x"), "500px");
   window.dispatchEvent(new Event("resize"));      // fires while the panel is not yet connected
   document.body.append(p.el);
   const w = window.innerWidth;
   window.innerWidth = 100;
   try { window.dispatchEvent(new Event("resize")); } finally { window.innerWidth = w; }
-  assert.equal(p.el.style.left, "92px", "the clamp still listens after mount");
+  assert.equal(p.el.style.getPropertyValue("--tw-float-x"), "92px", "the clamp still listens after mount");
   p.destroy();
 });
 

@@ -3,7 +3,7 @@
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, setCollapsed,
   applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, fuzzyMatch,
-  REDUCE_MOTION, getControl,
+  getControl,
 } from "./shared.js";
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
@@ -160,17 +160,48 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // the moment tweaks() returns instead of jumping when the lazy chunks land. ──
   const draggable = opts.draggable !== false;
   const MARGIN = 8, SNAP = 28; // px: viewport inset; snap distance to park against an edge
+  // opts.floating's x / y are insets from its corner's two edges, and px / py below are kept in those terms: a
+  // right-anchored panel stays in its corner as the window resizes, and a drag flips its delta to match.
+  const place = typeof opts.floating === "object" && opts.floating ? opts.floating : null;
+  const corner = place?.corner || "top-left", fromRight = /right$/.test(corner), fromBottom = /^bottom/.test(corner); // anything else reads as top-left
+  if (fromRight || fromBottom) panel.dataset.corner = corner;
   // The vertical clamp uses the panel's full height, scrollHeight, not its capped one: clamping on the cap would ratchet
-  // (every position fits, so a tall panel drags up but never back down). +1: it rounds, so a panel parked at the bottom
+  // (every position fits, so a tall panel drags up but never back down). +1: it rounds, so a panel parked at the far edge
   // isn't capped a fraction short of its rows.
-  const bounds = () => ({ maxX: Math.max(MARGIN, window.innerWidth - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - panel.scrollHeight - 1 - MARGIN) });
+  // The viewport from clientWidth / clientHeight: a fixed box's right and bottom edges sit inside the page scrollbars,
+  // which innerWidth / innerHeight count. Only in standards mode: with no doctype the root's client box is the page's
+  // content, not the viewport (and jsdom has no layout: 0) — the inner size there.
+  const root = () => document.compatMode === "CSS1Compat" ? document.documentElement : null;
+  const vw = () => root()?.clientWidth || window.innerWidth, vh = () => root()?.clientHeight || window.innerHeight;
+  const bounds = () => ({ maxX: Math.max(MARGIN, vw() - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, vh() - panel.scrollHeight - 1 - gap) });
   const posKey = persistKey ? `${persistKey}:pos` : null;
-  const saved = (draggable || opts.floating) && posKey ? readStore(posKey) : null;
-  const start = saved || (typeof opts.floating === "object" ? opts.floating : null) || { x: 16, y: 16 };
-  let px = +start.x || 16, py = +start.y || 16;
-  // A fixed box ignores page scroll, so a floating panel caps at the viewport below its top edge and scrolls (tweaks.css).
-  const apply = () => { panel.style.left = px + "px"; panel.style.top = py + "px"; panel.style.maxHeight = `calc(100dvh - ${py + MARGIN}px)`; };
-  const clampPos = () => { const { maxX, maxY } = bounds(); px = clamp(px, MARGIN, maxX); py = clamp(py, MARGIN, maxY); };
+  // A pinned panel sits where opts.floating puts it; only a draggable one restores a saved spot, and only one saved from its corner.
+  const stored = draggable && posKey ? readStore(posKey) : null;
+  const saved = stored && typeof stored === "object" && (stored.corner || "top-left") === corner ? stored : null;
+  const start = saved || place || { x: 16, y: 16 };
+  const inset = (v: unknown) => { const n = parseFloat(v as string); return n >= 0 ? n : 16; }; // 0 is an inset, not a missing one
+  const x0 = inset(start.x), y0 = inset(start.y);
+  let px = x0, py = y0;
+  // The gap a capped panel keeps from the far edge: while it sits at its opts.floating placement, the inset that gave the
+  // near one (16 for `true`), so a panel placed 16px down stops 16px short of the bottom. Once dragged or restored, it has
+  // left that placement: the margin, as the drag clamp keeps. --tw-float-gap overrides either (tweaks.css registers it
+  // as a <length>, so a rem or vh value computes to px here).
+  let moved = !!saved, gap = MARGIN;
+  const readGap = () => { const v = parseFloat(getComputedStyle(panel).getPropertyValue("--tw-float-gap")); gap = v >= 0 ? v : opts.floating && !moved ? inset(place?.y) : MARGIN; };
+  // A fixed box ignores page scroll, so a floating panel caps at the viewport past its near edge and scrolls (tweaks.css).
+  // Custom properties, not left / top / max-height: the stylesheet maps them, so host CSS can still override each one.
+  const apply = () => { const s = panel.style; s.setProperty("--tw-float-x", px + "px"); s.setProperty("--tw-float-y", py + "px"); s.setProperty("--tw-float-max-h", `calc(100dvh - ${py + gap}px)`); };
+  const clampPos = () => {
+    readGap();
+    const { maxX, maxY } = bounds();
+    if (draggable) { px = clamp(px, MARGIN, maxX); py = clamp(py, MARGIN, maxY); return; }
+    // A pinned panel clamps from its placement each time, so a window that narrows and widens again hands its corner back.
+    px = clamp(x0, Math.min(MARGIN, x0), maxX);
+    // It keeps its insets while they leave it half the window (or its full height, if less); past that the inset and the
+    // far gap shrink together, so a short window never caps it to nothing.
+    const room = vh() - Math.min(panel.scrollHeight + 1, vh() / 2), k = Math.min(1, room / (y0 + gap || 1));
+    py = Math.round(y0 * k); gap = Math.round(gap * k);
+  };
   if ((draggable || opts.floating) && (opts.floating || saved)) {
     panel.dataset.mode = "floating"; clampPos(); apply();
     // A position saved on a larger monitor restores off-viewport: re-clamp once mounted (offsetWidth is 0 until then).
@@ -356,7 +387,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const lift = () => {
       if (panel.dataset.mode === "floating") return;
       const r = panel.getBoundingClientRect();
-      px = r.left; py = r.top;
+      px = fromRight ? vw() - r.right : r.left; py = fromBottom ? vh() - r.bottom : r.top;
       if (panel.parentNode) {
         liftSlot = el("span", "tw-lift-slot");
         liftSlot.style.width = r.width + "px"; liftSlot.style.height = r.height + "px";
@@ -374,10 +405,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         cleanups.push(() => obs.disconnect());
       }
     };
-    // Two floating panels share one stylesheet z-index; the last touched gets a higher inline value.
-    const raise = () => { if (topFloating && topFloating !== panel) topFloating.style.zIndex = ""; panel.style.zIndex = "99991"; topFloating = panel; };
+    // Two floating panels share one stylesheet z-index; the last touched gets a higher one. A class at plain .tw-panel
+    // specificity, not an inline value, so a host's own z-index still wins after a drag.
+    const raise = () => { if (topFloating && topFloating !== panel) topFloating.classList.remove("is-raised"); panel.classList.add("is-raised"); topFloating = panel; };
 
-    let dragId: number | null = null, sx = 0, sy = 0, ox = 0, oy = 0;
+    let dragId: number | null = null, sx = 0, sy = 0, ox = 0, oy = 0, snapT = 0;
     // Document listeners (capture, so the panel's own pointer-stop can't hide them) for the press's duration.
     // Capture is taken only past the threshold: on the press it would retarget a plain click off the title.
     const listen = (on: boolean) => { for (const [t, fn] of [["pointermove", onMove], ["pointerup", endDrag], ["pointercancel", endDrag]] as Array<[string, (e: PointerEvent) => void]>) on ? document.addEventListener(t, fn, true) : document.removeEventListener(t, fn, true); };
@@ -387,10 +419,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       listen(true);
       panel.classList.add("is-grabbing"); // brighten the grabber on press: on touch there's no hover
       // Regrab mid–edge-snap: pick the panel up where it visually is, not the parked target.
-      if (panel.style.transition) {
+      if (panel.classList.contains("is-snapping")) {
+        clearTimeout(snapT);
         const cur = getComputedStyle(panel);
-        px = parseFloat(cur.left) || px; py = parseFloat(cur.top) || py;
-        panel.style.transition = ""; apply(); // …and drop the snap transition, so the grab is 1:1
+        px = parseFloat(cur[fromRight ? "right" : "left"]) || px; py = parseFloat(cur[fromBottom ? "bottom" : "top"]) || py;
+        panel.classList.remove("is-snapping"); apply(); // …and drop the snap transition, so the grab is 1:1
       }
     });
     const onMove = (e: PointerEvent) => {
@@ -400,12 +433,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       const dx = e.clientX - sx, dy = e.clientY - sy;
       if (!dragMoved) {
         if (Math.abs(dx) + Math.abs(dy) < 4) return; // a few px of slop before it counts as a drag, not a click
-        dragMoved = true; lift(); raise(); ox = px; oy = py; // the (possibly just-lifted) origin, once the drag starts
+        dragMoved = true; moved = true; lift(); raise(); readGap(); ox = px; oy = py; // the (possibly just-lifted) origin, once the drag starts
         try { header.setPointerCapture(dragId); } catch {}
         panel.classList.add("is-dragging");
       }
       const { maxX, maxY } = bounds();
-      px = clamp(ox + dx, MARGIN, maxX); py = clamp(oy + dy, MARGIN, maxY); apply();
+      px = clamp(ox + (fromRight ? -dx : dx), MARGIN, maxX); py = clamp(oy + (fromBottom ? -dy : dy), MARGIN, maxY); apply();
     };
     const endDrag = (e: PointerEvent) => {
       if (e.pointerId !== dragId) return;
@@ -419,12 +452,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         const { maxX, maxY } = bounds();
         if (px <= MARGIN + SNAP) px = MARGIN; else if (px >= maxX - SNAP) px = maxX;
         if (py <= MARGIN + SNAP) py = MARGIN; else if (py >= maxY - SNAP) py = maxY;
-        if (!REDUCE_MOTION.matches) { // inline style escapes the CSS reduced-motion kill-switch
-          panel.style.transition = "left 0.32s var(--tw-ease-spring), top 0.32s var(--tw-ease-spring)";
-          setTimeout(() => { panel.style.transition = ""; }, 340);
-        }
+        // The ease is a class (tweaks.css), so the reduced-motion kill-switch covers it on any corner.
+        // One timer at a time: an earlier drop's would strip the class 340ms after it, partway through this snap.
+        clearTimeout(snapT); panel.classList.add("is-snapping"); snapT = setTimeout(() => panel.classList.remove("is-snapping"), 340);
         apply();
-        if (posKey) writeStore(posKey, { x: px, y: py });
+        if (posKey) writeStore(posKey, { x: px, y: py, corner });
       }
       panel.classList.remove("is-dragging", "is-grabbing");
     };
