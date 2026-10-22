@@ -47,6 +47,7 @@ tweaks("Settings", schema, { floating: { x: 16, y: 16, corner: "top-right" }, dr
 - `floating: true` sits 16px in from the top-left. `{ x, y, corner }` sets the insets in px
   from the edges of `corner`: `"top-left"` (the default), `"top-right"`, `"bottom-left"` or
   `"bottom-right"`. The panel keeps that corner as the window resizes, and a drag moves it from there.
+  A bottom-anchored panel keeps its bottom edge when it collapses, so its header drops.
 - A draggable panel with `persist` remembers where it was dropped. A pinned one always sits at
   its `floating` placement.
 - The height caps at the window, with a gap at the far edge equal to `y` while the panel sits
@@ -54,7 +55,8 @@ tweaks("Settings", schema, { floating: { x: 16, y: 16, corner: "top-right" }, dr
   gap shrink together. Past the cap the whole panel scrolls, header included, with its scrollbar hidden.
 
 The placement lives in CSS at plain `.tw-panel` specificity, so a class of your own, loaded
-after `tweakit/css`, overrides any part of it without `!important`:
+after `tweakit/css`, overrides any part of it without `!important`. If your bundler might load
+it first, write the selector as `.tw-panel.my-panel`:
 
 ```css
 .my-panel {

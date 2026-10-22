@@ -118,6 +118,23 @@ test("draggable: false pins a floating panel too", () => {
   p.el.querySelector(".tw-header-toggle").click();
   assert.ok(p.el.classList.contains("is-collapsed"), "the title still collapses");
   p.destroy();
+  // Nor does its header look or act like a handle: no grab cursor, and a touch swipe on it scrolls the panel.
+  const css = distCss();
+  assert.match(css, /\.tw-panel\[data-draggable=true\]>\.tw-header\{touch-action:none;margin-top:-10px;padding-top:10px\}/);
+  assert.ok(!/\[data-mode=floating\]>\.tw-header[^{]*\{[^}]*(cursor|touch-action)/.test(css), "no floating-only header rule");
+});
+
+test("a corner panel's insets are measured inside the page scrollbars", () => {
+  const root = document.documentElement;
+  Object.defineProperty(root, "clientWidth", { value: 1009, configurable: true }); // a 15px scrollbar on a 1024 window
+  Object.defineProperty(root, "clientHeight", { value: 753, configurable: true });
+  const p = tweaks("Bars", { a: 1 }, { floating: { x: 16, y: 16, corner: "bottom-right" } }); document.body.append(p.el);
+  Object.defineProperty(p.el, "offsetWidth", { value: 256, configurable: true });
+  Object.defineProperty(p.el, "scrollHeight", { value: 200, configurable: true });
+  try {
+    dragBy(p, -2000, -2000);
+    assert.deepEqual(pos(p), [`${1009 - 256 - 8}px`, `${753 - 201 - 8}px`], "the far margins sit 8px inside the scrollbars, not under them");
+  } finally { delete root.clientWidth; delete root.clientHeight; p.destroy(); }
 });
 
 const dragBy = (p, dx, dy) => {

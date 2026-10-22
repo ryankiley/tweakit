@@ -168,9 +168,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The vertical clamp uses the panel's full height, scrollHeight, not its capped one: clamping on the cap would ratchet
   // (every position fits, so a tall panel drags up but never back down). +1: it rounds, so a panel parked at the far edge
   // isn't capped a fraction short of its rows.
-  // Width from clientWidth: a fixed box's right edge sits inside the page scrollbar, which innerWidth counts (jsdom has no layout: 0 → innerWidth).
-  const vw = () => document.documentElement.clientWidth || window.innerWidth;
-  const bounds = () => ({ maxX: Math.max(MARGIN, vw() - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, window.innerHeight - panel.scrollHeight - 1 - gap) });
+  // The viewport from clientWidth / clientHeight: a fixed box's right and bottom edges sit inside the page scrollbars,
+  // which innerWidth / innerHeight count (jsdom has no layout: 0 → the inner size).
+  const vw = () => document.documentElement.clientWidth || window.innerWidth, vh = () => document.documentElement.clientHeight || window.innerHeight;
+  const bounds = () => ({ maxX: Math.max(MARGIN, vw() - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, vh() - panel.scrollHeight - 1 - gap) });
   const posKey = persistKey ? `${persistKey}:pos` : null;
   // A pinned panel sits where opts.floating puts it; only a draggable one restores a saved spot, and only one saved from its corner.
   const stored = draggable && posKey ? readStore(posKey) : null;
@@ -196,7 +197,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     px = clamp(x0, Math.min(MARGIN, x0), maxX);
     // It keeps its insets while they leave it half the window (or its full height, if less); past that the inset and the
     // far gap shrink together, so a short window never caps it to nothing.
-    const room = window.innerHeight - Math.min(panel.scrollHeight + 1, window.innerHeight / 2), k = Math.min(1, room / (y0 + gap || 1));
+    const room = vh() - Math.min(panel.scrollHeight + 1, vh() / 2), k = Math.min(1, room / (y0 + gap || 1));
     py = Math.round(y0 * k); gap = Math.round(gap * k);
   };
   if ((draggable || opts.floating) && (opts.floating || saved)) {
@@ -384,7 +385,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const lift = () => {
       if (panel.dataset.mode === "floating") return;
       const r = panel.getBoundingClientRect();
-      px = fromRight ? vw() - r.right : r.left; py = fromBottom ? window.innerHeight - r.bottom : r.top;
+      px = fromRight ? vw() - r.right : r.left; py = fromBottom ? vh() - r.bottom : r.top;
       if (panel.parentNode) {
         liftSlot = el("span", "tw-lift-slot");
         liftSlot.style.width = r.width + "px"; liftSlot.style.height = r.height + "px";

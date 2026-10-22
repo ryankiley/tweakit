@@ -97,13 +97,11 @@
 /* The footprint a lifted panel leaves in its old slot, so the host layout holds still. */
 .tw-lift-slot { display: block; flex: none; pointer-events: none; }
 /* The header is the drag handle. The negative margin (cancelled by an equal padding-top)
- * stretches its hit area up through the panel's top padding to the edge. */
+ * stretches its hit area up through the panel's top padding to the edge. Draggable panels
+ * only: a pinned floating one keeps a plain cursor, and a swipe on its header scrolls it. */
 .tw-panel[data-draggable="true"] > .tw-header,
-.tw-panel[data-draggable="true"] > .tw-header .tw-header-toggle,
-.tw-panel[data-mode="floating"] > .tw-header,
-.tw-panel[data-mode="floating"] > .tw-header .tw-header-toggle { cursor: grab; }
-.tw-panel[data-draggable="true"] > .tw-header,
-.tw-panel[data-mode="floating"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
+.tw-panel[data-draggable="true"] > .tw-header .tw-header-toggle { cursor: grab; }
+.tw-panel[data-draggable="true"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
 /* A drop near an edge eases the rest of the way to the margin (panel.ts endDrag()). */
 .tw-panel.is-snapping { transition: left 0.32s var(--tw-ease-spring), top 0.32s var(--tw-ease-spring), right 0.32s var(--tw-ease-spring), bottom 0.32s var(--tw-ease-spring); }
 .tw-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--tw-shadow-panel-lifted); z-index: 99991; }
