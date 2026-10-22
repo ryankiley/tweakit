@@ -52,10 +52,25 @@ test("the split build has exactly three shared chunks, and core imports exactly 
   assert.equal(staticImports.length, 1, `core.js statically imports: ${staticImports.join(", ")}`);
 });
 
+// The markup layer (enhance() and the [data-tw] parsers) is its own lazy chunk, fetched only by a page with markup. It
+// borrows core's panel modules through a kit rather than importing them: an import would hoist them into a shared chunk.
+test("the markup chunk is lazy and imports only the shared chunk; a page without markup never fetches it", async () => {
+  const { readdir, readFile } = await import("node:fs/promises");
+  const dir = new URL("../dist/tweaks/", import.meta.url);
+  const markup = (await readdir(dir)).find((f) => /^markup-[\w-]+\.js$/.test(f));
+  assert.ok(markup, "dist/tweaks has a markup chunk");
+  const core = await readFile(new URL("core.js", dir), "utf8");
+  assert.ok(!new RegExp(`from\\s*"\\./${markup}"`).test(core) && core.includes(`import("./${markup}")`), "core loads it dynamically");
+  const imports = [...(await readFile(new URL(markup, dir), "utf8")).matchAll(/from\s*"\.\/([\w-]+\.js)"/g)].map((m) => m[1]);
+  assert.deepEqual(imports, [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]), "only the shared chunk core imports");
+});
+
 // The budget a basic panel's download is held to: core.js + the shared chunk it statically
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
+// Trimmed ~1 KB under the 23 KiB gate by moving the markup layer (enhance() and the [data-tw] parsers) into a lazy
+// chunk that only a page with markup fetches: 23,393 → 22,341 B on a local Node 24.
 // Raised 22 → 23 KiB for the floating panel's height cap: the clamp on its natural height and closing a popover
 // whose row scrolls out of the panel. main sat ~30 B under 22 KiB on CI's Node 22,
 // which measures ~100 B more than a local Node 24: judge closeness to the gate by CI's figure.
