@@ -309,7 +309,7 @@ export const examples = [
       classic debug overlay; add <code>corner: "top-right"</code> (or a bottom corner) to
       measure <code>x</code> and <code>y</code> from that corner, which it keeps as the
       window resizes. A floating panel never runs off the window: it caps at the viewport
-      with a gap of <code>y</code> at the far edge and scrolls, header and all, so a tall
+      with a gap of <code>y</code> at the far edge (8px once dragged) and scrolls, header and all, so a tall
       panel reaches its last folder by scrolling and drags by its title once scrolled back
       up. A pinned panel ignores a position <code>persist</code> saved; a draggable one
       restores it.</p>

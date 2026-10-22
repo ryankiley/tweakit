@@ -178,14 +178,69 @@ test("the height cap keeps the floating inset as its far gap; --tw-float-gap ove
   const q = tweaks("GapTrue", { a: 1 }, { floating: true }); document.body.append(q.el);
   assert.equal(cap(q), "calc(100dvh - 32px)", "floating: true sits 16px in, and mirrors it");
   q.destroy();
+  // Custom properties stay raw text unless registered: registered as a <length>, 1.5rem computes to 24px, not 1.5.
+  assert.match(distCss(), /@property --tw-float-gap\{syntax: "<length>"; inherits: true; initial-value: -1px;\}/);
+});
+
+test("the far gap holds only at the placement: a dragged panel reaches the bottom margin", () => {
+  const h = window.innerHeight; window.innerHeight = 600;
+  const p = tweaks("Reach", { a: 1 }, { floating: { x: 24, y: 120 } }); document.body.append(p.el);
+  Object.defineProperty(p.el, "scrollHeight", { value: 200, configurable: true });
+  try {
+    assert.equal(cap(p), "calc(100dvh - 240px)", "placed: 120 down, 120 short of the bottom");
+    dragBy(p, 0, 900);
+    assert.deepEqual([pos(p)[1], cap(p)], [`${600 - 201 - 8}px`, "calc(100dvh - 399px)"], "parked 8px from the bottom, the cap on the margin");
+  } finally { window.innerHeight = h; p.destroy(); }
+});
+
+test("a pinned panel in a window too short for its insets shrinks them together, never capping to nothing", () => {
+  const p = tweaks("Short", { a: 1 }, { floating: { x: 16, y: 300 }, draggable: false }); document.body.append(p.el);
+  Object.defineProperty(p.el, "scrollHeight", { value: 1200, configurable: true });
+  resized(1024, 500, () => {
+    assert.deepEqual([pos(p)[1], cap(p)], ["125px", "calc(100dvh - 250px)"], "half the window for the panel; the 300 + 300 insets share the rest");
+  });
+  resized(1024, 1400, () => assert.deepEqual([pos(p)[1], cap(p)], ["300px", "calc(100dvh - 600px)"], "back at its placement in a tall window"));
+  p.destroy();
+});
+
+test("an inset of 0 is honoured, not read as missing", () => {
+  const p = tweaks("Flush", { a: 1 }, { floating: { x: 0, y: 0, corner: "top-right" }, draggable: false }); document.body.append(p.el);
+  assert.deepEqual([...pos(p), cap(p)], ["0px", "0px", "calc(100dvh - 0px)"]);
+  p.destroy();
+});
+
+test("a corner panel grabbed mid-snap picks up where it visually is, and the snap's timer is its own", async () => {
+  const p = tweaks("Regrab", { a: 1 }, { floating: { x: 16, y: 16, corner: "bottom-right" } }); document.body.append(p.el);
+  const header = p.el.querySelector(".tw-header");
+  header.setPointerCapture = header.releasePointerCapture = () => {};
+  dragBy(p, -10, 0); // dropped near the right edge: snapping
+  assert.ok(p.el.classList.contains("is-snapping"));
+  p.el.style.right = "50px"; p.el.style.bottom = "40px"; // stand in for the mid-flight computed right / bottom
+  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
+  assert.ok(!p.el.classList.contains("is-snapping"));
+  assert.deepEqual(pos(p), ["50px", "40px"], "read from right and bottom, not left and top");
+  header.dispatchEvent(ptr("pointermove", { clientX: 90, clientY: 0 }));
+  assert.deepEqual(pos(p), ["60px", "50px"], "and the drag moves on from there");
+  header.dispatchEvent(ptr("pointerup", { clientX: 90, clientY: 0, buttons: 0 }));
+  p.el.style.right = p.el.style.bottom = "";
+  await tick(200);
+  dragBy(p, 50, 0); // a second snap 200ms into the first one's 340
+  await tick(200);
+  assert.ok(p.el.classList.contains("is-snapping"), "the first drop's timer didn't cut the second snap short");
+  await tick(200);
+  assert.ok(!p.el.classList.contains("is-snapping"));
+  assert.deepEqual(pos(p), ["8px", "50px"], "the second drop snapped to the right margin");
+  resized(500, 300, () => assert.deepEqual(pos(p), ["8px", "50px"], "a bottom-right panel holds its insets as the window shrinks"));
+  p.destroy();
 });
 
 test("only a draggable panel eases its shadow: a pinned one starts floated, with no transition", () => {
   const css = distCss();
-  assert.match(css, /\.tw-panel\[data-draggable=true\]\{transition:box-shadow \.25s var\(--tw-ease-out\)\}/);
+  assert.match(css, /\.tw-panel\[data-draggable=true\]\[data-mode=floating\]\{transition:box-shadow \.25s var\(--tw-ease-out\)\}/,
+    "only once floated: an inline panel's shadow doesn't ease on a theme or scheme change");
   assert.match(css, /\.tw-panel:where\(\[data-mode=floating\]\)\{left:var\(--tw-float-x\);top:var\(--tw-float-y\);max-height:var\(--tw-float-max-h\);z-index:99990;box-shadow:var\(--tw-shadow-panel-lifted\)\}/,
     "placement, z-index and shadow at plain class specificity, so a host class overrides them");
-  assert.ok(!/\[data-mode=floating\][^{]*\{[^}]*transition/.test(css), "no floating rule carries a transition");
+  assert.ok(!/\.tw-panel(\[data-draggable=true\])?\{[^}]*transition/.test(css), "an inline panel carries no transition");
   const p = tweaks("Pin", { a: 1 }, { floating: true, draggable: false });
   assert.equal(p.el.dataset.draggable, undefined, "so the transition rule never matches it");
   p.destroy();
@@ -213,10 +268,12 @@ test("the floating panel touched last sits above the others", () => {
   const a = tweaks("A", { a: 1 }, { floating: true }), b = tweaks("B", { b: 1 }, { floating: true });
   document.body.append(a.el, b.el);
   drag(a, 30);
-  assert.equal(a.el.style.zIndex, "99991");
+  assert.ok(a.el.classList.contains("is-raised"));
   drag(b, 30);
-  assert.equal(b.el.style.zIndex, "99991");
-  assert.equal(a.el.style.zIndex, "", "the previous holder gives the stylesheet value back");
+  assert.ok(b.el.classList.contains("is-raised"));
+  assert.ok(!a.el.classList.contains("is-raised"), "the previous holder gives the stylesheet value back");
+  assert.equal(a.el.style.zIndex + b.el.style.zIndex, "", "a class, not an inline z-index a host's own couldn't beat");
+  assert.match(distCss(), /\.tw-panel:where\(\.is-raised\)\{z-index:99991\}/);
   a.destroy(); b.destroy();
 });
 

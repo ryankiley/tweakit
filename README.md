@@ -49,18 +49,19 @@ tweaks("Settings", schema, { floating: { x: 16, y: 16, corner: "top-right" }, dr
   `"bottom-right"`. The panel keeps that corner as the window resizes, and a drag moves it from there.
 - A draggable panel with `persist` remembers where it was dropped. A pinned one always sits at
   its `floating` placement.
-- The height caps at the window, with a gap at the far edge equal to `y` (8px for a panel
-  lifted by a drag). Past the cap the whole panel scrolls, header included, with its scrollbar hidden.
+- The height caps at the window, with a gap at the far edge equal to `y` while the panel sits
+  at its placement (8px once dragged). In a window too short for both, a pinned panel's inset and
+  gap shrink together. Past the cap the whole panel scrolls, header included, with its scrollbar hidden.
 
 The placement lives in CSS at plain `.tw-panel` specificity, so a class of your own, loaded
 after `tweakit/css`, overrides any part of it without `!important`:
 
 ```css
 .my-panel {
-  --tw-float-gap: 24px;            /* the far-edge gap the height cap leaves */
+  --tw-float-gap: 1.5rem;          /* the far-edge gap the height cap leaves, in any length */
   max-height: 60vh;                /* or replace the cap outright */
   top: 72px; right: 16px; left: auto; /* the inset, on a pinned panel */
-  z-index: 2;                      /* 99990 by default; a drag still raises it */
+  z-index: 2;                      /* 99990 by default; a drag raises it while it lasts */
   box-shadow: none;                /* var(--tw-shadow-panel-lifted) by default */
 }
 ```
