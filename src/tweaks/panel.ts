@@ -169,8 +169,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // (every position fits, so a tall panel drags up but never back down). +1: it rounds, so a panel parked at the far edge
   // isn't capped a fraction short of its rows.
   // The viewport from clientWidth / clientHeight: a fixed box's right and bottom edges sit inside the page scrollbars,
-  // which innerWidth / innerHeight count (jsdom has no layout: 0 → the inner size).
-  const vw = () => document.documentElement.clientWidth || window.innerWidth, vh = () => document.documentElement.clientHeight || window.innerHeight;
+  // which innerWidth / innerHeight count. Only in standards mode: with no doctype the root's client box is the page's
+  // content, not the viewport (and jsdom has no layout: 0) — the inner size there.
+  const root = () => document.compatMode === "CSS1Compat" ? document.documentElement : null;
+  const vw = () => root()?.clientWidth || window.innerWidth, vh = () => root()?.clientHeight || window.innerHeight;
   const bounds = () => ({ maxX: Math.max(MARGIN, vw() - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, vh() - panel.scrollHeight - 1 - gap) });
   const posKey = persistKey ? `${persistKey}:pos` : null;
   // A pinned panel sits where opts.floating puts it; only a draggable one restores a saved spot, and only one saved from its corner.

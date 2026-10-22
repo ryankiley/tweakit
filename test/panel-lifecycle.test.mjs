@@ -134,7 +134,12 @@ test("a corner panel's insets are measured inside the page scrollbars", () => {
   try {
     dragBy(p, -2000, -2000);
     assert.deepEqual(pos(p), [`${1009 - 256 - 8}px`, `${753 - 201 - 8}px`], "the far margins sit 8px inside the scrollbars, not under them");
-  } finally { delete root.clientWidth; delete root.clientHeight; p.destroy(); }
+    // With no doctype the root's client box is the page's content, not the viewport: the inner size stands in.
+    Object.defineProperty(document, "compatMode", { value: "BackCompat", configurable: true });
+    Object.defineProperty(root, "clientHeight", { value: 90, configurable: true }); // a short page
+    dragBy(p, -2000, -2000);
+    assert.deepEqual(pos(p), [`${1024 - 256 - 8}px`, `${window.innerHeight - 201 - 8}px`], "quirks mode measures the window");
+  } finally { delete document.compatMode; delete root.clientWidth; delete root.clientHeight; p.destroy(); }
 });
 
 const dragBy = (p, dx, dy) => {

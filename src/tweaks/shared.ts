@@ -417,6 +417,10 @@ const blade = (el: HTMLElement, destroy?: () => void): Control => ({ el, set: ()
 const REGISTRY: Record<string, ControlCtor<any, any>> = {}; // heterogeneous by design — see ControlCtor
 export const registerControl = (type: string, ctor: ControlCtor<any, any>) => { REGISTRY[type] = ctor; };
 export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, C> | undefined => REGISTRY[type];
+// The markup chunk's enhance(), registered when markup.ts loads (enhance.ts fetches it, or single.ts imports it).
+let MARKUP: ((root: Document | Element, kit: any) => Promise<void>) | null = null; // any: the kit's type lives in markup.ts, which imports this
+export const setMarkup = (fn: typeof MARKUP) => { MARKUP = fn; };
+export const getMarkup = <K>() => MARKUP as ((root: Document | Element, kit: K) => Promise<void>) | null;
 
 export {
   titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
