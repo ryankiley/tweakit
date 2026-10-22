@@ -9,6 +9,9 @@ globalThis.MutationObserver = window.MutationObserver; // the kit guards on the 
 
 const { tweaks } = await loadSingle();
 const lazy = await loadSplit();
+// The floating placement panel.ts writes: the two insets and the height cap, as custom properties.
+const pos = (p) => ["--tw-float-x", "--tw-float-y"].map((v) => p.el.style.getPropertyValue(v));
+const cap = (p) => p.el.style.getPropertyValue("--tw-float-max-h");
 const drag = (p, dx) => {
   const header = p.el.querySelector(".tw-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};
@@ -78,26 +81,28 @@ test("a floating panel taller than the viewport caps at the viewport below its t
   assert.match(distCss(), /\.tw-panel\[data-mode=floating\]\{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none\}/, "scrolling, the scrollbar hidden");
   const h = window.innerHeight; window.innerHeight = 400; // a short window
   const schema = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`folder${i}`, { a: [1, 0, 10, 1], b: [2, 0, 10, 1] }]));
-  const p = tweaks("Tall", schema, { floating: { x: 16, y: 120 } }); document.body.append(p.el);
+  const p = tweaks("Tall", schema); document.body.append(p.el);
   const header = p.el.querySelector(".tw-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};
   const drag = (dx, dy) => { header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 20 })); header.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: 20 + dy })); header.dispatchEvent(ptr("pointerup", { clientX: 100 + dx, clientY: 20 + dy, buttons: 0 })); };
   // jsdom lays nothing out: stand in for the panel's full height (scrollHeight, rounded).
   const full = (v) => Object.defineProperty(p.el, "scrollHeight", { value: v, configurable: true });
-  const cap = () => p.el.style.maxHeight;
   try {
-    assert.equal(cap(), "calc(100dvh - 128px)", "the cap is written with the position: 120 top + 8 margin");
+    // An inline panel lifted by a drag keeps the 8px margin at the bottom (one placed by opts.floating mirrors its inset; see below).
+    p.el.getBoundingClientRect = () => ({ left: 60, top: 120, right: 60, bottom: 120, width: 0, height: 0 });
+    drag(0, 4); // lifted where it sat, then 4px down
+    assert.deepEqual([pos(p)[1], cap(p)], ["124px", "calc(100dvh - 132px)"], "the cap is written with the position: 124 top + 8 margin");
     full(1600);
     window.dispatchEvent(new Event("resize"));
-    assert.deepEqual([p.el.style.top, cap()], ["8px", "calc(100dvh - 16px)"], "a panel taller than the window clamps to the top margin on its full height, and the cap follows");
+    assert.deepEqual([pos(p)[1], cap(p)], ["8px", "calc(100dvh - 16px)"], "a panel taller than the window clamps to the top margin on its full height, and the cap follows");
     drag(40, 200);
-    assert.deepEqual([p.el.style.top, p.el.style.left], ["8px", "56px"], "dragging down can't push a too-tall panel off the bottom, however short the cap made it");
+    assert.deepEqual(pos(p), ["100px", "8px"], "dragging down can't push a too-tall panel off the bottom, however short the cap made it");
     // A panel that fits moves freely, the cap recomputed from where it lands.
     full(100); // scrollHeight rounds a fractional layout, so the clamp allows a pixel of slack
     drag(0, 150);
-    assert.deepEqual([p.el.style.top, cap()], ["158px", "calc(100dvh - 166px)"], "recomputed after the drag");
+    assert.deepEqual([pos(p)[1], cap(p)], ["158px", "calc(100dvh - 166px)"], "recomputed after the drag");
     drag(0, 900);
-    assert.equal(p.el.style.top, `${400 - 101 - 8}px`, "parked at the bottom on the rounded-up height");
+    assert.equal(pos(p)[1], `${400 - 101 - 8}px`, "parked at the bottom on the rounded-up height");
   } finally { window.innerHeight = h; p.destroy(); }
 });
 
@@ -108,11 +113,100 @@ test("draggable: false pins a floating panel too", () => {
   header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
   header.dispatchEvent(ptr("pointermove", { clientX: 200, clientY: 110 }));
   header.dispatchEvent(ptr("pointerup", { clientX: 200, clientY: 110, buttons: 0 }));
-  assert.deepEqual([p.el.style.left, p.el.style.top], ["40px", "50px"], "the press moved nothing");
+  assert.deepEqual(pos(p), ["40px", "50px"], "the press moved nothing");
   assert.ok(!p.el.classList.contains("is-grabbing"));
   p.el.querySelector(".tw-header-toggle").click();
   assert.ok(p.el.classList.contains("is-collapsed"), "the title still collapses");
   p.destroy();
+});
+
+const dragBy = (p, dx, dy) => {
+  const header = p.el.querySelector(".tw-header");
+  header.setPointerCapture = header.releasePointerCapture = () => {};
+  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
+  header.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: 10 + dy }));
+  header.dispatchEvent(ptr("pointerup", { clientX: 100 + dx, clientY: 10 + dy, buttons: 0 }));
+};
+// Resize the window for the length of fn, the panel's clamp listening.
+const resized = (w, h, fn) => {
+  const w0 = window.innerWidth, h0 = window.innerHeight;
+  window.innerWidth = w; window.innerHeight = h; window.dispatchEvent(new Event("resize"));
+  try { fn(); } finally { window.innerWidth = w0; window.innerHeight = h0; window.dispatchEvent(new Event("resize")); }
+};
+
+// A host that wants the panel in the top-right corner used to override left with !important.
+test("floating.corner anchors the panel to that corner, and it stays there as the window resizes", () => {
+  const p = tweaks("Corner", { a: 1 }, { floating: { x: 16, y: 16, corner: "top-right" } }); document.body.append(p.el);
+  assert.equal(p.el.dataset.corner, "top-right");
+  assert.deepEqual(pos(p), ["16px", "16px"], "x is the inset from the right edge");
+  assert.match(distCss(), /\.tw-panel:where\(\[data-mode=floating\]\[data-corner\$=right\]\)\{left:auto;right:var\(--tw-float-x\)\}/, "the stylesheet maps the inset onto right");
+  resized(700, 500, () => assert.deepEqual(pos(p), ["16px", "16px"], "a narrower window keeps the right inset"));
+  dragBy(p, -60, 0);
+  assert.deepEqual(pos(p), ["76px", "8px"], "dragging left grows the right inset (the top, dropped near its edge, snaps to the margin)");
+  dragBy(p, 50, 0);
+  assert.deepEqual(pos(p), ["8px", "8px"], "and a drop near the right edge parks at the margin");
+  p.destroy();
+
+  const q = tweaks("Bottom", { a: 1 }, { floating: { x: 20, y: 30, corner: "bottom-left" } }); document.body.append(q.el);
+  assert.match(distCss(), /\.tw-panel:where\(\[data-mode=floating\]\[data-corner\^=bottom\]\)\{top:auto;bottom:var\(--tw-float-y\)\}/);
+  dragBy(q, 40, -100);
+  assert.deepEqual(pos(q), ["60px", "130px"], "dragging up grows the bottom inset; right grows the left one");
+  q.destroy();
+
+  const r = tweaks("Bad", { a: 1 }, { floating: { corner: "middle" } });
+  assert.equal(r.el.dataset.corner, undefined, "an unknown corner reads as top-left");
+  r.destroy();
+});
+
+test("a pinned corner panel clamps from its placement, so a window that narrows and widens hands its corner back", () => {
+  const p = tweaks("PinCorner", { a: 1 }, { floating: { x: 16, y: 16, corner: "top-right" }, draggable: false }); document.body.append(p.el);
+  Object.defineProperty(p.el, "offsetWidth", { value: 256, configurable: true });
+  resized(270, 500, () => assert.equal(pos(p)[0], "8px", "pushed in to the margin by a too-narrow window"));
+  assert.deepEqual(pos(p), ["16px", "16px"], "back in its corner once the window widens");
+  Object.defineProperty(p.el, "scrollHeight", { value: 2000, configurable: true });
+  resized(1024, 400, () => assert.equal(pos(p)[1], "16px", "a pinned panel taller than the window keeps its top inset and scrolls"));
+  p.destroy();
+});
+
+test("the height cap keeps the floating inset as its far gap; --tw-float-gap overrides it", () => {
+  const p = tweaks("Gap", { a: 1 }, { floating: { x: 16, y: 16 }, draggable: false }); document.body.append(p.el);
+  assert.equal(cap(p), "calc(100dvh - 32px)", "16 from the top, 16 short of the bottom");
+  p.el.style.setProperty("--tw-float-gap", "40px"); // stands in for a host rule: the clamp reads the computed value
+  window.dispatchEvent(new Event("resize"));
+  assert.equal(cap(p), "calc(100dvh - 56px)", "the host's gap");
+  p.destroy();
+  const q = tweaks("GapTrue", { a: 1 }, { floating: true }); document.body.append(q.el);
+  assert.equal(cap(q), "calc(100dvh - 32px)", "floating: true sits 16px in, and mirrors it");
+  q.destroy();
+});
+
+test("only a draggable panel eases its shadow: a pinned one starts floated, with no transition", () => {
+  const css = distCss();
+  assert.match(css, /\.tw-panel\[data-draggable=true\]\{transition:box-shadow \.25s var\(--tw-ease-out\)\}/);
+  assert.match(css, /\.tw-panel:where\(\[data-mode=floating\]\)\{left:var\(--tw-float-x\);top:var\(--tw-float-y\);max-height:var\(--tw-float-max-h\);z-index:99990;box-shadow:var\(--tw-shadow-panel-lifted\)\}/,
+    "placement, z-index and shadow at plain class specificity, so a host class overrides them");
+  assert.ok(!/\[data-mode=floating\][^{]*\{[^}]*transition/.test(css), "no floating rule carries a transition");
+  const p = tweaks("Pin", { a: 1 }, { floating: true, draggable: false });
+  assert.equal(p.el.dataset.draggable, undefined, "so the transition rule never matches it");
+  p.destroy();
+});
+
+test("a pinned panel ignores a saved position; a draggable one restores it, from the same corner only", () => {
+  localStorage.clear();
+  localStorage.setItem("tw:pin:pos", JSON.stringify({ x: 300, y: 200 }));
+  const pinned = tweaks("Pin", { a: 1 }, { persist: "pin", floating: { x: 16, y: 16 }, draggable: false });
+  assert.deepEqual(pos(pinned), ["16px", "16px"], "the placement wins over the stored spot");
+  pinned.destroy();
+  const free = tweaks("Free", { a: 1 }, { persist: "pin", floating: { x: 16, y: 16 } });
+  assert.deepEqual(pos(free), ["300px", "200px"], "a draggable panel picks up where it was left");
+  free.destroy();
+  const other = tweaks("Other", { a: 1 }, { persist: "pin", floating: { x: 16, y: 16, corner: "top-right" } });
+  assert.deepEqual(pos(other), ["16px", "16px"], "a spot saved from the top-left doesn't land in the top-right");
+  document.body.append(other.el);
+  dragBy(other, -100, 100);
+  assert.deepEqual(JSON.parse(localStorage.getItem("tw:pin:pos")), { x: 116, y: 116, corner: "top-right" }, "saved with its corner");
+  other.destroy();
+  localStorage.clear();
 });
 
 test("the floating panel touched last sits above the others", () => {
