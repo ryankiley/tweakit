@@ -755,18 +755,24 @@
 @media (hover: hover) and (pointer: fine) {
   .tw-sides-link:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
-.tw-sides > .tw-row .tw-sides-link { margin-left: auto; }
+.tw-sides > .tw-row .tw-num-wrap { margin-left: auto; } /* the link is last in the row too, at the pixels the head's link takes */
 .tw-sides.is-linked .tw-sides-multi, .tw-sides:not(.is-linked) > .tw-row { display: none; }
-.tw-sides-multi { display: flex; flex-direction: column; gap: 6px; padding: 6px 10px 10px 12px; background: var(--tw-surface); border-radius: var(--tw-radius); }
-.tw-sides-head { display: flex; align-items: center; gap: 8px; min-height: 20px; }
-.tw-sides-multi .tw-fields, .tw-fields.tw-shadow-fields { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } /* 2×2: four across left one digit showing */
-.tw-sides-multi .tw-fields { direction: ltr; } /* the corners' places are physical; an rtl host must not mirror them */
-.tw-sides-corner { display: flex; align-items: center; height: 12px; } /* the glyph sits in a text label's line */
-.tw-sides-corner svg { width: 12px; height: 12px; }
-.tw-sides-corner[data-corner="top-right"] svg { transform: rotate(90deg); }
-.tw-sides-corner[data-corner="bottom-right"] svg { transform: rotate(180deg); }
-.tw-sides-corner[data-corner="bottom-left"] svg { transform: rotate(270deg); }
+/* The open block: a head with the row's exact geometry (so label and link stay put on toggle), then four fields in a
+ * line. Four across leaves ~38px inside a field — room for the grab and three digits, not the unit, which the head
+ * shows once after the readout, ending 14px from the link like the row's "px" does. */
+.tw-sides-multi { display: flex; flex-direction: column; gap: 6px; padding: 0 10px 10px 12px; background: var(--tw-surface); border-radius: var(--tw-radius); }
+.tw-sides-head { display: flex; align-items: center; gap: 12px; height: var(--tw-row-height); }
+.tw-fields.tw-shadow-fields { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } /* 2×2: four across left one digit showing */
+.tw-sides-multi .tw-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; direction: ltr; } /* the places are physical; an rtl host must not mirror them */
+.tw-sides-multi .tw-field .tw-num-wrap { padding: 3px 5px; }
+.tw-sides-multi .tw-field .tw-num-unit { display: none; }
+.tw-sides-glyph { display: flex; align-items: center; height: 12px; } /* the glyph sits in a text label's line */
+.tw-sides-glyph svg { width: 12px; height: 12px; }
+.tw-sides-glyph[data-at="top-right"] svg, .tw-sides-glyph[data-at="right"] svg { transform: rotate(90deg); }
+.tw-sides-glyph[data-at="bottom-right"] svg, .tw-sides-glyph[data-at="bottom"] svg { transform: rotate(180deg); }
+.tw-sides-glyph[data-at="bottom-left"] svg, .tw-sides-glyph[data-at="left"] svg { transform: rotate(270deg); }
 .tw-sides-sum { margin-left: auto; font-family: var(--tw-font-sans); font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); word-spacing: 0.1em; }
+.tw-sides-unit { padding-right: 2px; word-spacing: 0; } /* the unit's inset, as in the row */
 /* The motion control (motion.ts). */
 .tw-motion-chip { position: relative; }
 .tw-motion-chip svg { display: block; width: 100%; height: 100%; }

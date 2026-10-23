@@ -1,6 +1,7 @@
 // ── Sides — one row for a four-sided length (padding, margin, border width, or with `corners` a radius): one field
-// linked, four unlinked — sides in CSS order, corners laid out as on the box. The value is always the four numbers in
-// CSS order plus the shorthand `css`, built only from the numbers and the unit — never a host string. Lazy. ──
+// linked; unlinked, the row opens in place and four fields sit in a line under it, in CSS order, each under its glyph.
+// The value is the four numbers in CSS order plus the shorthand `css`, built only from the numbers and the unit —
+// never a host string. Lazy. ──
 import { el, txt, btn, icon, registerControl } from "../shared.js";
 import { numField } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
@@ -9,6 +10,7 @@ import type { Control, SidesValue } from "../types.js";
 
 const ICON_LINK = icon('<path d="M10.5 13.5a4 4 0 0 0 5.6 0l3-3a4 4 0 0 0-5.6-5.6l-1.5 1.5M13.5 10.5a4 4 0 0 0-5.6 0l-3 3a4 4 0 0 0 5.6 5.6l1.5-1.5"/>'); // original: two links of a chain, one path
 const ICON_CORNER = icon('<path d="M3 13V8a5 5 0 0 1 5-5h5"/>', "", 1.5, 16); // original: the top-left quarter of a rounded box, turned per corner in CSS
+const ICON_EDGE = icon('<path d="M3 10V8a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2"/>', "", 1.5, 16); // original: the top of that box, two of its corners joined, turned per side
 const LEN_RE = /^(-?\d*\.?\d+)([a-z%]*)$/i;
 const num = (v: unknown) => (v != null && v !== "" && Number.isFinite(+v) ? +v : null);
 const fmt = (n: number) => String(+n.toFixed(2));
@@ -28,18 +30,16 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   let v = read(meta.value ?? meta, [0, 0, 0, 0]) || [0, 0, 0, 0], linked = v.every((x) => x === v[0]);
   const root = el("div", "tw-sides");
   const all = numField({ label: meta.label, value: v[0], row: true, ...spec }, (n) => { v = [n, n, n, n]; update(); emit(); });
-  // One link button, moved to whichever block is showing.
+  // One link button, moved to whichever block is showing; last in both, so it sits on the same pixels either way.
   const link = btn("tw-sides-link", ICON_LINK); link.setAttribute("aria-label", "Link all sides"); link.title = "Same on all sides"; link.addEventListener("click", () => toggle());
-  const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum");
-  head.append(txt("span", "tw-row-label", meta.label), sum);
+  // The head has the row's geometry, so opening moves nothing: the readout takes the field's place, with the unit once.
+  const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum"), nums = document.createTextNode("");
+  sum.append(nums, txt("span", "tw-sides-unit", unit)); head.append(txt("span", "tw-row-label", meta.label), sum);
   const fields = el("div", "tw-fields");
   const names = corners ? ["Top-left", "Top-right", "Bottom-right", "Bottom-left"] : ["Top", "Right", "Bottom", "Left"];
   const flds: NumField[] = names.map((n, i) => numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }));
-  // Corners sit where they do on the box (TL TR / BL BR); the value stays in CSS order.
-  (corners ? [0, 1, 3, 2] : [0, 1, 2, 3]).forEach((i) => fields.append(flds[i].el));
-  // The input and the tooltip carry the full name; the visible label is a letter, or for a corner its glyph.
-  flds.forEach((f, i) => { const lab = f.el.querySelector<HTMLElement>(".tw-field-label")!; lab.title = names[i]; if (corners) { lab.classList.add("tw-sides-corner"); lab.dataset.corner = names[i].toLowerCase(); lab.innerHTML = ICON_CORNER; } else lab.textContent = names[i][0]; });
-  if (corners) sum.title = "In shorthand order: top-left, top-right, bottom-right, bottom-left"; // the readout mirrors `css`, not the grid
+  // The input and the tooltip carry the full name; on screen each field wears its glyph, one drawing turned per place.
+  flds.forEach((f, i) => { const lab = f.el.querySelector<HTMLElement>(".tw-field-label")!; lab.title = names[i]; lab.classList.add("tw-sides-glyph"); lab.dataset.at = names[i].toLowerCase(); lab.innerHTML = corners ? ICON_CORNER : ICON_EDGE; fields.append(f.el); });
   multi.append(head, fields); root.append(all.el, multi);
   // As the fields fitted them.
   v = flds.map((f) => f.get());
@@ -49,9 +49,9 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   const emit = () => onChange(value());
   const update = () => {
     root.classList.toggle("is-linked", linked); link.setAttribute("aria-pressed", String(linked));
-    if (linked) all.el.insertBefore(link, all.el.lastChild); else head.append(link);
+    (linked ? all.el : head).append(link);
     all.set(v[0]); flds.forEach((f, i) => f.set(v[i]));
-    sum.textContent = v.map(fmt).join(" ");
+    nums.data = v.map(fmt).join(" ") + " ";
   };
   const toggle = () => { linked = !linked; if (linked) v = [v[0], v[0], v[0], v[0]]; update(); emit(); link.focus(); };
   update();

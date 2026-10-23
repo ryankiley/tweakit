@@ -61,7 +61,7 @@ const triggerRow = (cls: string, label: string) => {
 };
 
 // A 2-bar drag handle (the icon sets' grips are dots).
-const ICON_GRIP = icon('<path d="M6 4v8M10 4v8"/>', "", 1.5, 16);
+const ICON_GRIP = icon('<path d="M6 4v8M10 4v8"/>', "", 2, 16); // 1.5px bars at the 12px it is drawn at
 
 // Grab guide — a dotted line from the grab point to the cursor plus a value bubble, portaled
 // to <body> for a drag. Its four spans (line, dot, arrow, bubble) are addressed by index.
