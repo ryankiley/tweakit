@@ -353,6 +353,21 @@ const measurePill = (container: Element, pill: HTMLElement, animate?: boolean) =
   pill.style.left = left + "px"; pill.style.width = width + "px";
   if (animate && Number.isFinite(prev) && prev !== left) stretchPill(pill, left > prev ? 1 : -1);
 };
+// Slider rubber-band (slider + interval): dragged past an end by more than a 32px dead zone, the
+// track widens toward the cursor, up to 8px on a sqrt falloff over the next 200px. rect is the wrap's box at press.
+const RUBBER_DEAD = 32, RUBBER_RANGE = 200, RUBBER_MAX = 8;
+const rubberBand = (track: HTMLElement, rect: DOMRect, clientX: number) => {
+  const over = clientX < rect.left ? clientX - rect.left : clientX > rect.right ? clientX - rect.right : 0;
+  const s = Math.sign(over) * RUBBER_MAX * Math.sqrt(Math.min(Math.max(0, Math.abs(over) - RUBBER_DEAD) / RUBBER_RANGE, 1));
+  track.style.width = s ? `calc(100% + ${Math.abs(s)}px)` : "";
+  track.style.transform = s < 0 ? `translateX(${s}px)` : "";
+};
+// Release: spring the track home, then drop the transition so the next drag tracks 1:1.
+const rubberRelease = (track: HTMLElement) => {
+  track.style.transition = `width 0.35s ${EASE_SPRING}, transform 0.35s ${EASE_SPRING}`;
+  track.style.width = ""; track.style.transform = "";
+  setTimeout(() => { track.style.transition = ""; }, 360);
+};
 
 // Disable a row: `inert` goes on the children, not the row — an inert element hit-tests like
 // pointer-events:none, so an inert row would never show its not-allowed cursor.
@@ -428,7 +443,7 @@ export {
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
-  blade, quietFocus, measurePill, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
+  blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };
 // Re-exported for the chunking: core and the gradient control both import easing.ts, and a

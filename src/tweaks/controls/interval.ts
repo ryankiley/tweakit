@@ -1,5 +1,5 @@
 // ── Interval / range slider — dual-handle [lo,hi]. Lazy.
-import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, defaultRange, overlapsText, wireHoverClass, onReady, onLive, registerControl } from "../shared.js";
+import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, defaultRange, overlapsText, wireHoverClass, onReady, onLive, registerControl, rubberBand, rubberRelease } from "../shared.js";
 import { dragGesture } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -71,12 +71,13 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     onDown: (e) => {
       e.preventDefault();
       rect = wrap.getBoundingClientRect(); scale = rect.width / (wrap.offsetWidth || rect.width);
+      track.style.transition = ""; // a re-press mid spring-home stretches 1:1
       track.classList.add("is-active", "is-dragging"); active = null;
       grab(e.clientX);
       (active === "lo" ? hLo : hHi).focus({ focusVisible: false }); // preventDefault killed click-to-focus; focus without a ring
     },
-    onMove: (e) => grab(e.clientX),
-    onEnd: () => { rect = null; active = null; track.classList.remove("is-active", "is-dragging"); },
+    onMove: (e) => { grab(e.clientX); rubberBand(track, rect, e.clientX); },
+    onEnd: () => { rubberRelease(track); rect = null; active = null; track.classList.remove("is-active", "is-dragging"); },
   });
   wireHoverClass(track, render); // re-run the dodge with the real track width on hover
   // Recompute once layout and fonts settle (a web-font swap shifts the widths the dodge measures) and on track-width change.

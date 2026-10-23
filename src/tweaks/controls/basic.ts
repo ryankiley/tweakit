@@ -3,7 +3,7 @@
 import {
   el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel, json,
   popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, setCollapsed,
-  quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl,
+  quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
 } from "../shared.js";
 import { ICON_CHEVRON, chevronIcon } from "../icons.js";
@@ -12,7 +12,7 @@ import type { Meta } from "../schema.js";
 import type { Control, Option } from "../types.js";
 
 // ── Slider control ──
-const CLICK_THRESHOLD = 3, DEAD_ZONE = 32, MAX_CURSOR_RANGE = 200, MAX_STRETCH = 8;
+const CLICK_THRESHOLD = 3;
 function createSlider(meta: Meta, onChange: OnChange): Control {
   const label = meta.label;
   let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step);
@@ -86,13 +86,6 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     const pct = clamp((clientX - rect.left) / scale / native, 0, 1);
     return clamp(min + pct * (max - min), min, max);
   };
-  const rubber = (clientX: number) => {
-    let s = 0;
-    if (clientX < rect.left) s = -MAX_STRETCH * Math.sqrt(Math.min(Math.max(0, rect.left - clientX - DEAD_ZONE) / MAX_CURSOR_RANGE, 1));
-    else if (clientX > rect.right) s = MAX_STRETCH * Math.sqrt(Math.min(Math.max(0, clientX - rect.right - DEAD_ZONE) / MAX_CURSOR_RANGE, 1));
-    track.style.width = `calc(100% + ${Math.abs(s)}px)`;
-    track.style.transform = s < 0 ? `translateX(${s}px)` : "";
-  };
   const set = (v: number | string, fire = true) => { v = +v; if (!Number.isFinite(v)) return; value = snap ? clamp(q(v), min, max) : (meta.soft ? v : clamp(v, min, max)); render(); if (fire) onChange(q(value)); }; // a non-finite value is ignored; soft may exceed the range
 
   // ── Spring-commit detent (snap sliders) ──
@@ -151,7 +144,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       if (!snap) { fill.style.transition = ""; handle.style.transition = ""; }
     }
     if (!isClick) {
-      rubber(e.clientX);
+      rubberBand(track, rect, e.clientX);
       if (snap) {
         cursorVal = valFromX(e.clientX); // read by the spring loop
       } else {
@@ -168,7 +161,6 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
         set(raw);
       }
     }
-    if (e.clientX >= rect.left && e.clientX <= rect.right) { track.style.width = ""; track.style.transform = ""; }
   });
   const up = (e?: PointerEvent) => {
     if (!downPos || (e && e.pointerId !== downId)) return;
@@ -181,9 +173,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       snapTimer = setTimeout(() => { fill.style.transition = ""; handle.style.transition = ""; }, 360);
       track.classList.remove("is-active", "is-dragging");
     }
-    track.style.transition = `width 0.35s ${EASE_SPRING}, transform 0.35s ${EASE_SPRING}`;
-    track.style.width = ""; track.style.transform = "";
-    setTimeout(() => { track.style.transition = ""; }, 360);
+    rubberRelease(track);
     downPos = null; fineAnchor = null; downId = null;
   };
   track.addEventListener("pointerup", up);
