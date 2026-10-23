@@ -26,7 +26,7 @@ const read = (v: unknown, cur: number[]): number[] | null => {
 
 function createSides(meta: Meta, onChange: OnChange): Control {
   const unit = typeof meta.unit === "string" && meta.unit.trim() ? meta.unit.trim() : "px", corners = !!meta.corners;
-  const spec = { step: meta.step ?? 1, min: meta.min, max: meta.max, unit };
+  const spec = { step: meta.step ?? 1, min: meta.min ?? (corners ? 0 : undefined), max: meta.max, unit }; // a radius can't go negative; a margin can
   let v = read(meta.value ?? meta, [0, 0, 0, 0]) || [0, 0, 0, 0], linked = v.every((x) => x === v[0]);
   const root = el("div", "tw-sides");
   const all = numField({ label: meta.label, value: v[0], row: true, ...spec }, (n) => { v = [n, n, n, n]; update(); emit(); });

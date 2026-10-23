@@ -17,7 +17,7 @@ interface Meta {
   // Per-control options (ControlOptions), attached by metaFor.
   render?: (get: Get) => boolean; disabled?: boolean | ((get: Get) => boolean); hint?: string; persist?: boolean;
   // Ranges — slider, number, interval, monitor.
-  min?: number; max?: number; step?: number; soft?: boolean; unit?: string; corners?: boolean; // corners: the sides control labels its four as corners
+  min?: number; max?: number; step?: number; soft?: boolean; unit?: string; corners?: boolean; // corners: the sides control labels its four as corners and floors them at 0
   format?: (value: number) => string; parse?: (text: string) => number; // slider: readout from the value, and a typed one back
   // Single-select — list, radiogrid.
   options?: Option[]; cols?: number;

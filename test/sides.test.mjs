@@ -22,7 +22,12 @@ test("every input form, and the CSS shorthand the four collapse to", async () =>
   assert.deepEqual([four(v.g), v.g.css], [[4, 0, 0, 0], "4px 0 0"], "one side off the top level; a bare 0 stays bare");
   assert.deepEqual(v.h.css, "1rem 2rem");
   assert.deepEqual(v.i.css, "0 12px");
+  p.set("a", -5); assert.equal(p.params.a.css, "-5px", "a side with no min may go negative, as a margin does");
   p.destroy();
+  const q = await mount({ c: { type: "sides", corners: true, value: 4 }, d: { type: "sides", corners: true, value: 4, min: -2 } });
+  q.set("c", -5); assert.equal(q.params.c.css, "0", "corners floor at 0 unless min says otherwise");
+  q.set("d", -5); assert.equal(q.params.d.css, "-2px");
+  q.destroy();
 });
 
 test("linked by default when the four agree; the link button opens the fields; linking takes the first side", async () => {

@@ -165,8 +165,8 @@ export const examples = [
     run: ({ tweaks, mount, target }) => {
       const card = target.querySelector(".sd-card");
       const panel = tweaks("Box", {
-        pad: { type: "sides", value: [12, 20], max: 60 },                 // [vertical, horizontal]
-        radius: { type: "sides", value: 16, corners: true, max: 48 },
+        pad: { type: "sides", value: [12, 20], min: 0, max: 60 },         // [vertical, horizontal]
+        radius: { type: "sides", value: 16, corners: true, max: 48 },     // corners floor at 0 on their own
       });
       mount.append(panel.el);
 
