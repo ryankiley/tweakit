@@ -17,7 +17,7 @@ export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" |
  *  `[top, horizontal, bottom]` or `[top, right, bottom, left]` (CSS order); a CSS shorthand
  *  string like `"8px 16px"` (the numbers are read in the control's unit); or any subset of
  *  the four as an object. With `corners: true` the four are the corners from top-left round,
- *  the same CSS order, under the same keys. */
+ *  the same CSS order, under the same keys, and they floor at 0 unless `min` says otherwise. */
 export type SidesInput = number | number[] | string | { top?: number; right?: number; bottom?: number; left?: number };
 /** A sides control's value: the four numbers in CSS order plus the shorthand they collapse
  *  to (`css`, in the control's unit, `0` bare), so `el.style.padding = css`. */
