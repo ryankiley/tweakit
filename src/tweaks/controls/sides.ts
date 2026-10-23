@@ -8,6 +8,7 @@ import type { Meta } from "../schema.js";
 import type { Control, SidesValue } from "../types.js";
 
 const ICON_LINK = icon('<path d="M10.5 13.5a4 4 0 0 0 5.6 0l3-3a4 4 0 0 0-5.6-5.6l-1.5 1.5M13.5 10.5a4 4 0 0 0-5.6 0l-3 3a4 4 0 0 0 5.6 5.6l1.5-1.5"/>'); // original: two links of a chain, one path
+const ICON_CORNER = icon('<path d="M3 13V8a5 5 0 0 1 5-5h5"/>', "", 1.5, 16); // original: the top-left quarter of a rounded box, turned per corner in CSS
 const LEN_RE = /^(-?\d*\.?\d+)([a-z%]*)$/i;
 const num = (v: unknown) => (v != null && v !== "" && Number.isFinite(+v) ? +v : null);
 const fmt = (n: number) => String(+n.toFixed(2));
@@ -32,8 +33,11 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum");
   head.append(txt("span", "tw-row-label", meta.label), sum);
   const fields = el("div", "tw-fields");
-  const names = corners ? ["TL", "TR", "BR", "BL"] : ["T", "R", "B", "L"];
-  const flds: NumField[] = names.map((n, i) => { const f = numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }); fields.append(f.el); return f; });
+  const names = corners ? ["Top-left", "Top-right", "Bottom-right", "Bottom-left"] : ["T", "R", "B", "L"];
+  const flds: NumField[] = names.map((n, i) => numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }));
+  // Corners sit where they do on the box (TL TR / BL BR) and show a glyph; the value stays in CSS order.
+  (corners ? [0, 1, 3, 2] : [0, 1, 2, 3]).forEach((i) => fields.append(flds[i].el));
+  if (corners) flds.forEach((f, i) => { const lab = f.el.firstChild as HTMLElement; lab.className = "tw-field-label tw-sides-corner"; lab.dataset.corner = names[i].toLowerCase(); lab.title = names[i]; lab.innerHTML = ICON_CORNER; });
   multi.append(head, fields); root.append(all.el, multi);
   // As the fields fitted them.
   v = flds.map((f) => f.get());

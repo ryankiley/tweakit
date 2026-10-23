@@ -42,11 +42,16 @@ test("linked by default when the four agree; the link button opens the fields; l
   p.destroy();
 });
 
-test("set() in any form re-judges the link; corners relabel the fields; min/max fit the value; hostile input is ignored", async () => {
+test("set() in any form re-judges the link; corners sit where they do on the box, each a glyph; min/max fit the value; hostile input is ignored", async () => {
   const p = await mount({ r: { type: "sides", value: 16, corners: true, min: 0, max: 48 } });
   const root = p.el.querySelector(".tw-sides");
-  assert.deepEqual([...root.querySelectorAll(".tw-field-label")].map((l) => l.textContent), ["TL", "TR", "BR", "BL"]);
+  const labels = [...root.querySelectorAll(".tw-field-label")];
+  assert.deepEqual(labels.map((l) => l.dataset.corner), ["top-left", "top-right", "bottom-left", "bottom-right"], "the fields read like the box: TL TR over BL BR");
+  assert.ok(labels.every((l) => l.textContent === "" && l.querySelector("svg[aria-hidden]") && l.title), "each label is a glyph, named by its title");
+  assert.deepEqual([...root.querySelectorAll(".tw-sides-multi .tw-num")].map((i) => i.getAttribute("aria-label")), ["Top-left (px)", "Top-right (px)", "Bottom-left (px)", "Bottom-right (px)"]);
   p.set("r", [1, 2, 3, 4]); assert.ok(!root.classList.contains("is-linked"), "unequal sides unlink"); assert.deepEqual(four(p.params.r), [1, 2, 3, 4]);
+  assert.deepEqual([...root.querySelectorAll(".tw-sides-multi .tw-num")].map((i) => i.value), ["1", "2", "4", "3"], "the value stays in CSS order; only the two bottom fields swap places");
+  assert.equal(p.params.r.css, "1px 2px 3px 4px");
   p.set("r", "24px"); assert.ok(root.classList.contains("is-linked")); assert.equal(p.params.r.css, "24px");
   p.set("r", { left: 99 }); assert.deepEqual(four(p.params.r), [24, 24, 24, 48], "an object moves one side; max fits it");
   p.set("r", -5); assert.equal(p.params.r.css, "0", "min fits it");
@@ -64,6 +69,6 @@ test("markup: data-value as a shorthand, or the sides as attributes", async () =
   const [a, b] = [...holder.querySelectorAll('[data-tw="sides"]')].map((h) => h._tw.ctrl.get());
   assert.deepEqual([four(a), a.css], [[8, 16, 8, 16], "8px 16px"]);
   assert.deepEqual([four(b), b.css], [[4, 8, 0, 0], "4rem 8rem 0 0"]);
-  assert.deepEqual([...holder.querySelectorAll(".tw-field-label")].map((l) => l.textContent).slice(4), ["TL", "TR", "BR", "BL"]);
+  assert.deepEqual([...holder.querySelectorAll(".tw-field-label")].slice(4).map((l) => l.dataset.corner), ["top-left", "top-right", "bottom-left", "bottom-right"]);
   holder.remove();
 });

@@ -760,6 +760,11 @@
 .tw-sides-multi { display: flex; flex-direction: column; gap: 6px; padding: 6px 10px 10px 12px; background: var(--tw-surface); border-radius: var(--tw-radius); }
 .tw-sides-head { display: flex; align-items: center; gap: 8px; min-height: 20px; }
 .tw-sides-multi .tw-fields, .tw-fields.tw-shadow-fields { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } /* 2×2: four across left one digit showing */
+.tw-sides-corner { display: flex; align-items: center; height: 12px; } /* the glyph sits in a text label's line */
+.tw-sides-corner svg { width: 12px; height: 12px; }
+.tw-sides-corner[data-corner="top-right"] svg { transform: rotate(90deg); }
+.tw-sides-corner[data-corner="bottom-right"] svg { transform: rotate(180deg); }
+.tw-sides-corner[data-corner="bottom-left"] svg { transform: rotate(270deg); }
 .tw-sides-sum { margin-left: auto; font-family: var(--tw-font-sans); font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); word-spacing: 0.1em; }
 /* The motion control (motion.ts). */
 .tw-motion-chip { position: relative; }

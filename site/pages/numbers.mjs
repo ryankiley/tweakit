@@ -152,7 +152,8 @@ export const examples = [
     title: "Box sides",
     prose: `<p><code>{ type: "sides" }</code> is one row for a four-sided length: padding,
       margin, border width, or with <code>corners: true</code> a border radius. Linked, it is
-      one number for all four; the link button beside it opens the four fields, in CSS order.
+      one number for all four; the link button beside it opens the four fields: sides in CSS
+      order, corners where they sit on the box.
       The param is the four numbers plus the shorthand they collapse to, so
       <code>el.style.padding = p.pad.css</code> is the whole wiring. Author it as one number,
       <code>[vertical, horizontal]</code>, the four, or a CSS string like
