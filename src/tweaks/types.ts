@@ -69,7 +69,8 @@ export interface ControlOptions {
   hint?: string;
   /** `false` leaves this control out of what `opts.persist` saves, so it opens on its schema
    *  value every load (presets, undo and `toJSON()` still carry it). On a control, not a
-   *  plain folder object, where `persist` is a child. */
+   *  plain folder object, where `persist` is a child. A string value past 256 KB (an image
+   *  upload) is left out the same way, since one would fill the store. */
   persist?: boolean;
 }
 
@@ -100,7 +101,16 @@ export type SchemaObject =
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
   | { type: "fpsgraph" }
   | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }
-  | { type: "image"; value?: string }
+  | { type: "image"; value?: string;
+      /** Supplied images to pick from, as URLs or `{ value, label }`. The control becomes a gallery of
+       *  tiles with the upload below them, and the param is the chosen URL or the upload's data URL. */
+      options?: Option[];
+      /** Tiles per row in the gallery, 1 to 4 (2 for up to four options, then 3). */
+      cols?: number;
+      /** The largest upload taken, in bytes (10 MB unless set); a bigger file is refused with a note. */
+      maxSize?: number;
+      /** `false` leaves the upload button out of a gallery: the options are the whole choice. */
+      upload?: boolean }
   | { type: "button"; action: () => void; label?: string }
   | { type: "buttongroup"; buttons: Record<string, () => void> | Array<{ label: string; action: () => void }> }
   | { type: "separator" }
@@ -177,7 +187,9 @@ export interface FloatingPlacement { x?: number; y?: number; corner?: FloatingCo
 export interface TweaksOptions {
   /** Theme overrides (friendly names or raw `--tw-*`); `null` / omitted = default monochrome. */
   theme?: Theme | null;
-  /** Persist values to localStorage + enable presets — a key, or `true` to key by name. */
+  /** Persist values to localStorage + enable presets — a key, or `true` to key by name. A string
+   *  value past 256 KB (an image upload) is left out of the saved session, and a write the
+   *  browser refuses is reported once in the console rather than failing silently. */
   persist?: string | boolean;
   /** With `persist`, `false` keeps saving values but leaves the Presets menu out of the
    *  toolbar (the presets API still works). On by default. */

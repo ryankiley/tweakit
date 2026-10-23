@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, tick } from "./_helpers.mjs";
+import { loadSingle, tick, key } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -150,4 +150,64 @@ test("a step the range can't count in falls back to a sane grid", () => {
   assert.ok(p.el.querySelector(".tw-slider-value").textContent.length < 25, "no hundred-digit readout");
   assert.deepEqual(p.params.iv, [2, 8]);
   for (const h of p.el.querySelectorAll(".tw-interval .tw-slider-handle")) assert.doesNotMatch(h.style.left, /NaN/);
+});
+
+test("an image with options is a gallery: tiles pick, Remove clears, an off-list value shows as a last tile", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/b.png", label: "Bee" }, 7, "", null], value: "/b.png" } });
+  const root = p.el.querySelector(".tw-image-gallery"); assert.ok(root, "the gallery form");
+  const tiles = () => [...root.querySelectorAll(".tw-image-tile")];
+  assert.equal(tiles().length, 2, "a non-string and an empty option are skipped");
+  assert.deepEqual(tiles().map((t) => t.getAttribute("aria-label")), ["a", "Bee"], "a label, else the URL's file stem");
+  assert.deepEqual(tiles().map((t) => t.getAttribute("aria-checked")), ["false", "true"]);
+  const remove = root.querySelector(".tw-image-remove");
+  assert.equal(remove.hidden, false);
+  tiles()[0].click(); assert.equal(p.params.pic, "/a.png");
+  remove.click(); assert.equal(p.params.pic, ""); assert.equal(remove.hidden, true, "nothing to remove, no button");
+  assert.deepEqual(tiles().map((t) => t.getAttribute("aria-checked")), ["false", "false"]);
+  p.set("pic", "data:image/gif;base64,R0lGODlhAQABAAAAACw=");
+  assert.equal(tiles().length, 3, "an off-list value is a third, selected tile");
+  assert.equal(tiles()[2].getAttribute("aria-checked"), "true");
+  assert.equal(tiles()[2].getAttribute("data-value"), null, "a data URL is not copied into an attribute");
+  assert.equal(remove.hidden, false);
+  p.set("pic", "/a.png"); assert.equal(tiles().length, 2, "back on the list, the extra tile leaves");
+  p.set("pic", new Date(0)); assert.equal(p.params.pic, "/a.png", "a non-string is ignored");
+  p.set("pic", null); assert.equal(p.params.pic, "");
+});
+
+test("the gallery's tiles are one radio group: arrows move and pick, Delete clears", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png", "/c.png"], value: "/a.png" } });
+  document.body.append(p.el);
+  const tiles = [...p.el.querySelectorAll(".tw-image-tile")];
+  assert.deepEqual(tiles.map((t) => t.tabIndex), [0, -1, -1], "the chosen tile is the tab stop");
+  assert.equal(p.el.querySelector(".tw-image-grid").style.getPropertyValue("--tw-img-cols"), "3");
+  tiles[0].focus(); key(tiles[0], { key: "ArrowRight" });
+  assert.equal(p.params.pic, "/b.png"); assert.equal(document.activeElement, tiles[1]);
+  key(tiles[1], { key: "End" }); assert.equal(p.params.pic, "/c.png");
+  key(tiles[2], { key: "Delete" }); assert.equal(p.params.pic, "");
+  assert.deepEqual(tiles.map((t) => t.tabIndex), [0, -1, -1], "with nothing chosen the first tile is the tab stop");
+  p.destroy();
+});
+
+test("an upload over maxSize, or not an image, is refused with a note; a fitting one lands as a data URL", async () => {
+  globalThis.FileReader ??= window.FileReader; // the kit reads files through the page's FileReader; jsdom's is on window only
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], maxSize: 2048 } });
+  const upload = p.el.querySelector(".tw-image-upload"), note = p.el.querySelector(".tw-image-note");
+  const drop = (file) => { const e = new Event("drop", { bubbles: true, cancelable: true }); e.dataTransfer = { files: [file] }; upload.dispatchEvent(e); };
+  drop(new window.File(["x".repeat(3000)], "big.png", { type: "image/png" }));
+  assert.equal(note.textContent, "3 KB, max 2 KB"); assert.equal(p.params.pic, "");
+  drop(new window.File(["hello"], "a.txt", { type: "text/plain" }));
+  assert.equal(note.textContent, "Not an image");
+  drop(new window.File(["GIF89a"], "ok.gif", { type: "image/gif" }));
+  await tick(30);
+  assert.match(p.params.pic, /^data:image\/gif;base64,/);
+  assert.equal(p.el.querySelector(".tw-image-custom").getAttribute("aria-checked"), "true", "the upload is the selected last tile");
+});
+
+test("upload: false leaves a gallery of tiles alone, with no button and no file input", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], upload: false } });
+  assert.equal(p.el.querySelector(".tw-image-upload"), null);
+  assert.equal(p.el.querySelector(".tw-image-input"), null);
+  assert.equal(p.el.querySelectorAll(".tw-image-tile").length, 2);
+  assert.ok(p.el.querySelector(".tw-image-remove").hidden, "no value, no Remove");
+  assert.equal(p.params.pic, "", "no value until a tile is picked");
 });

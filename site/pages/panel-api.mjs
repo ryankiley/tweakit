@@ -258,7 +258,9 @@ export const examples = [
       <code>deletePreset</code> / <code>presets()</code> drive the same store from code.
       <code>presets: false</code> keeps the saving and leaves the menu out. A control
       with <code>persist: false</code> is left out of the saved session, so it opens on its
-      schema value every load (a “playing” toggle that should start off).</p>`,
+      schema value every load (a “playing” toggle that should start off). So is a string
+      value past 256 KB, such as an image upload, since one would fill the store; and a
+      write the browser refuses is reported once in the console, not swallowed.</p>`,
     target: `
       <div class="ps-remote">
         <div class="ps-tile"></div>

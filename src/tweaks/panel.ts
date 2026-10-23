@@ -62,11 +62,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
-  const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  // A write the browser refuses (quota, a private window) is said once per panel, not swallowed and not repeated per keystroke.
+  let storeWarned = false;
+  const writeStore = (k: string, v: unknown) => { const s = JSON.stringify(v); try { localStorage.setItem(k, s); } catch (e) { if (!storeWarned) { storeWarned = true; console.warn(`[tweaks] couldn't store "${k}" (${s.length} chars):`, e); } } };
   const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
-  // A control with `persist: false` stays out of what is saved and out of what is restored.
+  // A control with `persist: false` stays out of what is saved and out of what is restored. So does a string value past
+  // MAX_STORED (an image upload): one such value fills the store, and every write after it fails with it.
+  const MAX_STORED = 1 << 18;
   const unsaved = (snap: Snapshot | null) => {
-    for (const e of entries) if (!e.persist) { const o: any = atPath(snap, e.path.slice(0, -1)); if (o && typeof o === "object") Reflect.deleteProperty(o, e.key); } // Reflect: an undeletable key is left, not thrown
+    for (const e of entries) { const o: any = atPath(snap, e.path.slice(0, -1)); if (o && typeof o === "object" && (!e.persist || (typeof o[e.key] === "string" && o[e.key].length > MAX_STORED))) Reflect.deleteProperty(o, e.key); } // Reflect: an undeletable key is left, not thrown
     return snap;
   };
   // Debounced save; destroy() flushes a pending write rather than dropping it.

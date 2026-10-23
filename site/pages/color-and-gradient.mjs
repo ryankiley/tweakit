@@ -4,7 +4,7 @@ export const meta = {
   slug: "color-and-gradient",
   title: "Color & gradient",
   nav: "Color & gradient",
-  description: "The wide-gamut OKLCH color picker, the gradient editor, the shadow editor, and the image drop zone, live.",
+  description: "The wide-gamut OKLCH color picker, the gradient editor, the shadow editor, and the image picker, live.",
 };
 
 export const intro = `
@@ -110,10 +110,13 @@ export const examples = [
   {
     id: "image",
     title: "Image",
-    prose: `<p><code>{ type: "image" }</code> is a drop zone and file picker in one row.
-      The param is a data URL. Drop a file on the control (or click it) and the tile
-      picks it up as its background.</p>`,
-    target: `<div class="img-tile"><span>Drop an image on the control →</span></div>`,
+    prose: `<p><code>{ type: "image" }</code> is a drop zone and file picker in one row; the
+      param is a data URL. Give it <code>options</code> (URLs, or <code>{ value, label }</code>)
+      and it becomes a gallery: tiles to pick from, the upload below them, and Remove, which
+      clears the param to <code>""</code>. An upload stays in the browser and is held to 10 MB
+      (<code>maxSize</code>, in bytes); <code>upload: false</code> leaves only the tiles, and
+      <code>cols</code> sets the tiles per row.</p>`,
+    target: `<div class="img-tile"><span>Pick a texture, or drop one on the control →</span></div>`,
     css: `
       .img-tile { display: grid; place-items: center; width: 220px; height: 170px; border-radius: 16px;
                   background-color: var(--demo-fill-soft); background-size: cover; background-position: center;
@@ -123,7 +126,11 @@ export const examples = [
     run: ({ tweaks, mount, target }) => {
       const tile = target.querySelector(".img-tile");
       const panel = tweaks("Image", {
-        texture: { type: "image" },
+        texture: {
+          type: "image",
+          value: "./textures/dusk.svg",
+          options: ["./textures/dusk.svg", "./textures/waves.svg", "./textures/grid.svg", "./textures/dots.svg"],
+        },
       });
       mount.append(panel.el);
 
