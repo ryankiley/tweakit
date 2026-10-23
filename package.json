@@ -29,7 +29,7 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node build.mjs && node --test \"test/*.test.mjs\"",
-    "prepublishOnly": "node build.mjs && node --test \"test/*.test.mjs\"",
+    "prepublishOnly": "npm test",
     "serve": "node build.mjs && python3 -m http.server 4330 --directory dist"
   },
   "exports": {

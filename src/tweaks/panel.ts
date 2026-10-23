@@ -63,7 +63,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
+  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj); // own keys only: a control keyed toString must not read Object.prototype's
   // A control with `persist: false` stays out of what is saved and out of what is restored.
   const unsaved = (snap: Snapshot | null) => {
     for (const e of entries) if (!e.persist) { const o: any = atPath(snap, e.path.slice(0, -1)); if (o && typeof o === "object") Reflect.deleteProperty(o, e.key); } // Reflect: an undeletable key is left, not thrown

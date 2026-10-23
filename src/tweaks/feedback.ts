@@ -86,7 +86,7 @@ function showHint(anchor: Element, text: string) {
 function hideHint() { if (hintTip) { clearTimeout(hintTimer); hintTimer = setTimeout(hideHintNow, 80); } } // a short grace, so crossing marker → tip doesn't flicker
 /** Every control's label element — the one list behind the hint marker's home and the per-control
  *  reset target (panel.ts wireReset), so the two can't drift. */
-const LABEL_SEL = ".tw-slider-label, .tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label";
+const LABEL_SEL = ".tw-slider-label, .tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label, .tw-spring-label, .tw-bezier-label";
 /** A control's `hint` becomes a ⓘ marker beside its label that reveals the tooltip on hover/focus. */
 function addHintMarker(node: Element, hint: string) {
   const label = node.querySelector(LABEL_SEL) || node;
