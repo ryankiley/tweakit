@@ -6,9 +6,8 @@ on:
   push:
     branches: [main]
   pull_request:
-  # A published Release rebuilds the site from the tagged commit, so docs match the release.
-  release:
-    types: [published]
+  # No release trigger: a release's tag sits on main's head, which the push above already
+  # deployed, and the github-pages environment only takes deployments from main.
   workflow_dispatch:
 
 permissions:
