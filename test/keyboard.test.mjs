@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 import { loadSingle, wait, key } from "./_helpers.mjs";
 
-const { tweaks } = await loadSingle();
+const { tweaks, mountControl } = await loadSingle();
 const mount = (schema, opts) => { const p = tweaks("K", schema, opts); document.body.append(p.el); return p; };
 
 test("opening the colour popover moves focus inside it, and Tab-out closes it", async () => {
@@ -298,6 +298,26 @@ test("number fields read typed text strictly: trailing text or a thousands comma
   p.destroy();
 });
 
+test("a number field fires no change for rejected text or for the value it already holds", async () => {
+  const host = document.createElement("div"); document.body.append(host);
+  const seen = [];
+  const h = mountControl(host, { type: "number", value: 3 }, { onChange: (v) => seen.push(v) });
+  await h.ready;
+  const f = host.querySelector(".tw-num");
+  const type = (text) => { f.value = text; f.dispatchEvent(new window.Event("change", { bubbles: true })); };
+  type("abc");
+  assert.deepEqual(seen, [], "rejected text fires nothing");
+  assert.equal(f.value, "3", "and the field shows the kept value");
+  type("3");
+  assert.deepEqual(seen, [], "the value it already holds fires nothing");
+  type("3.2");
+  assert.deepEqual(seen, [], "a number that rounds to the held value fires nothing");
+  assert.equal(f.value, "3", "but the field is tidied");
+  type("4");
+  assert.deepEqual(seen, [4], "a new value fires once");
+  h.destroy(); host.remove();
+});
+
 test("Alt+arrows on the focused title move the panel, the keyboard's drag: 10px a step, 50px with Shift, clamped to the viewport", () => {
   const p = mount({ a: [1, 0, 10, 1] });
   const title = p.el.querySelector(".tw-header-toggle");
@@ -327,5 +347,10 @@ test("the panel is a labelled region, renamed by setName", () => {
   assert.equal(p.el.getAttribute("aria-label"), "K");
   p.setName("Lights");
   assert.equal(p.el.getAttribute("aria-label"), "Lights");
+  p.setName("   ");
+  assert.equal(p.el.getAttribute("aria-label"), "Tweaks", "a blank name falls back, since an unnamed region is no landmark");
   p.destroy();
+  const blank = tweaks("", { a: 1 });
+  assert.equal(blank.el.getAttribute("aria-label"), "Tweaks");
+  blank.destroy();
 });

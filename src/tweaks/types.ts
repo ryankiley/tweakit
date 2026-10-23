@@ -271,7 +271,7 @@ export interface Panel {
    *  with stays its storage key (`persist: true`), so saved values and presets keep their
    *  home across a rename. */
   setName(name: string): void;
-  /** Save the current values as a named preset (needs `opts.persist`). */
+  /** Save the current values as a named preset (needs `opts.persist`). False when there is nowhere to save it, or storage refused it. */
   savePreset(name: string): boolean;
   /** Load a named preset. */
   loadPreset(name: string): boolean;

@@ -905,4 +905,6 @@
   .tw-select-option:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; } /* the roving focus is a background, flattened here */
   /* Where the colour is the content, keep it: a swatch, strip, bar or thumb flattened to Canvas shows nothing. */
   .tw-color-swatch, .tw-option-swatch, .tw-image-thumb, .tw-gradient-preview, .tw-gradient-bar, .tw-gradient-stop, .tw-wg-area, .tw-wg-hue, .tw-wg-alpha, .tw-pad-thumb { forced-color-adjust: none; }
+  /* …but their focus ring is still the system's: opting out would leave it in the accent, which may match the flattened background. */
+  .tw-gradient-stop:focus-visible, .tw-wg-area:focus-visible, .tw-wg-hue:focus-visible, .tw-wg-alpha:focus-visible { outline-color: Highlight; }
 }
