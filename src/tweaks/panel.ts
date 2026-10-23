@@ -560,15 +560,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Walk a new step beside the one before it: a string that didn't change takes the earlier step's copy, so an image's
     // data URL is held once across history, not once a step. Strings only, never objects, so no step can edit another.
     // True when nothing changed, which spares serialising both steps to compare them.
+    // (Snapshots are JSON: own keys, no undefined. A key b lacks reads undefined or an inherited function, and never matches.)
     const share = (a: any, b: any): boolean => {
       if (a === b) return true;
-      if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
-      const keys = Object.keys(a); let same = keys.length === Object.keys(b).length;
-      for (const k of keys) {
-        if (!hasOwn(b, k)) { same = false; continue; }
-        if (typeof a[k] === "string") { if (a[k] === b[k]) a[k] = b[k]; else same = false; }
-        else if (!share(a[k], b[k])) same = false;
-      }
+      if (!a || !b || typeof a != "object" || typeof b != "object" || Array.isArray(a) != Array.isArray(b)) return false;
+      let same = Object.keys(a).length == Object.keys(b).length;
+      for (const k in a) if (a[k] === b[k]) a[k] = b[k]; else if (!share(a[k], b[k])) same = false;
       return same;
     };
     const commit = () => {
