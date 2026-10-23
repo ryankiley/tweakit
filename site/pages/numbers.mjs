@@ -165,14 +165,14 @@ export const examples = [
     run: ({ tweaks, mount, target }) => {
       const card = target.querySelector(".sd-card"), inner = target.querySelector(".sd-inner");
       const panel = tweaks("Box", {
-        radius: { type: "sides", value: 16, corners: true, max: 48 }, // corners floor at 0 on their own
+        radius: { type: "sides", value: 16, corners: true, max: 48 },
       });
       mount.append(panel.el);
 
       const apply = (p) => {
         card.style.borderRadius = p.radius.css;
-        const r = p.radius; // the inner card stays concentric: each corner 12px (the padding) less
-        inner.style.borderRadius = [r.top, r.right, r.bottom, r.left].map((x) => `${Math.max(0, x - 12)}px`).join(" ");
+        // The inner card stays concentric: each corner the 12px padding less.
+        inner.style.borderRadius = p.radius.css.replace(/[\d.]+/g, (n) => Math.max(0, n - 12));
       };
       panel.on(apply);
       panel.ready.then(() => apply(panel.params));
