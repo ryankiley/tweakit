@@ -52,7 +52,7 @@
   "color-and-gradient.mjs › image": [
     {
       "values": {
-        "texture": ""
+        "texture": "./textures/dusk.svg"
       },
       "ui": {}
     }

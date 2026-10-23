@@ -312,7 +312,8 @@ export const examples = [
       with a gap of <code>y</code> at the far edge (8px once dragged) and scrolls, header and all, so a tall
       panel reaches its last folder by scrolling and drags by its title once scrolled back
       up. A pinned panel ignores a position <code>persist</code> saved; a draggable one
-      restores it.</p>
+      restores it. With the title focused, ⌥+arrow keys move the panel 10px at a time (⇧: 50px),
+      the keyboard's drag.</p>
       <p>The placement, z-index and shadow sit at plain <code>.tw-panel</code> specificity,
       so a class of your own loaded after the stylesheet overrides them: <code>top</code>,
       <code>right</code> and <code>left</code> for the inset, <code>--tw-float-gap</code>

@@ -130,3 +130,14 @@ test("an image value is escaped as a CSS string — one url(), however it's shap
   p.set("img", "");
   assert.equal(thumb.style.backgroundImage, "");
 });
+
+test("a gallery option URL, and an off-list value's tile, are escaped the same way: one url() each", () => {
+  const BAD = 'a.png"), url("https://x/p.png';
+  const p = tweaks("I", { img: { type: "image", options: [BAD, "/b.png"], value: BAD } });
+  const tiles = [...p.el.querySelectorAll(".tw-image-tile")];
+  assert.equal(layers(tiles[0].style.backgroundImage), 1, `got ${tiles[0].style.backgroundImage}`);
+  assert.equal(p.params.img, BAD, "the value itself is untouched");
+  p.set("img", 'x\\"), url("https://x/q.png');
+  const custom = p.el.querySelector(".tw-image-custom");
+  assert.equal(layers(custom.style.backgroundImage), 1, `got ${custom.style.backgroundImage}`);
+});

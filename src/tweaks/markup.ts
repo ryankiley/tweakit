@@ -3,7 +3,7 @@
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
 import { el, btn, setCollapsed, getControl, titleCase, setMarkup } from "./shared.js";
-import type { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS, Meta } from "./schema.js";
+import type { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS } from "./schema.js";
 import type { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import type { createFolder, createControl } from "./controls/basic.js";
 import type { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
@@ -25,6 +25,8 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
   radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
   list: (d) => ({ options: splitList(d.options), value: d.value }),
+  // data-options is a comma list, so it takes URLs, not data URLs (they carry a comma).
+  image: (d) => ({ value: d.value, options: d.options ? splitList(d.options) : undefined, cols: num(d.cols), maxSize: num(d.maxSize), upload: d.upload === "false" ? false : undefined }),
   buttongroup: (d) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab })) }),
   separator: () => ({}),
   number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), unit: d.unit }),
@@ -94,7 +96,6 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
     toggle.addEventListener("click", () => setCollapsed(panel, toggle, body, !panel.classList.contains("is-collapsed")));
     // The same toolbar tweaks() builds, over this panel's own [data-tw] controls (gathered at click time).
     if (!header.querySelector(".tw-toolbar")) {
-      const name = (title && title.textContent) || "Panel";
       const live = () => [...panel.querySelectorAll<HostEl>("[data-tw]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);
       // Two hosts can share a key (a repeated data-key, or the same label): suffix the duplicates.
       const values = () => {

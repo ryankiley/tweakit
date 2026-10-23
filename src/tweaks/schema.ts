@@ -33,6 +33,8 @@ interface Meta {
   expr?: string; fn?: ((x: number) => number) | null; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean;
   // Monitor.
   get?: () => number | string; graph?: boolean; view?: "graph" | "text"; interval?: number; decimals?: number;
+  // Image (`options` and `cols` above).
+  maxSize?: number; upload?: boolean;
   // Button / button group.
   action?: () => void; buttons?: Record<string, () => void> | Array<{ label: string; action: () => void }>;
   // Folder / tabs.
@@ -127,13 +129,6 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) =
     });
     return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) }; // the default component map, for reset()
   },
-
-
-
-
-
-
-
   buttongroup: (v) => ({ buttons: v.buttons }),
   separator: () => ({}),
   // Page keys dedupe ("A!" and "A?" both slug to "a") so two pages can't share one params subtree.

@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, tick } from "./_helpers.mjs";
+import { loadSingle, tick, key, distCss } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -124,6 +124,25 @@ test("odd values show as JSON, never 'undefined' or '[object Object]'", async ()
   } finally { p.destroy(); }
 });
 
+test("a hint and the reset target sit beside a spring's or bezier's own caption, not an inner field label", async () => {
+  // Regression: LABEL_SEL listed every label class but the spring and bezier captions, so the querySelector behind the
+  // hint marker and the reset target found the first INNER label instead — the spring's "Mode" row label, the bezier's
+  // "X1" field label — and the ⓘ, the reset title and the double-click / hold-to-reset all went there.
+  const p = tweaks("HL", {
+    spring: { type: "spring", hint: "s", value: { stiffness: 200, damping: 20, mass: 1 } },
+    curve: { type: "cubicbezier", hint: "c", value: [0.4, 0, 0.2, 1] },
+  });
+  document.body.append(p.el); await p.ready;
+  try {
+    for (const [cls, caption] of [["tw-spring", "tw-spring-label"], ["tw-bezier", "tw-bezier-label"]]) {
+      const root = p.el.querySelector("." + cls);
+      assert.ok(root.querySelector(".tw-hint").parentElement.classList.contains(caption), `${cls}: the ⓘ sits in the caption`);
+      assert.ok(root.querySelector("." + caption).classList.contains("tw-resettable"), `${cls}: the caption is the reset target`);
+      assert.ok(!root.querySelector(".tw-row-label, .tw-field-label").classList.contains("tw-resettable"), `${cls}: the inner label is not`);
+    }
+  } finally { p.destroy(); } // a failing assertion must not leave the spring's observer and listeners behind
+});
+
 test("a hint on a separator adds no marker to the divider", () => {
   const p = tweaks("H", { s: { type: "separator", hint: "x" } });
   assert.equal(p.el.querySelector(".tw-separator .tw-hint"), null);
@@ -150,4 +169,142 @@ test("a step the range can't count in falls back to a sane grid", () => {
   assert.ok(p.el.querySelector(".tw-slider-value").textContent.length < 25, "no hundred-digit readout");
   assert.deepEqual(p.params.iv, [2, 8]);
   for (const h of p.el.querySelectorAll(".tw-interval .tw-slider-handle")) assert.doesNotMatch(h.style.left, /NaN/);
+});
+
+test("an image with options is a gallery: tiles pick, Remove clears, an off-list value shows as a last tile", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/b.png", label: "Bee" }, 7, "", null], value: "/b.png" } });
+  const root = p.el.querySelector(".tw-image-gallery"); assert.ok(root, "the gallery form");
+  const tiles = () => [...root.querySelectorAll(".tw-image-tile")];
+  assert.equal(tiles().length, 2, "a non-string and an empty option are skipped");
+  assert.deepEqual(tiles().map((t) => t.getAttribute("aria-label")), ["a", "Bee"], "a label, else the URL's file stem");
+  assert.deepEqual(tiles().map((t) => t.getAttribute("aria-checked")), ["false", "true"]);
+  const remove = root.querySelector(".tw-image-remove");
+  assert.equal(remove.hidden, false);
+  tiles()[0].click(); assert.equal(p.params.pic, "/a.png");
+  remove.click(); assert.equal(p.params.pic, ""); assert.equal(remove.hidden, true, "nothing to remove, no button");
+  assert.deepEqual(tiles().map((t) => t.getAttribute("aria-checked")), ["false", "false"]);
+  p.set("pic", "data:image/gif;base64,R0lGODlhAQABAAAAACw=");
+  assert.equal(tiles().length, 3, "an off-list value is a third, selected tile");
+  assert.equal(tiles()[2].getAttribute("aria-checked"), "true");
+  assert.equal(tiles()[2].getAttribute("data-value"), null, "a data URL is not copied into an attribute");
+  assert.equal(remove.hidden, false);
+  p.set("pic", "/a.png"); assert.equal(tiles().length, 2, "back on the list, the extra tile leaves");
+  p.set("pic", new Date(0)); assert.equal(p.params.pic, "/a.png", "a non-string is ignored");
+  p.set("pic", null); assert.equal(p.params.pic, "");
+});
+
+test("the gallery's tiles are one radio group: arrows move and pick, Delete clears", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png", "/c.png"], value: "/a.png" } });
+  document.body.append(p.el);
+  const tiles = [...p.el.querySelectorAll(".tw-image-tile")];
+  assert.deepEqual(tiles.map((t) => t.tabIndex), [0, -1, -1], "the chosen tile is the tab stop");
+  assert.equal(p.el.querySelector(".tw-image-grid").style.getPropertyValue("--tw-img-cols"), "3");
+  tiles[0].focus(); key(tiles[0], { key: "ArrowRight" });
+  assert.equal(p.params.pic, "/b.png"); assert.equal(document.activeElement, tiles[1]);
+  key(tiles[1], { key: "End" }); assert.equal(p.params.pic, "/c.png");
+  key(tiles[2], { key: "Delete" }); assert.equal(p.params.pic, "");
+  assert.deepEqual(tiles.map((t) => t.tabIndex), [0, -1, -1], "with nothing chosen the first tile is the tab stop");
+  p.destroy();
+});
+
+test("an upload over maxSize, or not an image, is refused with a note; a fitting one lands as a data URL", async () => {
+  globalThis.FileReader ??= window.FileReader; // the kit reads files through the page's FileReader; jsdom's is on window only
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], maxSize: 2048 } });
+  const upload = p.el.querySelector(".tw-image-upload"), note = p.el.querySelector(".tw-image-note");
+  const drop = (file) => { const e = new Event("drop", { bubbles: true, cancelable: true }); e.dataTransfer = { files: [file] }; upload.dispatchEvent(e); };
+  drop(new window.File(["x".repeat(3000)], "big.png", { type: "image/png" }));
+  assert.equal(note.textContent, "3 KB, max 2 KB"); assert.equal(p.params.pic, "");
+  drop(new window.File(["hello"], "a.txt", { type: "text/plain" }));
+  assert.equal(note.textContent, "Not an image");
+  drop(new window.File(["GIF89a"], "ok.gif", { type: "image/gif" }));
+  await tick(30);
+  assert.match(p.params.pic, /^data:image\/gif;base64,/);
+  assert.equal(p.el.querySelector(".tw-image-custom").getAttribute("aria-checked"), "true", "the upload is the selected last tile");
+});
+
+test("upload: false leaves a gallery of tiles alone, with no button and no file input", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], upload: false } });
+  assert.equal(p.el.querySelector(".tw-image-upload"), null);
+  assert.equal(p.el.querySelector(".tw-image-input"), null);
+  assert.equal(p.el.querySelectorAll(".tw-image-tile").length, 2);
+  assert.ok(p.el.querySelector(".tw-image-remove").hidden, "no value, no Remove");
+  assert.equal(p.params.pic, "", "no value until a tile is picked");
+});
+
+// ── The gallery's review fixes: each failed on the first cut of the gallery. ──
+const dropOn = (el, file) => { const e = new Event("drop", { bubbles: true, cancelable: true }); e.dataTransfer = { files: file ? [file] : [] }; el.dispatchEvent(e); };
+globalThis.FileReader ??= window.FileReader;
+
+test("a disabled gallery takes no dropped file", async () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], disabled: true } });
+  dropOn(p.el.querySelector(".tw-image-gallery"), new window.File(["GIF89a"], "x.gif", { type: "image/gif" }));
+  await tick(30);
+  assert.equal(p.params.pic, "");
+});
+
+test("Alt+Delete on a tile is the panel's reset, not a clear: the host never sees an empty value", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "/a.png" } });
+  document.body.append(p.el);
+  const seen = []; p.on((v) => seen.push(v.pic));
+  const tiles = p.el.querySelectorAll(".tw-image-tile");
+  tiles[1].click(); key(tiles[1], { key: "Delete", altKey: true });
+  assert.ok(!seen.includes(""), `host saw ${JSON.stringify(seen)}`);
+  p.destroy();
+});
+
+test("when the focused custom tile leaves, focus moves to the chosen tile, not to the body", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "/x.png" } });
+  document.body.append(p.el);
+  const custom = p.el.querySelector(".tw-image-custom"); custom.focus();
+  assert.equal(custom.getAttribute("aria-label"), "x", "a host-set URL is named by its file, not as an upload");
+  p.set("pic", "/y.png");
+  assert.equal(document.activeElement, custom, "still the custom tile: a re-render doesn't move (and blur) it");
+  p.set("pic", "/b.png");
+  assert.equal(document.activeElement, p.el.querySelectorAll(".tw-image-tile")[1]);
+  p.destroy();
+});
+
+test("a repeated option URL is one tile", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/a.png", label: "Again" }, "/b.png"], value: "/a.png" } });
+  const tiles = [...p.el.querySelectorAll(".tw-image-tile")];
+  assert.equal(tiles.length, 2);
+  assert.deepEqual(tiles.map((t) => t.getAttribute("aria-checked")), ["true", "false"]);
+});
+
+test("a file read that lands after a tile was picked doesn't overwrite the pick", async () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"] } });
+  dropOn(p.el.querySelector(".tw-image-upload"), new window.File(["GIF89a"], "x.gif", { type: "image/gif" }));
+  p.el.querySelectorAll(".tw-image-tile")[1].click();
+  await tick(30);
+  assert.equal(p.params.pic, "/b.png");
+});
+
+test("a refusal under 1 KB reads in bytes, and is spoken from a status region outside the button", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], maxSize: 300 } });
+  dropOn(p.el.querySelector(".tw-image-upload"), new window.File(["x".repeat(400)], "big.png", { type: "image/png" }));
+  assert.equal(p.el.querySelector(".tw-image-note").textContent, "400 B, max 300 B");
+  const live = p.el.querySelector(".tw-image-live[role=status]");
+  assert.ok(live && !live.closest("button"), "a button's children are presentational, so the region sits beside it");
+  assert.equal(live.textContent, "400 B, max 300 B");
+});
+
+test("the stylesheet hides an empty gallery's Remove, and rings a focused tile with an outline", () => {
+  // jsdom honours [hidden] over display: flex, so this is checked in the built CSS, not on the element.
+  const css = distCss();
+  assert.match(css, /\.tw-image-remove\[hidden\]\{display:none\}/);
+  assert.match(css, /\.tw-image-tile:focus-visible\{outline:2px solid/);
+});
+
+test("markup builds a gallery from data-options, with data-upload and data-cols", async () => {
+  const { enhance } = await loadSingle();
+  const host = document.createElement("div");
+  Object.assign(host.dataset, { tw: "image", label: "Cover", options: "/a.png, /b.png, /c.png", value: "/b.png", upload: "false", cols: "3" });
+  document.body.append(host);
+  try {
+    await enhance(host);
+    assert.equal(host.querySelectorAll(".tw-image-tile").length, 3);
+    assert.equal(host.querySelector(".tw-image-upload"), null);
+    assert.equal(host.querySelector(".tw-image-grid").style.getPropertyValue("--tw-img-cols"), "3");
+    assert.equal(host._tw.ctrl.get(), "/b.png");
+  } finally { host.remove(); }
 });

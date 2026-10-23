@@ -100,7 +100,16 @@ export type SchemaObject =
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
   | { type: "fpsgraph" }
   | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }
-  | { type: "image"; value?: string }
+  | { type: "image"; value?: string;
+      /** Supplied images to pick from, as URLs or `{ value, label }`. The control becomes a gallery of
+       *  tiles with the upload below them, and the param is the chosen URL or the upload's data URL. */
+      options?: Option[];
+      /** Tiles per row in the gallery, 1 to 4 (2 for up to four options, then 3). */
+      cols?: number;
+      /** The largest upload taken, in bytes (10 MB unless set); a bigger file is refused with a note. */
+      maxSize?: number;
+      /** `false` leaves the upload button out of a gallery: the options are the whole choice. */
+      upload?: boolean }
   | { type: "button"; action: () => void; label?: string }
   | { type: "buttongroup"; buttons: Record<string, () => void> | Array<{ label: string; action: () => void }> }
   | { type: "separator" }
@@ -271,7 +280,7 @@ export interface Panel {
    *  with stays its storage key (`persist: true`), so saved values and presets keep their
    *  home across a rename. */
   setName(name: string): void;
-  /** Save the current values as a named preset (needs `opts.persist`). */
+  /** Save the current values as a named preset (needs `opts.persist`). False when there is nowhere to save it, or storage refused it. */
   savePreset(name: string): boolean;
   /** Load a named preset. */
   loadPreset(name: string): boolean;

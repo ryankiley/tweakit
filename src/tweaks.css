@@ -57,6 +57,8 @@
   line-height: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  color-scheme: dark; /* scrollbars and carets follow the kit's palette, not the host's color-scheme */
   box-sizing: border-box;
 }
 .tw-panel {
@@ -73,11 +75,7 @@
 .tw-panel *::before,
 .tw-panel *::after { box-sizing: border-box; }
 
-:is(.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu) ::selection { background: var(--tw-selection); color: var(--tw-text-focus); }
-.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu { -webkit-tap-highlight-color: transparent; }
-
-/* Scrollbars and carets follow the kit's palette, not the host's color-scheme. */
-.tw-panel, .tw-portal { color-scheme: dark; }
+:is(.tw-panel, .tw-portal) ::selection { background: var(--tw-selection); color: var(--tw-text-focus); }
 
 /* Floating mode. The z ladder (panel 99990 < popovers 99999 < tip 100000 < grab
  * guide 100001) sits above the 100–9999 band host sticky headers occupy. The placement
@@ -174,10 +172,8 @@
 .tw-hint svg { width: 13px; height: 13px; display: block; }
 .tw-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 8px 12px; font-size: 12px; line-height: 1.4; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
 .tw-tip.is-open { opacity: 1; transform: none; }
-/* Toast — the kit's feedback pill (copy / preset confirmations), portaled to <body>. */
-
 /* The screen-reader status region (announce() in feedback.ts): in the page, drawn as nothing. */
-.tw-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.tw-sr, .tw-image-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Collapse — grid-rows 1fr→0fr animates the body height, dependency-free */
 .tw-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.25s var(--tw-ease-inout); }
@@ -203,9 +199,9 @@
   transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-.tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
-.tw-toolbar-btn:disabled { cursor: default; } /* the lazy window is "not yet", not "never" */
+  .tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
+.tw-toolbar-btn:disabled { cursor: default; } /* the lazy window is "not yet", not "never" */
 /* The press dip shrinks the box, so a cursor near the edge would lose :hover mid-press;
  * ::after keeps the resting footprint hot ((24+4)·0.86 ≈ 24.1 ≥ 24). */
 .tw-toolbar-btn::after { content: ""; position: absolute; inset: -2px; }
@@ -242,6 +238,7 @@
 .tw-trigger:focus-visible, .tw-select-trigger:focus-visible, .tw-button:focus-visible,
 .tw-seg-btn:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
 .tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
+.tw-image-remove:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
 .tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
@@ -519,13 +516,14 @@
 @media (hover: hover) and (pointer: fine) {
   .tw-presets-load:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
-.tw-presets-del { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-pop); }
+.tw-presets-del, .tw-image-remove { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-presets-del:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .tw-presets-del:hover, .tw-image-remove:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
-.tw-presets-del:active { transform: scale(0.85); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.tw-presets-del:active, .tw-image-remove:active { transform: scale(0.85); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 .tw-presets-savebtn:active { transform: scale(0.95); }
-.tw-presets-del svg { width: 12px; height: 12px; display: block; }
+.tw-presets-del svg, .tw-image-remove svg { width: 12px; height: 12px; display: block; }
+.tw-image-remove[hidden] { display: none; } /* display: flex would beat the hidden attribute */
 
 /* ── Trigger rows — the row button behind the colour, gradient and point controls ── */
 .tw-trigger {
@@ -557,10 +555,8 @@
 .tw-color-swatch { width: 18px; }
 
 /* Portaled surfaces open on <body>, escaping any ancestor that becomes a containing block
- * for position:fixed (a transform or filter) and the panel's overflow. */
-.tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu {
-  line-height: normal; /* against the host's line-height, as on .tw-panel */
-}
+ * for position:fixed (a transform or filter) and the panel's overflow. Each carries .tw-portal,
+ * which hands it the tokens, font and line-height above. */
 .tw-portal *, .tw-portal *::before, .tw-portal *::after { box-sizing: border-box; }
 
 /* the colour dropdown */
@@ -661,15 +657,38 @@
   -webkit-mask: var(--tw-grip) right bottom / contain no-repeat; mask: var(--tw-grip) right bottom / contain no-repeat;
 }
 
-/* ── Image — a trigger row that is also the drop zone ── */
+/* ── Image — a trigger row that is also the drop zone; with options, a gallery: the plot's stack of a flush label, the tiles and the kit's button ── */
 .tw-image { position: relative; }
 .tw-image-input { display: none; }
-.tw-image-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-image-text, .tw-image-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-image-note:empty { display: none; }
+.tw-image-note:not(:empty) + .tw-image-text { display: none; } /* a refused file's reason takes the text's place for a moment */
 .tw-image-thumb { width: 18px; background: var(--tw-base) center / cover no-repeat; }
 .tw-image-thumb[data-set="false"] { background: var(--tw-checker); }
-/* JS toggles [data-over] on the trigger while a file is dragged over it. */
-.tw-image .tw-trigger[data-over="true"] { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
+/* JS toggles [data-over] on the trigger, or on the gallery root, while a file is dragged over it. */
+.tw-image .tw-trigger[data-over="true"], .tw-image-gallery[data-over="true"] .tw-image-upload { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
 .tw-image .tw-trigger[data-over="true"] .tw-image-thumb { transform: scale(1.14); }
+.tw-image-gallery { display: flex; flex-direction: column; gap: 6px; }
+.tw-image-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; } /* the delete button's height, so the grid holds still when Remove leaves */
+.tw-image-grid { display: grid; grid-template-columns: repeat(var(--tw-img-cols, 2), minmax(0, 1fr)); gap: 6px; }
+/* A tile is its image; a hairline ring set off by a gap marks the chosen one, so the picture stays readable.
+ * The gap is outline-offset, which shows the panel behind it. */
+.tw-image-tile {
+  aspect-ratio: 4 / 3; padding: 0; background: var(--tw-surface) center / cover no-repeat;
+  border: none; border-radius: calc(var(--tw-radius) - 2px); box-shadow: inset 0 0 0 1px var(--tw-border-hover);
+  cursor: pointer; transition: transform 0.2s var(--tw-ease-pop), box-shadow 0.15s;
+}
+.tw-image-tile:active { transform: scale(0.96); transition: transform 0.08s ease-out; }
+.tw-image-tile[data-active="true"] { outline: 1.5px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; }
+/* The kit's inner focus ring, after the chosen tile's rule so it wins there too. An outline, not a shadow: the hover
+ * hairline is a shadow and would replace it, a host's own button:focus-visible outline would add a second ring, and
+ * forced colors drop shadows. */
+.tw-image-tile:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
+.tw-image-upload { gap: 6px; } /* a .tw-button, plus the icon's gap */
+.tw-image-upload svg { width: 14px; height: 14px; flex: none; }
+@media (hover: hover) and (pointer: fine) {
+  .tw-image-tile:hover { box-shadow: inset 0 0 0 1px var(--tw-text-tertiary); } /* the hairline lights, nothing moves; the chosen tile too: on, and about to be pressed, are two states */
+}
 
 /* ── FPS graph (monitor blade) ── */
 .tw-fps {
@@ -847,7 +866,7 @@
 
 /* Plot — a function graph with an editable, safely-parsed expression. */
 .tw-plot { display: flex; flex-direction: column; gap: 6px; }
-.tw-plot-label, .tw-spring-label, .tw-bezier-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0; } /* flush with the full-width graph below */
+.tw-plot-label, .tw-spring-label, .tw-bezier-label, .tw-image-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0; } /* flush with the full-width graph (or tiles) below */
 .tw-plot-graph { position: relative; width: 100%; height: 140px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); }
 .tw-plot-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .tw-plot-axis { stroke: var(--tw-border); stroke-width: 1; }
@@ -880,7 +899,7 @@
     --tw-text-focus: #000000;
     --tw-text-primary: rgba(0, 0, 0, 0.88);
     --tw-text-secondary: rgba(0, 0, 0, 0.58);
-    --tw-text-tertiary: rgba(0, 0, 0, 0.54);
+    --tw-text-tertiary: rgba(0, 0, 0, 0.55); /* .54 sat at 4.48:1 on the base */
     --tw-border: rgba(0, 0, 0, 0.045);
     --tw-border-hover: rgba(0, 0, 0, 0.1);
     --tw-selection: rgba(0, 0, 0, 0.14);
@@ -915,6 +934,11 @@
 @media (forced-colors: active) {
   .tw-seg-pill, .tw-tabs-pill, .tw-slider-fill { outline: 2px solid Highlight; outline-offset: -2px; }
   .tw-radiogrid-btn[data-active="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .tw-image-tile[data-active="true"] { outline-color: Highlight; }
   .tw-gradient-stop[data-sel="true"] { border-color: Highlight; }
   .tw-select-option:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; } /* the roving focus is a background, flattened here */
+  /* Where the colour is the content, keep it: a swatch, strip, bar or thumb flattened to Canvas shows nothing. */
+  .tw-color-swatch, .tw-option-swatch, .tw-image-thumb, .tw-gradient-preview, .tw-gradient-bar, .tw-gradient-stop, .tw-wg-area, .tw-wg-hue, .tw-wg-alpha, .tw-pad-thumb { forced-color-adjust: none; }
+  /* …but their focus ring is still the system's: opting out would leave it in the accent, which may match the flattened background. */
+  .tw-gradient-stop:focus-visible, .tw-wg-area:focus-visible, .tw-wg-hue:focus-visible, .tw-wg-alpha:focus-visible { outline-color: Highlight; }
 }

@@ -292,9 +292,10 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   const set = (v: unknown, fire = true) => { if (v != null && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears the selection; an unknown value is ignored
   // The shared popover shell: portaled to <body>, closes on outside-press / Esc / scroll-away,
   // and opening it closes any other popover.
+  let typed = "", typedAt = 0; // the type-ahead buffer; a fresh open starts it over, as a native popup does
   const pop = popover(root, trigger, dropdown, {
     width: "match", fallbackH: 200, gap: 4,
-    onOpen: () => (optButtons.find((b) => b.dataset.value === String(value)) || optButtons[0])?.focus(),
+    onOpen: () => { typed = ""; (optButtons.find((b) => b.dataset.value === String(value)) || optButtons[0])?.focus(); },
   });
   // Enter/Space on a focused option selects it natively via click; Tab away closes by the shell's focusout rule.
   trigger.addEventListener("keydown", (e) => {
@@ -302,10 +303,21 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   });
   dropdown.addEventListener("keydown", (e) => {
     const i = optButtons.indexOf(document.activeElement as HTMLButtonElement); let j = i;
+    const inBeat = !!typed && performance.now() - typedAt < 600; // monotonic, so a wall-clock step can't pin the beat open
     if (e.key === "ArrowDown") j = i < 0 ? 0 : Math.min(optButtons.length - 1, i + 1);
     else if (e.key === "ArrowUp") j = i < 0 ? optButtons.length - 1 : Math.max(0, i - 1);
     else if (e.key === "Home") j = 0;
     else if (e.key === "End") j = optButtons.length - 1;
+    else if (e.key.length === 1 && (e.key !== " " || inBeat) && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing) {
+      // Type-ahead, as a native select: keys within a beat form a prefix that moves focus to the first label starting with it,
+      // the same key over and over cycles its matches, and no match leaves focus where it is. A space joins a prefix under way
+      // and is never also the option's activation; on its own it stays the option's.
+      const k = e.key.toLowerCase(); typed = (inBeat ? typed : "") + k; typedAt = performance.now();
+      const one = typed === k.repeat(typed.length / k.length), needle = one ? k : typed; // compared per key, since "İ" lowercases to two code units
+      const hit = (lo: number) => opts.findIndex((o, n) => n >= lo && String(o.label).toLowerCase().trimStart().startsWith(needle));
+      j = hit(one ? i + 1 : i); if (j < 0) j = hit(0); // a lone key moves past the focused option, a growing prefix re-tests it; the second pass wraps
+      if (j < 0 && e.key !== " ") return; // a prefix's space is swallowed even unmatched, so it never also picks
+    }
     else return;
     e.preventDefault(); optButtons[j]?.focus();
   });

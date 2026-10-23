@@ -69,3 +69,22 @@ test("a plain folder object's persist is its child, not an option", () => {
   assert.equal(p.params.group.persist, false, "built as a checkbox, as before");
   p.destroy();
 });
+
+// A preset carries its image whole, so storage can refuse it: the menu must say so and keep the typed name.
+test("a preset storage refuses is announced from the menu as not saved, and keeps its name", async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  localStorage.clear();
+  const p = tweaks("Pre", { zoom: [100, 25, 300, 1] }, { persist: true });
+  document.body.append(p.el); await p.ready;
+  const warn = console.warn; console.warn = () => {};
+  const proto = Object.getPrototypeOf(localStorage), setItem = proto.setItem;
+  proto.setItem = () => { throw new Error("QuotaExceededError"); };
+  try {
+    p.el.querySelector('[aria-label="Presets"]').click(); await wait(30);
+    const input = document.querySelector(".tw-presets-input"); input.value = "C";
+    document.querySelector(".tw-presets-savebtn").click(); await wait(150);
+    assert.equal(document.querySelector(".tw-sr[role=status]").textContent, "Preset C not saved: storage is full");
+    assert.equal(input.value, "C", "the name stays, to try again");
+  } finally { proto.setItem = setItem; console.warn = warn; }
+  p.destroy(); localStorage.clear();
+});

@@ -62,17 +62,31 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
-  const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
+  const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
+  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj); // own keys only: a control keyed toString must not read Object.prototype's
+  // Take one entry's value out of a snapshot; true when it was there. Reflect: an undeletable key is left, not thrown.
+  const drop = (snap: Snapshot | null, e: Entry) => { const o: any = atPath(snap, e.path.slice(0, -1)); if (!o || typeof o !== "object" || !hasOwn(o, e.key)) return false; Reflect.deleteProperty(o, e.key); return true; };
   // A control with `persist: false` stays out of what is saved and out of what is restored.
-  const unsaved = (snap: Snapshot | null) => {
-    for (const e of entries) if (!e.persist) { const o: any = atPath(snap, e.path.slice(0, -1)); if (o && typeof o === "object") Reflect.deleteProperty(o, e.key); } // Reflect: an undeletable key is left, not thrown
-    return snap;
-  };
+  const unsaved = (snap: Snapshot | null) => { for (const e of entries) if (!e.persist) drop(snap, e); return snap; };
   // Debounced save; destroy() flushes a pending write rather than dropping it.
   const persist = persistKey ? (() => {
     let saveT = 0;
-    const save = () => { saveT = 0; writeStore(persistKey, unsaved(snapshot())); };
+    // An image's data URL can outgrow storage (~5 MB an origin), and a refused write would drop every value with it: the write
+    // is retried without the image values, so the rest still saves, and a host is told once why its image comes back empty.
+    // A value storage refused stays out of later saves until it changes, so the serialise-throw-retry runs once per image, not per save.
+    let quotaWarned = false;
+    const refused = new Map<Entry, unknown>();
+    const save = () => {
+      saveT = 0;
+      const snap = unsaved(snapshot());
+      const images = entries.filter((e) => e.persist && e.m.type === "image");
+      const kept = images.filter((e) => !(refused.get(e) === e.get() && drop(snap, e)));
+      if (writeStore(persistKey, snap)) return;
+      const left = kept.filter((e) => drop(snap, e));
+      if (!left.length) return; // no image to leave out: storage is off, denied or full of something else — silent, as before
+      for (const e of left) refused.set(e, e.get());
+      if (writeStore(persistKey, snap) && !quotaWarned) { quotaWarned = true; console.warn("[tweaks] persist: the values didn't fit in storage with an image included — saved without it"); }
+    };
     cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
     return () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };
   })() : () => {};
@@ -99,6 +113,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
 
   const panel: PanelEl = el("div", "tw-panel"); panel.dataset.mode = "inline";
+  // A landmark, so a screen reader can jump to the panel and hear which one; an unnamed region is no landmark, so a blank name falls back.
+  const landmark = (n: string) => panel.setAttribute("aria-label", n.trim() || "Tweaks");
+  panel.setAttribute("role", "region"); landmark(name);
   // Stop pointer events leaking past the panel to a stage listening on window.
   stopPointerLeak(panel);
   const header = el("div", "tw-header");
@@ -355,7 +372,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets" ──
   const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
-  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = snapshot(); writeStore(presetsKey, all); };
+  // False when storage refused the write (a preset carries its images whole), so the caller can say so instead of claiming a save.
+  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = snapshot(); const ok = writeStore(presetsKey, all); if (!ok) console.warn(`[tweaks] preset "${nm}" didn't fit in storage — not saved`); return ok; };
   const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) applySnapshot(all[nm]); }; // re-read at replay: a delete queued ahead of it wins
   const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; writeStore(presetsKey, all); };
 
@@ -426,6 +444,20 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         panel.classList.remove("is-snapping"); apply(); // …and drop the snap transition, so the grab is 1:1
       }
     });
+    // The keyboard's drag: with the title focused, Alt+arrows move the panel 10px (Shift: 50px) through the same lift, clamp
+    // and saved position as a pointer drag. Alt-qualified, so a bare arrow stays the page's.
+    if (draggable) header.addEventListener("keydown", (e) => {
+      if (e.target !== titleBtn || !e.altKey || e.metaKey || e.ctrlKey) return;
+      const d = e.shiftKey ? 50 : 10, dx = e.key === "ArrowRight" ? d : e.key === "ArrowLeft" ? -d : 0, dy = e.key === "ArrowDown" ? d : e.key === "ArrowUp" ? -d : 0;
+      if (!dx && !dy) return;
+      e.preventDefault(); e.stopPropagation();
+      const lifting = panel.dataset.mode !== "floating";
+      moved = true; lift(); raise(); readGap();
+      if (lifting) titleBtn.focus({ preventScroll: true }); // the lift moves the panel to <body>, which drops focus; the next step needs it back
+      const { maxX, maxY } = bounds();
+      px = clamp(px + (fromRight ? -dx : dx), MARGIN, maxX); py = clamp(py + (fromBottom ? -dy : dy), MARGIN, maxY); apply();
+      if (posKey) writeStore(posKey, { x: px, y: py, corner });
+    });
     const onMove = (e: PointerEvent) => {
       if (e.pointerId !== dragId) return;
       // The window lost the pointer: bail as every other drag surface does.
@@ -491,7 +523,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         row.append(load, del); list.append(row);
       }
     };
-    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } savePreset(nm); input.value = ""; renderList(); announce(`Saved preset ${nm}`); };
+    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } if (!savePreset(nm)) { announce(`Preset ${nm} not saved: storage is full`); return; } input.value = ""; renderList(); announce(`Saved preset ${nm}`); }; // a refused save keeps the typed name
     // The shared popover shell; align:"end" hangs it off the button's right edge.
     const menuPop = popover(presetsBtn, presetsBtn, menu, {
       width: 208, fallbackH: 160, gap: 6, align: "end",
@@ -710,10 +742,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       later(() => { if (values) applySnapshot(values, silent); applyUI(ui); });
     },
     // Live theming clears the prior theme first, so setTheme(null) reverts to the default look.
-    setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; }, // a rename never moves saved values or presets
+    setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; landmark(title); }, // a rename never moves saved values or presets
     setTheme(theme) { if (destroyed) return; if (themeVars) for (const k in themeVars) panel.style.removeProperty(k); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
     // Presets API (no-ops without opts.persist); before ready they queue like set() does.
-    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) presetOps.set(String(nm), "save"); later(() => savePreset(nm)); return true; },
+    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) presetOps.set(String(nm), "save"); let ok = true; later(() => { ok = savePreset(nm); }); return ok; }, // queued before ready counts as saved; once built, whether storage took it
     loadPreset: (nm) => { const op = presetOps.get(String(nm)); if (destroyed || failed || op === "delete" || !(op === "save" || listPresets()[nm])) return false; later(() => loadPreset(nm)); return true; }, // a queued save counts as stored, a queued delete as gone
     deletePreset: (nm) => { if (presetsKey) { if (!assembled) presetOps.set(String(nm), "delete"); later(() => deletePreset(nm)); } },
     presets: () => (destroyed ? [] : Object.keys(listPresets())),
