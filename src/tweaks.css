@@ -860,7 +860,7 @@
     --tw-text-focus: #000000;
     --tw-text-primary: rgba(0, 0, 0, 0.88);
     --tw-text-secondary: rgba(0, 0, 0, 0.58);
-    --tw-text-tertiary: rgba(0, 0, 0, 0.54);
+    --tw-text-tertiary: rgba(0, 0, 0, 0.55); /* .54 sat at 4.48:1 on the base */
     --tw-border: rgba(0, 0, 0, 0.045);
     --tw-border-hover: rgba(0, 0, 0, 0.1);
     --tw-selection: rgba(0, 0, 0, 0.14);
@@ -897,4 +897,8 @@
   .tw-radiogrid-btn[data-active="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
   .tw-gradient-stop[data-sel="true"] { border-color: Highlight; }
   .tw-select-option:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; } /* the roving focus is a background, flattened here */
+  /* Where the colour is the content, keep it: a swatch, strip, bar or thumb flattened to Canvas shows nothing. */
+  .tw-color-swatch, .tw-option-swatch, .tw-image-thumb, .tw-gradient-preview, .tw-gradient-bar, .tw-gradient-stop, .tw-wg-area, .tw-wg-hue, .tw-wg-alpha, .tw-pad-thumb { forced-color-adjust: none; }
+  /* …but their focus ring is still the system's: opting out would leave it in the accent, which may match the flattened background. */
+  .tw-gradient-stop:focus-visible, .tw-wg-area:focus-visible, .tw-wg-hue:focus-visible, .tw-wg-alpha:focus-visible { outline-color: Highlight; }
 }
