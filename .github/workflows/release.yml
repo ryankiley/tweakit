@@ -1,5 +1,8 @@
-# Publish to npm with provenance when a v* tag is pushed (needs an NPM_TOKEN repo secret).
-# Release flow: bump the version, commit, publish a GitHub Release for vX.Y.Z; the tag must
+# Publish to npm when a v* tag is pushed, through npm trusted publishing: the job's OIDC token
+# is the credential, so no npm token is stored anywhere, and npm attaches provenance by itself.
+# It needs a trusted publisher on npmjs.com (tweakit → Settings → Trusted publishing) for this
+# repository and this file, release.yml, allowed to run `npm publish`; and npm 11.5.1+.
+# Release flow: bump the version, merge, publish a GitHub Release for vX.Y.Z; the tag must
 # match package.json's version.
 name: release
 
@@ -8,7 +11,7 @@ on:
     tags:
       - "v*"
 
-# Read the tree, plus the OIDC token npm uses to sign provenance.
+# Read the tree, plus the OIDC token npm trades for a one-off publish credential.
 permissions:
   contents: read
   id-token: write
@@ -20,9 +23,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
-          cache: npm
-          registry-url: "https://registry.npmjs.org" # wires NODE_AUTH_TOKEN into .npmrc
+          node-version: 24 # its npm is 11, the line trusted publishing needs
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false # a release installs clean, never from a cache
+      - name: Check npm is new enough for trusted publishing
+        run: |
+          NPM="$(npm --version)"
+          if ! node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); process.exit(a > 11 || (a === 11 && (b > 5 || (b === 5 && c >= 1))) ? 0 : 1)' "$NPM"; then
+            echo "::error::npm $NPM is older than 11.5.1, which trusted publishing needs"
+            exit 1
+          fi
       - run: npm ci
       - name: Verify tag matches package.json version
         run: |
@@ -44,6 +54,4 @@ jobs:
           fi
       # prepublishOnly rebuilds dist and runs the tests first; a red build never reaches the registry.
       - if: steps.check.outputs.skip == 'false'
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
