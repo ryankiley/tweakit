@@ -50,6 +50,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "/AGENTS.md",
     "dist/tweaks",
     "dist/tweaks.js",
     "dist/tweaks.css",

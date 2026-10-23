@@ -41,7 +41,7 @@ test("every docs page that runs the kit preloads every split file; a page that d
   assert.ok(scripted > 0, "at least one page runs the kit");
 });
 
-const files = [...sourcePages.map((f) => `site/pages/${f}`), "README.md"];
+const files = [...sourcePages.map((f) => `site/pages/${f}`), "README.md", "AGENTS.md"];
 const EMPTY_CELL = "<td>—</td>";
 const strip = (line) => line.replaceAll(EMPTY_CELL, "").replace(/(?<=\d)–(?=\d)/g, "-");
 

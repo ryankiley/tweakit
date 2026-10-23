@@ -431,6 +431,19 @@ a { color: inherit; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) {
   .ex-fold-toggle:hover { color: var(--site-text); }
 }
+/* Code tabs (an example's `code` array): quiet text tabs, the chosen one in ink, over one block at a time. */
+.ex-tabs { margin: 14px 0; }
+.ex-tabs .ex-codewrap { margin: 0; }
+.ex-tablist { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0 0 10px; padding: 0 2px; }
+.ex-tab {
+  padding: 2px 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 500;
+  color: var(--site-faint); cursor: pointer; transition: color var(--site-dur-fast) var(--site-ease-out);
+}
+.ex-tab[aria-selected="true"] { color: var(--site-text); }
+.ex-tab:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .ex-tab:hover { color: var(--site-text); }
+}
 .ex-note { font-size: 12.5px; color: var(--site-faint); margin-top: -6px; }
 /* A demo's own action button (the panel-API remotes) — neutral chrome on the --demo-* tokens. */
 .demo-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong); background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px; line-height: 1.4; font-family: inherit; cursor: pointer; }

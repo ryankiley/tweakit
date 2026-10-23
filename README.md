@@ -35,6 +35,29 @@ Everything else is on the **[docs site](https://ryankiley.github.io/tweakit/)**:
 control live, the panel API, theming, markup-driven panels, and the two builds (the
 single-file build vs the code-split entry).
 
+## Coding agents
+
+Read `node_modules/tweakit/AGENTS.md` before writing tweakit code. It is the guide for
+agents (every control and the value it returns, the panel API, how copied values come back),
+version-matched to the installed package, and also at
+[ryankiley.github.io/tweakit/AGENTS.md](https://ryankiley.github.io/tweakit/AGENTS.md).
+To keep it in reach, add to your project's `AGENTS.md` or `CLAUDE.md`:
+
+```md
+This project uses tweakit. Explore the code first, then read node_modules/tweakit/AGENTS.md
+before writing tweakit code; prefer it over what you remember. Values tuned in a panel arrive
+as JSON from its copy button; apply them to the schema defaults in source, not to the panel.
+```
+
+Or hand your agent the whole job:
+
+```text
+Install tweakit in this repo. Read https://ryankiley.github.io/tweakit/AGENTS.md first.
+Install it with this project's package manager, import "tweakit/css", and add one panel with
+a few controls to an existing component so I can tune it live. Bind the values to its styles.
+Verify the build.
+```
+
 ## Floating panel
 
 Every panel drags by its header and lifts into a fixed layer on the first drag. Pass `floating`

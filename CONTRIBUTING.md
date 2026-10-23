@@ -58,6 +58,11 @@ A few things aren't obvious from the file tree and will trip you up otherwise:
   through esbuild, and example code must avoid nested template literals and regex literals
   (the tiny highlighter can't parse them). Scope per-example CSS with an example-unique
   class prefix; nothing auto-scopes.
+  An example's `code` may be an array of `{ label, lang, text }`, shown as tabs; a `text`
+  block is prose and soft-wraps. A page may export `script`, a function run once on that
+  page and shown nowhere. The build also writes a Markdown mirror of every page, `llms.txt`
+  and `llms-full.txt`, and a version-stamped copy of `AGENTS.md`; `test/agents-md.test.mjs`
+  holds the guide to the control registry and the README to the install prompt.
 - **Theming runs entirely on `--tw-*`.** New visual values go through tokens, not
   hardcoded colours. The light token block must exist twice in the shipped CSS (CSS can't
   share a block across a media query and a selector), but only the media-driven block is

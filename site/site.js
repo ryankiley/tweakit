@@ -30,6 +30,29 @@
     wrap.append(btn);
   });
 
+  // Code tabs: one block shown at a time; Left and Right arrows move between tabs.
+  document.querySelectorAll(".ex-tablist").forEach((list) => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const show = (tab) => tabs.forEach((t) => {
+      const on = t === tab;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      const panel = document.getElementById(t.getAttribute("aria-controls"));
+      if (panel) panel.hidden = !on;
+    });
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => show(tab));
+      tab.addEventListener("keydown", (e) => {
+        const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+        if (!d || e.altKey || e.ctrlKey || e.metaKey) return;   // Alt+Left is the browser's Back
+        e.preventDefault();
+        const next = tabs[(i + d + tabs.length) % tabs.length];
+        show(next);
+        next.focus();
+      });
+    });
+  });
+
   // Closed is hidden="until-found", so find-in-page can open a fold; beforematch keeps the toggle in step.
   document.querySelectorAll(".ex-fold-toggle").forEach((btn) => {
     const body = document.getElementById(btn.getAttribute("aria-controls"));
@@ -38,11 +61,7 @@
       btn.setAttribute("aria-expanded", String(open));
       if (open) body.removeAttribute("hidden"); else body.setAttribute("hidden", "until-found");
     };
-    btn.addEventListener("click", () => {
-      const open = btn.getAttribute("aria-expanded") !== "true";
-      set(open);
-      if (open && body.getBoundingClientRect().top > innerHeight - 120) body.scrollIntoView({ block: "start" });
-    });
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true")); // the page never scrolls on its own
     body.addEventListener("beforematch", () => set(true));
   });
 
