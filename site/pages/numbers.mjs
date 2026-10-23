@@ -152,7 +152,7 @@ export const examples = [
     title: "Box sides",
     prose: `<p><code>{ type: "sides" }</code> is one row for a four-sided length: padding,
       margin, border width, or with <code>corners: true</code> a border radius. Linked, it is
-      one number for all four; the link button beside it opens the row in place, four fields in a
+      one number for all four; the button beside it opens the row in place, four fields in a
       line under it in CSS order, each under a glyph for its side or corner.
       The param is the four numbers plus the shorthand they collapse to, so
       <code>el.style.borderRadius = p.radius.css</code> is the whole wiring. Author it as one
@@ -163,7 +163,8 @@ export const examples = [
       .sd-card { display: inline-block; padding: 12px; background: #7C5CFF; transition: border-radius 0.1s; }
       .sd-inner { padding: 14px 22px; font-size: 13px; font-weight: 500; color: #1b1b1b; background: var(--demo-fill); transition: border-radius 0.1s; }`,
     run: ({ tweaks, mount, target }) => {
-      const card = target.querySelector(".sd-card"), inner = target.querySelector(".sd-inner");
+      const card = target.querySelector(".sd-card");
+      const inner = target.querySelector(".sd-inner");
       const panel = tweaks("Box", {
         radius: { type: "sides", value: 16, corners: true, max: 48 },
       });
@@ -171,8 +172,9 @@ export const examples = [
 
       const apply = (p) => {
         card.style.borderRadius = p.radius.css;
-        // The inner card stays concentric: each corner the 12px padding less.
-        inner.style.borderRadius = p.radius.css.replace(/[\d.]+/g, (n) => Math.max(0, n - 12));
+        // The inner card stays concentric: each corner 12px (the padding) less.
+        const less = (n) => Math.max(0, n - 12);
+        inner.style.borderRadius = p.radius.css.replace(/[\d.]+/g, less);
       };
       panel.on(apply);
       panel.ready.then(() => apply(panel.params));

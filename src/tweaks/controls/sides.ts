@@ -8,7 +8,7 @@ import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, SidesValue } from "../types.js";
 
-const ICON_LINK = icon('<path d="M10.5 13.5a4 4 0 0 0 5.6 0l3-3a4 4 0 0 0-5.6-5.6l-1.5 1.5M13.5 10.5a4 4 0 0 0-5.6 0l-3 3a4 4 0 0 0 5.6 5.6l1.5-1.5"/>'); // original: two links of a chain, one path
+const ICON_SPLIT = icon('<path d="M3 9V7a4 4 0 0 1 4-4h2M15 3h2a4 4 0 0 1 4 4v2M21 15v2a4 4 0 0 1-4 4h-2M9 21H7a4 4 0 0 1-4-4v-2"/>'); // original: the four corner arcs of a rounded box, apart
 const ICON_CORNER = icon('<path d="M3 13V8a5 5 0 0 1 5-5h5"/>', "", 1.5, 16); // original: the top-left quarter of a rounded box, turned per corner in CSS
 const ICON_EDGE = icon('<path d="M3 10V8a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2"/>', "", 1.5, 16); // original: the top of that box, two of its corners joined, turned per side
 const LEN_RE = /^(-?\d*\.?\d+)([a-z%]*)$/i;
@@ -30,8 +30,10 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   let v = read(meta.value ?? meta, [0, 0, 0, 0]) || [0, 0, 0, 0], linked = v.every((x) => x === v[0]);
   const root = el("div", "tw-sides");
   const all = numField({ label: meta.label, value: v[0], row: true, ...spec }, (n) => { v = [n, n, n, n]; update(); emit(); });
-  // One link button, moved to whichever block is showing; last in both, so it sits on the same pixels either way.
-  const link = btn("tw-sides-link", ICON_LINK); link.setAttribute("aria-label", "Link all sides"); link.title = "Same on all sides"; link.addEventListener("click", () => toggle());
+  // One toggle, moved to whichever block is showing; last in both, so it sits on the same pixels either way. It says what
+  // a click opens — each corner or side on its own — and is pressed while they are.
+  const split = corners ? "Independent corners" : "Independent sides";
+  const link = btn("tw-sides-link", ICON_SPLIT); link.setAttribute("aria-label", split); link.title = split; link.addEventListener("click", () => toggle());
   // The head has the row's geometry, so opening moves nothing: the readout takes the field's place, with the unit once.
   const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum"), nums = document.createTextNode("");
   sum.append(nums, txt("span", "tw-sides-unit", unit)); head.append(txt("span", "tw-row-label", meta.label), sum);
@@ -48,7 +50,7 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   const value = (): SidesValue => ({ top: v[0], right: v[1], bottom: v[2], left: v[3], css: css() });
   const emit = () => onChange(value());
   const update = () => {
-    root.classList.toggle("is-linked", linked); link.setAttribute("aria-pressed", String(linked));
+    root.classList.toggle("is-linked", linked); link.setAttribute("aria-pressed", String(!linked));
     (linked ? all.el : head).append(link);
     all.set(v[0]); flds.forEach((f, i) => f.set(v[i]));
     nums.data = v.map(fmt).join(" ");

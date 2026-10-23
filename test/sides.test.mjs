@@ -30,10 +30,11 @@ test("every input form, and the CSS shorthand the four collapse to", async () =>
   q.destroy();
 });
 
-test("linked by default when the four agree; the link button opens the fields; linking takes the first side", async () => {
+test("linked by default when the four agree; the toggle opens the fields; linking takes the first side", async () => {
   const p = await mount({ pad: { type: "sides", value: 8 } });
   const root = p.el.querySelector(".tw-sides"), row = root.querySelector(":scope > .tw-row"), link = row.querySelector(".tw-sides-link");
-  assert.ok(root.classList.contains("is-linked")); assert.equal(link.getAttribute("aria-pressed"), "true");
+  assert.ok(root.classList.contains("is-linked")); assert.equal(link.getAttribute("aria-pressed"), "false", "pressed means the four are open");
+  assert.deepEqual([link.getAttribute("aria-label"), link.title], ["Independent sides", "Independent sides"]);
   assert.equal(row.querySelector(".tw-num").value, "8"); assert.match(row.querySelector(".tw-num").getAttribute("aria-label"), /^pad/i);
   assert.equal(row.lastElementChild, link, "the link is the row's last child, after the field");
   link.click();
@@ -42,7 +43,8 @@ test("linked by default when the four agree; the link button opens the fields; l
   assert.deepEqual([...root.querySelectorAll(".tw-field-label")].map((l) => [l.textContent, l.title, l.dataset.at, !!l.querySelector("svg[aria-hidden]")]), [["", "Top", "top", true], ["", "Right", "right", true], ["", "Bottom", "bottom", true], ["", "Left", "left", true]], "a glyph on screen, the full name as the tooltip");
   assert.deepEqual(flds.map((i) => i.getAttribute("aria-label")), ["Top (px)", "Right (px)", "Bottom (px)", "Left (px)"]);
   assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 8 8 8px", "the readout carries the unit once");
-  assert.equal(root.querySelector(".tw-sides-head").lastElementChild, root.querySelector(".tw-sides-multi .tw-sides-link"), "the link is last in the head, as it is last in the row");
+  assert.equal(root.querySelector(".tw-sides-head").lastElementChild, root.querySelector(".tw-sides-multi .tw-sides-link"), "the toggle is last in the head, as it is last in the row");
+  assert.equal(link.getAttribute("aria-pressed"), "true");
   assert.equal(document.activeElement, root.querySelector(".tw-sides-multi .tw-sides-link"), "focus moves to the link in the block that is now showing");
   flds[1].value = "20"; flds[1].dispatchEvent(new window.Event("change", { bubbles: true }));
   assert.deepEqual(four(p.params.pad), [8, 20, 8, 8]); assert.equal(p.params.pad.css, "8px 20px 8px 8px"); assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 20 8 8px");
@@ -56,6 +58,7 @@ test("linked by default when the four agree; the link button opens the fields; l
 test("set() in any form re-judges the link; corners wear corner glyphs, clockwise like the shorthand; min/max fit the value; hostile input is ignored", async () => {
   const p = await mount({ r: { type: "sides", value: 16, corners: true, min: 0, max: 48 } });
   const root = p.el.querySelector(".tw-sides");
+  assert.equal(root.querySelector(".tw-sides-link").getAttribute("aria-label"), "Independent corners");
   const labels = [...root.querySelectorAll(".tw-field-label")];
   assert.deepEqual(labels.map((l) => l.dataset.at), ["top-left", "top-right", "bottom-right", "bottom-left"], "the line reads clockwise, the order the shorthand is written in");
   assert.ok(labels.every((l) => l.textContent === "" && l.querySelector("svg[aria-hidden]")), "each label is a glyph");
