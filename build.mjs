@@ -113,7 +113,7 @@ console.log(`sizes (gzip): code-split ${sizes.split} (core + shared chunk) · si
 // function is toString()-serialized into both the snippet and the page script.
 const { buildSite } = await import("./site/build-site.mjs");
 const chunks = Object.keys(splitBuild.metafile.outputs).filter((k) => k.endsWith(".js")).map((k) => path.basename(k)); // every split file; the pages preload them
-const { version } = JSON.parse(await readFile(p("package.json"), "utf8")); // the sidebar shows it
-await buildSite({ outDir: p("dist"), esbuild, sizes, chunks, version });
+const { version, homepage } = JSON.parse(await readFile(p("package.json"), "utf8")); // the sidebar shows the version; the Markdown files link by the homepage
+await buildSite({ outDir: p("dist"), esbuild, sizes, chunks, version, site: (homepage || "").replace(/\/$/, "") });
 
 console.log("Built tweakit → dist/");

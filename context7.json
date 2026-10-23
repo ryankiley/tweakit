@@ -1,0 +1,19 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Tweakit",
+  "description": "A dependency-free, code-split, real-time parameter panel for the browser: sliders, toggles, a wide-gamut OKLCH color picker, gradient, shadow and motion editors, built from a plain schema.",
+  "excludeFolders": [
+    "src",
+    "test",
+    "site",
+    "dist",
+    "node_modules",
+    ".claude",
+    ".github"
+  ],
+  "excludeFiles": [
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "THIRD-PARTY-NOTICES.md"
+  ]
+}

@@ -2,12 +2,19 @@
  * never transpiled: each example's `run` function is toString()-serialized into both the
  * snippet and the page's module script, so the two can't drift.
  * A page exports meta { slug, title, nav?, description?, hero?, wide? }, intro (HTML under the
- * h1) and examples, blocks of { id, title, prose, target, css, run, html, code, noCaption, noMount, foldCode }. */
+ * h1) and examples, blocks of { id, title, prose, target, css, run, html, code, noCaption, noMount, foldCode };
+ * `code` is a string, { lang, text }, or an array of { label, lang, text } shown as tabs.
+ * A page may also export `script`, a function the page runs once (page-only behaviour, shown nowhere;
+ * toString()-serialized like `run`, so it can't reach the module's imports or constants), and
+ * `md`, blocks shaped like examples that only its Markdown mirror shows (for a page whose
+ * content lives in demo markup the mirror can't read). */
 import { readFile, writeFile, cp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { highlightJS, highlightHTML } from "./highlight.mjs";
+import { esc, dedent, codeBlock, renderCode, codeTabs, extractBody, demoCaption } from "./code.mjs";
+import { pageToMd } from "./markdown.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,13 +25,14 @@ const NAV = [
   { section: "Panel", slugs: ["panel-api", "theming", "markup", "imports"] },
 ];
 
-const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const href = (slug) => `./${slug}.html`;
 
 /** Build the site into outDir. `chunks` is every file of the code-split build; a page that
- * runs examples preloads them all, so the kit arrives in one round trip instead of four. */
-export async function buildSite({ outDir, esbuild, sizes, chunks = [], version }) {
+ * runs examples preloads them all, so the kit arrives in one round trip instead of four.
+ * `site` is the published origin and path, for the absolute links in the Markdown files. */
+export async function buildSite({ outDir, esbuild, sizes, chunks = [], version, site }) {
   if (!version) throw new Error("buildSite: pass the package version (the sidebar shows it)");
+  if (!site) throw new Error("buildSite: pass the site URL (the Markdown mirrors link by it)");
   const shell = await readFile(path.join(HERE, "shell.html"), "utf8");
 
   for (const [file, loader] of [["site.css", "css"], ["site.js", "js"]]) {
@@ -39,7 +47,8 @@ export async function buildSite({ outDir, esbuild, sizes, chunks = [], version }
     for (const slug of group.slugs) {
       const mod = await import(pathToFileURL(path.join(HERE, "pages", `${slug}.mjs`)).href);
       if (mod.meta?.slug !== slug) throw new Error(`pages/${slug}.mjs: meta.slug "${mod.meta?.slug}" must match the filename`);
-      pages.push({ meta: mod.meta, intro: mod.intro || "", examples: mod.examples || [], section: group.section });
+      if (mod.script !== undefined && typeof mod.script !== "function") throw new Error(`pages/${slug}.mjs: script must be a function`);
+      pages.push({ meta: mod.meta, intro: mod.intro || "", examples: mod.examples || [], script: mod.script, md: mod.md || [], section: group.section });
     }
   }
 
@@ -52,6 +61,43 @@ export async function buildSite({ outDir, esbuild, sizes, chunks = [], version }
     await writeFile(path.join(outDir, `${pages[i].meta.slug}.html`), html);
   }
   console.log(`site → ${pages.length} pages: ${pages.map((p) => p.meta.slug + ".html").join(", ")}`);
+  await writeAgentFiles({ outDir, pages, sizes, version, site });
+}
+
+/** The site for a reader that fetches: a Markdown mirror of every page (the same modules, the
+ * same examples), `llms.txt` as its map, `llms-full.txt` as one file, and the agent guide
+ * stamped with the version it documents. The guide's own source carries no version: the copy
+ * in the npm package matches the package by construction, and this copy says which one it is. */
+async function writeAgentFiles({ outDir, pages, sizes, version, site }) {
+  const stamp = `Built from the tweakit source at v${version} on ${new Date().toISOString().slice(0, 10)} UTC.`;
+  const guide = await readFile(path.join(HERE, "..", "AGENTS.md"), "utf8");
+  const stamped = guide.replace(/^(# [^\n]+\n)\n*/, `$1\n> ${stamp} The copy inside the installed package, node_modules/tweakit/AGENTS.md, matches whatever version you have.\n\n`);
+  if (stamped === guide) throw new Error("AGENTS.md must open with an H1 line (the build stamps the site copy under it)");
+  await writeFile(path.join(outDir, "AGENTS.md"), stamped);
+
+  const mirrors = [];
+  for (const page of pages) {
+    const md = pageToMd(page, { site, sizes });
+    await writeFile(path.join(outDir, `${page.meta.slug}.md`), md);
+    mirrors.push(md);
+  }
+
+  const line = (p) => `- [${p.meta.nav || p.meta.title}](${site}/${p.meta.slug}.md): ${p.meta.description || p.meta.title}\n`;
+  let llms = "# Tweakit\n\n> A dependency-free, code-split, real-time parameter panel for the browser. `npm install tweakit`, then hand `tweaks(name, schema)` a plain object and it builds a live control for each value.\n\n";
+  llms += `${stamp} Start with the agent guide; the rest is the docs site, one Markdown file per page.\n`;
+  for (const group of NAV) {
+    llms += `\n## ${group.section}\n`;
+    if (group.section === "Guide") llms += `- [Agent guide](${site}/AGENTS.md): every control and the value it returns, the panel API, how copied values come back; the same file ships inside the npm package.\n`;
+    for (const slug of group.slugs) llms += line(pages.find((p) => p.meta.slug === slug));
+  }
+  llms += `\n## Optional\n- [Everything in one file](${site}/llms-full.txt): the guide and every page above, concatenated.\n- [Type declarations](https://unpkg.com/tweakit/dist/types/tweaks/types.d.ts): every option, with its doc comment.\n`;
+  await writeFile(path.join(outDir, "llms.txt"), llms);
+
+  // One fetch reads it whole only under 100,000 characters (the common cap); past that, trim the docs or drop the file.
+  const full = [stamped, ...mirrors].join("\n\n---\n\n");
+  if (full.length > 100_000) throw new Error(`llms-full.txt would be ${full.length} characters; agents truncate past 100,000`);
+  await writeFile(path.join(outDir, "llms-full.txt"), full);
+  console.log(`agents → AGENTS.md, llms.txt, llms-full.txt (${full.length} chars), ${mirrors.length} .md mirrors`);
 }
 
 function renderPage(shell, pages, idx, chunks = [], version = "") {
@@ -76,6 +122,7 @@ function renderPage(shell, pages, idx, chunks = [], version = "") {
   // The function replacement disarms `$` in values and never rescans substituted content.
   const values = {
     title: esc(title),
+    slug: esc(meta.slug),
     description: esc(meta.description || "Tweakit — a dependency-free, code-split, real-time parameter panel."),
     styles: css ? `  <style>${css}</style>` : "",
     nav: renderNav(pages, meta.slug),
@@ -113,8 +160,8 @@ function renderFootnav(pages, idx) {
 }
 
 function renderExample(ex, ids, captioned) {
-  if (ex.run || ex.html) {
-    if (!ex.id) throw new Error(`example "${ex.title || "?"}": run/html examples need an id`);
+  if ((ex.run || ex.html) && !ex.id) throw new Error(`example "${ex.title || "?"}": run/html examples need an id`);
+  if (ex.id) {                                     // every id is a page id (ex-*, tab-*, fold-*), so each must be unique
     if (ids.has(ex.id)) throw new Error(`duplicate example id "${ex.id}"`);
     ids.add(ex.id);
   }
@@ -123,10 +170,12 @@ function renderExample(ex, ids, captioned) {
   let code = "";
   if (ex.run) code = codeBlock(highlightJS(extractBody(ex.run)), "js");
   else if (ex.html) code = codeBlock(highlightHTML(dedent(ex.html).trim()), "html");
-  if (ex.code) {
-    const c = typeof ex.code === "string" ? { lang: "js", text: ex.code } : ex.code;
-    const text = dedent(c.text).trim();
-    code += codeBlock(c.lang === "html" ? highlightHTML(text) : c.lang === "js" ? highlightJS(text) : esc(text), c.lang);
+  // An array of { label, lang, text } renders as tabs over one block at a time.
+  if (Array.isArray(ex.code)) {
+    if (!ex.id) throw new Error(`example "${ex.title || "?"}": code tabs need an id`);
+    code += codeTabs(ex.id, ex.code, ex.title);
+  } else if (ex.code) {
+    code += renderCode(typeof ex.code === "string" ? { lang: "js", text: ex.code } : ex.code);
   }
 
   // A fold is a toggle plus a separate body (not one <details>) so the toggle can sit inside the
@@ -149,34 +198,16 @@ function renderExample(ex, ids, captioned) {
   }
   code = toggle + code;
 
-  const note = captioned
-    ? `<p class="ex-note"><code>mount</code> is the panel's slot inside the stage${ex.target != null ? "; <code>target</code> is the demo surface it controls" : ""}. In your own page you'd just <code>document.body.append(panel.el)</code>.</p>`
-    : "";
+  const note = captioned ? demoCaption(ex.target != null) : "";
   return `<section class="ex"${ex.id ? ` id="ex-${ex.id}"` : ""}>${heading}${ex.prose || ""}${live}${code}${note}</section>`;
 }
 
-const codeBlock = (html, lang) => `<div class="ex-codewrap"><pre class="ex-code" data-lang="${lang}"><code>${html}</code></pre></div>`;
 
-// The displayed snippet is the run function's own body.
-function extractBody(fn) {
-  const src = fn.toString();
-  const arrow = src.indexOf("=>");
-  const open = src.indexOf("{", arrow);
-  if (arrow < 0 || open < 0) throw new Error("example `run` must be an arrow function with a braced body");
-  return dedent(src.slice(open + 1, src.lastIndexOf("}")));
-}
-
-function dedent(text) {
-  const lines = String(text).replace(/^\n+/, "").replace(/\s+$/, "").split("\n");
-  const indents = lines.filter((l) => l.trim()).map((l) => l.match(/^[ \t]*/)[0].length);
-  const min = indents.length ? Math.min(...indents) : 0;
-  return lines.map((l) => l.slice(min)).join("\n");
-}
 
 function renderScript(page) {
   const runs = page.examples.filter((ex) => ex.run);
   const hasMarkup = page.examples.some((ex) => ex.html);
-  if (!runs.length && !hasMarkup) return "";
+  if (!runs.length && !hasMarkup && !page.script) return "";
   // Importing core auto-runs enhance(document), which alone powers the [data-tw] markup examples.
   let js = `import { tweaks, enhance, gradientCss } from "./tweaks/core.js";\n`;
   if (runs.length) {
@@ -187,6 +218,11 @@ function renderScript(page) {
       if (/<\/script|<!--/i.test(src)) throw new Error(`example "${ex.id}": "</script" and "<!--" cannot appear in run source`);
       js += `wire(${JSON.stringify(`ex-${ex.id}`)}, ${src});\n`;
     }
+  }
+  if (page.script) {
+    const src = page.script.toString();
+    if (/<\/script|<!--/i.test(src)) throw new Error(`pages/${page.meta.slug}.mjs: "</script" and "<!--" cannot appear in script source`);
+    js += `(${src})();\n`;
   }
   return `<script type="module">\n${js}</script>`;
 }

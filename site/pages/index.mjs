@@ -1,5 +1,7 @@
 /* Landing page: the name, set large, is the specimen; one panel beside it
  * drives its type, fill, shadow and motion. The docs live on the other pages. */
+import { codeTabs } from "../code.mjs";
+import { installTabs } from "../install.mjs";
 
 export const meta = {
   slug: "index",
@@ -12,6 +14,34 @@ export const meta = {
 
 export const intro = "";
 
+// Opening the schema: the top spacer is pinned at its closed size (measured just before the
+// fold opens) while the pane's slot gives up its height, so the word stays put and the schema
+// lands under its toggle. The site's fold handler opens and closes the body; this follows it.
+export const script = () => {
+  const grid = document.getElementById("ex-specimen"), body = grid.querySelector(".ex-fold-body");
+  const desktop = matchMedia("(min-width: 1001px)");          // the phone layout has no top spacer to pin
+  let top = "";
+  const measure = () => { if (body.hidden) top = desktop.matches ? getComputedStyle(grid).gridTemplateRows.split(" ")[0] : ""; };
+  // Capturing on ancestors, so these run before the fold's own handlers in every engine.
+  grid.querySelector(".ex-fold").addEventListener("click", measure, true);
+  grid.addEventListener("beforematch", measure, true);       // find-in-page opens it the same way
+  addEventListener("resize", () => { if (!body.hidden) grid.style.removeProperty("--row-top"); }); // the pin was the old layout's
+  new MutationObserver(() => {
+    grid.classList.toggle("is-open", !body.hidden);
+    if (!body.hidden) { if (top) grid.style.setProperty("--row-top", top); return; }
+    grid.style.removeProperty("--row-top");
+    dispatchEvent(new Event("resize"));                      // the slot is whole again: the pane re-centres in it
+  }).observe(body, { attributes: true, attributeFilter: ["hidden"] });
+};
+
+// What the hero says, for the Markdown mirror (the page itself sets it inside the demo).
+export const md = [
+  { prose: `<p>A dependency-free, code-split, real-time parameter panel. Hand it a plain schema;
+      it builds a live control for each value: sliders, color, curves, springs, and more.</p>
+      <ul><li>No framework</li><li>{{size-split}} gzip code-split</li><li>TypeScript types included</li></ul>` },
+  { title: "Install", code: installTabs },
+];
+
 export const examples = [
   {
     id: "specimen",
@@ -20,7 +50,7 @@ export const examples = [
     target: `
       <div class="sp-stage">
         <h1 class="sp-text">Tweakit</h1>
-        <p class="sp-about">A dependency-free, code-split, real-time <strong>parameter panel</strong>.
+        <p class="sp-about">A dependency-free, code-split, real-time parameter panel.
         Hand it a plain schema; it builds a live control for each value: sliders,
         color, curves, springs, and more.</p>
         <div class="hero-meta">
@@ -28,13 +58,16 @@ export const examples = [
           <span class="hero-pill">{{size-split}} gzip code-split</span>
           <span class="hero-pill">TypeScript types included</span>
         </div>
+        ${codeTabs("install", installTabs, "Install")}
       </div>`,
     css: `
       /* One grid for the whole example. The pane spans the right; the word, the copy and the
        * schema toggle sit between two equal flexible rows beside it. The schema itself opens in a
-       * full-width row under both, so opening it moves nothing above. */
+       * full-width row under both. While it is open the top spacer is pinned at its closed size
+       * (--row-top, set by the page's script) and the pane's slot gives up its first-screen
+       * height, so the schema opens right under its toggle and nothing above it moves. */
       #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) minmax(256px, auto); /* the panel's default --tw-width, or a theme's wider one */
-                     grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr) auto; /* zero floor on the spacers, or they pad themselves from the pane */
+                     grid-template-rows: var(--row-top, minmax(0, 1fr)) auto auto minmax(0, 1fr) auto; /* zero floor on the spacers, or they pad themselves from the pane */
                      column-gap: clamp(40px, 6vw, 80px); margin: 0; }
       #ex-specimen .ex-live { display: contents; }
       #ex-specimen .ex-target { grid-column: 1; grid-row: 2; min-height: 0; padding: 0; display: block; container-type: inline-size; }
@@ -42,6 +75,10 @@ export const examples = [
        * below); the run centres the pane in it once, so its top stays put when a folder closes.
        * The stack's flexible rows span the same slot, so the stack centres there too. */
       #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / 5; align-self: stretch; min-height: calc(100svh - 88px); }
+      #ex-specimen.is-open .ex-mount { min-height: 0; } /* the pane keeps its padding-top, so it stays put */
+      /* Opening and closing the schema never scrolls the page: the browser's scroll anchoring would
+       * follow the fold's move on a reopen (measured: +180px in Chromium), so this page opts out of it. */
+      html { overflow-anchor: none; }
       #ex-specimen .ex-fold { grid-column: 1; grid-row: 3; margin: 26px 0 0; }
       #ex-specimen .ex-fold-body { grid-column: 1 / -1; grid-row: 5; min-width: 0; }
       #ex-specimen .ex-fold-body:not([hidden]) { margin-top: 32px; }
@@ -57,16 +94,19 @@ export const examples = [
                       -webkit-background-clip: text; background-clip: text; transform-origin: 50% 100%; }
       .doc .sp-about { max-width: 52ch; margin: 0; font-size: 16px; }
       .sp-stage .hero-meta { margin-top: 16px; }
+      .sp-stage .ex-tabs { width: 100%; max-width: 52ch; margin: 28px 0 0; } /* the install line, as wide as the copy */
       @media (max-width: 1000px) {
         #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 0; margin-top: 40px; } /* room for the hop under the top bar */
         #ex-specimen .ex-target { grid-row: 1; }
         #ex-specimen .ex-fold { grid-row: 2; margin: 22px 0 0; text-align: center; }
-        #ex-specimen .ex-mount { grid-column: 1; grid-row: 3; justify-self: center; margin-top: 32px; min-height: 0; padding-top: 0 !important; }
-        #ex-specimen .ex-fold-body { grid-row: 4; }
+        #ex-specimen .ex-fold-body { grid-row: 3; }
+        #ex-specimen .ex-mount { grid-column: 1; grid-row: 4; justify-self: center; margin-top: 32px; min-height: 0; padding-top: 0 !important; }
         #ex-specimen .ex-fold-body:not([hidden]) { margin-top: 24px; }
         .doc .sp-text { align-self: center; text-align: center; }
         .doc .sp-about { margin-inline: auto; text-align: center; }
         .sp-stage .hero-meta { justify-content: center; }
+        .sp-stage .ex-tabs { margin-inline: auto; }
+        .sp-stage .ex-tablist { justify-content: center; }
       }`,
     run: ({ tweaks, gradientCss, mount, target }) => {
       const text = target.querySelector(".sp-text");
@@ -158,6 +198,7 @@ export const examples = [
       // the slot (not collapsed, not floated out), so a closed folder or a drag can't shift it.
       let fullHeight = 0;
       const centre = () => {
+        if (mount.closest(".is-open")) return;                     // the schema is open and the slot shorter for now: stay put
         const inSlot = panel.el.parentElement === mount, open = panel.el.querySelector(".tw-header-toggle")?.getAttribute("aria-expanded") !== "false";
         if (inSlot && open) fullHeight = Math.max(fullHeight, panel.el.offsetHeight);
         mount.style.paddingTop = "0px";

@@ -92,4 +92,26 @@ export const examples = [
       // call unsubscribe() to stop listening; panel.params stays live either way
     },
   },
+  {
+    id: "prompts",
+    title: "Ask your coding agent",
+    prose: `<p>The quickest way in is to describe what you want and let your agent wire it up.
+      The guide it reads is <a href="./AGENTS.md">AGENTS.md</a>, which also ships inside the
+      package, so an installed copy always matches the installed version. A few prompts to try;
+      each one copies. The last takes the JSON the panel's copy button puts on the clipboard,
+      pasted under it.</p>`,
+    code: [
+      { label: "Add controls", lang: "text", text: `
+        Add a tweakit panel to this card so I can tune its shadow, corner radius and background
+        color live. Keep the shadow's fields in a folder. Bind the values to the card's styles.` },
+      { label: "Tune a motion", lang: "text", text: `
+        This hover animation uses a spring. Add a tweakit panel with a motion control for the
+        spring and a slider for the hover scale, and drive the animation from the panel's values.` },
+      { label: "Apply copied values", lang: "text", text: `
+        These values were copied from a tweakit panel. Apply them as the new defaults in the
+        schema in source, and leave the panel in place.
+
+        { "radius": 22, "shadow.blur": 28, "tint": "oklch(72% 0.14 290)" }` },
+    ],
+  },
 ];
