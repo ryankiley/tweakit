@@ -155,22 +155,25 @@ export const examples = [
       one number for all four; the link button beside it opens the row in place, four fields in a
       line under it in CSS order, each under a glyph for its side or corner.
       The param is the four numbers plus the shorthand they collapse to, so
-      <code>el.style.padding = p.pad.css</code> is the whole wiring. Author it as one number,
-      <code>[vertical, horizontal]</code>, the four, or a CSS string like
+      <code>el.style.borderRadius = p.radius.css</code> is the whole wiring. Author it as one
+      number, <code>[vertical, horizontal]</code>, the four, or a CSS string like
       <code>"8px 16px"</code>.</p>`,
     target: `<div class="sd-card"><div class="sd-inner">Card</div></div>`,
     css: `
-      .sd-card { display: inline-block; background: #7C5CFF; transition: padding 0.1s, border-radius 0.1s; }
-      .sd-inner { padding: 14px 22px; font-size: 13px; font-weight: 500; color: #1b1b1b; background: var(--demo-fill); border-radius: 8px; }`,
+      .sd-card { display: inline-block; padding: 12px; background: #7C5CFF; transition: border-radius 0.1s; }
+      .sd-inner { padding: 14px 22px; font-size: 13px; font-weight: 500; color: #1b1b1b; background: var(--demo-fill); transition: border-radius 0.1s; }`,
     run: ({ tweaks, mount, target }) => {
-      const card = target.querySelector(".sd-card");
+      const card = target.querySelector(".sd-card"), inner = target.querySelector(".sd-inner");
       const panel = tweaks("Box", {
-        pad: { type: "sides", value: [12, 20], min: 0, max: 60 },         // [vertical, horizontal]
-        radius: { type: "sides", value: 16, corners: true, max: 48 },     // corners floor at 0 on their own
+        radius: { type: "sides", value: 16, corners: true, max: 48 }, // corners floor at 0 on their own
       });
       mount.append(panel.el);
 
-      const apply = (p) => { card.style.padding = p.pad.css; card.style.borderRadius = p.radius.css; };
+      const apply = (p) => {
+        card.style.borderRadius = p.radius.css;
+        const r = p.radius; // the inner card stays concentric: each corner 12px (the padding) less
+        inner.style.borderRadius = [r.top, r.right, r.bottom, r.left].map((x) => `${Math.max(0, x - 12)}px`).join(" ");
+      };
       panel.on(apply);
       panel.ready.then(() => apply(panel.params));
     },
