@@ -80,7 +80,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `slider` | `value, min, max, step, unit, soft, format, parse` | number |
 | `number` | `value, min, max, step, unit, soft` | number |
 | `interval` | `value: [lo, hi], min, max, step` | `[lo, hi]` |
-| `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`), `unit, step, min, max, corners` | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
+| `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`), `unit, step, min, max, corners`; the four floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
 | `point` | `components: [{ key, label, value, min, max, step }], pad, invertY` | an object keyed by component, such as `{ x, y }` |
 | `checkbox` | `value` | boolean |
 | `text` | `value, rows, placeholder` | string |
@@ -90,7 +90,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `color` | `value` | color string in the picker's notation: `oklch(60% 0.23 286)` by default, whatever you wrote; `#rrggbb` once the user picks hex |
 | `gradient` | `stops: [[color, position], …]` | `{ stops: [{ color, pos }], interpolation, easing }`, which goes back in whole as `value`; `gradientCss(value, angle)` makes the CSS |
 | `shadow` | `x, y, blur, spread, color, inset`, or `value` as a `box-shadow` string | `{ x, y, blur, spread, color, inset, css }`; `css` is ready for `box-shadow` |
-| `image` | `value` | a URL or data URL string, empty when none |
+| `image` | `value`; `options` (URLs or `{ value, label }`) makes a gallery, with `cols, maxSize, upload` | the chosen URL, the upload's data URL, or `""` |
 | `motion` | `mode: "easing"` with `curve` and `duration` (ms), or `mode: "spring"` with `stiffness, damping, mass` or `visualDuration, bounce` | `{ mode, …, duration, easing }`; `easing` is a `cubic-bezier(…)` or sampled `linear(…)` string for a CSS transition; a spring's `duration` is its settle time |
 | `spring` | `mode: "time"` or `"physics"`, `visualDuration, bounce, stiffness, damping, mass` | `{ stiffness, damping, mass }`, plus the time pair when tuned by feel |
 | `cubicbezier` | `value: [x1, y1, x2, y2]` | `[x1, y1, x2, y2]` |
