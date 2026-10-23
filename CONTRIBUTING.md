@@ -19,13 +19,18 @@ typescript).
 ## Where things live
 
 - `src/tweaks/` — the kit. `core.ts` is the public entry (re-exports only); the
-  implementation is split by job: `shared.ts` (helpers, drag/scrub, the numeric field,
-  theming, the popover shell, the control registry), `schema.ts` (schema value /
-  `[data-tw]` dataset → control meta), `panel.ts` (`tweaks()` and the panel API),
-  `enhance.ts` (markup enhancement + its on-load auto-run), `feedback.ts` (toast, hint
-  tooltip, toolbar buttons), `icons.ts`, `lazy.ts` (the dynamic-import map),
-  `types.ts` (the public type surface), `controls/basic.ts` (the light always-loaded
-  controls) and `controls/*.ts` (the heavy controls, dynamic-imported on first use).
+  implementation is split by job: `shared.ts` (helpers, theming, the popover shell, the
+  control registry), `schema.ts` (schema value → control meta), `panel.ts` (`tweaks()` and
+  the panel API), `standalone.ts` (`mountControl()` and `createColorPicker()`),
+  `feedback.ts` (the copy / reset buttons, the hint tooltip, the screen-reader announcer),
+  `icons.ts`, `lazy.ts` (the dynamic-import map), `easing.ts` (gradient easing and
+  `gradientCss()`), `types.ts` (the public type surface), `controls/basic.ts` (the light
+  always-loaded controls) and `controls/*.ts` (the heavy controls, dynamic-imported on
+  first use). Four more modules are lazy chunks of the code-split build, so a basic panel
+  never fetches them: `heavy.ts` (the numeric field, scrub and canvas helpers only the
+  heavy controls use, plus the Number control), `markup.ts` (the `[data-tw]` parsers and
+  the binding behind `enhance()`; `enhance.ts` is core's side of it and the on-load
+  auto-run), `clip.ts` (a picked row's paste) and `fold.ts` (the conditional row's fold).
 - `src/wide-gamut.ts` — the OKLCH / wide-gamut colour engine.
 - `src/tweaks.css` — panel styling, entirely on `--tw-*` custom properties.
 - `site/` — the docs/examples site and its zero-dependency generator.

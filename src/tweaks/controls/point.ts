@@ -62,7 +62,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
 
   // Readout: the components at each step's precision, so a value reads "−1.00, −0.46" (steady columns), not "−1, −0.46".
   const fmt = (v: number, step: number) => (+v).toFixed(stepPrecision(step));
-  const paintValue = () => { valueEl.textContent = comps.map((c, k) => fmt(flds[k].get(), ranges[k].step)).join(", "); };
+  const paintValue = () => { valueEl.textContent = flds.map((f, k) => fmt(f.get(), ranges[k].step)).join(", "); };
   let positionPad = () => { previewDot.style.left = "50%"; previewDot.style.top = "50%"; };
 
   if (hasPad) {
