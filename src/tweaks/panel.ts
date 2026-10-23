@@ -557,10 +557,24 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Bounded: each step is a deep clone of every value.
     const HIST_MAX = 200;
     let history: Snapshot[] = [], histIdx = 0, applyingHistory = false, histTimer = 0;
+    // Walk a new step beside the one before it: a string that didn't change takes the earlier step's copy, so an image's
+    // data URL is held once across history, not once a step. Strings only, never objects, so no step can edit another.
+    // True when nothing changed, which spares serialising both steps to compare them.
+    const share = (a: any, b: any): boolean => {
+      if (a === b) return true;
+      if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+      const keys = Object.keys(a); let same = keys.length === Object.keys(b).length;
+      for (const k of keys) {
+        if (!hasOwn(b, k)) { same = false; continue; }
+        if (typeof a[k] === "string") { if (a[k] === b[k]) a[k] = b[k]; else same = false; }
+        else if (!share(a[k], b[k])) same = false;
+      }
+      return same;
+    };
     const commit = () => {
       histTimer = 0;
       const snap = snapshot();
-      if (JSON.stringify(snap) === JSON.stringify(history[histIdx])) return; // unchanged
+      if (share(snap, history[histIdx])) return; // unchanged
       history = history.slice(0, histIdx + 1); history.push(snap); // a new edit drops the redo branch
       if (history.length > HIST_MAX) history = history.slice(history.length - HIST_MAX); // oldest steps age out
       histIdx = history.length - 1;

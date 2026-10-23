@@ -5,6 +5,7 @@
  * panel.test.mjs. */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { window } from "./_setup-dom.mjs";
 import { loadSingle, tick } from "./_helpers.mjs";
 
@@ -134,4 +135,30 @@ test("a persist write storage refuses is retried without the image values, so th
     assert.equal(warned.length, 2, "and the host was told which preset");
     p.destroy();
   } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
+});
+
+// Each undo step was a deep clone of every value, so after an upload every later step held its own copy of it: a 4 MB image
+// and 20 slider edits grew the heap by ~80 MB, and history keeps 200 steps. A step now shares what didn't change with the one before.
+test("undo history keeps one copy of an unchanged big value, not one per step", () => {
+  const SETUP = new URL("./_setup-dom.mjs", import.meta.url).href, BUNDLE = new URL("../dist/tweaks.js", import.meta.url).href;
+  const r = spawnSync(process.execPath, ["--expose-gc", "--input-type=module", "-e", `
+    await import(${JSON.stringify(SETUP)});
+    const { tweaks } = await import(${JSON.stringify(BUNDLE)});
+    const p = tweaks("U", { x: [0, 0, 100, 1], pic: { type: "image" } }, { undo: true });
+    await p.ready;
+    const big = "data:image/png;base64," + "A".repeat(4 << 20);
+    p.set("pic", big); p.undo(); p.redo(); // undo() flushes the pending step first, so the upload is one step
+    gc(); const before = process.memoryUsage().heapUsed;
+    for (let i = 1; i <= 20; i++) { p.set("x", i); p.undo(); p.redo(); }
+    gc(); const grew = process.memoryUsage().heapUsed - before;
+    if (p.params.x !== 20 || p.params.pic !== big) throw new Error("redo lost a value");
+    p.undo(); if (p.params.x !== 19 || p.params.pic !== big) throw new Error("undo lost a value");
+    for (let i = 0; i < 19; i++) p.undo();
+    if (p.params.x !== 0 || p.params.pic !== big) throw new Error("undo to the upload step lost it");
+    p.undo(); if (p.params.pic !== "") throw new Error("undo past the upload kept it");
+    console.log(Math.round(grew / (1 << 20)));
+  `], { timeout: 30000, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  const mb = +r.stdout.trim();
+  assert.ok(mb < 16, `20 edits after a 4 MB upload grew the heap by ${mb} MB`);
 });
