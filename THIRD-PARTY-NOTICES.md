@@ -20,6 +20,7 @@ reproduced below.
 | `ICON_PRESETS` | Hugeicons `layer` | MIT |
 | `ICON_RESET` | Hugeicons `undo` | MIT |
 | `ICON_GRIP` | original to this project | — |
+| `ICON_UPLOAD` | original to this project | — |
 
 - Hugeicons — <https://hugeicons.com> — © 2025 Hugeicons (MIT), from the
   `@hugeicons/core-free-icons` package
