@@ -110,7 +110,7 @@ export const examples = [
         card.textContent = `${p.angle}°`;
       };
       panel.on(apply);
-      apply(panel.params);
+      panel.ready.then(() => apply(panel.params)); // number loads lazily
     },
   },
   {

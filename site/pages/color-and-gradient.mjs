@@ -117,6 +117,7 @@ export const examples = [
     css: `
       .img-tile { display: grid; place-items: center; width: 220px; height: 170px; border-radius: 16px;
                   background-color: var(--demo-fill-soft); background-size: cover; background-position: center;
+                  background-repeat: no-repeat; background-origin: border-box; /* cover the border too, so no wrapped edge shows */
                   border: 1px solid var(--demo-line); }
       .img-tile span { max-width: 18ch; text-align: center; font-size: 12.5px; color: var(--demo-faint); }`,
     run: ({ tweaks, mount, target }) => {
