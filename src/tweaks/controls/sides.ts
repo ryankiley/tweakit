@@ -1,6 +1,6 @@
 // ── Sides — one row for a four-sided length (padding, margin, border width, or with `corners` a radius): one field
-// linked, four in CSS order unlinked. The value is the four numbers plus the shorthand `css`, built only from the
-// numbers and the unit — never a host string. Lazy. ──
+// linked, four unlinked — sides in CSS order, corners laid out as on the box. The value is always the four numbers in
+// CSS order plus the shorthand `css`, built only from the numbers and the unit — never a host string. Lazy. ──
 import { el, txt, btn, icon, registerControl } from "../shared.js";
 import { numField } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
@@ -33,11 +33,13 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum");
   head.append(txt("span", "tw-row-label", meta.label), sum);
   const fields = el("div", "tw-fields");
-  const names = corners ? ["Top-left", "Top-right", "Bottom-right", "Bottom-left"] : ["T", "R", "B", "L"];
+  const names = corners ? ["Top-left", "Top-right", "Bottom-right", "Bottom-left"] : ["Top", "Right", "Bottom", "Left"];
   const flds: NumField[] = names.map((n, i) => numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }));
-  // Corners sit where they do on the box (TL TR / BL BR) and show a glyph; the value stays in CSS order.
+  // Corners sit where they do on the box (TL TR / BL BR); the value stays in CSS order.
   (corners ? [0, 1, 3, 2] : [0, 1, 2, 3]).forEach((i) => fields.append(flds[i].el));
-  if (corners) flds.forEach((f, i) => { const lab = f.el.firstChild as HTMLElement; lab.className = "tw-field-label tw-sides-corner"; lab.dataset.corner = names[i].toLowerCase(); lab.title = names[i]; lab.innerHTML = ICON_CORNER; });
+  // The input and the tooltip carry the full name; the visible label is a letter, or for a corner its glyph.
+  flds.forEach((f, i) => { const lab = f.el.querySelector<HTMLElement>(".tw-field-label")!; lab.title = names[i]; if (corners) { lab.classList.add("tw-sides-corner"); lab.dataset.corner = names[i].toLowerCase(); lab.innerHTML = ICON_CORNER; } else lab.textContent = names[i][0]; });
+  if (corners) sum.title = "In shorthand order: top-left, top-right, bottom-right, bottom-left"; // the readout mirrors `css`, not the grid
   multi.append(head, fields); root.append(all.el, multi);
   // As the fields fitted them.
   v = flds.map((f) => f.get());
