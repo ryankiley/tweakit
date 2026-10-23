@@ -437,13 +437,22 @@ let MARKUP: ((root: Document | Element, kit: any) => Promise<void>) | null = nul
 export const setMarkup = (fn: typeof MARKUP) => { MARKUP = fn; };
 export const getMarkup = <K>() => MARKUP as ((root: Document | Element, kit: K) => Promise<void>) | null;
 
+// What a click or a run of keys did, in words, for a screen reader: one visually hidden status region for the page,
+// where the toast used to speak. It's cleared and written a beat later, so the same words twice are read twice.
+let srEl: HTMLDivElement | null = null, srT = 0;
+const announce = (msg: string) => {
+  if (!srEl) { srEl = el("div", "tw-sr"); srEl.setAttribute("role", "status"); }
+  if (!srEl.isConnected) document.body.appendChild(srEl); // re-home after a host replaced <body>'s content
+  srEl.textContent = ""; clearTimeout(srT); srT = setTimeout(() => { srEl!.textContent = msg; }, 100);
+};
+
 export {
   titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
   normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
-  blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon,
+  blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };
 // Re-exported for the chunking: core and the gradient control both import easing.ts, and a

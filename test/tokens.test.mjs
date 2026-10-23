@@ -46,3 +46,23 @@ test("no token is defined in terms of itself", () => {
     .map(([, name]) => name);
   assert.deepEqual([...new Set(cycles)], []);
 });
+
+// Secondary, tertiary, label and section text style the 10–12px labels, so each has to clear WCAG 4.5:1 on the base it
+// sits on, in both schemes. Read from the source sheet: the minifier may rewrite a colour, the tokens are plain there.
+test("secondary, tertiary, label and section text clear 4.5:1 on the base in both schemes", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../src/tweaks.css", import.meta.url), "utf8");
+  const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+  const rgba = (s) => { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)|#([0-9a-f]{6})\b/i.exec(s); assert.ok(m, `a colour: ${s}`); return m[5] ? [...[0, 2, 4].map((i) => parseInt(m[5].slice(i, i + 2), 16)), 1] : [+m[1], +m[2], +m[3], m[4] == null ? 1 : +m[4]]; };
+  const ratio = ([r, g, b, a], bg) => { const c = [r, g, b].map((v, i) => v * a + bg[i] * (1 - a)); const [h, l] = [lum(c), lum(bg)].sort((x, y) => y - x); return (h + 0.05) / (l + 0.05); };
+  const blocks = [...src.matchAll(/([^{}]+)\{([^{}]*--tw-base:[^{}]*)\}/g)];
+  assert.equal(blocks.length, 2, "a dark and a light token block declare --tw-base");
+  for (const [, sel, decl] of blocks) {
+    const tok = (n) => rgba(new RegExp(`${n}:\\s*([^;]+)`).exec(decl)[1]);
+    const base = tok("--tw-base").slice(0, 3);
+    for (const n of ["--tw-text-secondary", "--tw-text-tertiary", "--tw-text-label", "--tw-text-section"]) {
+      const r = ratio(tok(n), base);
+      assert.ok(r >= 4.5, `${n} in ${sel.trim().slice(0, 24)}… is ${r.toFixed(2)}:1 on the base`);
+    }
+  }
+});

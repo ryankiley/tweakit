@@ -1,6 +1,7 @@
 /* Panel feedback chrome — the toolbar button factories (copy / reset and their one-shot
- * animations), the screen-reader announcer, the hint tooltip and the clipboard helper. */
-import { el, btn, carrySkin, placeBelow } from "./shared.js";
+ * animations), the hint tooltip and the clipboard helper. The screen-reader announcer they
+ * speak through lives in shared.ts, where the lazy controls reach it too. */
+import { el, btn, carrySkin, placeBelow, announce } from "./shared.js";
 import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 
 /** A toolbar button with its one-shot animation state: timer, spin settle hook, last click time. */
@@ -21,14 +22,6 @@ const makeCopyBtn = (text: (changedOnly: boolean) => [string, number]) => {
     flashCopied(b); announce(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : "Values copied");
   });
   return b;
-};
-// What a click did, in words, for a screen reader: one visually hidden status region for the page, where the toast used
-// to speak. It's cleared and written a beat later, so the same words twice are read twice.
-let srEl: HTMLDivElement | null = null, srT = 0;
-const announce = (msg: string) => {
-  if (!srEl) { srEl = el("div", "tw-sr"); srEl.setAttribute("role", "status"); }
-  if (!srEl.isConnected) document.body.appendChild(srEl); // re-home after a host replaced <body>'s content
-  srEl.textContent = ""; clearTimeout(srT); srT = setTimeout(() => { srEl!.textContent = msg; }, 100);
 };
 /** Reset: runs `onReset` behind the icon's one-shot spin. */
 const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };

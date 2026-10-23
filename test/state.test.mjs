@@ -5,7 +5,7 @@
  * panel.test.mjs. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import "./_setup-dom.mjs";
+import { window } from "./_setup-dom.mjs";
 import { loadSingle, tick } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
@@ -92,4 +92,24 @@ test("gradient normalises its value: default pair, clamped positions, tuple stop
   assert.ok(typeof p.params.def.interpolation === "string");
   const pos = p.params.tup.stops.map((s) => s.pos);
   assert.deepEqual(pos, [0, 1]); // out-of-range positions clamp into [0,1]
+});
+
+test("a persist write storage refuses is retried without the image values, so the rest still saves", async () => {
+  const big = "data:image/gif;base64," + "A".repeat(4096);
+  const setItem = window.Storage.prototype.setItem; // the instance can't be patched: Storage's named setter would store the function as a key
+  window.Storage.prototype.setItem = function (k, v) { if (String(v).includes(big)) throw new DOMException("quota", "QuotaExceededError"); return setItem.call(this, k, v); };
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  try {
+    const p = tweaks("P", { x: [1, 0, 10, 1], im: { type: "image" } }, { persist: "t-quota" });
+    p.set("x", 7); p.set("im", big);
+    await tick(250);
+    const stored = JSON.parse(localStorage.getItem("tw:t-quota"));
+    assert.equal(stored.x, 7, "the slider value was saved");
+    assert.equal("im" in stored, false, "the image that didn't fit was left out");
+    assert.equal(warned.length, 1, "and the host was told once");
+    p.set("x", 8); await tick(250);
+    assert.equal(JSON.parse(localStorage.getItem("tw:t-quota")).x, 8);
+    assert.equal(warned.length, 1, "told once, not on every save");
+    p.destroy();
+  } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
 });

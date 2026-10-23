@@ -119,14 +119,16 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   quietFocus(inp); // click-to-edit stays ringless; Tab rings
   wrap.append(grab, inp); if (spec.unit) wrap.append(txt("span", "tw-num-unit", spec.unit)); root.append(txt("span", spec.row ? "tw-row-label" : "tw-field-label", spec.label), wrap);
   const set = (val: number | string, fire = true) => { val = +val; if (!Number.isFinite(val)) return; value = fit(val); inp.value = value.toFixed(decimals); if (fire && onChange) onChange(value); };
-  inp.addEventListener("change", () => { const p = parseFloat(inp.value); set(isNaN(p) ? value : p); });
+  // Typed text is read strictly as a whole number, as the slider's editor reads it (not parseFloat, which takes "1,000"
+  // as 1 and "12abc" as 12); the field's unit may be typed along. Anything else leaves the value where it was.
+  const typed = () => { const n = Number(inp.value.replace(spec.unit || "", "").trim() || NaN); return Number.isFinite(n) ? n : value; };
+  inp.addEventListener("change", () => set(typed()));
   // ↑/↓ step off the half-typed value (a typed "4" then ↑ reads 5), the keyboard twin of the scrub.
   inp.addEventListener("keydown", (e) => {
     if (e.key === "Enter") return inp.blur();
     const d = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0; if (!d) return;
     e.preventDefault();
-    const p = parseFloat(inp.value);
-    set((isNaN(p) ? value : p) + d * step * (e.shiftKey ? 10 : 1));
+    set(typed() + d * step * (e.shiftKey ? 10 : 1));
   });
   attachScrub(grab, wrap, step, () => value, set, () => inp.value);
   return { el: root, set: (val: number | string) => set(val, false), get: () => value };
