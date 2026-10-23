@@ -892,7 +892,7 @@
 /* Tabular figures on the readouts. After the control rules: `font: inherit` also clears
  * font-variant-numeric, so this has to win on source order. */
 .tw-slider-value, .tw-slider-input, .tw-fps-val, .tw-num, .tw-grab-bubble,
-.tw-trigger-value, .tw-color-gamut, .tw-color-chan-input {
+.tw-trigger-value, .tw-color-gamut, .tw-color-chan-input, .tw-sides-sum {
   font-variant-numeric: tabular-nums;
 }
 

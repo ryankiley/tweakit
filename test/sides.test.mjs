@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, mounter } from "./_helpers.mjs";
+import { loadSingle, mounter, distCss } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const mount = mounter(tweaks, "B");
@@ -40,6 +40,8 @@ test("linked by default when the four agree; the link button opens the fields; l
   assert.deepEqual(four(p.params.pad), [8, 20, 8, 8]); assert.equal(p.params.pad.css, "8px 20px 8px 8px"); assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 20 8 8");
   root.querySelector(".tw-sides-multi .tw-sides-link").click();
   assert.ok(root.classList.contains("is-linked")); assert.deepEqual(four(p.params.pad), [8, 8, 8, 8], "linking takes the first side");
+  const tabular = [...distCss().matchAll(/([^{}]+)\{[^}]*font-variant-numeric:\s*tabular-nums[^}]*\}/g)].map((m) => m[1]);
+  assert.ok(tabular.some((sel) => sel.includes(".tw-sides-sum")), "the readout joins the kit's tabular-figure rule");
   p.destroy();
 });
 
