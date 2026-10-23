@@ -129,13 +129,6 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) =
     });
     return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) }; // the default component map, for reset()
   },
-
-
-
-
-
-
-
   buttongroup: (v) => ({ buttons: v.buttons }),
   separator: () => ({}),
   // Page keys dedupe ("A!" and "A?" both slug to "a") so two pages can't share one params subtree.

@@ -72,7 +72,9 @@ export const examples = [
     title: "List",
     prose: `<p>An array of strings is a dropdown. Options can also be
       <code>{ value, label }</code> pairs when the displayed text shouldn't be the value.
-      Here the value lands on <code>mix-blend-mode</code>.</p>`,
+      Here the value lands on <code>mix-blend-mode</code>. With the list open, typing moves
+      to the option whose label starts with the letters you just typed, and the same letter
+      again moves on to the next match; Enter or a click still picks it.</p>`,
     target: `<div class="lst-stage"><div class="lst-circle lst-a"></div><div class="lst-circle lst-b"></div></div>`,
     css: `
       .lst-stage { position: relative; width: 220px; height: 170px; }

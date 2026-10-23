@@ -124,6 +124,25 @@ test("odd values show as JSON, never 'undefined' or '[object Object]'", async ()
   } finally { p.destroy(); }
 });
 
+test("a hint and the reset target sit beside a spring's or bezier's own caption, not an inner field label", async () => {
+  // Regression: LABEL_SEL listed every label class but the spring and bezier captions, so the querySelector behind the
+  // hint marker and the reset target found the first INNER label instead — the spring's "Mode" row label, the bezier's
+  // "X1" field label — and the ⓘ, the reset title and the double-click / hold-to-reset all went there.
+  const p = tweaks("HL", {
+    spring: { type: "spring", hint: "s", value: { stiffness: 200, damping: 20, mass: 1 } },
+    curve: { type: "cubicbezier", hint: "c", value: [0.4, 0, 0.2, 1] },
+  });
+  document.body.append(p.el); await p.ready;
+  try {
+    for (const [cls, caption] of [["tw-spring", "tw-spring-label"], ["tw-bezier", "tw-bezier-label"]]) {
+      const root = p.el.querySelector("." + cls);
+      assert.ok(root.querySelector(".tw-hint").parentElement.classList.contains(caption), `${cls}: the ⓘ sits in the caption`);
+      assert.ok(root.querySelector("." + caption).classList.contains("tw-resettable"), `${cls}: the caption is the reset target`);
+      assert.ok(!root.querySelector(".tw-row-label, .tw-field-label").classList.contains("tw-resettable"), `${cls}: the inner label is not`);
+    }
+  } finally { p.destroy(); } // a failing assertion must not leave the spring's observer and listeners behind
+});
+
 test("a hint on a separator adds no marker to the divider", () => {
   const p = tweaks("H", { s: { type: "separator", hint: "x" } });
   assert.equal(p.el.querySelector(".tw-separator .tw-hint"), null);

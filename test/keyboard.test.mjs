@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 import { loadSingle, wait, key } from "./_helpers.mjs";
 
-const { tweaks } = await loadSingle();
+const { tweaks, mountControl } = await loadSingle();
 const mount = (schema, opts) => { const p = tweaks("K", schema, opts); document.body.append(p.el); return p; };
 
 test("opening the colour popover moves focus inside it, and Tab-out closes it", async () => {
@@ -66,7 +66,7 @@ test("bezier handles: arrows nudge by 0.01, Shift by 0.1, Home resets, Escape bl
   p.destroy();
 });
 
-test("point pad: focusable group, arrows move one step on the matching axis, Shift x10, Home resets", () => {
+test("point pad: focusable group, arrows move one step on the matching axis, Shift x10, Home resets, and a run of keys is spoken", async () => {
   const p = mount({ pos: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } });
   const pad = p.el.querySelector(".tw-pad");
   assert.equal(pad.tabIndex, 0, "the pad is a tab stop");
@@ -82,6 +82,8 @@ test("point pad: focusable group, arrows move one step on the matching axis, Shi
   assert.equal(p.params.pos.x, 0.09);
   key(pad, { key: "Home" });
   assert.deepEqual(p.params.pos, { x: 0, y: 0 }, "Home restores the schema default");
+  await wait(400); // spoken 250ms after the last key, written 100ms after that: aria-description is read on focus and never again
+  assert.equal(document.querySelector(".tw-sr").textContent, pad.getAttribute("aria-description"), "a run of keys ends with the pad's readout spoken");
   p.destroy();
 });
 
@@ -257,4 +259,98 @@ test("colour plane: a focusable group — up/down step lightness by 0.01, left/r
   key(plane, { key: "ArrowLeft", shiftKey: true }); key(plane, { key: "ArrowLeft", shiftKey: true });
   assert.equal(oklch(p.params.tint)[1], 0.16);
   await closePicker(p);
+});
+
+test("colour plane: a run of arrow keys ends with the plane's readout spoken", async () => {
+  const p = mount({ tint: "#7c5cff" });
+  const trigger = p.el.querySelector(".tw-color .tw-trigger");
+  trigger.focus(); trigger.click();
+  await wait(40);
+  const area = document.body.querySelector(".tw-wg-area");
+  assert.ok(area, "the plane is up");
+  area.focus();
+  key(area, { key: "ArrowUp" }); key(area, { key: "ArrowUp" });
+  await wait(400); // spoken 250ms after the last key, written 100ms after that
+  const said = document.querySelector(".tw-sr").textContent;
+  assert.equal(said, area.getAttribute("aria-description"), "the readout the description carries");
+  assert.match(said, /^lightness \d+%, chroma /);
+  key(area, { key: "Escape" });
+  await wait(220); p.destroy();
+});
+
+test("number fields read typed text strictly: trailing text or a thousands comma leaves the value alone; the unit may be typed", () => {
+  const p = mount({ n: { type: "number", value: 1, step: 0.5 }, w: { type: "number", value: 24, unit: "px" } });
+  const [n, w] = p.el.querySelectorAll(".tw-num");
+  const type = (inp, text) => { inp.value = text; inp.dispatchEvent(new window.Event("change", { bubbles: true })); };
+  type(n, "12abc");
+  assert.equal(p.params.n, 1, "trailing text is not a number (parseFloat would read 12)");
+  assert.equal(n.value, "1.0", "the field shows the kept value again");
+  type(n, "1,000");
+  assert.equal(p.params.n, 1, "a thousands comma is not a number (parseFloat would read 1)");
+  type(n, "2.5");
+  assert.equal(p.params.n, 2.5, "a number commits");
+  n.value = "4x"; key(n, { key: "ArrowUp" });
+  assert.equal(p.params.n, 3, "an arrow over unreadable text steps from the current value");
+  type(w, "32px");
+  assert.equal(p.params.w, 32, "the field's own unit may be typed with the number");
+  type(w, "32 px");
+  assert.equal(p.params.w, 32);
+  p.destroy();
+});
+
+test("a number field fires no change for rejected text or for the value it already holds", async () => {
+  const host = document.createElement("div"); document.body.append(host);
+  const seen = [];
+  const h = mountControl(host, { type: "number", value: 3 }, { onChange: (v) => seen.push(v) });
+  await h.ready;
+  const f = host.querySelector(".tw-num");
+  const type = (text) => { f.value = text; f.dispatchEvent(new window.Event("change", { bubbles: true })); };
+  type("abc");
+  assert.deepEqual(seen, [], "rejected text fires nothing");
+  assert.equal(f.value, "3", "and the field shows the kept value");
+  type("3");
+  assert.deepEqual(seen, [], "the value it already holds fires nothing");
+  type("3.2");
+  assert.deepEqual(seen, [], "a number that rounds to the held value fires nothing");
+  assert.equal(f.value, "3", "but the field is tidied");
+  type("4");
+  assert.deepEqual(seen, [4], "a new value fires once");
+  h.destroy(); host.remove();
+});
+
+test("Alt+arrows on the focused title move the panel, the keyboard's drag: 10px a step, 50px with Shift, clamped to the viewport", () => {
+  const p = mount({ a: [1, 0, 10, 1] });
+  const title = p.el.querySelector(".tw-header-toggle");
+  const x = () => parseFloat(p.el.style.getPropertyValue("--tw-float-x")), y = () => parseFloat(p.el.style.getPropertyValue("--tw-float-y"));
+  title.focus();
+  key(title, { key: "ArrowRight" });
+  assert.equal(p.el.dataset.mode, "inline", "a bare arrow is not a move");
+  const e = key(title, { key: "ArrowRight", altKey: true });
+  assert.equal(e.defaultPrevented, true, "the title owns Alt+arrow");
+  assert.equal(p.el.dataset.mode, "floating", "the panel lifted into the floating layer, as a first drag does");
+  assert.equal(document.activeElement, title, "and the title kept focus through the lift (moving it to <body> would drop it), so the next step lands");
+  const x1 = x();
+  key(title, { key: "ArrowRight", altKey: true });
+  assert.equal(x(), x1 + 10, "one step is 10px");
+  key(title, { key: "ArrowDown", altKey: true, shiftKey: true });
+  const y1 = y();
+  key(title, { key: "ArrowDown", altKey: true, shiftKey: true });
+  assert.equal(y(), y1 + 50, "Shift is 50px");
+  for (let i = 0; i < 40; i++) key(title, { key: "ArrowUp", altKey: true, shiftKey: true });
+  assert.equal(y(), 8, "the move clamps at the viewport margin, as the drag does");
+  p.destroy();
+});
+
+test("the panel is a labelled region, renamed by setName", () => {
+  const p = mount({ a: 1 });
+  assert.equal(p.el.getAttribute("role"), "region");
+  assert.equal(p.el.getAttribute("aria-label"), "K");
+  p.setName("Lights");
+  assert.equal(p.el.getAttribute("aria-label"), "Lights");
+  p.setName("   ");
+  assert.equal(p.el.getAttribute("aria-label"), "Tweaks", "a blank name falls back, since an unnamed region is no landmark");
+  p.destroy();
+  const blank = tweaks("", { a: 1 });
+  assert.equal(blank.el.getAttribute("aria-label"), "Tweaks");
+  blank.destroy();
 });

@@ -3,7 +3,7 @@
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
 import { el, btn, setCollapsed, getControl, titleCase, setMarkup } from "./shared.js";
-import type { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS, Meta } from "./schema.js";
+import type { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS } from "./schema.js";
 import type { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import type { createFolder, createControl } from "./controls/basic.js";
 import type { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
@@ -96,7 +96,6 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
     toggle.addEventListener("click", () => setCollapsed(panel, toggle, body, !panel.classList.contains("is-collapsed")));
     // The same toolbar tweaks() builds, over this panel's own [data-tw] controls (gathered at click time).
     if (!header.querySelector(".tw-toolbar")) {
-      const name = (title && title.textContent) || "Panel";
       const live = () => [...panel.querySelectorAll<HostEl>("[data-tw]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);
       // Two hosts can share a key (a repeated data-key, or the same label): suffix the duplicates.
       const values = () => {

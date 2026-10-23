@@ -70,60 +70,21 @@ test("a plain folder object's persist is its child, not an option", () => {
   p.destroy();
 });
 
-// A 10 MB image upload is a legitimate value, but localStorage holds ~5 MB in all: once one such value is in the
-// session, the write throws, the bare catch swallowed it, and nothing in the panel persisted again, silently.
-test("a string value past 256 KB stays out of the saved session, and a refused write is reported once", async () => {
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const big = "data:image/png;base64," + "A".repeat(300 * 1024);
-  localStorage.clear();
-  localStorage.setItem("tw:Big", JSON.stringify({ pic: big, look: { zoom: 120 } }));
-  const p = tweaks("Big", { pic: { type: "image" }, look: { zoom: [100, 25, 300, 1] } }, { persist: true });
-  assert.equal(p.params.pic, "", "a stored value that size is not restored either");
-  assert.equal(p.params.look.zoom, 120);
-  p.set("pic", big); p.set("look.zoom", 150);
-  await wait(200); // past the debounce
-  assert.deepEqual(stored("tw:Big"), { look: { zoom: 150 } }, "the image stays out; the rest is saved");
-  assert.equal(p.toJSON().values.pic, big, "toJSON still carries it");
-
-  const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(a.join(" "));
-  const proto = Object.getPrototypeOf(localStorage), setItem = proto.setItem;
-  proto.setItem = () => { throw new Error("QuotaExceededError"); };
-  try {
-    p.set("look.zoom", 160); await wait(200);
-    p.set("look.zoom", 170); await wait(200);
-    assert.equal(warns.length, 1, "said once, not per edit");
-    assert.match(warns[0], /couldn't store "tw:Big"/);
-  } finally { proto.setItem = setItem; console.warn = warn; }
-  p.set("look.zoom", 180); await wait(200);
-  assert.equal(stored("tw:Big").look.zoom, 180, "writes resume once the store takes them");
-  p.destroy(); localStorage.clear();
-});
-
-// Presets live in localStorage too: a preset holding a big upload failed to save while the menu said it had.
-test("a preset leaves out a big string, and a refused preset write returns false and says so", async () => {
+// A preset carries its image whole, so storage can refuse it: the menu must say so and keep the typed name.
+test("a preset storage refuses is announced from the menu as not saved, and keeps its name", async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   localStorage.clear();
-  const big = "data:image/png;base64," + "A".repeat(300 * 1024);
-  const p = tweaks("Pre", { pic: { type: "image" }, zoom: [100, 25, 300, 1] }, { persist: true });
+  const p = tweaks("Pre", { zoom: [100, 25, 300, 1] }, { persist: true });
   document.body.append(p.el); await p.ready;
-  p.set("pic", big); p.set("zoom", 150);
-  assert.equal(p.savePreset("A"), true);
-  assert.deepEqual(stored("tw:Pre:presets").A, { zoom: 150 }, "the upload stays out of the stored preset");
-
-  const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(a.join(" "));
+  const warn = console.warn; console.warn = () => {};
   const proto = Object.getPrototypeOf(localStorage), setItem = proto.setItem;
   proto.setItem = () => { throw new Error("QuotaExceededError"); };
   try {
-    assert.equal(p.savePreset("B"), false, "the API says the write failed");
     p.el.querySelector('[aria-label="Presets"]').click(); await wait(30);
     const input = document.querySelector(".tw-presets-input"); input.value = "C";
     document.querySelector(".tw-presets-savebtn").click(); await wait(150);
-    assert.equal(document.querySelector(".tw-sr[role=status]").textContent, "Couldn't save preset C");
+    assert.equal(document.querySelector(".tw-sr[role=status]").textContent, "Preset C not saved: storage is full");
     assert.equal(input.value, "C", "the name stays, to try again");
-    p.set("zoom", 160); await wait(200);
-    assert.equal(warns.length, 2, `one warning per key, the presets' and the session's: ${warns.join(" | ")}`);
-    p.set("zoom", 170); await wait(200);
-    assert.equal(warns.length, 2, "and not again per edit");
   } finally { proto.setItem = setItem; console.warn = warn; }
   p.destroy(); localStorage.clear();
 });

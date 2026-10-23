@@ -1,6 +1,6 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, rangeStep, popover, quietFocus, registerControl } from "../shared.js";
+import { el, txt, clamp, rangeStep, popover, quietFocus, registerControl, announce } from "../shared.js";
 import { numField, grabSurface, boxFrac, triggerRow, selectAllOnFocus } from "../heavy.js";
 import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 import type { Vec3, Space, Gamut } from "../../wide-gamut.js";
@@ -283,6 +283,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   grabSurface(area, setArea);
   // Arrows move the thumb, not the raw channels: chroma steps as a fraction of its row, so a
   // vertical step stays in gamut. Home/End mean nothing for a 2D point and are swallowed so they don't scroll the page.
+  let sayT = 0;
   area.addEventListener("keydown", (e) => {
     if (e.key === "Home" || e.key === "End") { e.preventDefault(); return; }
     const k = e.shiftKey ? 10 : 1;
@@ -292,6 +293,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     const c0 = ceilAt(L), fx = clamp((c0 > 0 ? C / c0 : 0) + dx * 0.01, 0, 1);
     L = clamp(L + dy * 0.01, 0, 1); C = fx * ceilAt(L);
     commit(false);
+    // The readout rides on aria-description, which a screen reader speaks on focus and never again: say where a run of keys stopped.
+    clearTimeout(sayT); sayT = setTimeout(() => { if (area.isConnected) announce(area.getAttribute("aria-description") || ""); }, 250);
   });
   const hueAt = (e: PointerEvent) => boxFrac(e, hueBar)[0] * 360;
   const setHue = (e: PointerEvent) => { H = hueAt(e); commit(true); };

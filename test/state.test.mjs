@@ -5,7 +5,7 @@
  * panel.test.mjs. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import "./_setup-dom.mjs";
+import { window } from "./_setup-dom.mjs";
 import { loadSingle, tick } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
@@ -73,6 +73,20 @@ test("fromJSON skips values whose path no longer exists", () => {
   assert.ok(!("gone" in p.params) || p.params.gone === undefined);
 });
 
+test("a restore reads only a snapshot's own keys: a control named for an Object.prototype member is left alone", () => {
+  // Regression: applySnapshot's path reader followed inherited keys, so a control keyed toString / valueOf /
+  // hasOwnProperty read the prototype's function out of any snapshot that lacked the key — a fromJSON({ values }) from
+  // before the key existed, an older preset — and logged a spurious "restoring … failed". (clip.ts's reader had the
+  // own-key guard; the panel's did not.)
+  const errors = [], orig = console.error; console.error = (...a) => errors.push(a.join(" "));
+  try {
+    const p = tweaks("OK", { toString: [5, 0, 10, 1], valueOf: "hi", hasOwnProperty: true, blur: [3, 0, 10, 1] });
+    p.fromJSON({ values: { blur: 7 } });
+    assert.deepEqual([p.params.toString, p.params.valueOf, p.params.hasOwnProperty, p.params.blur], [5, "hi", true, 7]);
+    assert.deepEqual(errors, [], "no restore error for the keys the snapshot lacks");
+  } finally { console.error = orig; }
+});
+
 test("setMany applies a batch and notifies once", () => {
   const p = tweaks("M", { x: [1, 0, 10, 1], f: { y: [2, 0, 10, 1] } });
   let notifies = 0;
@@ -92,4 +106,32 @@ test("gradient normalises its value: default pair, clamped positions, tuple stop
   assert.ok(typeof p.params.def.interpolation === "string");
   const pos = p.params.tup.stops.map((s) => s.pos);
   assert.deepEqual(pos, [0, 1]); // out-of-range positions clamp into [0,1]
+});
+
+test("a persist write storage refuses is retried without the image values, so the rest still saves", async () => {
+  const big = "data:image/gif;base64," + "A".repeat(4096);
+  const setItem = window.Storage.prototype.setItem; // the instance can't be patched: Storage's named setter would store the function as a key
+  let refusals = 0;
+  window.Storage.prototype.setItem = function (k, v) { if (String(v).includes(big)) { refusals++; throw new DOMException("quota", "QuotaExceededError"); } return setItem.call(this, k, v); };
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  try {
+    const p = tweaks("P", { x: [1, 0, 10, 1], im: { type: "image" } }, { persist: "t-quota" });
+    p.set("x", 7); p.set("im", big);
+    await tick(250);
+    const stored = JSON.parse(localStorage.getItem("tw:t-quota"));
+    assert.equal(stored.x, 7, "the slider value was saved");
+    assert.equal("im" in stored, false, "the image that didn't fit was left out");
+    assert.equal(warned.length, 1, "and the host was told once");
+    assert.equal(refusals, 1);
+    p.set("x", 8); await tick(250);
+    assert.equal(JSON.parse(localStorage.getItem("tw:t-quota")).x, 8);
+    assert.equal(warned.length, 1, "told once, not on every save");
+    assert.equal(refusals, 1, "a value storage refused is not offered again until it changes");
+    p.set("im", big + "B"); await tick(250);
+    assert.equal(refusals, 2, "a new image value is tried once more");
+    assert.equal(p.savePreset("big"), false, "a preset carries its image whole, so storage refuses it and the call says so");
+    assert.equal(localStorage.getItem("tw:t-quota:presets"), null, "nothing claimed to be stored");
+    assert.equal(warned.length, 2, "and the host was told which preset");
+    p.destroy();
+  } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
 });
