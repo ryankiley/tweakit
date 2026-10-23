@@ -36,11 +36,11 @@ test("linked by default when the four agree; the link button opens the fields; l
   const flds = [...root.querySelectorAll(".tw-sides-multi .tw-num")]; assert.equal(flds.length, 4); assert.deepEqual(flds.map((f) => f.value), ["8", "8", "8", "8"]);
   assert.deepEqual([...root.querySelectorAll(".tw-field-label")].map((l) => [l.textContent, l.title, l.dataset.at, !!l.querySelector("svg[aria-hidden]")]), [["", "Top", "top", true], ["", "Right", "right", true], ["", "Bottom", "bottom", true], ["", "Left", "left", true]], "a glyph on screen, the full name as the tooltip");
   assert.deepEqual(flds.map((i) => i.getAttribute("aria-label")), ["Top (px)", "Right (px)", "Bottom (px)", "Left (px)"]);
-  assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 8 8 8 px", "the readout carries the unit once");
+  assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 8 8 8px", "the readout carries the unit once");
   assert.equal(root.querySelector(".tw-sides-head").lastElementChild, root.querySelector(".tw-sides-multi .tw-sides-link"), "the link is last in the head, as it is last in the row");
   assert.equal(document.activeElement, root.querySelector(".tw-sides-multi .tw-sides-link"), "focus moves to the link in the block that is now showing");
   flds[1].value = "20"; flds[1].dispatchEvent(new window.Event("change", { bubbles: true }));
-  assert.deepEqual(four(p.params.pad), [8, 20, 8, 8]); assert.equal(p.params.pad.css, "8px 20px 8px 8px"); assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 20 8 8 px");
+  assert.deepEqual(four(p.params.pad), [8, 20, 8, 8]); assert.equal(p.params.pad.css, "8px 20px 8px 8px"); assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 20 8 8px");
   root.querySelector(".tw-sides-multi .tw-sides-link").click();
   assert.ok(root.classList.contains("is-linked")); assert.deepEqual(four(p.params.pad), [8, 8, 8, 8], "linking takes the first side");
   const tabular = [...distCss().matchAll(/([^{}]+)\{[^}]*font-variant-numeric:\s*tabular-nums[^}]*\}/g)].map((m) => m[1]);
@@ -58,7 +58,7 @@ test("set() in any form re-judges the link; corners wear corner glyphs, clockwis
   assert.deepEqual([...root.querySelectorAll(".tw-sides-multi .tw-num")].map((i) => i.getAttribute("aria-label")), ["Top-left (px)", "Top-right (px)", "Bottom-right (px)", "Bottom-left (px)"]);
   p.set("r", [1, 2, 3, 4]); assert.ok(!root.classList.contains("is-linked"), "unequal sides unlink"); assert.deepEqual(four(p.params.r), [1, 2, 3, 4]);
   assert.deepEqual([...root.querySelectorAll(".tw-sides-multi .tw-num")].map((i) => i.value), ["1", "2", "3", "4"], "the fields, the readout and the shorthand share one order");
-  assert.equal(root.querySelector(".tw-sides-sum").textContent, "1 2 3 4 px"); assert.equal(p.params.r.css, "1px 2px 3px 4px");
+  assert.equal(root.querySelector(".tw-sides-sum").textContent, "1 2 3 4px"); assert.equal(p.params.r.css, "1px 2px 3px 4px");
   p.set("r", "24px"); assert.ok(root.classList.contains("is-linked")); assert.equal(p.params.r.css, "24px");
   p.set("r", { left: 99 }); assert.deepEqual(four(p.params.r), [24, 24, 24, 48], "an object moves one side; max fits it");
   p.set("r", -5); assert.equal(p.params.r.css, "0", "min fits it");

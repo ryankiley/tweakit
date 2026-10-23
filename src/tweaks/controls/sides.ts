@@ -51,7 +51,7 @@ function createSides(meta: Meta, onChange: OnChange): Control {
     root.classList.toggle("is-linked", linked); link.setAttribute("aria-pressed", String(linked));
     (linked ? all.el : head).append(link);
     all.set(v[0]); flds.forEach((f, i) => f.set(v[i]));
-    nums.data = v.map(fmt).join(" ") + " ";
+    nums.data = v.map(fmt).join(" ");
   };
   const toggle = () => { linked = !linked; if (linked) v = [v[0], v[0], v[0], v[0]]; update(); emit(); link.focus(); };
   update();

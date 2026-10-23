@@ -771,8 +771,10 @@
 .tw-sides-glyph[data-at="top-right"] svg, .tw-sides-glyph[data-at="right"] svg { transform: rotate(90deg); }
 .tw-sides-glyph[data-at="bottom-right"] svg, .tw-sides-glyph[data-at="bottom"] svg { transform: rotate(180deg); }
 .tw-sides-glyph[data-at="bottom-left"] svg, .tw-sides-glyph[data-at="left"] svg { transform: rotate(270deg); }
-.tw-sides-sum { margin-left: auto; font-family: var(--tw-font-sans); font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); word-spacing: 0.1em; }
-.tw-sides-unit { padding-right: 2px; word-spacing: 0; } /* the unit's inset, as in the row */
+/* The readout is set like the row's field — the digits' tone and weight, the unit's 4px gap, weight and inset — so a
+ * toggle swaps one for the other without a glyph moving or changing tone. */
+.tw-sides-sum { margin-left: auto; font-family: var(--tw-font-sans); font-size: 12px; font-weight: 500; color: var(--tw-text-label); word-spacing: 0.1em; }
+.tw-sides-unit { margin-left: 4px; padding-right: 2px; font-weight: 400; color: var(--tw-text-tertiary); }
 /* The motion control (motion.ts). */
 .tw-motion-chip { position: relative; }
 .tw-motion-chip svg { display: block; width: 100%; height: 100%; }
