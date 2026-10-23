@@ -62,15 +62,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
-  // A write the browser refuses (quota, a private window) is said once per panel, not swallowed and not repeated per keystroke.
-  let storeWarned = false;
-  const writeStore = (k: string, v: unknown) => { const s = JSON.stringify(v); try { localStorage.setItem(k, s); } catch (e) { if (!storeWarned) { storeWarned = true; console.warn(`[tweaks] couldn't store "${k}" (${s.length} chars):`, e); } } };
+  // A write the browser refuses (quota, a private window) is said once per key, not swallowed and not repeated per keystroke;
+  // the result goes back to the caller, so a preset save can say it failed.
+  const storeWarned = new Set<string>();
+  const writeStore = (k: string, v: unknown) => { const s = JSON.stringify(v); try { localStorage.setItem(k, s); return true; } catch (e) { if (!storeWarned.has(k)) { storeWarned.add(k); console.warn(`[tweaks] couldn't store "${k}" (${s.length} chars):`, e); } return false; } };
   const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
-  // A control with `persist: false` stays out of what is saved and out of what is restored. So does a string value past
-  // MAX_STORED (an image upload): one such value fills the store, and every write after it fails with it.
+  // What localStorage leaves out. A control's string value past MAX_STORED (an image upload) stays out of the session and
+  // the presets, both stored: one such value fills the store, and every write after it fails with it. A control with
+  // `persist: false` stays out of the session only (`all` false), on save and on restore.
   const MAX_STORED = 1 << 18;
-  const unsaved = (snap: Snapshot | null) => {
-    for (const e of entries) { const o: any = atPath(snap, e.path.slice(0, -1)); if (o && typeof o === "object" && (!e.persist || (typeof o[e.key] === "string" && o[e.key].length > MAX_STORED))) Reflect.deleteProperty(o, e.key); } // Reflect: an undeletable key is left, not thrown
+  const unsaved = (snap: Snapshot | null, all = true) => {
+    for (const e of entries) { const o: any = atPath(snap, e.path.slice(0, -1)); if (o && typeof o === "object" && ((all && !e.persist) || (typeof o[e.key] === "string" && o[e.key].length > MAX_STORED))) Reflect.deleteProperty(o, e.key); } // Reflect: an undeletable key is left, not thrown
     return snap;
   };
   // Debounced save; destroy() flushes a pending write rather than dropping it.
@@ -359,7 +361,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets" ──
   const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
-  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = snapshot(); writeStore(presetsKey, all); };
+  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = unsaved(snapshot(), false)!; return writeStore(presetsKey!, all); };
   const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) applySnapshot(all[nm]); }; // re-read at replay: a delete queued ahead of it wins
   const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; writeStore(presetsKey, all); };
 
@@ -495,7 +497,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         row.append(load, del); list.append(row);
       }
     };
-    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } savePreset(nm); input.value = ""; renderList(); announce(`Saved preset ${nm}`); };
+    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } const ok = savePreset(nm); if (ok) input.value = ""; renderList(); announce(ok ? `Saved preset ${nm}` : `Couldn't save preset ${nm}`); }; // a refused write keeps the name, to try again
     // The shared popover shell; align:"end" hangs it off the button's right edge.
     const menuPop = popover(presetsBtn, presetsBtn, menu, {
       width: 208, fallbackH: 160, gap: 6, align: "end",
@@ -717,7 +719,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; }, // a rename never moves saved values or presets
     setTheme(theme) { if (destroyed) return; if (themeVars) for (const k in themeVars) panel.style.removeProperty(k); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
     // Presets API (no-ops without opts.persist); before ready they queue like set() does.
-    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) presetOps.set(String(nm), "save"); later(() => savePreset(nm)); return true; },
+    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) presetOps.set(String(nm), "save"); let ok = true; later(() => { ok = savePreset(nm); }); return ok; }, // queued counts as taken; a write the browser refuses is false
     loadPreset: (nm) => { const op = presetOps.get(String(nm)); if (destroyed || failed || op === "delete" || !(op === "save" || listPresets()[nm])) return false; later(() => loadPreset(nm)); return true; }, // a queued save counts as stored, a queued delete as gone
     deletePreset: (nm) => { if (presetsKey) { if (!assembled) presetOps.set(String(nm), "delete"); later(() => deletePreset(nm)); } },
     presets: () => (destroyed ? [] : Object.keys(listPresets())),

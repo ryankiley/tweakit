@@ -258,9 +258,11 @@ export const examples = [
       <code>deletePreset</code> / <code>presets()</code> drive the same store from code.
       <code>presets: false</code> keeps the saving and leaves the menu out. A control
       with <code>persist: false</code> is left out of the saved session, so it opens on its
-      schema value every load (a “playing” toggle that should start off). So is a string
-      value past 256 KB, such as an image upload, since one would fill the store; and a
-      write the browser refuses is reported once in the console, not swallowed.</p>`,
+      schema value every load (a “playing” toggle that should start off). A control's string
+      value past 256 KB, such as an image upload, stays out of the saved session and the
+      presets, since one would fill the store; undo and <code>toJSON()</code> still carry it.
+      A write the browser refuses is reported in the console, once per key, and
+      <code>savePreset</code> returns <code>false</code>.</p>`,
     target: `
       <div class="ps-remote">
         <div class="ps-tile"></div>

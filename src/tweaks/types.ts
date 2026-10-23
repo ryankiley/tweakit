@@ -69,8 +69,9 @@ export interface ControlOptions {
   hint?: string;
   /** `false` leaves this control out of what `opts.persist` saves, so it opens on its schema
    *  value every load (presets, undo and `toJSON()` still carry it). On a control, not a
-   *  plain folder object, where `persist` is a child. A string value past 256 KB (an image
-   *  upload) is left out the same way, since one would fill the store. */
+   *  plain folder object, where `persist` is a child. A control's string value past 256 KB
+   *  (an image upload) is left out of the saved session and the saved presets, since one
+   *  would fill the store; undo and `toJSON()` still carry it. */
   persist?: boolean;
 }
 
@@ -187,9 +188,9 @@ export interface FloatingPlacement { x?: number; y?: number; corner?: FloatingCo
 export interface TweaksOptions {
   /** Theme overrides (friendly names or raw `--tw-*`); `null` / omitted = default monochrome. */
   theme?: Theme | null;
-  /** Persist values to localStorage + enable presets — a key, or `true` to key by name. A string
-   *  value past 256 KB (an image upload) is left out of the saved session, and a write the
-   *  browser refuses is reported once in the console rather than failing silently. */
+  /** Persist values to localStorage + enable presets — a key, or `true` to key by name. A
+   *  control's string value past 256 KB (an image upload) is left out of the saved session and
+   *  presets, and a write the browser refuses is reported in the console, once per storage key. */
   persist?: string | boolean;
   /** With `persist`, `false` keeps saving values but leaves the Presets menu out of the
    *  toolbar (the presets API still works). On by default. */
@@ -283,7 +284,8 @@ export interface Panel {
    *  with stays its storage key (`persist: true`), so saved values and presets keep their
    *  home across a rename. */
   setName(name: string): void;
-  /** Save the current values as a named preset (needs `opts.persist`). */
+  /** Save the current values as a named preset (needs `opts.persist`). `false` when the browser
+   *  refused the write (storage full, or blocked). */
   savePreset(name: string): boolean;
   /** Load a named preset. */
   loadPreset(name: string): boolean;

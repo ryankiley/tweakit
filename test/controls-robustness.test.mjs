@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, tick, key } from "./_helpers.mjs";
+import { loadSingle, tick, key, distCss } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -210,4 +210,82 @@ test("upload: false leaves a gallery of tiles alone, with no button and no file 
   assert.equal(p.el.querySelectorAll(".tw-image-tile").length, 2);
   assert.ok(p.el.querySelector(".tw-image-remove").hidden, "no value, no Remove");
   assert.equal(p.params.pic, "", "no value until a tile is picked");
+});
+
+// ── The gallery's review fixes: each failed on the first cut of the gallery. ──
+const dropOn = (el, file) => { const e = new Event("drop", { bubbles: true, cancelable: true }); e.dataTransfer = { files: file ? [file] : [] }; el.dispatchEvent(e); };
+globalThis.FileReader ??= window.FileReader;
+
+test("a disabled gallery takes no dropped file", async () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], disabled: true } });
+  dropOn(p.el.querySelector(".tw-image-gallery"), new window.File(["GIF89a"], "x.gif", { type: "image/gif" }));
+  await tick(30);
+  assert.equal(p.params.pic, "");
+});
+
+test("Alt+Delete on a tile is the panel's reset, not a clear: the host never sees an empty value", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "/a.png" } });
+  document.body.append(p.el);
+  const seen = []; p.on((v) => seen.push(v.pic));
+  const tiles = p.el.querySelectorAll(".tw-image-tile");
+  tiles[1].click(); key(tiles[1], { key: "Delete", altKey: true });
+  assert.ok(!seen.includes(""), `host saw ${JSON.stringify(seen)}`);
+  p.destroy();
+});
+
+test("when the focused custom tile leaves, focus moves to the chosen tile, not to the body", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "/x.png" } });
+  document.body.append(p.el);
+  const custom = p.el.querySelector(".tw-image-custom"); custom.focus();
+  assert.equal(custom.getAttribute("aria-label"), "x", "a host-set URL is named by its file, not as an upload");
+  p.set("pic", "/y.png");
+  assert.equal(document.activeElement, custom, "still the custom tile: a re-render doesn't move (and blur) it");
+  p.set("pic", "/b.png");
+  assert.equal(document.activeElement, p.el.querySelectorAll(".tw-image-tile")[1]);
+  p.destroy();
+});
+
+test("a repeated option URL is one tile", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/a.png", label: "Again" }, "/b.png"], value: "/a.png" } });
+  const tiles = [...p.el.querySelectorAll(".tw-image-tile")];
+  assert.equal(tiles.length, 2);
+  assert.deepEqual(tiles.map((t) => t.getAttribute("aria-checked")), ["true", "false"]);
+});
+
+test("a file read that lands after a tile was picked doesn't overwrite the pick", async () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"] } });
+  dropOn(p.el.querySelector(".tw-image-upload"), new window.File(["GIF89a"], "x.gif", { type: "image/gif" }));
+  p.el.querySelectorAll(".tw-image-tile")[1].click();
+  await tick(30);
+  assert.equal(p.params.pic, "/b.png");
+});
+
+test("a refusal under 1 KB reads in bytes, and is spoken from a status region outside the button", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], maxSize: 300 } });
+  dropOn(p.el.querySelector(".tw-image-upload"), new window.File(["x".repeat(400)], "big.png", { type: "image/png" }));
+  assert.equal(p.el.querySelector(".tw-image-note").textContent, "400 B, max 300 B");
+  const live = p.el.querySelector(".tw-image-live[role=status]");
+  assert.ok(live && !live.closest("button"), "a button's children are presentational, so the region sits beside it");
+  assert.equal(live.textContent, "400 B, max 300 B");
+});
+
+test("the stylesheet hides an empty gallery's Remove, and rings a focused tile with an outline", () => {
+  // jsdom honours [hidden] over display: flex, so this is checked in the built CSS, not on the element.
+  const css = distCss();
+  assert.match(css, /\.tw-image-remove\[hidden\]\{display:none\}/);
+  assert.match(css, /\.tw-image-tile:focus-visible\{outline:2px solid/);
+});
+
+test("markup builds a gallery from data-options, with data-upload and data-cols", async () => {
+  const { enhance } = await loadSingle();
+  const host = document.createElement("div");
+  Object.assign(host.dataset, { tw: "image", label: "Cover", options: "/a.png, /b.png, /c.png", value: "/b.png", upload: "false", cols: "3" });
+  document.body.append(host);
+  try {
+    await enhance(host);
+    assert.equal(host.querySelectorAll(".tw-image-tile").length, 3);
+    assert.equal(host.querySelector(".tw-image-upload"), null);
+    assert.equal(host.querySelector(".tw-image-grid").style.getPropertyValue("--tw-img-cols"), "3");
+    assert.equal(host._tw.ctrl.get(), "/b.png");
+  } finally { host.remove(); }
 });

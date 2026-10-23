@@ -46,6 +46,7 @@ export const examples = [
       <code>separator</code>, <code>interval</code>, <code>spring</code>,
       <code>cubicbezier</code>, <code>motion</code>, <code>shadow</code>, <code>sides</code>, <code>point</code>, <code>plot</code> and
       <code>fpsgraph</code>, plus the <code>folder</code> wrapper below.
+      An <code>image</code> with <code>data-options</code>, a comma list of URLs, is the gallery.
       <code>gradient</code>, <code>monitor</code>, <code>segmented</code> and
       <code>tabs</code> are panel-only; a host naming one of those is left untouched.</p>`,
     html: `

@@ -98,3 +98,32 @@ test("a string value past 256 KB stays out of the saved session, and a refused w
   assert.equal(stored("tw:Big").look.zoom, 180, "writes resume once the store takes them");
   p.destroy(); localStorage.clear();
 });
+
+// Presets live in localStorage too: a preset holding a big upload failed to save while the menu said it had.
+test("a preset leaves out a big string, and a refused preset write returns false and says so", async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  localStorage.clear();
+  const big = "data:image/png;base64," + "A".repeat(300 * 1024);
+  const p = tweaks("Pre", { pic: { type: "image" }, zoom: [100, 25, 300, 1] }, { persist: true });
+  document.body.append(p.el); await p.ready;
+  p.set("pic", big); p.set("zoom", 150);
+  assert.equal(p.savePreset("A"), true);
+  assert.deepEqual(stored("tw:Pre:presets").A, { zoom: 150 }, "the upload stays out of the stored preset");
+
+  const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(a.join(" "));
+  const proto = Object.getPrototypeOf(localStorage), setItem = proto.setItem;
+  proto.setItem = () => { throw new Error("QuotaExceededError"); };
+  try {
+    assert.equal(p.savePreset("B"), false, "the API says the write failed");
+    p.el.querySelector('[aria-label="Presets"]').click(); await wait(30);
+    const input = document.querySelector(".tw-presets-input"); input.value = "C";
+    document.querySelector(".tw-presets-savebtn").click(); await wait(150);
+    assert.equal(document.querySelector(".tw-sr[role=status]").textContent, "Couldn't save preset C");
+    assert.equal(input.value, "C", "the name stays, to try again");
+    p.set("zoom", 160); await wait(200);
+    assert.equal(warns.length, 2, `one warning per key, the presets' and the session's: ${warns.join(" | ")}`);
+    p.set("zoom", 170); await wait(200);
+    assert.equal(warns.length, 2, "and not again per edit");
+  } finally { proto.setItem = setItem; console.warn = warn; }
+  p.destroy(); localStorage.clear();
+});
