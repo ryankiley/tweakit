@@ -57,6 +57,8 @@
   line-height: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  color-scheme: dark; /* scrollbars and carets follow the kit's palette, not the host's color-scheme */
   box-sizing: border-box;
 }
 .tw-panel {
@@ -73,11 +75,7 @@
 .tw-panel *::before,
 .tw-panel *::after { box-sizing: border-box; }
 
-:is(.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu) ::selection { background: var(--tw-selection); color: var(--tw-text-focus); }
-.tw-panel, .tw-color-pop, .tw-select-dropdown, .tw-presets-menu { -webkit-tap-highlight-color: transparent; }
-
-/* Scrollbars and carets follow the kit's palette, not the host's color-scheme. */
-.tw-panel, .tw-portal { color-scheme: dark; }
+:is(.tw-panel, .tw-portal) ::selection { background: var(--tw-selection); color: var(--tw-text-focus); }
 
 /* Floating mode. The z ladder (panel 99990 < popovers 99999 < tip 100000 < grab
  * guide 100001) sits above the 100–9999 band host sticky headers occupy. The placement
@@ -174,8 +172,6 @@
 .tw-hint svg { width: 13px; height: 13px; display: block; }
 .tw-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 8px 12px; font-size: 12px; line-height: 1.4; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
 .tw-tip.is-open { opacity: 1; transform: none; }
-/* Toast — the kit's feedback pill (copy / preset confirmations), portaled to <body>. */
-
 /* The screen-reader status region (announce() in feedback.ts): in the page, drawn as nothing. */
 .tw-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
@@ -203,9 +199,9 @@
   transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-.tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
-.tw-toolbar-btn:disabled { cursor: default; } /* the lazy window is "not yet", not "never" */
+  .tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
+.tw-toolbar-btn:disabled { cursor: default; } /* the lazy window is "not yet", not "never" */
 /* The press dip shrinks the box, so a cursor near the edge would lose :hover mid-press;
  * ::after keeps the resting footprint hot ((24+4)·0.86 ≈ 24.1 ≥ 24). */
 .tw-toolbar-btn::after { content: ""; position: absolute; inset: -2px; }
@@ -557,10 +553,8 @@
 .tw-color-swatch { width: 18px; }
 
 /* Portaled surfaces open on <body>, escaping any ancestor that becomes a containing block
- * for position:fixed (a transform or filter) and the panel's overflow. */
-.tw-color-pop, .tw-select-dropdown, .tw-grab-guide, .tw-presets-menu {
-  line-height: normal; /* against the host's line-height, as on .tw-panel */
-}
+ * for position:fixed (a transform or filter) and the panel's overflow. Each carries .tw-portal,
+ * which hands it the tokens, font and line-height above. */
 .tw-portal *, .tw-portal *::before, .tw-portal *::after { box-sizing: border-box; }
 
 /* the colour dropdown */

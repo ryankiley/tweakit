@@ -73,6 +73,20 @@ test("fromJSON skips values whose path no longer exists", () => {
   assert.ok(!("gone" in p.params) || p.params.gone === undefined);
 });
 
+test("a restore reads only a snapshot's own keys: a control named for an Object.prototype member is left alone", () => {
+  // Regression: applySnapshot's path reader followed inherited keys, so a control keyed toString / valueOf /
+  // hasOwnProperty read the prototype's function out of any snapshot that lacked the key — a fromJSON({ values }) from
+  // before the key existed, an older preset — and logged a spurious "restoring … failed". (clip.ts's reader had the
+  // own-key guard; the panel's did not.)
+  const errors = [], orig = console.error; console.error = (...a) => errors.push(a.join(" "));
+  try {
+    const p = tweaks("OK", { toString: [5, 0, 10, 1], valueOf: "hi", hasOwnProperty: true, blur: [3, 0, 10, 1] });
+    p.fromJSON({ values: { blur: 7 } });
+    assert.deepEqual([p.params.toString, p.params.valueOf, p.params.hasOwnProperty, p.params.blur], [5, "hi", true, 7]);
+    assert.deepEqual(errors, [], "no restore error for the keys the snapshot lacks");
+  } finally { console.error = orig; }
+});
+
 test("setMany applies a batch and notifies once", () => {
   const p = tweaks("M", { x: [1, 0, 10, 1], f: { y: [2, 0, 10, 1] } });
   let notifies = 0;

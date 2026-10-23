@@ -63,9 +63,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
-  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce((o, k) => (o == null ? undefined : o[k]), obj);
+  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj); // own keys only: a control keyed toString must not read Object.prototype's
   // Take one entry's value out of a snapshot; true when it was there. Reflect: an undeletable key is left, not thrown.
-  const drop = (snap: Snapshot | null, e: Entry) => { const o: any = atPath(snap, e.path.slice(0, -1)); if (!o || typeof o !== "object" || !(e.key in o)) return false; Reflect.deleteProperty(o, e.key); return true; };
+  const drop = (snap: Snapshot | null, e: Entry) => { const o: any = atPath(snap, e.path.slice(0, -1)); if (!o || typeof o !== "object" || !hasOwn(o, e.key)) return false; Reflect.deleteProperty(o, e.key); return true; };
   // A control with `persist: false` stays out of what is saved and out of what is restored.
   const unsaved = (snap: Snapshot | null) => { for (const e of entries) if (!e.persist) drop(snap, e); return snap; };
   // Debounced save; destroy() flushes a pending write rather than dropping it.

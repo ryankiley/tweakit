@@ -14,10 +14,10 @@ on:
 permissions:
   contents: read
 
-# Per ref: main deploys queue one at a time; PR runs get their own lanes.
+# Per ref: main's deploys queue one at a time; a PR's newer push cancels the run its older one started.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -32,6 +32,7 @@ jobs:
       - run: npm run build
       - run: node --test "test/*.test.mjs" # against the dist just built; the quoted glob skips the _helpers
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: ${{ github.event_name != 'pull_request' }} # the artifact only feeds the deploy job, which a PR run never reaches
         with:
           path: dist
 
