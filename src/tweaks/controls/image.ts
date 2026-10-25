@@ -15,8 +15,10 @@ const size = (n: number) => (n >= MB ? `${Math.round((n / MB) * 10) / 10} MB` : 
 const stem = (url: string) => { if (/^data:/i.test(url)) return ""; const s = url.split(/[?#]/)[0].split("/").pop()!.replace(/\.\w+$/, ""); try { return decodeURIComponent(s); } catch { return s; } };
 // Pixels, not bytes, are what make an upload heavy: a phone photo is ~4 MB as a data URL, and storage holds ~5 MB an origin,
 // so one upload could keep every value from saving. A picture longer than `fit` on its long side is drawn down to it before
-// it becomes the param: JPEG at `quality`, or PNG when it has transparency. An SVG has no pixels to fit and a GIF would lose
-// its animation, so both are taken as they are. Resolves "" to take the file as it is: it fits, its format is kept, the
+// it becomes the param: a JPEG at `quality`, or a PNG when it has transparency, or when it isn't a JPEG and its PNG comes to
+// 1.5 MB or less, so a screenshot or text isn't smudged (a photo's PNG at 2560px is several times that). The PNG is weighed
+// by size, not against the JPEG: drawn down, a screenshot's edges soften and its PNG runs about twice the JPEG. An SVG has
+// no pixels to fit and a GIF would lose its animation, so both are taken as they are. Resolves "" to take the file as it is: it fits, its format is kept, the
 // browser can't decode or draw it, or the redraw came out no smaller.
 const KEEP = /^image\/(gif|svg\+xml)$/i;
 const hasAlpha = (ctx: CanvasRenderingContext2D, w: number, h: number) => { const d = ctx.getImageData(0, 0, w, h).data; for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true; return false; };
@@ -31,7 +33,9 @@ const shrink = async (file: File, fit: number, quality: number): Promise<string>
     const c = document.createElement("canvas"), w = (c.width = Math.max(1, Math.round(img.naturalWidth * k))), h = (c.height = Math.max(1, Math.round(img.naturalHeight * k)));
     const ctx = c.getContext("2d"); if (!ctx) return "";
     ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, 0, 0, w, h);
-    const url = c.toDataURL(!/^image\/jpe?g$/i.test(file.type) && hasAlpha(ctx, w, h) ? "image/png" : "image/jpeg", quality);
+    const jpeg = /^image\/jpe?g$/i.test(file.type), alpha = !jpeg && hasAlpha(ctx, w, h);
+    const png = jpeg ? "" : c.toDataURL("image/png");
+    const url = alpha || (png && png.length <= 1.5 * MB) ? png : c.toDataURL("image/jpeg", quality);
     return /^data:image\//.test(url) && url.length < (file.size * 4) / 3 ? url : ""; // a data URL is ~4/3 of the file
   } catch { return ""; } finally { if (src) URL.revokeObjectURL(src); }
 };
@@ -45,7 +49,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   const canUpload = meta.upload !== false || !options.length; // the plain row is the upload: there is nothing else to leave
   const canClear = meta.clear !== false; // false: a required choice, with no Clear and no Delete to empty it
   const maxSize = +meta.maxSize! > 0 ? +meta.maxSize! : 10 * MB;
-  const fit = meta.fit === false || meta.fit === 0 ? 0 : +meta.fit! >= 1 ? Math.round(+meta.fit!) : 1600; // false or 0: uploads as they are
+  const fit = meta.fit === false || meta.fit === 0 ? 0 : +meta.fit! >= 1 ? Math.round(+meta.fit!) : 2560; // false or 0: uploads as they are
   const quality = +meta.quality! > 0 && +meta.quality! <= 1 ? +meta.quality! : 0.85;
   const input = el("input", "tw-image-input"); input.type = "file"; input.accept = "image/*";
   // A refused file's reason takes the button text's place for a moment. It is spoken from a status region beside the
