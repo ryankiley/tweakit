@@ -138,6 +138,27 @@ test("a persist write storage refuses is retried without the image values, so th
   } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
 });
 
+test("only an image storage left out says so on its row: not an empty one, and none when storage is off", async () => {
+  const big = "data:image/gif;base64," + "A".repeat(4096);
+  const setItem = window.Storage.prototype.setItem;
+  let off = false;
+  window.Storage.prototype.setItem = function (k, v) { if (off || String(v).includes(big)) throw new DOMException("quota", "QuotaExceededError"); return setItem.call(this, k, v); };
+  const warn = console.warn; console.warn = () => {};
+  try {
+    const p = tweaks("N", { x: [1, 0, 10, 1], im: { type: "image" }, empty: { type: "image" } }, { persist: "t-note" });
+    const [im, empty] = p.el.querySelectorAll(".tw-image-note");
+    p.set("im", big); await tick(250);
+    assert.equal(im.textContent, "Too big to save");
+    assert.equal(empty.textContent, "", "an empty image row has nothing that went unsaved");
+    im.textContent = ""; off = true; p.set("im", big + "B"); await tick(250);
+    assert.equal(im.textContent, "", "refused without the image too: no note");
+    const q = tweaks("M", { x: [1, 0, 10, 1], im: { type: "image", value: "/a.png" } }, { persist: "t-note-off" });
+    q.set("x", 2); await tick(250);
+    assert.equal(q.el.querySelector(".tw-image-note").textContent, "", "storage is off: the image isn't to blame");
+    p.destroy(); q.destroy();
+  } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
+});
+
 // Each undo step was a deep clone of every value, so after an upload every later step held its own copy of it: a 4 MB image
 // and 20 slider edits grew the heap by ~80 MB, and history keeps 200 steps. A step now shares what didn't change with the one before.
 test("undo history keeps one copy of an unchanged big value, not one per step", () => {

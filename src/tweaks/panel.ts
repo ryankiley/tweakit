@@ -85,8 +85,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (writeStore(persistKey, snap)) return;
       const left = kept.filter((e) => drop(snap, e));
       if (!left.length) return; // no image to leave out: storage is off, denied or full of something else — silent, as before
-      for (const e of left) { refused.set(e, e.get()); e.note?.("Too big to save"); }
-      if (writeStore(persistKey, snap) && !quotaWarned) { quotaWarned = true; console.warn("[tweaks] persist: the values didn't fit in storage with an image included — saved without it"); }
+      for (const e of left) refused.set(e, e.get());
+      if (!writeStore(persistKey, snap)) return; // refused without the images too: storage is off or full, and no image is to blame
+      for (const e of left) if (e.get()) e.note?.("Too big to save"); // an empty row had nothing to leave out
+      if (!quotaWarned) { quotaWarned = true; console.warn("[tweaks] persist: the values didn't fit in storage with an image included — saved without it"); }
     };
     cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
     return () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };

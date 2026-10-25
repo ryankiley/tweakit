@@ -116,9 +116,9 @@ export const examples = [
       from, the upload below them, and Clear, which clears the param to <code>""</code>. An upload stays in the browser and is held to 10 MB
       (<code>maxSize</code>, in bytes). A picture longer than 2560px on its long side is drawn
       down to it first (<code>fit</code>, in px, or <code>false</code> to keep uploads as they are),
-      so a phone photo can't fill storage: as a JPEG at <code>quality</code> 0.85, or a PNG when
-      it has transparency, or when it's a PNG of 1.5 MB or less drawn down, like a screenshot,
-      that JPEG would smudge. A GIF or
+      so a phone photo can't fill storage. A JPEG stays a JPEG at <code>quality</code> 0.85;
+      anything else stays a PNG when that comes to 1.5 MB or less, as a screenshot does, so its
+      text isn't smudged, and past that is a JPEG, or a WebP when it has transparency. A GIF or
       an SVG is kept as it is. <code>upload: false</code> leaves only the tiles,
       <code>clear: false</code> leaves out Clear for a choice that must keep a value, and
       <code>cols</code> sets the tiles per row, up to 6.</p>`,
