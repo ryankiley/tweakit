@@ -416,6 +416,7 @@
  * like the top and bottom; many buttons wrap rather than squeeze to blank pills. */
 .tw-buttongroup { height: auto; min-height: var(--tw-row-height); }
 .tw-buttongroup-btns { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; margin-right: -6px; }
+.tw-buttongroup:not(:has(> .tw-row-label)) { padding-left: 4px; } /* with no label, the left matches the other three sides */
 .tw-buttongroup-btn { flex: 1 1 0; min-width: 6ch; padding: 5px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface-active); border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
   .tw-buttongroup-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
