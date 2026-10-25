@@ -63,7 +63,7 @@ panel.ready.then(() => apply(panel.params));
 | `true` | checkbox | boolean |
 | `"Hello"` | text input | string |
 | `"#7C5CFF"` | color picker, for hex or a color function (`oklch(…)`, `rgb(…)`, `hsl(…)`, `color(…)`); a named color such as `"red"` or `"transparent"` builds a text input, so write it as hex | color string |
-| `["a", "b"]` | list (dropdown); an option may be `{ value, label }`; numeric choices need `{ type: "list", options }` | string |
+| `["a", "b"]` | list (dropdown); a string option shows as written, an all-lowercase one capitalised; an option may be `{ value, label }`; numeric choices need `{ type: "list", options }` | string |
 | `{ options: ["a", "b"], value: "b" }` | list with a chosen default | string |
 | `{ action: fn }` | button | none |
 | `{ x: 0, y: 10 }` | folder of controls | nested object |

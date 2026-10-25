@@ -2,7 +2,8 @@
  * panel you get back. These are what ship as .d.ts, so consumers get autocomplete on
  * the schema shorthands + the verbose control forms + the panel methods. */
 
-/** An option for a select / radio grid: a bare string, or `{ value, label }`. */
+/** An option for a select / radio grid: a bare string, or `{ value, label }`. A bare string shows as written;
+ *  an all-lowercase one gets a capital first letter. */
 export type Option = string | { value: string; label?: string; color?: string }; // color: any CSS colour, shown as a swatch beside a dropdown option (and the chosen one on the row)
 
 /** A colour stop in a gradient. */

@@ -108,7 +108,8 @@ const optValue = (o: Option) => (o == null ? undefined : typeof o === "object" ?
 // An object's readable form: its JSON, or String() when it can't be stringified (a cycle).
 const json = (v: unknown) => { try { return JSON.stringify(v); } catch { return String(v); } };
 // A { value } option with no label reads as its value's string; an object with neither, as its JSON.
-const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : json(o)) : String(o));
+// A string option is display text, not a key: shown as written, an all-lowercase one with a capital first letter ("iOS" stays "iOS").
+const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? (o === o.toLowerCase() ? o.charAt(0).toUpperCase() + o.slice(1) : o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : json(o)) : String(o));
 
 // The DOM factory, typed by tag like createElement (svgEl in heavy.ts is its SVG twin). A field it
 // makes is a setting, not a form: autofill and the password managers leave it alone.

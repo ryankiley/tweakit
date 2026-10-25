@@ -133,11 +133,10 @@ test("a point value outside the default pad range widens the range instead of pi
   assert.ok(top > 0 && top < 50, `the thumb should sit inside the pad, above centre (top=${thumb.style.top})`);
 });
 
-// A string option's label title-cases a camel hump ("fontSize" → "Font Size") and leaves a
-// run of capitals or a digit before one alone ("XS", "2XL", "RGB" used to render "X S",
-// "2 X L", "R G B").
-test("string option labels: camel humps split, capital runs and digits do not", async () => {
-  const p = tweaks("L", { size: { type: "radiogrid", options: ["XS", "2XL", "RGB", "fontSize", "small", "myURLParser", "level2Up"] } }); document.body.append(p.el); await p.ready;
-  assert.deepEqual([...p.el.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up"]);
+// A string option is display text, not a key: it shows as written ("iOS" used to render
+// "I OS"), and only an all-lowercase one gets a capital first letter.
+test("string option labels show as written; an all-lowercase one is capitalised", async () => {
+  const p = tweaks("L", { size: { type: "radiogrid", options: ["XS", "2XL", "iOS", "fontSize", "small", "top-left", "level2Up"] } }); document.body.append(p.el); await p.ready;
+  assert.deepEqual([...p.el.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["XS", "2XL", "iOS", "fontSize", "Small", "Top-left", "level2Up"]);
   p.destroy();
 });
