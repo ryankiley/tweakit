@@ -231,6 +231,16 @@ test("upload: false leaves a gallery of tiles alone, with no button and no file 
   assert.equal(p.params.pic, "", "no value until a tile is picked");
 });
 
+test("clear: false leaves Clear out and Delete keeps the value; cols reaches 6", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png", "/c.png", "/d.png", "/e.png", "/f.png"], value: "/b.png", upload: false, clear: false, cols: 6 } });
+  assert.equal(p.el.querySelector(".tw-image-clear"), null, "no Clear button");
+  const tile = p.el.querySelector('.tw-image-tile[data-active="true"]');
+  tile.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+  assert.equal(p.params.pic, "/b.png", "Delete doesn't empty a required choice");
+  assert.equal(p.el.querySelector(".tw-image-grid").style.getPropertyValue("--tw-img-cols"), "6");
+  p.destroy();
+});
+
 // ── The gallery's review fixes: each failed on the first cut of the gallery. ──
 const dropOn = (el, file) => { const e = new Event("drop", { bubbles: true, cancelable: true }); e.dataTransfer = { files: file ? [file] : [] }; el.dispatchEvent(e); };
 globalThis.FileReader ??= window.FileReader;
