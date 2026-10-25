@@ -193,6 +193,20 @@ test("an image with options is a gallery: tiles pick, Clear clears, an off-list 
   p.set("pic", null); assert.equal(p.params.pic, "");
 });
 
+test("a gallery is a row naming the chosen image that opens a pane of tiles", async () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/b.png", label: "Bee" }], value: "/b.png" } });
+  document.body.append(p.el);
+  const trigger = p.el.querySelector(".tw-image .tw-trigger"), name = trigger.querySelector(".tw-trigger-value");
+  assert.equal(name.textContent, "Bee", "the row names the chosen option");
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  trigger.click(); await tick(30);
+  assert.equal(trigger.getAttribute("aria-expanded"), "true");
+  const pop = document.querySelector(".tw-image-pop"); assert.ok(pop.querySelector(".tw-image-grid"), "the tiles are in the pane");
+  pop.querySelectorAll(".tw-image-tile")[0].click(); assert.equal(name.textContent, "a", "else the URL's file stem");
+  p.set("pic", ""); assert.equal(name.textContent, "None");
+  p.destroy();
+});
+
 test("the gallery's tiles are one radio group: arrows move and pick, Delete clears", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png", "/c.png"], value: "/a.png" } });
   document.body.append(p.el);

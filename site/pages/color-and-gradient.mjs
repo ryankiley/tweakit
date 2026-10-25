@@ -112,8 +112,8 @@ export const examples = [
     title: "Image",
     prose: `<p><code>{ type: "image" }</code> is a drop zone and file picker in one row; the
       param is a data URL. Give it <code>options</code> (URLs, or <code>{ value, label }</code>)
-      and it becomes a gallery: tiles to pick from, the upload below them, and Clear, which
-      clears the param to <code>""</code>. An upload stays in the browser and is held to 10 MB
+      and it becomes a gallery: the row names the chosen image and opens a pane of tiles to pick
+      from, the upload below them, and Clear, which clears the param to <code>""</code>. An upload stays in the browser and is held to 10 MB
       (<code>maxSize</code>, in bytes); <code>upload: false</code> leaves only the tiles,
       <code>clear: false</code> leaves out Clear for a choice that must keep a value, and
       <code>cols</code> sets the tiles per row, up to 6.</p>`,

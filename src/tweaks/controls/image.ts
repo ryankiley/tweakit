@@ -1,5 +1,5 @@
 // ── Image — a drop zone / file pick that yields a data URL; with `options`, a gallery of supplied URLs over the upload. Lazy.
-import { el, txt, btn, icon, optValue, radioButton, navIndex, registerControl } from "../shared.js";
+import { el, txt, btn, icon, optValue, radioButton, navIndex, popover, registerControl } from "../shared.js";
 import { triggerRow } from "../heavy.js";
 import type { OnChange, RadioBtn } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -43,9 +43,10 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     fr.readAsDataURL(file);
   };
   // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the children doesn't drop the outline.
-  // A disabled control's root stays hit-testable (only its children go inert), so the zone checks for itself.
+  // A disabled control's root stays hit-testable (only its children go inert), so the zone checks for itself; on the
+  // control's root, since the gallery's pane is portaled out of the panel while open.
   const dropZone = (zone: HTMLElement, over: HTMLElement) => {
-    const off = () => !!zone.closest(".is-disabled");
+    const off = () => !!root.closest(".is-disabled");
     zone.addEventListener("dragover", (e) => { if (off()) return; e.preventDefault(); over.dataset.over = "true"; });
     zone.addEventListener("dragleave", () => { over.dataset.over = "false"; });
     zone.addEventListener("drop", (e) => { over.dataset.over = "false"; if (off()) return; e.preventDefault(); load(e.dataTransfer?.files[0]); });
@@ -70,8 +71,14 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     row.trigger.addEventListener("click", () => input.click());
     dropZone(row.trigger, row.trigger);
   } else {
-    // The gallery: a label row with Clear, the tiles as one radio group, and the upload button, which is the block's drop zone.
-    root = el("div", "tw-image tw-image-gallery");
+    // The gallery: a trigger row with the chosen image's thumb and name opens a pane holding a label row with Clear, the
+    // tiles as one radio group, and the upload button. The row and the pane both take a dropped file.
+    const row = triggerRow("tw-image", meta.label); root = row.root;
+    const name = el("span", "tw-trigger-value");
+    const thumb = el("span", "tw-trigger-chip tw-image-thumb");
+    row.right.append(thumb, name); // thumb first, as every chip row
+    const pop = el("div", "tw-color-pop tw-image-pop");
+    const gallery = el("div", "tw-image-gallery"); pop.append(gallery);
     const upload = canUpload ? btn("tw-button tw-image-upload", ICON_UPLOAD) : null;
     const clear = txt("button", "tw-image-clear", "Clear"); clear.type = "button"; clear.setAttribute("aria-label", `${meta.label}: clear the image`);
     const head = el("div", "tw-image-head"); head.append(txt("span", "tw-image-label", meta.label)); if (canClear) head.append(clear);
@@ -80,7 +87,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
     grid.style.setProperty("--tw-img-cols", String(cols));
     const tile = (v: string, label: string) => { const b = radioButton("tw-image-tile", v, (x) => commit(x)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
-    const tiles = options.map((o, i) => { const b = tile(o.value, o.label || stem(o.value) || `Image ${i + 1}`); grid.append(b); return b; });
+    const names = options.map((o, i) => o.label || stem(o.value) || `Image ${i + 1}`);
+    const tiles = options.map((o, i) => { const b = tile(o.value, names[i]); grid.append(b); return b; });
     // A value that is none of the options (an upload, or a host-set URL) shows as a last tile, selected. Its URL rides
     // on _twVal, not data-value: the inline style already holds one copy of a data URL, and data-value would be a second.
     const custom: RadioBtn = btn("tw-image-tile tw-image-custom"); custom.setAttribute("role", "radio");
@@ -95,6 +103,10 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       btns.forEach((b, k) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = k === stop ? 0 : -1; });
       if (hadFocus && !custom.parentNode) btns[stop].focus(); // the focused tile left (undo, a preset, set()): focus stays in the group, not on <body>
       clear.hidden = !value; // nothing to clear, no button
+      thumb.dataset.set = value ? "true" : "false";
+      thumb.style.backgroundImage = value ? urlCss(value) : "";
+      const k = tiles.findIndex((b) => b._twVal === value);
+      name.textContent = !value ? "None" : k >= 0 ? names[k] : stem(value) || "Uploaded image";
     };
     grid.addEventListener("keydown", (e) => {
       const btns = all(), i = btns.indexOf(e.target as RadioBtn); if (i < 0) return;
@@ -103,14 +115,16 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       e.preventDefault(); if (j !== i) { commit(btns[j]._twVal!); btns[j].focus(); }
     });
     clear.addEventListener("click", () => { commit(""); (upload || tiles[0]).focus(); }); // Clear hides itself: hand focus on, not to the body
-    root.append(head, grid, live);
+    gallery.append(head, grid);
+    root.append(pop, live);
     if (upload) {
       upload.setAttribute("aria-label", `${meta.label}: upload an image`);
       upload.append(note, txt("span", "tw-image-text", "Upload image"));
       upload.addEventListener("click", () => input.click());
-      root.append(upload, input);
-      dropZone(root, root);
+      gallery.append(upload); root.append(input);
+      dropZone(row.trigger, row.trigger); dropZone(gallery, gallery);
     }
+    popover(root, row.trigger, pop, { fallbackH: 220, initialFocus: () => all().find((b) => b.tabIndex === 0) });
   }
   render();
   return { el: root, set: (v: string | null | undefined) => { if (v != null && typeof v !== "string") return; commit(v || "", false); }, get: () => value };

@@ -101,8 +101,8 @@ export type SchemaObject =
   | { type: "fpsgraph" }
   | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }
   | { type: "image"; value?: string;
-      /** Supplied images to pick from, as URLs or `{ value, label }`. The control becomes a gallery of
-       *  tiles with the upload below them, and the param is the chosen URL or the upload's data URL. */
+      /** Supplied images to pick from, as URLs or `{ value, label }`. The control becomes a row naming the chosen
+       *  image that opens a pane of tiles with the upload below them, and the param is the chosen URL or the upload's data URL. */
       options?: Option[];
       /** Tiles per row in the gallery, 1 to 6 (2 for up to four options, then 3). */
       cols?: number;
