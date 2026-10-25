@@ -252,7 +252,9 @@ let activePopoverClose: null | (() => void) = null, activePopoverTrigger: HTMLEl
 // With `owner` given, closes only when the open popover's trigger lives inside it.
 const closeActivePopover = (owner?: Element) => { if (activePopoverClose && (!owner || owner.contains(activePopoverTrigger))) activePopoverClose(); };
 function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
-  let open = false, schemeObs: MutationObserver | null = null, removeTimer: ReturnType<typeof setTimeout> | undefined;
+  let open = false, schemeObs: MutationObserver | null = null, removeTimer: ReturnType<typeof setTimeout> | undefined, byPointer = false;
+  // Focus goes back to the row as the pane was opened: quietly after a click, even when an Escape closes it.
+  const refocus = () => trigger.focus({ focusVisible: !byPointer });
   pop.classList.add("tw-portal"); // portal-wide CSS rules key off this
   // A closed pop stays in the DOM at opacity 0; inert keeps it out of the tab order and a11y tree.
   pop.inert = true;
@@ -307,7 +309,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   };
   const onOutside = (e: PointerEvent) => { if (!root.contains(e.target as Node) && !pop.contains(e.target as Node)) close(); };
   // Escape closes and stops propagation, so a host dialog doesn't close too. A field reverting an edit stops it first.
-  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && open && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); close(); trigger.focus(); } };
+  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && open && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); close(); refocus(); } };
   // Focus leaving both the pop and its trigger closes. A blur with no relatedTarget is
   // ambiguous (a press on a drag surface inside the pop blurs to <body> too), so the modality
   // note decides. A Tab that lands outside the panel comes back to the trigger a tick later.
@@ -328,7 +330,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     activePopoverClose = close; activePopoverTrigger = trigger;
     open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
     // Reopened mid-fade, it's still on <body>; re-appending would kill the transition, so it reverses in place.
-    clearTimeout(removeTimer); const fading = pop.parentNode === document.body; moved = false;
+    clearTimeout(removeTimer); const fading = pop.parentNode === document.body; moved = false; byPointer = pointerModality;
     pop.inert = false; if (!fading) document.body.appendChild(pop);
     carrySkin(pop, root);
     window.addEventListener("tw-retheme", recarry); // setTheme() while open
@@ -353,7 +355,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   const close = () => {
     if (activePopoverClose === close) { activePopoverClose = null; activePopoverTrigger = null; }
     // Focus stranded inside the pop returns to the trigger before the node is removed.
-    if (pop.contains(document.activeElement)) trigger.focus();
+    if (pop.contains(document.activeElement)) refocus();
     open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); pop.inert = true; trigger.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", reflow);

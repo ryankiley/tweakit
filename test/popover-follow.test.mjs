@@ -157,3 +157,17 @@ test("a pane drags by its edge and keeps that offset while open; a press on its 
     assert.deepEqual(at(), ["50px", "138px"], "the next open is under the row again");
   } finally { p.destroy(); } // an open pane's frame watchdog would keep a failed run alive
 });
+
+test("Escape hands focus back to the row as the pane was opened: quietly after a click, ringed after a key", async () => {
+  const p = tweaks("F", { pick: ["a", "b"] }); document.body.append(p.el); await p.ready;
+  try {
+    const trigger = p.el.querySelector(".tw-select-trigger"); trigger.getBoundingClientRect = () => rect(100);
+    const calls = []; const focus = trigger.focus.bind(trigger); trigger.focus = (o) => { calls.push(o); focus(o); };
+    const esc = () => document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    trigger.dispatchEvent(ptr("pointerdown", {})); trigger.click(); await wait(60); esc();
+    assert.deepEqual(calls.at(-1), { focusVisible: false }, "opened by a click: no ring");
+    await wait(230);
+    document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true })); trigger.click(); await wait(60); esc();
+    assert.deepEqual(calls.at(-1), { focusVisible: true }, "opened from the keyboard: the ring shows where focus went");
+  } finally { p.destroy(); }
+});
