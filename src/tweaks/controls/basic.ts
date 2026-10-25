@@ -247,7 +247,7 @@ function createToggle(meta: Meta, onChange: OnChange): Control {
 function createRadiogrid(meta: Meta, onChange: OnChange): Control {
   const options: Option[] = meta.options || [];
   const cols = Math.min(3, Math.max(2, meta.cols || (options.length <= 3 ? options.length : options.length === 4 ? 2 : 3)));
-  const row = el("div", "tw-radiogrid");
+  const row = el("div", options.length > cols ? "tw-radiogrid is-grid" : "tw-radiogrid"); // several rows keep equal columns
   const grid = el("div", "tw-radiogrid-grid"); grid.style.setProperty("--tw-rg-cols", cols);
   grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
   let value = meta.value ?? optValue(options[0]);
