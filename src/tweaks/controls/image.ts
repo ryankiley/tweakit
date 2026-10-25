@@ -86,7 +86,10 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const pop = el("div", "tw-color-pop tw-image-pop tw-image-gallery");
     const upload = canUpload ? btn("tw-button tw-image-upload", ICON_UPLOAD) : null;
     const clear = txt("button", "tw-image-clear", "Clear"); clear.type = "button"; clear.setAttribute("aria-label", `${meta.label}: clear the image`);
-    const foot = el("div", "tw-image-foot");
+    // The foot folds like a folder: a row track holds the upload button and a column track holds Clear, so either can
+    // ease shut without measuring. Clear folds away when there's nothing to clear; the foot folds when it's empty.
+    const foot = el("div", "tw-image-foot"), footRow = el("div", "tw-image-foot-row"), slot = el("div", "tw-image-clear-slot");
+    foot.append(footRow); slot.append(clear);
     const grid = el("div", "tw-image-grid"); grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
     const n = options.length;
     const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
@@ -111,8 +114,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       }
       const btns = all(), stop = Math.max(0, btns.findIndex((b) => b._twVal === value)); // the roving tab stop: the chosen tile, else the first
       btns.forEach((b, j) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = j === stop ? 0 : -1; });
-      clear.hidden = !value; // nothing to clear, no button
-      foot.hidden = !upload && clear.hidden; // an empty foot leaves no gap
+      slot.dataset.open = String(!!value); slot.inert = !value; // nothing to clear: Clear folds away, out of the tab order
+      foot.dataset.open = String(!!upload || (canClear && !!value)); foot.inert = foot.dataset.open === "false"; // an empty foot folds to nothing
       thumb.dataset.set = value ? "true" : "false";
       thumb.style.backgroundImage = value ? urlCss(value) : "";
       name.textContent = !value ? "None" : k >= 0 ? names[k] : customName(value);
@@ -131,10 +134,10 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       upload.setAttribute("aria-label", `${meta.label}: upload an image`);
       upload.append(note, txt("span", "tw-image-text", "Upload image"));
       upload.addEventListener("click", () => input.click());
-      foot.append(upload); root.append(input);
+      footRow.append(upload); root.append(input);
       dropZone(row.trigger, row.trigger); dropZone(pop, pop);
     }
-    if (canClear) foot.append(clear);
+    if (canClear) footRow.append(slot);
     popover(root, row.trigger, pop, { fallbackH: 220, initialFocus: () => all().find((b) => b.tabIndex === 0) });
   }
   render();

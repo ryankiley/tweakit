@@ -678,13 +678,19 @@
 .tw-image .tw-trigger[data-over="true"], .tw-image-gallery[data-over="true"] .tw-image-upload { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
 .tw-image .tw-trigger[data-over="true"] .tw-image-thumb { transform: scale(1.14); }
 .tw-image-gallery { display: flex; flex-direction: column; gap: 6px; }
-/* Under the tiles: the upload button, then Clear, as tall as the button. The foot's own space is part of the pane's drag
- * edge; its buttons still take their own presses. */
-.tw-image-foot { display: flex; align-items: stretch; justify-content: flex-end; gap: 6px; pointer-events: none; }
-.tw-image-foot[hidden] { display: none; }
-.tw-image-foot > * { pointer-events: auto; }
+/* Under the tiles: the upload button, then Clear, as tall as the button. They fold the way a folder does, on its curve:
+ * Clear folds sideways when there's nothing to clear and the upload button eases into its room; a foot with nothing in
+ * it folds up, and the pane eases shorter. The foot's own space is part of the pane's drag edge; its buttons still take
+ * their own presses. The focus rings are inset, so the clipping leaves them whole. */
+.tw-image-foot { display: grid; grid-template-rows: 1fr; pointer-events: none; transition: grid-template-rows 0.35s var(--tw-ease-fold), margin-top 0.35s var(--tw-ease-fold); }
+.tw-image-foot[data-open="false"] { grid-template-rows: 0fr; margin-top: -6px; } /* -6px takes back the pane's gap above it */
+.tw-image-foot-row { display: flex; align-items: stretch; justify-content: flex-end; min-height: 0; overflow: hidden; }
+.tw-image-foot-row > * { pointer-events: auto; }
 .tw-image-foot .tw-image-upload { flex: 1; min-width: 0; }
-.tw-image-foot .tw-image-clear { height: auto; min-height: 24px; padding: 0 10px; }
+.tw-image-clear-slot { display: grid; grid-template-columns: 1fr; margin-left: 6px; overflow: hidden; transition: grid-template-columns 0.35s var(--tw-ease-fold), margin-left 0.35s var(--tw-ease-fold), opacity 0.2s; }
+.tw-image-clear-slot[data-open="false"] { grid-template-columns: 0fr; margin-left: 0; opacity: 0; }
+.tw-image-clear-slot .tw-image-clear { height: auto; min-height: 24px; min-width: 0; padding: 0 10px; white-space: nowrap; transition: padding 0.35s var(--tw-ease-fold), background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
+.tw-image-clear-slot[data-open="false"] .tw-image-clear { padding: 0; } /* its padding folds too, or 20px of it would stay */
 .tw-image-grid { display: grid; grid-template-columns: repeat(var(--tw-img-cols, 2), minmax(0, 1fr)); gap: 6px; }
 /* A tile is its image; a hairline ring set off by a gap marks the chosen one, so the picture stays readable.
  * The gap is outline-offset, which shows the panel behind it. */
