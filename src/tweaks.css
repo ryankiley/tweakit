@@ -336,7 +336,7 @@
 @media (hover: hover) and (pointer: fine) {
   .tw-slider-wrap:not(.is-disabled):hover .tw-slider-label,
   :is(.tw-row, .tw-sides, .tw-radiogrid):not(.is-disabled):hover :is(.tw-row-label, .tw-radiogrid-label),
-  :is(.tw-image-gallery, .tw-spring, .tw-bezier, .tw-plot):not(.is-disabled):hover :is(.tw-image-label, .tw-spring-label, .tw-bezier-label, .tw-plot-label) { color: var(--tw-text-primary); }
+  :is(.tw-spring, .tw-bezier, .tw-plot):not(.is-disabled):hover :is(.tw-spring-label, .tw-bezier-label, .tw-plot-label) { color: var(--tw-text-primary); }
 }
 /* An explicit `label: ""` hides the element so it takes no gap. */
 .tw-slider-label:empty, .tw-row-label:empty, .tw-select-label:empty, .tw-radiogrid-label:empty, .tw-trigger-label:empty, .tw-fps-label:empty { display: none; }
@@ -671,14 +671,20 @@
 .tw-image-input { display: none; }
 .tw-image-text, .tw-image-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tw-image-note:empty { display: none; }
-.tw-image-note:not(:empty) + .tw-image-text { display: none; } /* a refused file's reason takes the text's place for a moment */
-.tw-image-thumb { width: 18px; background: var(--tw-base) center / cover no-repeat; }
+.tw-image-note:not(:empty) + :is(.tw-image-text, .tw-trigger-value) { display: none; } /* a refused file's reason takes the text's place for a moment */
+.tw-image-thumb { width: 24px; background: var(--tw-base) center / cover no-repeat; } /* 24 × 18: the tiles' 4:3 */
 .tw-image-thumb[data-set="false"] { background: var(--tw-checker); }
 /* JS toggles [data-over] on the trigger, or on the gallery root, while a file is dragged over it. */
 .tw-image .tw-trigger[data-over="true"], .tw-image-gallery[data-over="true"] .tw-image-upload { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
 .tw-image .tw-trigger[data-over="true"] .tw-image-thumb { transform: scale(1.14); }
 .tw-image-gallery { display: flex; flex-direction: column; gap: 6px; }
-.tw-image-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; } /* the delete button's height, so the grid holds still when Remove leaves */
+/* Under the tiles: the upload button, then Clear, as tall as the button. The foot's own space is part of the pane's drag
+ * edge; its buttons still take their own presses. */
+.tw-image-foot { display: flex; align-items: stretch; justify-content: flex-end; gap: 6px; pointer-events: none; }
+.tw-image-foot[hidden] { display: none; }
+.tw-image-foot > * { pointer-events: auto; }
+.tw-image-foot .tw-image-upload { flex: 1; min-width: 0; }
+.tw-image-foot .tw-image-clear { height: auto; min-height: 24px; padding: 0 10px; }
 .tw-image-grid { display: grid; grid-template-columns: repeat(var(--tw-img-cols, 2), minmax(0, 1fr)); gap: 6px; }
 /* A tile is its image; a hairline ring set off by a gap marks the chosen one, so the picture stays readable.
  * The gap is outline-offset, which shows the panel behind it. */
@@ -875,13 +881,12 @@
 
 /* Plot — a function graph with an editable, safely-parsed expression. */
 .tw-plot { display: flex; flex-direction: column; gap: 6px; }
-.tw-plot-label, .tw-spring-label, .tw-bezier-label, .tw-image-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0; transition: color 0.15s; } /* flush with the full-width graph (or tiles) below */
-/* As a panel row, a gallery or graph sits in a row's frame, as a radio grid does: 4px round the tiles or graph, the label
+.tw-plot-label, .tw-spring-label, .tw-bezier-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0; transition: color 0.15s; } /* flush with the full-width graph below */
+/* As a panel row, a graph sits in a row's frame, as a radio grid does: 4px round the graph, the label
  * 12px in like every row's. (The motion pane's editors aren't rows, and stay flush.) */
-:is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-image-gallery, .tw-spring, .tw-bezier, .tw-plot) { padding: 4px; background: var(--tw-surface); border-radius: var(--tw-radius); } /* a markup panel's control sits in its host */
-/* A 24px line for the label (the gallery head's, which holds Clear): in the 4px frame its text lands 9px down, where a
+:is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-spring, .tw-bezier, .tw-plot) { padding: 4px; background: var(--tw-surface); border-radius: var(--tw-radius); } /* a markup panel's control sits in its host */
+/* A 24px line for the label: in the 4px frame its text lands 9px down, where a
  * 32px row's centred label does. */
-:is(.tw-controls, .tw-controls > [data-tw]) > .tw-image-gallery > .tw-image-head { padding-left: 8px; }
 :is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-spring, .tw-bezier, .tw-plot) > :is(.tw-spring-label, .tw-bezier-label, .tw-plot-label) { padding-left: 8px; line-height: 24px; }
 .tw-plot-graph { position: relative; width: 100%; height: 140px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); }
 .tw-plot-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
