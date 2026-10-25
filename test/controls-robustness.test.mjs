@@ -443,6 +443,18 @@ test("fit and quality set the size and the quality, a non-number fit is the defa
   });
 });
 
+test("a heavy upload within fit is redrawn at its size; a light one is taken as it is", async () => {
+  await withPicture({ w: 2400, h: 1600, bytes: { "image/png": 2 * MiB, "image/jpeg": 100 } }, async (calls) => {
+    const p = tweaks("I", { pic: { type: "image" } });
+    dropOn(p.el.querySelector(".tw-trigger"), photo("heavy.png", "image/png", 2 * MiB)); await tick(60);
+    assert.deepEqual(calls.drawn, [[2400, 1600]], "drawn at its own size");
+    assert.match(p.params.pic, /^data:image\/jpeg;base64,U1NT/, "a heavy PNG photo is a JPEG");
+    dropOn(p.el.querySelector(".tw-trigger"), photo("light.png", "image/png", 1.5 * MiB)); await tick(60);
+    assert.equal(calls.drawn.length, 1, "1.5 MB or less within fit: never redrawn");
+    p.destroy();
+  });
+});
+
 test("a pick, a set() or a second upload while a shrink is pending wins over it", async () => {
   await withPicture({ w: 4000, h: 3000 }, async () => {
     const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"] } }), seen = []; p.on((v) => seen.push(v.pic));

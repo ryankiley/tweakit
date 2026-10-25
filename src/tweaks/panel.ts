@@ -72,8 +72,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const persist = persistKey ? (() => {
     let saveT = 0;
     // An image's data URL can outgrow storage (~5 MB an origin), and a refused write would drop every value with it: the write
-    // is retried without the image values, so the rest still saves; the image says so on its row, and a host is told once why
-    // its image comes back empty.
+    // is retried without the largest images, so the rest still saves; each image left out says so on its row, and a host is
+    // told once why its image comes back empty.
     // A value storage refused stays out of later saves until it changes, so the serialise-throw-retry runs once per image, not per save.
     let quotaWarned = false;
     const refused = new Map<Entry, unknown>();
@@ -83,12 +83,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       const images = entries.filter((e) => e.persist && e.m.type === "image");
       const kept = images.filter((e) => !(refused.get(e) === e.get() && drop(snap, e)));
       if (writeStore(persistKey, snap)) return;
-      const left = kept.filter((e) => drop(snap, e));
-      if (!left.length) return; // no image to leave out: storage is off, denied or full of something else — silent, as before
-      for (const e of left) refused.set(e, e.get());
-      if (!writeStore(persistKey, snap)) return; // refused without the images too: storage is off or full, and no image is to blame
-      for (const e of left) if (e.get()) e.note?.("Too big to save"); // an empty row had nothing to leave out
-      if (!quotaWarned) { quotaWarned = true; console.warn("[tweaks] persist: the values didn't fit in storage with an image included — saved without it"); }
+      // Images leave largest first, only until the rest fits, so a picture that fits keeps its place beside one that doesn't.
+      const left: Entry[] = [];
+      for (const e of kept.filter((e) => e.get()).sort((a, b) => String(b.get()).length - String(a.get()).length)) {
+        if (!drop(snap, e)) continue;
+        left.push(e); refused.set(e, e.get());
+        if (!writeStore(persistKey, snap)) continue;
+        for (const e of left) e.note?.("Too big to save");
+        if (!quotaWarned) { quotaWarned = true; console.warn("[tweaks] persist: the values didn't fit in storage with an image included — saved without it"); }
+        return;
+      }
+      // Refused with every image out too: storage is off, denied or full of something else, and no image is to blame. Silent.
     };
     cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
     return () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };

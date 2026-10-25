@@ -108,10 +108,11 @@ export type SchemaObject =
       cols?: number;
       /** The largest upload taken, in bytes (10 MB unless set); a bigger file is refused with a note. */
       maxSize?: number;
-      /** An upload longer than this on its long side, in px, is drawn down to it before it becomes the param, so a phone
-       *  photo can't fill storage (2560 unless set; `false` takes uploads as they are). A JPEG comes out as a JPEG at
+      /** An upload longer than this on its long side, in px, is drawn down to it before it becomes the param, and one
+       *  heavier than 1.5 MB is redrawn at its size, so a phone photo can't fill storage (2560 unless set; `false` takes
+       *  uploads as they are). A JPEG comes out as a JPEG at
        *  `quality`; anything else as a PNG when that is 1.5 MB or less (a screenshot, not a photo), else as a JPEG, or a WebP
-       *  when it has transparency. A GIF, an SVG, a picture within `fit` or one the redraw wouldn't make smaller is kept as it is. */
+       *  when it has transparency. A GIF, an SVG, a light picture within `fit` or one the redraw wouldn't make smaller is kept as it is. */
       fit?: number | false;
       /** The JPEG or WebP quality of a shrunk upload, 0 to 1 (0.85 unless set). */
       quality?: number;

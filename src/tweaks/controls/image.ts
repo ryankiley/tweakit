@@ -15,12 +15,12 @@ const size = (n: number) => (n >= MB ? `${Math.round((n / MB) * 10) / 10} MB` : 
 const stem = (url: string) => { if (/^data:/i.test(url)) return ""; const s = url.split(/[?#]/)[0].split("/").pop()!.replace(/\.\w+$/, ""); try { return decodeURIComponent(s); } catch { return s; } };
 // Pixels, not bytes, are what make an upload heavy: a phone photo is ~4 MB as a data URL, and storage holds ~5 MB an origin,
 // so one upload could keep every value from saving. A picture longer than `fit` on its long side is drawn down to it before
-// it becomes the param. A JPEG stays a JPEG, at `quality`. Anything else is tried as a PNG first, so a screenshot or text
+// it becomes the param, and one within `fit` but heavier than 1.5 MB is redrawn at its size. A JPEG stays a JPEG, at `quality`. Anything else is tried as a PNG first, so a screenshot or text
 // isn't smudged, and kept as one up to 1.5 MB: a photo's PNG at 2560px is several times that, while a screenshot's is not.
 // (It's weighed by size, not against the JPEG: drawn down, even a screenshot's PNG runs about twice its JPEG.) Past that it
 // is a JPEG, or with transparency a WebP where the browser writes one, whichever is smaller than the PNG. An SVG has no
 // pixels to fit and a GIF would lose its animation, so both are taken as they are. Resolves "" to take the file as it is:
-// it fits, its format is kept, the browser can't decode or draw it, or the redraw came out no smaller.
+// it fits and is light, its format is kept, the browser can't decode or draw it, or the redraw came out no smaller.
 const KEEP = /^image\/(gif|svg\+xml)$/i;
 const PNG_BUDGET = 1.5 * MB;
 const hasAlpha = (ctx: CanvasRenderingContext2D, w: number, h: number) => { const d = ctx.getImageData(0, 0, w, h).data; for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true; return false; };
@@ -33,9 +33,9 @@ const shrink = async (file: File, fit: number, quality: number): Promise<string>
   try {
     src = URL.createObjectURL(file);
     const img = new Image(); img.src = src; await img.decode();
-    const k = fit / Math.max(img.naturalWidth, img.naturalHeight);
-    if (!(k < 1)) return ""; // within fit (or no size to read): a picture already shrunk is never redrawn
-    const c = document.createElement("canvas"), w = (c.width = Math.max(1, Math.round(img.naturalWidth * k))), h = (c.height = Math.max(1, Math.round(img.naturalHeight * k)));
+    const iw = img.naturalWidth, ih = img.naturalHeight, k = Math.min(1, fit / Math.max(iw, ih));
+    if (!(iw > 0 && ih > 0) || (k === 1 && file.size <= PNG_BUDGET)) return ""; // within fit and light: a picture already shrunk is never redrawn
+    const c = document.createElement("canvas"), w = (c.width = Math.max(1, Math.round(iw * k))), h = (c.height = Math.max(1, Math.round(ih * k)));
     const ctx = c.getContext("2d"); if (!ctx) return "";
     ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, 0, 0, w, h);
     const jpeg = /^image\/jpe?g$/i.test(file.type);
