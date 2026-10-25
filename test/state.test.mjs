@@ -123,6 +123,7 @@ test("a persist write storage refuses is retried without the image values, so th
     assert.equal(stored.x, 7, "the slider value was saved");
     assert.equal("im" in stored, false, "the image that didn't fit was left out");
     assert.equal(warned.length, 1, "and the host was told once");
+    assert.equal(p.el.querySelector(".tw-image-note").textContent, "Too big to save", "and the person, on the image's row");
     assert.equal(refusals, 1);
     p.set("x", 8); await tick(250);
     assert.equal(JSON.parse(localStorage.getItem("tw:t-quota")).x, 8);

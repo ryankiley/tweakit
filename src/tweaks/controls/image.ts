@@ -13,6 +13,28 @@ const MB = 1 << 20;
 const size = (n: number) => (n >= MB ? `${Math.round((n / MB) * 10) / 10} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
 // A tile's accessible name when its option has no label: the URL's file stem; a data URL has none.
 const stem = (url: string) => { if (/^data:/i.test(url)) return ""; const s = url.split(/[?#]/)[0].split("/").pop()!.replace(/\.\w+$/, ""); try { return decodeURIComponent(s); } catch { return s; } };
+// Pixels, not bytes, are what make an upload heavy: a phone photo is ~4 MB as a data URL, and storage holds ~5 MB an origin,
+// so one upload could keep every value from saving. A picture longer than `fit` on its long side is drawn down to it before
+// it becomes the param: JPEG at `quality`, or PNG when it has transparency. An SVG has no pixels to fit and a GIF would lose
+// its animation, so both are taken as they are. Resolves "" to take the file as it is: it fits, its format is kept, the
+// browser can't decode or draw it, or the redraw came out no smaller.
+const KEEP = /^image\/(gif|svg\+xml)$/i;
+const hasAlpha = (ctx: CanvasRenderingContext2D, w: number, h: number) => { const d = ctx.getImageData(0, 0, w, h).data; for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true; return false; };
+const shrink = async (file: File, fit: number, quality: number): Promise<string> => {
+  if (!fit || KEEP.test(file.type) || typeof Image === "undefined" || typeof URL.createObjectURL !== "function") return "";
+  let src = "";
+  try {
+    src = URL.createObjectURL(file);
+    const img = new Image(); img.src = src; await img.decode();
+    const k = fit / Math.max(img.naturalWidth, img.naturalHeight);
+    if (!(k < 1)) return ""; // within fit (or no size to read): a picture already shrunk is never redrawn
+    const c = document.createElement("canvas"), w = (c.width = Math.max(1, Math.round(img.naturalWidth * k))), h = (c.height = Math.max(1, Math.round(img.naturalHeight * k)));
+    const ctx = c.getContext("2d"); if (!ctx) return "";
+    ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, 0, 0, w, h);
+    const url = c.toDataURL(!/^image\/jpe?g$/i.test(file.type) && hasAlpha(ctx, w, h) ? "image/png" : "image/jpeg", quality);
+    return /^data:image\//.test(url) && url.length < (file.size * 4) / 3 ? url : ""; // a data URL is ~4/3 of the file
+  } catch { return ""; } finally { if (src) URL.revokeObjectURL(src); }
+};
 const ICON_UPLOAD = icon('<path d="M12 15V4m-4.5 4.5L12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>');
 
 function createImage(meta: Meta, onChange: OnChange): Control {
@@ -23,6 +45,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   const canUpload = meta.upload !== false || !options.length; // the plain row is the upload: there is nothing else to leave
   const canClear = meta.clear !== false; // false: a required choice, with no Clear and no Delete to empty it
   const maxSize = +meta.maxSize! > 0 ? +meta.maxSize! : 10 * MB;
+  const fit = meta.fit === false || meta.fit === 0 ? 0 : +meta.fit! >= 1 ? Math.round(+meta.fit!) : 1600; // false or 0: uploads as they are
+  const quality = +meta.quality! > 0 && +meta.quality! <= 1 ? +meta.quality! : 0.85;
   const input = el("input", "tw-image-input"); input.type = "file"; input.accept = "image/*";
   // A refused file's reason takes the button text's place for a moment. It is spoken from a status region beside the
   // button, not inside it: a button's children are presentational, so a live region there is never read.
@@ -40,10 +64,16 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     if (!file) return;
     if (!file.type.startsWith("image/")) return say("Not an image");
     if (file.size > maxSize) return say(`${size(file.size)}, max ${size(maxSize)}`);
-    const fr = new FileReader(), at = ++gen;
-    fr.onload = () => { if (gen === at) commit(String(fr.result)); };
-    fr.onerror = () => say("Couldn't read the file");
-    fr.readAsDataURL(file);
+    // One commit, of the shrunk picture when there is one: one change event, one save.
+    const at = ++gen;
+    shrink(file, fit, quality).then((url) => {
+      if (gen !== at) return;
+      if (url) return commit(url);
+      const fr = new FileReader();
+      fr.onload = () => { if (gen === at) commit(String(fr.result)); };
+      fr.onerror = () => say("Couldn't read the file");
+      fr.readAsDataURL(file);
+    });
   };
   // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the children doesn't drop the outline.
   // A disabled control's root stays hit-testable (only its children go inert), so the zone checks for itself; on the
@@ -141,7 +171,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     popover(root, row.trigger, pop, { fallbackH: 220, initialFocus: () => all().find((b) => b.tabIndex === 0) });
   }
   render();
-  return { el: root, set: (v: string | null | undefined) => { if (v != null && typeof v !== "string") return; commit(v || "", false); }, get: () => value };
+  return { el: root, set: (v: string | null | undefined) => { if (v != null && typeof v !== "string") return; commit(v || "", false); }, get: () => value, note: say };
 }
 
 registerControl("image", createImage);
