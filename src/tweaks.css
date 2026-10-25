@@ -672,13 +672,16 @@
 .tw-image-text, .tw-image-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tw-image-note:empty { display: none; }
 .tw-image-note:not(:empty) + .tw-image-text { display: none; } /* a refused file's reason takes the text's place for a moment */
-.tw-image-thumb { width: 18px; background: var(--tw-base) center / cover no-repeat; }
+.tw-image-thumb { width: 24px; background: var(--tw-base) center / cover no-repeat; } /* 24 × 18: the tiles' 4:3 */
 .tw-image-thumb[data-set="false"] { background: var(--tw-checker); }
 /* JS toggles [data-over] on the trigger, or on the gallery root, while a file is dragged over it. */
 .tw-image .tw-trigger[data-over="true"], .tw-image-gallery[data-over="true"] .tw-image-upload { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
 .tw-image .tw-trigger[data-over="true"] .tw-image-thumb { transform: scale(1.14); }
 .tw-image-gallery { display: flex; flex-direction: column; gap: 6px; }
 .tw-image-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; } /* the delete button's height, so the grid holds still when Remove leaves */
+/* In the pane, the 24px head (Clear's hover pill) rides up into the padding, so the label and Clear's text sit as far
+ * in from the top and right as the tiles do from the other edges. */
+.tw-image-pop .tw-image-head { margin: -5px -6px 0 0; }
 .tw-image-grid { display: grid; grid-template-columns: repeat(var(--tw-img-cols, 2), minmax(0, 1fr)); gap: 6px; }
 /* A tile is its image; a hairline ring set off by a gap marks the chosen one, so the picture stays readable.
  * The gap is outline-offset, which shows the panel behind it. */
