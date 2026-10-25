@@ -115,7 +115,7 @@ test("a pane held at its floor by a nested folder's narrower row keeps the row's
 });
 
 test("Escape in a field with a typed edit puts it back and stops; the next closes the pane, and neither reaches the host", async () => {
-  const p = tweaks("E", { drop: { type: "shadow", x: 0, y: 4, blur: 12, spread: 0, color: "#00000066" }, label: "Hello" }); document.body.append(p.el); await p.ready;
+  const p = tweaks("E", { drop: { type: "shadow", x: 0, y: 4, blur: 12, spread: 0, color: "#00000066" } }); document.body.append(p.el); await p.ready;
   let host = 0; const onHost = (e) => { if (e.key === "Escape") host++; }; window.addEventListener("keydown", onHost);
   const esc = (t) => t.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   try {
@@ -128,11 +128,6 @@ test("Escape in a field with a typed edit puts it back and stops; the next close
     esc(field);
     assert.ok(!pop.classList.contains("is-open"), "the second Escape closes it"); assert.equal(p.params.drop.x, 0, "nothing was committed");
     assert.equal(host, 0, "and the host heard neither");
-    const text = p.el.querySelector(".tw-text"); text.dispatchEvent(new window.Event("focus"));
-    text.value = "Bye"; text.dispatchEvent(new window.Event("input", { bubbles: true })); assert.equal(p.params.label, "Bye", "a text field takes its edit live");
-    esc(text); assert.equal(text.value, "Hello"); assert.equal(p.params.label, "Hello", "so Escape takes the whole edit back");
-    p.set("label", "Set"); text.value = "Typed"; text.dispatchEvent(new window.Event("input", { bubbles: true }));
-    esc(text); assert.equal(p.params.label, "Set", "a set() while focused is what Escape goes back to, not the text at focus");
   } finally { window.removeEventListener("keydown", onHost); p.destroy(); }
 });
 

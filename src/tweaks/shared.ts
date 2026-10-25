@@ -160,9 +160,9 @@ const quietFocus = (input: HTMLElement) => {
 };
 // Escape in an edited field restores `kept` and stops; otherwise it passes on and closes the pane. Without this,
 // closing blurred the field and committed the half-typed value.
-const escapeReverts = (input: HTMLInputElement | HTMLTextAreaElement, kept: () => string, revert?: () => void) => input.addEventListener("keydown", (e: KeyboardEvent) => {
+const escapeReverts = (input: HTMLInputElement, kept: () => string) => input.addEventListener("keydown", (e: KeyboardEvent) => {
   if (e.key !== "Escape" || input.value === kept()) return;
-  e.preventDefault(); e.stopPropagation(); input.value = kept(); revert?.();
+  e.preventDefault(); e.stopPropagation(); input.value = kept();
 });
 /** Place a portaled popover under its trigger, flipping above when it won't fit, clamped into
  *  the viewport. width:"match" sizes it to the trigger; align:"end" lines up the right edges. */
