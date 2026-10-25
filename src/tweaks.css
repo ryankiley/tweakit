@@ -368,24 +368,27 @@
 .tw-row .tw-seg .tw-seg-btn { min-width: 0; padding: 5px; }
 
 /* ── Radio grid — a segmented control wrapped into a 2- or 3-column grid ── */
-/* A 4px frame round the cells: one row is 24px cell + 8px frame = the 32px row height. When the
- * cells don't fit beside the label, the label ellipsizes down to 5ch and then the cells wrap below it. */
+/* A 4px frame round the cells: one row is 24px cell + 8px frame = the 32px row height. */
 .tw-radiogrid {
-  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 10px; /* a two-line grid keeps its label on the first line, as every tall row does */
+  display: flex; align-items: flex-start; gap: 10px; /* a two-line grid keeps its label on the first line, as every tall row does */
   min-height: var(--tw-row-height); padding: 4px 4px 4px 12px;
   background: var(--tw-surface); border-radius: var(--tw-radius);
 }
 .tw-radiogrid-label {
-  flex: 1 1 5ch; min-width: 0; line-height: 24px; /* a cell's height: its text lands 9px down */
+  flex: 1 1 5ch; min-width: 5ch; line-height: 24px; /* a cell's height: its text lands 9px down */
   font-size: 12px; font-weight: 500; color: var(--tw-text-label); transition: color 0.15s;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-/* Each column is as wide as its widest word, so a cell hugs its word like the Off/On toggle's
- * segments; only a grid wider than the whole row shrinks its cells. */
+/* One row of choices: each cell hugs its word like the Off/On toggle's segments, and a tight row
+ * shortens the label to 5ch before it cuts a cell. */
 .tw-radiogrid-grid {
-  flex: 0 1 auto; max-width: 100%; min-width: 0; margin-left: auto;
+  flex: 0 1 auto; min-width: 0; margin-left: auto;
   display: grid; grid-template-columns: repeat(var(--tw-rg-cols, 3), minmax(0, auto)); gap: 4px;
 }
+/* Several rows: equal columns beside a label that keeps its width; a grid too wide for the row
+ * shrinks its cells, since a choice that long belongs in a list. */
+.tw-radiogrid.is-grid .tw-radiogrid-label { flex: 0 1 auto; min-width: 0; }
+.tw-radiogrid.is-grid .tw-radiogrid-grid { flex: 1 1 0; max-width: max-content; grid-template-columns: repeat(var(--tw-rg-cols, 3), minmax(0, 1fr)); }
 .tw-radiogrid-btn {
   font: inherit; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums;
   min-width: 24px; padding: 5px; text-align: center; /* 5px, the 24px pill height shared with the toggle; at least as wide, so a glyph cell is square */
