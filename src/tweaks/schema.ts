@@ -34,7 +34,7 @@ interface Meta {
   // Monitor.
   get?: () => number | string; graph?: boolean; view?: "graph" | "text"; interval?: number; decimals?: number;
   // Image (`options` and `cols` above).
-  maxSize?: number; upload?: boolean;
+  maxSize?: number; upload?: boolean; clear?: boolean;
   // Button / button group.
   action?: () => void; buttons?: Record<string, () => void> | Array<{ label: string; action: () => void }>;
   // Folder / tabs.

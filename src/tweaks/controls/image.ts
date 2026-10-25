@@ -21,6 +21,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   const seen = new Set<string>();
   const options = (Array.isArray(meta.options) ? meta.options : []).map((o) => ({ value: optValue(o), label: o && typeof o === "object" && o.label != null ? String(o.label) : "" })).filter((o): o is { value: string; label: string } => typeof o.value === "string" && !!o.value && !seen.has(o.value) && !!seen.add(o.value));
   const canUpload = meta.upload !== false || !options.length; // the plain row is the upload: there is nothing else to leave
+  const canClear = meta.clear !== false; // false: a required choice, with no Clear and no Delete to empty it
   const maxSize = +meta.maxSize! > 0 ? +meta.maxSize! : 10 * MB;
   const input = el("input", "tw-image-input"); input.type = "file"; input.accept = "image/*";
   // A refused file's reason takes the button text's place for a moment. It is spoken from a status region beside the
@@ -73,10 +74,10 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     root = el("div", "tw-image tw-image-gallery");
     const upload = canUpload ? btn("tw-button tw-image-upload", ICON_UPLOAD) : null;
     const clear = txt("button", "tw-image-clear", "Clear"); clear.type = "button"; clear.setAttribute("aria-label", `${meta.label}: clear the image`);
-    const head = el("div", "tw-image-head"); head.append(txt("span", "tw-image-label", meta.label), clear);
+    const head = el("div", "tw-image-head"); head.append(txt("span", "tw-image-label", meta.label)); if (canClear) head.append(clear);
     const grid = el("div", "tw-image-grid"); grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
     const n = options.length;
-    const cols = Math.min(4, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
+    const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
     grid.style.setProperty("--tw-img-cols", String(cols));
     const tile = (v: string, label: string) => { const b = radioButton("tw-image-tile", v, (x) => commit(x)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
     const tiles = options.map((o, i) => { const b = tile(o.value, o.label || stem(o.value) || `Image ${i + 1}`); grid.append(b); return b; });
@@ -97,7 +98,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     };
     grid.addEventListener("keydown", (e) => {
       const btns = all(), i = btns.indexOf(e.target as RadioBtn); if (i < 0) return;
-      if ((e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); commit(""); tiles[0].focus(); return; } // a modifier+Delete is the panel's reset, not a clear
+      if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); commit(""); tiles[0].focus(); return; } // a modifier+Delete is the panel's reset, not a clear
       const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
       e.preventDefault(); if (j !== i) { commit(btns[j]._twVal!); btns[j].focus(); }
     });

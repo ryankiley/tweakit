@@ -114,8 +114,9 @@ export const examples = [
       param is a data URL. Give it <code>options</code> (URLs, or <code>{ value, label }</code>)
       and it becomes a gallery: tiles to pick from, the upload below them, and Clear, which
       clears the param to <code>""</code>. An upload stays in the browser and is held to 10 MB
-      (<code>maxSize</code>, in bytes); <code>upload: false</code> leaves only the tiles, and
-      <code>cols</code> sets the tiles per row.</p>`,
+      (<code>maxSize</code>, in bytes); <code>upload: false</code> leaves only the tiles,
+      <code>clear: false</code> leaves out Clear for a choice that must keep a value, and
+      <code>cols</code> sets the tiles per row, up to 6.</p>`,
     target: `<div class="img-tile"><span>Pick a texture, or drop one on the control →</span></div>`,
     css: `
       .img-tile { display: grid; place-items: center; width: 220px; height: 170px; border-radius: 16px;

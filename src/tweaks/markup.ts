@@ -26,7 +26,7 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
   list: (d) => ({ options: splitList(d.options), value: d.value }),
   // data-options is a comma list, so it takes URLs, not data URLs (they carry a comma).
-  image: (d) => ({ value: d.value, options: d.options ? splitList(d.options) : undefined, cols: num(d.cols), maxSize: num(d.maxSize), upload: d.upload === "false" ? false : undefined }),
+  image: (d) => ({ value: d.value, options: d.options ? splitList(d.options) : undefined, cols: num(d.cols), maxSize: num(d.maxSize), upload: d.upload === "false" ? false : undefined, clear: d.clear === "false" ? false : undefined }),
   buttongroup: (d) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab })) }),
   separator: () => ({}),
   number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), unit: d.unit }),
