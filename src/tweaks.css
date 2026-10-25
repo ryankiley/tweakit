@@ -687,7 +687,7 @@
 .tw-image-foot-row { display: flex; align-items: stretch; justify-content: flex-end; min-height: 0; overflow: hidden; }
 .tw-image-foot-row > * { pointer-events: auto; }
 .tw-image-foot .tw-image-upload { flex: 1; min-width: 0; }
-.tw-image-clear-slot { display: grid; grid-template-columns: 1fr; margin-left: 6px; overflow: hidden; transition: grid-template-columns 0.35s var(--tw-ease-fold), margin-left 0.35s var(--tw-ease-fold), opacity 0.2s; }
+.tw-image-clear-slot { display: grid; grid-template-columns: 1fr; margin-left: 6px; overflow: hidden; transition: grid-template-columns 0.35s var(--tw-ease-fold), margin-left 0.35s var(--tw-ease-fold), opacity 0.35s var(--tw-ease-fold); } /* the fade too, as a folder's content */
 .tw-image-clear-slot[data-open="false"] { grid-template-columns: 0fr; margin-left: 0; opacity: 0; }
 .tw-image-clear-slot .tw-image-clear { height: auto; min-height: 24px; min-width: 0; padding: 0 10px; white-space: nowrap; transition: padding 0.35s var(--tw-ease-fold), background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
 .tw-image-clear-slot[data-open="false"] .tw-image-clear { padding: 0; } /* its padding folds too, or 20px of it would stay */
