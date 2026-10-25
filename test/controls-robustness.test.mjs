@@ -179,15 +179,16 @@ test("an image with options is a gallery: tiles pick, Clear clears, an off-list 
   assert.deepEqual(tiles().map((t) => t.getAttribute("aria-label")), ["a", "Bee"], "a label, else the URL's file stem");
   assert.deepEqual(tiles().map((t) => t.getAttribute("aria-checked")), ["false", "true"]);
   const remove = root.querySelector(".tw-image-clear");
-  assert.equal(remove.hidden, false);
+  const folded = () => remove.closest(".tw-image-clear-slot").inert; // Clear folds away rather than hiding
+  assert.equal(folded(), false);
   tiles()[0].click(); assert.equal(p.params.pic, "/a.png");
-  remove.click(); assert.equal(p.params.pic, ""); assert.equal(remove.hidden, true, "nothing to remove, no button");
+  remove.click(); assert.equal(p.params.pic, ""); assert.equal(folded(), true, "nothing to remove, Clear folds away");
   assert.deepEqual(tiles().map((t) => t.getAttribute("aria-checked")), ["false", "false"]);
   p.set("pic", "data:image/gif;base64,R0lGODlhAQABAAAAACw=");
   assert.equal(tiles().length, 3, "an off-list value is a third, selected tile");
   assert.equal(tiles()[2].getAttribute("aria-checked"), "true");
   assert.equal(tiles()[2].getAttribute("data-value"), null, "a data URL is not copied into an attribute");
-  assert.equal(remove.hidden, false);
+  assert.equal(folded(), false);
   p.set("pic", "/a.png"); assert.equal(tiles().length, 2, "back on the list, the extra tile leaves");
   p.set("pic", new Date(0)); assert.equal(p.params.pic, "/a.png", "a non-string is ignored");
   p.set("pic", null); assert.equal(p.params.pic, "");
@@ -215,7 +216,8 @@ test("the gallery pane: no repeated label, Clear in the foot, and an off-list va
   p.set("pic", "https://x.com/"); assert.equal(name.textContent, "Custom image", "a host URL with no file stem");
   p.set("pic", "data:image/gif;base64,R0lGODlhAQABAAAAACw="); assert.equal(name.textContent, "Uploaded image");
   p.set("pic", "blob:https://x.com/1b4e28ba-2fa1-11d2-883f-0016d3cca427"); assert.equal(name.textContent, "Uploaded image", "a blob URL's stem is a UUID");
-  p.set("pic", ""); assert.ok(pop.querySelector(".tw-image-foot").hidden, "no upload and nothing to clear: no foot");
+  p.set("pic", ""); assert.equal(pop.querySelector(".tw-image-foot").dataset.open, "false", "no upload and nothing to clear: the foot folds");
+  assert.ok(pop.querySelector(".tw-image-foot").inert);
   p.destroy();
 });
 
@@ -283,7 +285,7 @@ test("upload: false leaves a gallery of tiles alone, with no button and no file 
   assert.equal(p.el.querySelector(".tw-image-upload"), null);
   assert.equal(p.el.querySelector(".tw-image-input"), null);
   assert.equal(p.el.querySelectorAll(".tw-image-tile").length, 2);
-  assert.ok(p.el.querySelector(".tw-image-clear").hidden, "no value, no Clear");
+  assert.ok(p.el.querySelector(".tw-image-clear-slot").inert, "no value, Clear folded away");
   assert.equal(p.params.pic, "", "no value until a tile is picked");
 });
 
