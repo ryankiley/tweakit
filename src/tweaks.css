@@ -50,6 +50,8 @@
   /* --fold is a spring (visualDuration 0.35s, bounce 0.1) sampled into linear(); it starts
    * from rest, so folder children dissolve in step with the height. Pairs with 0.35s. */
   --tw-ease-fold: linear(0, 0.077, 0.237, 0.411, 0.570, 0.699, 0.797, 0.869, 0.918, 0.952, 0.973, 0.986, 0.994, 0.998, 1);
+  /* Press: a dip in three tiers by size, so every control's edge moves about 1.5–2px. */
+  --tw-press-icon: 0.88; --tw-press-chip: 0.95; --tw-press-row: 0.985;
 
   font-family: var(--tw-font-sans);
   /* Buttons use `font: inherit`, so a host's global line-height would ride into every
@@ -191,9 +193,9 @@
 }
 .tw-toolbar-btn:disabled { cursor: default; } /* the lazy window is "not yet", not "never" */
 /* The press dip shrinks the box, so a cursor near the edge would lose :hover mid-press;
- * ::after keeps the resting footprint hot ((24+4)·0.86 ≈ 24.1 ≥ 24). */
+ * ::after keeps the resting footprint hot ((24+4)·0.88 ≈ 24.6 ≥ 24). */
 .tw-toolbar-btn::after { content: ""; position: absolute; inset: -2px; }
-.tw-toolbar-btn:active { transform: scale(0.86); transition: transform 0.08s ease-out; }
+.tw-toolbar-btn:active { transform: scale(var(--tw-press-icon)); transition: transform 0.08s ease-out; }
 .tw-toolbar-btn svg { width: 14px; height: 14px; display: block; }
 /* Copy ⇄ check cross-fade. Safari: will-change and a resting blur(0), never none —
  * WebKit demotes the layer when a transform/filter animation ends and re-snaps the
@@ -226,7 +228,7 @@
 .tw-trigger:focus-visible, .tw-select-trigger:focus-visible, .tw-button:focus-visible,
 .tw-seg-btn:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
 .tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
-.tw-image-remove:focus-visible,
+.tw-image-clear:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
 .tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
@@ -299,7 +301,7 @@
 .tw-slider-label {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%); /* 12px = the row's left padding */
   max-width: calc(100% - 64px);
-  font-size: 12px; font-weight: 500; color: var(--tw-text-label);
+  font-size: 12px; font-weight: 500; color: var(--tw-text-label); transition: color 0.15s;
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tw-interval .tw-slider-label { max-width: calc(100% - 112px); } /* the control tightens this inline on render */
@@ -327,8 +329,14 @@
   background: var(--tw-surface); border-radius: var(--tw-radius);
 }
 .tw-row-label {
-  font-size: 12px; font-weight: 500; line-height: 17px; color: var(--tw-text-label);
+  font-size: 12px; font-weight: 500; line-height: 17px; color: var(--tw-text-label); transition: color 0.15s;
   min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Every row lights its label on hover, never its value. */
+@media (hover: hover) and (pointer: fine) {
+  .tw-slider-wrap:not(.is-disabled):hover .tw-slider-label,
+  :is(.tw-row, .tw-sides, .tw-radiogrid):not(.is-disabled):hover :is(.tw-row-label, .tw-radiogrid-label),
+  :is(.tw-image-gallery, .tw-spring, .tw-bezier, .tw-plot):not(.is-disabled):hover :is(.tw-image-label, .tw-spring-label, .tw-bezier-label, .tw-plot-label) { color: var(--tw-text-primary); }
 }
 /* An explicit `label: ""` hides the element so it takes no gap. */
 .tw-slider-label:empty, .tw-row-label:empty, .tw-select-label:empty, .tw-radiogrid-label:empty, .tw-trigger-label:empty, .tw-fps-label:empty { display: none; }
@@ -348,24 +356,27 @@
   position: relative; z-index: 1; flex: 0 0 auto; min-width: 40px; padding: 6px 8px; text-align: center;
   font: inherit; font-size: 12px; font-weight: 500;
   background: transparent; border: none; cursor: pointer;
-  color: var(--tw-text-label); transition: color 0.15s, transform 0.2s var(--tw-ease-pop);
+  color: var(--tw-text-label); transition: color 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 .tw-seg-btn[data-active="true"] { color: var(--tw-on-accent); }
+@media (hover: hover) and (pointer: fine) {
+  .tw-seg-btn:not([data-active="true"]):hover, .tw-tabs-tab:not([data-active="true"]):hover { color: var(--tw-text-primary); } /* a tab's label lights like a segment's */
+}
 /* A press squashes the label; the pill itself does the liquid stretch (JS, WAAPI). */
-.tw-seg-btn:active { transform: scale(0.9); transition: transform 0.08s ease-out; }
+.tw-seg-btn:active { transform: scale(var(--tw-press-chip)); transition: transform 0.08s ease-out; }
 /* In a row the buttons hug their text; 5px padding matches the tabs' pill height. */
 .tw-row .tw-seg .tw-seg-btn { min-width: 0; padding: 5px; }
 
 /* ── Radio grid — a segmented control wrapped into a 2- or 3-column grid ── */
 /* A 4px frame round the cells: one row is 24px cell + 8px frame = the 32px row height. */
 .tw-radiogrid {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: flex-start; gap: 10px; /* a two-line grid keeps its label on the first line, as every tall row does */
   min-height: var(--tw-row-height); padding: 4px 4px 4px 12px;
   background: var(--tw-surface); border-radius: var(--tw-radius);
 }
 .tw-radiogrid-label {
-  flex-shrink: 1; min-width: 0;
-  font-size: 12px; font-weight: 500; color: var(--tw-text-label);
+  flex-shrink: 1; min-width: 0; line-height: 24px; /* a cell's height: its text lands 9px down */
+  font-size: 12px; font-weight: 500; color: var(--tw-text-label); transition: color 0.15s;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* Sized by content, so a two-option group gets the same kind of pill as a three-option one. */
@@ -375,16 +386,16 @@
 }
 .tw-radiogrid-btn {
   font: inherit; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums;
-  padding: 5px; text-align: center; /* 5px, the 24px pill height shared with the toggle */
+  min-width: 24px; padding: 5px; text-align: center; /* 5px, the 24px pill height shared with the toggle; at least as wide, so a glyph cell is square */
   color: var(--tw-text-label); background: transparent;
   border: none; border-radius: calc(var(--tw-radius) - 2px);
-  cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-pop);
+  cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 @media (hover: hover) and (pointer: fine) {
   .tw-radiogrid-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
-.tw-radiogrid-btn:active { transform: scale(0.93); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.tw-radiogrid-btn:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 .tw-radiogrid-btn[data-active="true"] { background: var(--tw-accent, var(--tw-surface-active)); color: var(--tw-on-accent); }
 
 /* ── Button (action) ── */
@@ -396,31 +407,31 @@
   transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-button:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .tw-button:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); } /* a whole-row button also lights its fill */
 }
-.tw-button:active { background: var(--tw-surface-active); transform: scale(0.975); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.tw-button:active { background: var(--tw-surface-active); transform: scale(var(--tw-press-row)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 
 /* ── Button group — compact actions under one label ── */
 /* -6px (the row's 10px right padding, less the 4px gap) sits the buttons 4px off the right
  * like the top and bottom; many buttons wrap rather than squeeze to blank pills. */
 .tw-buttongroup { height: auto; min-height: var(--tw-row-height); }
 .tw-buttongroup-btns { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; margin-right: -6px; }
-.tw-buttongroup-btn { flex: 1 1 0; min-width: 6ch; padding: 5px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface-active); border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-pop); }
+.tw-buttongroup-btn { flex: 1 1 0; min-width: 6ch; padding: 5px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface-active); border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
   .tw-buttongroup-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
-.tw-buttongroup-btn:active { transform: scale(0.93); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.tw-buttongroup-btn:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 
 /* ── Separator — a thin divider between sections ── */
 .tw-separator { height: 1px; margin: 3px 2px; background: var(--tw-border); }
 
 /* ── Tabs — paged controls with a sliding pill ── */
 .tw-tabs { display: flex; flex-direction: column; gap: 8px; }
-.tw-tabs-bar { position: relative; display: flex; gap: 2px; padding: 2px; min-width: 0; background: var(--tw-surface); border-radius: var(--tw-radius); }
-.tw-tabs-pill { position: absolute; top: 2px; bottom: 2px; left: 0; width: 0; background: var(--tw-surface-active); border-radius: calc(var(--tw-radius) - 2px); z-index: 0; transition: left 0.24s var(--tw-ease-out), width 0.24s var(--tw-ease-out); }
-.tw-tabs-tab { position: relative; z-index: 1; flex: 1; min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.15s, transform 0.2s var(--tw-ease-pop); }
+.tw-tabs-bar { position: relative; display: flex; gap: 4px; padding: 4px; min-width: 0; /* the rows' 4px frame round 24px pills: a 32px row */ background: var(--tw-surface); border-radius: var(--tw-radius); }
+.tw-tabs-pill { position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; background: var(--tw-surface-active); border-radius: calc(var(--tw-radius) - 2px); z-index: 0; transition: left 0.24s var(--tw-ease-out), width 0.24s var(--tw-ease-out); }
+.tw-tabs-tab { position: relative; z-index: 1; flex: 1; min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.15s, transform 0.24s var(--tw-ease-pop); }
 .tw-tabs-tab[data-active="true"] { color: var(--tw-text-primary); }
-.tw-tabs-tab:active { transform: scale(0.95); transition: color 0.15s, transform 0.08s ease-out; }
+.tw-tabs-tab:active { transform: scale(var(--tw-press-chip)); transition: color 0.15s, transform 0.08s ease-out; }
 .tw-tabs-page { display: none; flex-direction: column; gap: 6px; }
 /* The page's entrance replays on every activation (display flips). */
 .tw-tabs-page[data-active="true"] { display: flex; animation: tw-page-in 0.3s var(--tw-ease-out); }
@@ -430,17 +441,18 @@
 .tw-select { position: relative; }
 .tw-select-trigger {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; /* the gap holds once the value can shrink to the label */
-  height: var(--tw-row-height); padding: 0 12px;
+  height: var(--tw-row-height); padding: 0 10px 0 12px; /* the row idiom: 12 left, 10 right */
   font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label);
   background: var(--tw-surface); border: none; border-radius: var(--tw-radius);
   cursor: pointer; transition: background 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-select-trigger:hover { background: var(--tw-surface-hover); }
+  .tw-select-trigger:hover { background: var(--tw-surface-hover); } /* the whole row is the button */
+  .tw-select-trigger:hover .tw-select-label { color: var(--tw-text-primary); }
 }
-.tw-select-trigger:active { transform: scale(0.985); transition: background 0.15s, transform 0.08s ease-out; }
+.tw-select-trigger:active { transform: scale(var(--tw-press-row)); transition: background 0.15s, transform 0.08s ease-out; }
 .tw-select.is-open .tw-select-trigger { background: var(--tw-surface-active); }
-.tw-select-label { font-weight: 500; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a rigid label took the chevron out of the panel */
+.tw-select-label { transition: color 0.15s; font-weight: 500; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a rigid label took the chevron out of the panel */
 .tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 .tw-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The glyph sits 4.5px inside its 18px box; pull it out by that side-bearing. */
@@ -468,7 +480,7 @@
   .tw-select-option:hover { background: var(--tw-surface-hover); }
 }
 .tw-select-option:focus-visible { background: var(--tw-surface-hover); color: var(--tw-text-primary); outline: none; } /* roving focus reads as the hover highlight */
-.tw-select-option[data-selected="true"] { color: var(--tw-text-primary); background: var(--tw-accent, var(--tw-surface-active)); }
+.tw-select-option[data-selected="true"] { color: var(--tw-on-accent); background: var(--tw-accent, var(--tw-surface-active)); }
 .tw-option-swatch { flex-shrink: 0; width: 12px; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
 .tw-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -498,7 +510,7 @@
 .tw-presets-input { flex: 1; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 6px 8px; outline: none; }
 .tw-presets-input:focus { border-color: var(--tw-border-hover); }
 .tw-presets-input::placeholder { color: var(--tw-text-tertiary); }
-.tw-presets-savebtn { flex-shrink: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: none; border-radius: calc(var(--tw-radius) - 2px); padding: 6px 10px; cursor: pointer; transition: background 0.15s; }
+.tw-presets-savebtn { flex-shrink: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: none; border-radius: calc(var(--tw-radius) - 2px); padding: 6px 10px; cursor: pointer; transition: background 0.15s, transform 0.24s var(--tw-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
   .tw-presets-savebtn:hover { background: var(--tw-surface-hover); }
 }
@@ -509,14 +521,19 @@
 @media (hover: hover) and (pointer: fine) {
   .tw-presets-load:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
-.tw-presets-del, .tw-image-remove { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.2s var(--tw-ease-pop); }
+.tw-presets-del { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-presets-del:hover, .tw-image-remove:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .tw-presets-del:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
-.tw-presets-del:active, .tw-image-remove:active { transform: scale(0.85); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
-.tw-presets-savebtn:active { transform: scale(0.95); }
-.tw-presets-del svg, .tw-image-remove svg { width: 12px; height: 12px; display: block; }
-.tw-image-remove[hidden] { display: none; } /* display: flex would beat the hidden attribute */
+.tw-presets-del:active { transform: scale(var(--tw-press-icon)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.tw-presets-savebtn:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, transform 0.08s ease-out; }
+.tw-presets-del svg { width: 12px; height: 12px; display: block; }
+/* Clear, in the gallery's head: a small text button the label's size, quiet until hovered; its text ends 10px in, as a row's value. */
+.tw-image-clear { flex-shrink: 0; height: 24px; padding: 0 6px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
+@media (hover: hover) and (pointer: fine) {
+  .tw-image-clear:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+}
+.tw-image-clear:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 
 /* ── Trigger rows — the row button behind the colour, gradient and point controls ── */
 .tw-trigger {
@@ -526,22 +543,20 @@
   background: var(--tw-surface); border: none; border-radius: var(--tw-radius); transition: background 0.15s, transform 0.24s var(--tw-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-trigger:hover { background: var(--tw-surface-hover); }
+  .tw-trigger:hover { background: var(--tw-surface-hover); } /* the whole row is the button */
+  .tw-trigger:hover .tw-trigger-label { color: var(--tw-text-primary); }
 }
-.tw-trigger:active { transform: scale(0.985); transition: background 0.15s, transform 0.08s ease-out; }
+.tw-trigger:active { transform: scale(var(--tw-press-row)); transition: background 0.15s, transform 0.08s ease-out; }
 .is-open > .tw-trigger { background: var(--tw-surface-active); }
 /* The label takes what the right cluster leaves, down to 5ch; shrink weights instead
  * shaved a fraction of a pixel off the readout and drew an ellipsis over a value that fit. */
-.tw-trigger-label { flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a <button> centres its text by default */
+.tw-trigger-label { transition: color 0.15s; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a <button> centres its text by default */
 .tw-trigger-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 /* word-spacing separates a multi-part readout ("60% 0.23 286") into columns; visual only. */
 .tw-trigger-value { font-family: var(--tw-font-sans); word-spacing: 0.1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 20ch; }
 /* The 18px preview chip — swatch, gradient strip or mini pad. */
 .tw-trigger-chip { height: 18px; flex-shrink: 0; border-radius: calc(var(--tw-radius) - 4px); box-shadow: inset 0 0 0 1px var(--tw-border-hover); transition: transform 0.2s var(--tw-ease-spring); }
 .is-open > .tw-trigger .tw-trigger-chip { transform: scale(1.07); } /* 1.14 read as a jump on the wider chips */
-@media (hover: hover) and (pointer: fine) {
-  .tw-trigger:hover .tw-trigger-chip { transform: scale(1.07); }
-}
 
 /* ── Colour — a trigger row that opens the picker ── */
 .tw-color { position: relative; }
@@ -587,12 +602,12 @@
 .tw-wg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
 /* Thumbs are positioned by left/top, not transform, so the grab scale doesn't lag the drag. */
 .tw-wg-thumb { position: absolute; width: 14px; height: 14px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
-.tw-wg-area.is-grabbing .tw-wg-thumb { transform: translate(-50%, -50%) scale(1.32); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
+.tw-wg-area.is-grabbing .tw-wg-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
 .tw-wg-hue, .tw-wg-alpha { position: relative; width: 100%; height: 14px; border-radius: 999px; cursor: ew-resize; touch-action: none; box-shadow: inset 0 0 0 1px var(--tw-border); }
 .tw-wg-alpha { background: var(--tw-checker); }
 .tw-wg-hue-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
 .tw-wg-hue-thumb { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
-.tw-wg-hue.is-grabbing .tw-wg-hue-thumb, .tw-wg-alpha.is-grabbing .tw-wg-hue-thumb { transform: translate(-50%, -50%) scale(1.28); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
+.tw-wg-hue.is-grabbing .tw-wg-hue-thumb, .tw-wg-alpha.is-grabbing .tw-wg-hue-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
 .tw-wg-alpha-grad { position: absolute; inset: 0; border-radius: inherit; }
 
 /* ── Gradient — a trigger row that opens a stop bar + picker body ── */
@@ -612,16 +627,16 @@
 /* Hit targets: an invisible padded pseudo-element takes the press from ~21px around. */
 .tw-gradient-stop::before, .tw-bezier-handle::before { content: ""; position: absolute; inset: -4px; border-radius: inherit; }
 @media (hover: hover) and (pointer: fine) {
-  .tw-gradient-stop:hover { transform: translateX(-50%) scale(1.22); }
+  .tw-gradient-stop:hover { transform: translateX(-50%) scale(1.2); }
 }
 /* A stop dragged clear of the bar: release to remove. */
 .tw-gradient-stop[data-removing="true"] { opacity: 0.3; transform: translateX(-50%) scale(0.7); }
-.tw-gradient-add { display: flex; align-items: center; justify-content: center; flex: none; width: 32px; padding: 0; border: none; border-radius: var(--tw-radius); background: var(--tw-surface); color: var(--tw-text-primary); cursor: pointer; will-change: transform; transition: background 0.15s, transform 0.24s var(--tw-ease-pop); } /* will-change: the Safari pixel-snap fix */
-.tw-gradient-add:active { transform: scale(0.88); transition: background 0.15s, transform 0.08s ease-out; }
+.tw-gradient-add { display: flex; align-items: center; justify-content: center; flex: none; width: 28px; padding: 0; border: none; border-radius: var(--tw-radius); background: var(--tw-surface); color: var(--tw-text-primary); cursor: pointer; will-change: transform; transition: background 0.15s, transform 0.24s var(--tw-ease-pop); } /* will-change: the Safari pixel-snap fix */
+.tw-gradient-add:active { transform: scale(var(--tw-press-icon)); transition: background 0.15s, transform 0.08s ease-out; }
 .tw-gradient-add svg { width: 16px; height: 16px; display: block; will-change: transform; transition: transform 0.2s var(--tw-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
   .tw-gradient-add:hover { background: var(--tw-surface-hover); }
-  .tw-gradient-add:hover svg { transform: scale(1.18); }
+  .tw-gradient-add:hover svg { transform: scale(1.2); }
 }
 
 /* ── Text + number rows (string / number blades) ── */
@@ -634,7 +649,7 @@
 .tw-num { font-family: var(--tw-font-sans); }
 .tw-text:focus, .tw-num:focus { color: var(--tw-text-focus); }
 .tw-text::placeholder { color: var(--tw-text-tertiary); }
-.tw-row-multiline { position: relative; flex-direction: column; align-items: stretch; height: auto; gap: 4px; padding: 6px 10px 10px 12px; } /* bottom 10 > the 8px radius keeps the grip clear */
+.tw-row-multiline { position: relative; flex-direction: column; align-items: stretch; height: auto; gap: 4px; padding: 7.5px 10px 10px 12px; } /* top: the label's text 9px down, as a 32px row's; bottom 10 > the 8px radius keeps the grip clear */
 .tw-textarea { flex: none; width: 100%; resize: vertical; min-height: 3em; padding: 0; line-height: 1.45; text-align: left; font-family: var(--tw-font-sans); }
 /* The native resizer grip is invisible on mobile Safari, so draw one; a mask lets it
  * take the token colour in both schemes. */
@@ -669,9 +684,9 @@
 .tw-image-tile {
   aspect-ratio: 4 / 3; padding: 0; background: var(--tw-surface) center / cover no-repeat;
   border: none; border-radius: calc(var(--tw-radius) - 2px); box-shadow: inset 0 0 0 1px var(--tw-border-hover);
-  cursor: pointer; transition: transform 0.2s var(--tw-ease-pop), box-shadow 0.15s;
+  cursor: pointer; transition: transform 0.24s var(--tw-ease-pop), box-shadow 0.15s;
 }
-.tw-image-tile:active { transform: scale(0.96); transition: transform 0.08s ease-out; }
+.tw-image-tile:active { transform: scale(var(--tw-press-chip)); transition: transform 0.08s ease-out; }
 .tw-image-tile[data-active="true"] { outline: 1.5px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; }
 /* The kit's inner focus ring, after the chosen tile's rule so it wins there too. An outline, not a shadow: the hover
  * hairline is a shadow and would replace it, a host's own button:focus-visible outline would add a second ring, and
@@ -686,7 +701,7 @@
 /* ── FPS graph (monitor blade) ── */
 .tw-fps {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 8px;
-  background: var(--tw-surface); border-radius: var(--tw-radius); padding: 8px 10px 10px 12px; /* the row idiom: 12 left / 10 right */
+  background: var(--tw-surface); border-radius: var(--tw-radius); padding: 9px 10px 10px 12px; /* the row idiom: 12 left / 10 right; the label's text 9px down */
 }
 .tw-fps-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); }
 .tw-fps-val { font-family: var(--tw-font-sans); font-size: 12px; color: var(--tw-text-primary); text-align: right; }
@@ -703,9 +718,9 @@
 .tw-row > .tw-num-wrap .tw-num { width: 9ch; } /* the Number row has room a field grid lacks */
 .tw-num-grab { display: flex; align-items: center; justify-content: center; width: 12px; height: 18px; flex-shrink: 0; color: var(--tw-text-tertiary); cursor: ew-resize; touch-action: none; transition: color 0.15s, transform 0.18s var(--tw-ease-spring); }
 .tw-num-grab svg { width: 12px; height: 12px; display: block; }
-.tw-num-grab.is-dragging { color: var(--tw-text-primary); transform: scale(1.22); }
+.tw-num-grab.is-dragging { color: var(--tw-text-primary); transform: scale(1.2); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-num-grab:hover { color: var(--tw-text-primary); transform: scale(1.22); }
+  .tw-num-grab:hover { color: var(--tw-text-primary); transform: scale(1.2); }
 }
 /* Grab guide — portaled to <body> while scrubbing a number field. */
 .tw-grab-guide { position: fixed; inset: 0; z-index: 100001; pointer-events: none; } /* tops the kit's z ladder */
@@ -760,12 +775,13 @@
 .tw-shadow-color[aria-expanded="true"] .tw-shadow-chevron { transform: rotate(180deg); }
 .tw-shadow-pop .tw-color-body { margin-top: 2px; }
 /* The sides control (sides.ts). */
-.tw-sides-link { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 3px); cursor: pointer; transition: color 0.15s, background 0.15s; }
+.tw-sides-link { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 3px); cursor: pointer; transition: color 0.15s, background 0.15s, transform 0.24s var(--tw-ease-pop); }
 .tw-sides-link svg { width: 14px; height: 14px; }
 .tw-sides-link[aria-pressed="true"] { color: var(--tw-accent, var(--tw-text-primary)); }
 @media (hover: hover) and (pointer: fine) {
   .tw-sides-link:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
 }
+.tw-sides-link:active { transform: scale(var(--tw-press-icon)); transition: color 0.15s, background 0.15s, transform 0.08s ease-out; }
 .tw-sides > .tw-row .tw-num-wrap { margin-left: auto; } /* the link is last in the row too, at the pixels the head's link takes */
 .tw-sides.is-linked .tw-sides-multi, .tw-sides:not(.is-linked) > .tw-row { display: none; }
 /* The open block: a head with the row's exact geometry (so label and link stay put on toggle), then four fields in a
@@ -820,7 +836,7 @@
 .tw-pad-axis-x { left: 0; right: 0; top: 50%; height: 1px; transform: translateY(-50%); }
 .tw-pad-axis-y { top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); }
 .tw-pad-thumb { position: absolute; width: 14px; height: 14px; border-radius: 999px; background: var(--tw-accent, var(--tw-text-primary)); border: 2px solid var(--tw-base); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 1px 3px rgba(0, 0, 0, 0.3); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
-.tw-pad.is-grabbing .tw-pad-thumb { transform: translate(-50%, -50%) scale(1.28); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 3px 9px rgba(0, 0, 0, 0.4); }
+.tw-pad.is-grabbing .tw-pad-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 3px 9px rgba(0, 0, 0, 0.4); }
 .tw-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .tw-field-label { font-size: 10px; font-weight: 600; letter-spacing: 0.02em; color: var(--tw-text-tertiary); text-transform: uppercase; }
 .tw-field .tw-num-wrap { background: var(--tw-base); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 3px 4px; gap: 2px; transition: border-color 0.15s; }
@@ -858,7 +874,14 @@
 
 /* Plot — a function graph with an editable, safely-parsed expression. */
 .tw-plot { display: flex; flex-direction: column; gap: 6px; }
-.tw-plot-label, .tw-spring-label, .tw-bezier-label, .tw-image-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0; } /* flush with the full-width graph (or tiles) below */
+.tw-plot-label, .tw-spring-label, .tw-bezier-label, .tw-image-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0; transition: color 0.15s; } /* flush with the full-width graph (or tiles) below */
+/* As a panel row, a gallery or graph sits in a row's frame, as a radio grid does: 4px round the tiles or graph, the label
+ * 12px in like every row's. (The motion pane's editors aren't rows, and stay flush.) */
+:is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-image-gallery, .tw-spring, .tw-bezier, .tw-plot) { padding: 4px; background: var(--tw-surface); border-radius: var(--tw-radius); } /* a markup panel's control sits in its host */
+/* A 24px line for the label (the gallery head's, which holds Clear): in the 4px frame its text lands 9px down, where a
+ * 32px row's centred label does. */
+:is(.tw-controls, .tw-controls > [data-tw]) > .tw-image-gallery > .tw-image-head { padding-left: 8px; }
+:is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-spring, .tw-bezier, .tw-plot) > :is(.tw-spring-label, .tw-bezier-label, .tw-plot-label) { padding-left: 8px; line-height: 24px; }
 .tw-plot-graph { position: relative; width: 100%; height: 140px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); }
 .tw-plot-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .tw-plot-axis { stroke: var(--tw-border); stroke-width: 1; }
