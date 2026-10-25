@@ -58,7 +58,7 @@ const spinReset = (btn: ToolbarBtn) => {
 
 // Hint tooltip — one shared bubble, portaled to <body> so it clears the panel's overflow clip.
 let hintTip: HTMLDivElement | null = null, hintTimer = 0, hintAnchor: Element | null = null;
-const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") hideHintNow(); }; // bound only while open; WCAG 1.4.13 (dismissable)
+const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); hideHintNow(); } }; // bound only while open; WCAG 1.4.13 (dismissable)
 /** Hide the tip now; with `owner` (panel.destroy()), only a tip anchored inside it — the node is shared. */
 const hideHintNow = (owner?: Element) => { if (owner && hintAnchor && !owner.contains(hintAnchor)) return; clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
 function showHint(anchor: Element, text: string) {

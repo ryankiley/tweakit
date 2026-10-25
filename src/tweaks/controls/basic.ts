@@ -2,7 +2,7 @@
  * buttons, text, folder) plus createControl. Statically imported by the entry, so basic panels build synchronously. */
 import {
   el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel, json,
-  popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, setCollapsed,
+  popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, foldBody,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
 } from "../shared.js";
@@ -294,7 +294,7 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   // and opening it closes any other popover.
   let typed = "", typedAt = 0; // the type-ahead buffer; a fresh open starts it over, as a native popup does
   const pop = popover(root, trigger, dropdown, {
-    width: "match", fallbackH: 200, gap: 4,
+    fallbackH: 200, movable: false, // a menu: it closes on a pick, so it never stays in the way
     onOpen: () => { typed = ""; (optButtons.find((b) => b.dataset.value === String(value)) || optButtons[0])?.focus(); },
   });
   // Enter/Space on a focused option selects it natively via click; Tab away closes by the shell's focusout rule.
@@ -378,7 +378,7 @@ function createFolder(meta: { label: string }) {
   const body = el("div", "tw-folder-body");
   const inner = el("div", "tw-controls"); body.append(inner);
   root.append(header, body);
-  const collapse = (c: boolean) => setCollapsed(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
+  const collapse = (c: boolean) => foldBody(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
   header.addEventListener("click", () => collapse(!root.classList.contains("is-collapsed")));
   return { el: root, body: inner, setCollapsed: collapse };
 }

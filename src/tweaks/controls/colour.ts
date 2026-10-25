@@ -1,6 +1,6 @@
 // ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, rangeStep, popover, quietFocus, registerControl, announce } from "../shared.js";
+import { el, txt, clamp, rangeStep, popover, quietFocus, escapeReverts, registerControl, announce } from "../shared.js";
 import { numField, grabSurface, boxFrac, triggerRow, selectAllOnFocus } from "../heavy.js";
 import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 import type { Vec3, Space, Gamut } from "../../wide-gamut.js";
@@ -185,7 +185,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const octx = off.getContext("2d", CANVAS_CS);
   let offData: ImageData | null = null;
   const renderArea = () => {
-    const r = area.getBoundingClientRect(); const cssW = Math.round(r.width), cssH = Math.round(r.height); if (cssW < 2) return;
+    // Layout size: getBoundingClientRect includes the pop's entrance scale.
+    const cssW = area.clientWidth, cssH = area.clientHeight; if (cssW < 2) return;
     const dpr = window.devicePixelRatio || 1;
     const stretch = showsGamutBoundary(mode) ? "p3" : "srgb";
     const curve = gamutCurve(H, stretch); chromaCurve = curve; // per-lightness chroma ceiling of the plane gamut
@@ -218,7 +219,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const vividHue = (hue: number) => { const rgb = convert([STRIP_L, chromaCeil(oklchGamutProbe(hue, "srgb"), STRIP_L), hue], "oklch", "srgb"); return `rgb(${clamp(rgb[0] * 255, 0, 255) | 0},${clamp(rgb[1] * 255, 0, 255) | 0},${clamp(rgb[2] * 255, 0, 255) | 0})`; };
   let hueW = 0;
   const renderHue = () => {
-    const r = hueBar.getBoundingClientRect(); const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height)); if (w < 2) return;
+    const w = Math.max(1, hueBar.clientWidth), h = Math.max(1, hueBar.clientHeight); if (w < 2) return; // layout size, as above
     if (w === hueW && hueCanvas.width === w) return; // the strip depends only on width
     hueW = w; hueCanvas.width = w; hueCanvas.height = h;
     for (let x = 0; x < w; x++) { hctx.fillStyle = vividHue((x / (w - 1)) * 360); hctx.fillRect(x, 0, 1, h); }
@@ -242,9 +243,10 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     if (H !== hueRingH) { hueRingBg = vividHue(H); hueRingH = H; }
     hueThumb.style.background = hueRingBg;
   };
+  const hexText = () => oklchToHex(L, C, H) + (A < 0.999 ? hexByte(A) : "");
   const refresh = () => {
     gamut2.textContent = gamutLabel([L, C, H], mode);
-    if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".tw-color-chan-input"); if (hx && document.activeElement !== hx) hx.value = oklchToHex(L, C, H) + (A < 0.999 ? hexByte(A) : ""); }
+    if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".tw-color-chan-input"); if (hx && document.activeElement !== hx) hx.value = hexText(); }
     else { const vals = channelValues([L, C, H], mode); chanFields.forEach((f, i) => { if (!f.el.contains(document.activeElement)) f.set(vals[i]); }); }
   };
   const reflow = () => { renderHue(); renderArea(); positionThumbs(); }; // mounted at real size → rasterise + place the thumbs
@@ -263,6 +265,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
       // refresh() skips a focused field; catch up on blur (change fires first, so a typed edit is in).
       inp.addEventListener("blur", refresh);
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
+      escapeReverts(inp, hexText);
       wrap.append(txt("span", "tw-color-chan-label", "HEX"), inp); channels.append(wrap);
     } else {
       // The same field as Point/Spring, so the grab handle works for colour values too.
@@ -349,7 +352,7 @@ function createColor(meta: Meta, onChange: OnChange): Control {
   pop.append(body.el);
   root.append(pop);
 
-  popover(root, trigger, pop, { width: 240, fallbackH: 340, gap: 6, onOpen: body.reflow, onReflow: body.reflow });
+  popover(root, trigger, pop, { fallbackH: 340, onOpen: body.reflow, onReflow: body.reflow });
   paintTrigger();
 
   return { el: root, set: (v: string) => { if (v == null) return; body.set(v); paintTrigger(); }, get: () => body.get() };

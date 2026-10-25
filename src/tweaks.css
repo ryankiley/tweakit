@@ -112,27 +112,15 @@
 .tw-panel.is-dragging > .tw-header,
 .tw-panel.is-dragging > .tw-header .tw-header-toggle { cursor: grabbing; }
 
-/* Drag grabber — only on draggable panels; pointer-events:none so the press lands on
- * the header. */
-.tw-grabber {
-  position: absolute; top: 3px; left: 50%;
-  width: 28px; height: 4px; border-radius: 999px;
-  background: var(--tw-text-primary);
-  transform: translateX(-50%) scaleX(0.4); opacity: 0; pointer-events: none;
-  transition: opacity 0.15s, transform 0.2s var(--tw-ease-spring);
-}
 /* Every :hover rule sits inside `@media (hover: hover) and (pointer: fine)`: a touch
  * screen keeps :hover on after a tap, so an unguarded hover style sticks. */
-@media (hover: hover) and (pointer: fine) {
-  .tw-header:hover > .tw-grabber { opacity: 0.4; transform: translateX(-50%) scaleX(1); }
-}
-/* Press brightens it for touch, where there's no hover; the drag rule comes after, so it wins. */
-.tw-panel.is-grabbing > .tw-header > .tw-grabber { opacity: 0.7; transform: translateX(-50%) scaleX(1); }
-.tw-panel.is-dragging > .tw-header > .tw-grabber { opacity: 0.85; transform: translateX(-50%) scaleX(1); }
+/* A pane drags by its edge (popover() in shared.ts); its parts keep their own cursors. */
+:is(.tw-color-pop, .tw-presets-menu) { cursor: grab; }
+:is(.tw-color-pop, .tw-presets-menu) > * { cursor: auto; }
+:is(.tw-color-pop, .tw-presets-menu).is-moving, :is(.tw-color-pop, .tw-presets-menu).is-moving * { cursor: grabbing; }
 
 /* ── Header (root folder title) ── */
 .tw-header {
-  position: relative; /* anchor for the top-centre .tw-grabber */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -175,8 +163,8 @@
 /* The screen-reader status region (announce() in feedback.ts): in the page, drawn as nothing. */
 .tw-sr, .tw-image-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* Collapse — grid-rows 1fr→0fr animates the body height, dependency-free */
-.tw-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.25s var(--tw-ease-inout); }
+/* Collapse: grid-rows 1fr→0fr animates the body height. foldBody (shared.ts) animates only the visible part; this is the fallback. */
+.tw-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s var(--tw-ease-fold); }
 /* Clip y only, so a slider rubber-banding past its end still shows. Must be `clip`,
  * not `hidden`: `hidden` on one axis forces the other to compute to `auto`. */
 /* The 3px padding, offset by an equal negative margin so nothing moves, sets the clip edges out far enough not to cut a
@@ -185,7 +173,7 @@
 .tw-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding-block: 3px; margin-block: -3px; }
 .tw-panel.is-collapsed .tw-body > .tw-controls { padding-block: 0; margin-block: 0; }
 .tw-panel.is-collapsed .tw-body { grid-template-rows: 0fr; }
-.tw-header { transition: margin-bottom 0.25s, padding-bottom 0.25s, border-color 0.25s; }
+.tw-header { transition: margin-bottom 0.35s var(--tw-ease-fold), padding-bottom 0.35s var(--tw-ease-fold), border-color 0.35s var(--tw-ease-fold); }
 /* Collapsed, the header is the whole panel; drop its separator so the padding is even. */
 .tw-panel.is-collapsed .tw-header { margin-bottom: 0; padding-bottom: 0; border-color: transparent; }
 /* A first folder brings its own spacing; the header's 8px gap would stack on it. */
@@ -463,9 +451,13 @@
   padding: 4px; border-radius: calc(var(--tw-radius) + 2px); /* concentric: option (radius − 2) + padding 4 */
   background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); box-shadow: var(--tw-shadow-dropdown);
   max-height: 60vh; overflow-y: auto;
-  transform-origin: top; opacity: 0; transform: translateY(-6px) scale(0.96);
+  transform-origin: top; opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s));
   pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.22s var(--tw-ease-spring);
 }
+/* A pane matches its row, but never runs past the window's 8px margins. */
+:is(.tw-select-dropdown, .tw-color-pop) { max-width: calc(100vw - 16px); }
+/* Opened above the trigger: grow up from it. */
+:is(.tw-select-dropdown, .tw-color-pop)[data-side="above"] { transform-origin: bottom; transform: translateY(6px) scale(var(--tw-pop-s)); }
 .tw-select-dropdown.is-open { opacity: 1; transform: none; pointer-events: auto; }
 .tw-select-option {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; font: inherit; font-size: 12px; font-weight: 500;
@@ -498,8 +490,9 @@
   position: fixed; z-index: 99999; width: 208px;
   display: flex; flex-direction: column; gap: 6px; padding: 8px;
   background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) + 4px); box-shadow: var(--tw-shadow-dropdown); /* concentric: inner picker surface (radius) + padding 4 */
-  transform-origin: top right; opacity: 0; transform: translateY(-6px) scale(0.97); pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.24s var(--tw-ease-spring);
+  transform-origin: top right; opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s)); pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.24s var(--tw-ease-spring);
 }
+.tw-presets-menu[data-side="above"] { transform-origin: bottom right; transform: translateY(6px) scale(var(--tw-pop-s)); }
 .tw-presets-menu.is-open { opacity: 1; transform: none; pointer-events: auto; }
 .tw-presets-save { display: flex; gap: 6px; }
 .tw-presets-input { flex: 1; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 6px 8px; outline: none; }
@@ -558,16 +551,19 @@
  * for position:fixed (a transform or filter) and the panel's overflow. Each carries .tw-portal,
  * which hands it the tokens, font and line-height above. */
 .tw-portal *, .tw-portal *::before, .tw-portal *::after { box-sizing: border-box; }
+/* Entrance scale from the height placeBelow() records: the far edge moves ~5px at any height, so a tall pop doesn't zoom. */
+.tw-portal { --tw-pop-s: max(0.96, calc(1 - 5 / var(--tw-pop-h, 125))); }
 
 /* the colour dropdown */
 .tw-color-pop {
-  position: fixed; z-index: 99999; width: 240px; /* JS-placed from the trigger's rect */
+  position: fixed; z-index: 99999; /* placed and sized from the trigger by JS */
+  min-width: 236px; /* the default panel's row width */
   display: flex; flex-direction: column; gap: 8px; padding: 10px;
   background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border);
   border-radius: calc(var(--tw-radius) + 10px); /* concentric: inner radius + padding 10 */
   box-shadow: var(--tw-shadow-dropdown);
   max-height: calc(100dvh - 16px); overflow-y: auto; overflow-x: clip; /* a short viewport scrolls the picker */
-  opacity: 0; transform: translateY(-6px) scale(0.97); transform-origin: top; pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.24s var(--tw-ease-spring);
+  opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s)); transform-origin: top; pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.24s var(--tw-ease-spring);
 }
 .tw-color-pop.is-open { opacity: 1; transform: none; pointer-events: auto; }
 /* The picker body as one column, so the gradient pop can mount it under the stop bar. */
@@ -603,12 +599,9 @@
 .tw-gradient { position: relative; }
 .tw-gradient-preview { width: 72px; background: var(--tw-checker); }
 
-/* wider than the colour pop, for the bar */
-.tw-gradient-pop { width: 260px; }
-/* Two selects here: native selects size to their widest option, and at the shared padding
- * "OKLCH · Ease in-out · sRGB" runs past the row, so trim 2px a side and the gap. */
-.tw-gradient-pop .tw-color-mode-row { gap: 6px; }
-.tw-gradient-pop .tw-color-mode { padding-left: 8px; padding-right: 24px; }
+/* Native selects size to their widest option, so two in one row need tight padding to fit the 236px floor. */
+.tw-gradient-pop .tw-color-mode-row { gap: 4px; }
+.tw-gradient-pop .tw-color-mode { padding-left: 6px; padding-right: 20px; }
 .tw-gradient-bar-row { display: flex; align-items: stretch; gap: 6px; }
 .tw-gradient-bar-row > .tw-gradient-bar { flex: 1; min-width: 0; }
 .tw-gradient-bar { position: relative; width: 100%; height: 28px; border-radius: var(--tw-radius); box-shadow: inset 0 0 0 1px var(--tw-border); background: var(--tw-checker); }
@@ -750,8 +743,8 @@
 /* The 8px only clears the bottom hairline, which the last folder drops. */
 .tw-folder:last-child .tw-folder-body > .tw-controls { padding-bottom: 0; }
 .tw-folder:last-child:not(.is-collapsed) .tw-folder-body > .tw-controls { padding-bottom: 3px; margin-bottom: -3px; } /* the pick band's clip edge; both fold away together */
-/* As a flex column the stack would squash its rows to fit the collapsing track; hold them. */
-.tw-folder-body > .tw-controls > * { flex-shrink: 0; }
+/* In a flex column the rows would shrink to fit the folding track; keep their height. */
+.tw-body > .tw-controls > *, .tw-folder-body > .tw-controls > * { flex-shrink: 0; }
 
 /* ── Shadow, sides, motion and spring ── */
 /* The shadow control (shadow.ts). */
@@ -760,7 +753,6 @@
 .tw-shadow-chip-tile { width: 12px; height: 8px; border-radius: 2px; background: var(--tw-dropdown-bg); }
 .tw-shadow-stage { display: flex; align-items: center; justify-content: center; height: 84px; border-radius: var(--tw-radius); background: var(--tw-base); overflow: hidden; }
 .tw-shadow-card { width: 64px; height: 40px; border-radius: 9px; background: var(--tw-dropdown-bg); }
-.tw-shadow-pop { width: 260px; }
 .tw-shadow-color { width: 100%; } /* the colour row in the pop discloses the picker body */
 .tw-shadow-color .tw-trigger-right, .tw-shadow-color .tw-trigger-value { max-width: none; } /* the row has the pop's full width */
 .tw-shadow-pop .tw-color-body[hidden] { display: none; } /* display: flex would beat the hidden attribute */
@@ -819,7 +811,7 @@
 .tw-point-preview { position: relative; width: 18px; border-radius: 2.5px; background: var(--tw-base); overflow: hidden; }
 .tw-point-preview-dot { position: absolute; width: 5px; height: 5px; border-radius: 999px; background: var(--tw-accent, var(--tw-text-primary)); transform: translate(-50%, -50%); }
 .tw-point-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.tw-point-pop .tw-pad { max-width: none; margin: 0; } /* fill the popover width */
+.tw-point-pop .tw-pad { max-width: 240px; margin: 0 auto; } /* fill the pane, square, up to 240px */
 /* ── 2D point pad — overflow:visible so the thumb may overhang at the extremes ── */
 .tw-pad { position: relative; width: 100%; max-width: 176px; aspect-ratio: 1; margin: 0 auto 8px; border-radius: var(--tw-radius); background: var(--tw-base); box-shadow: inset 0 0 0 1px var(--tw-border); cursor: crosshair; touch-action: none; overflow: visible; }
 .tw-pad-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }

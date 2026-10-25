@@ -65,7 +65,7 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
     valueEl.textContent = `${inset ? "in " : ""}${fmt(x)} ${fmt(y)} ${fmt(blur)}${spread ? " " + fmt(spread) : ""}`;
     cSwatch.style.background = body.swatchCss(); cText.textContent = body.valueText();
   };
-  const pop_ = popover(root, trigger, pop, { width: 260, fallbackH: 300, gap: 6, onOpen: body.reflow, onReflow: body.reflow });
+  const pop_ = popover(root, trigger, pop, { fallbackH: 300, onOpen: body.reflow, onReflow: body.reflow });
   update();
 
   // Set/restore: the object form or a strict box-shadow string; `css` is ignored, a colour comes back in the picker's notation.

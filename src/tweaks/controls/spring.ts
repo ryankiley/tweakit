@@ -46,7 +46,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   // The preview and the emitted value both read this, so they can never disagree.
   const resolved = () => (mode === "time" ? clampS(timeToPhysics(time)) : clampS(phys));
   const draw = () => {
-    const r = viz.getBoundingClientRect(); const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height)); if (w < 2) return;
+    // Layout size: getBoundingClientRect includes the pop's entrance scale.
+    const w = Math.max(1, viz.clientWidth), h = Math.max(1, viz.clientHeight); if (w < 2) return;
     const dpr = window.devicePixelRatio || 1; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     const s = resolved();

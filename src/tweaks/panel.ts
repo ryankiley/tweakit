@@ -1,7 +1,7 @@
 /* tweaks() — the panel factory: builds the shell + controls from a schema and returns the live
  * API. Persistence, presets, undo, the filter, floating drag and the lazy-window queue live here. */
 import {
-  el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, setCollapsed,
+  el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, foldBody,
   applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, fuzzyMatch,
   getControl,
 } from "./shared.js";
@@ -159,11 +159,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // swallowClick lives on the header, not the title: once the header holds pointer capture, the click ending a drag is dispatched there.
   let dragMoved = false, swallowClick = false;
   header.addEventListener("click", (e) => { if (swallowClick) { swallowClick = false; e.preventDefault(); e.stopPropagation(); } }, true);
-  titleBtn.addEventListener("click", () => {
-    setCollapsed(panel, titleBtn, body, !panel.classList.contains("is-collapsed"));
-    // A bottom-parked floating panel grows past the viewport when it expands: re-clamp once the collapse has settled.
-    if (panel.dataset.mode === "floating") setTimeout(() => { if (panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } }, 270);
-  });
+  // A bottom-parked floating panel grows past the viewport when it expands: re-clamp once the collapse has settled.
+  const settle = () => { if (panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } };
+  const toggleBody = () => foldBody(panel, titleBtn, body, !panel.classList.contains("is-collapsed"), settle);
+  titleBtn.addEventListener("click", toggleBody);
+  // A click anywhere on the header outside the toolbar folds the panel, if the press began on the header or title (a press
+  // slid off a toolbar button also clicks here). A drag's closing click arrives defaultPrevented.
+  let pressedHeader = false;
+  header.addEventListener("pointerdown", (e) => { pressedHeader = e.target === header || titleBtn.contains(e.target as Node); }, true);
+  header.addEventListener("click", (e) => { if (e.target === header && pressedHeader && !e.defaultPrevented && !panel.classList.contains("is-searching")) toggleBody(); });
   const body = el("div", "tw-body");
   const controls = el("div", "tw-controls");
   body.append(controls);
@@ -353,7 +357,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const exitSearch = () => { panel.classList.remove("is-searching"); searchInput.value = ""; applyFilter(""); };
     searchBtn.addEventListener("click", () => { if (searchBtn.disabled) return; if (panel.classList.toggle("is-searching")) { searchInput.focus(); searchInput.select(); } else exitSearch(); });
     searchInput.addEventListener("input", () => applyFilter(searchInput.value));
-    searchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") { exitSearch(); searchBtn.focus(); } });
+    searchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); exitSearch(); searchBtn.focus(); } });
   }
 
   // ── Snapshots in: persisted sessions, presets, fromJSON, undo. Per-entry isolation: a control whose
@@ -395,12 +399,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // An inline panel lifts into a floating layer on the first drag, at the spot it sat, then tracks the
   // pointer; on release it eases to a near viewport edge, and the position persists to "<key>:pos".
   if (draggable || opts.floating) {
-    if (draggable) {
-      panel.dataset.draggable = "true"; // CSS grab cursor on the header — the affordance
-      // Decorative grabber pill (pointer-events:none, so the press still lands on the header).
-      const grabber = el("span", "tw-grabber"); grabber.setAttribute("aria-hidden", "true");
-      header.prepend(grabber);
-    }
+    if (draggable) panel.dataset.draggable = "true"; // CSS grab cursor on the header — the affordance
     // Lift in place at the current rect; a same-size placeholder stays in the old slot, or the host container reflows mid-drag.
     const lift = () => {
       if (panel.dataset.mode === "floating") return;
@@ -430,12 +429,25 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     let dragId: number | null = null, sx = 0, sy = 0, ox = 0, oy = 0, snapT = 0;
     // Document listeners (capture, so the panel's own pointer-stop can't hide them) for the press's duration.
     // Capture is taken only past the threshold: on the press it would retarget a plain click off the title.
-    const listen = (on: boolean) => { for (const [t, fn] of [["pointermove", onMove], ["pointerup", endDrag], ["pointercancel", endDrag]] as Array<[string, (e: PointerEvent) => void]>) on ? document.addEventListener(t, fn, true) : document.removeEventListener(t, fn, true); };
+    const listen = (on: boolean) => {
+      for (const [t, fn] of [["pointermove", onMove], ["pointerup", endDrag], ["pointercancel", endDrag]] as Array<[string, (e: PointerEvent) => void]>) on ? document.addEventListener(t, fn, true) : document.removeEventListener(t, fn, true);
+      on ? document.addEventListener("keydown", onDragKey, true) : document.removeEventListener("keydown", onDragKey, true);
+    };
+    // Escape mid-press cancels: the panel returns to where the drag began and the release's click is swallowed. Capture
+    // phase, so it beats a pane's Escape.
+    const onDragKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || dragId === null) return;
+      e.preventDefault(); e.stopPropagation();
+      const id = dragId; dragId = null; listen(false); // before the release, so a lostpointercapture finds no drag to end
+      try { header.releasePointerCapture(id); } catch {}
+      if (dragMoved) { px = ox; py = oy; apply(); }
+      panel.classList.remove("is-dragging");
+      swallowClick = true; document.addEventListener("pointerup", () => setTimeout(() => { swallowClick = false; }, 0), { capture: true, once: true });
+    };
     if (draggable) header.addEventListener("pointerdown", (e) => { // draggable:false keeps lift/clamp, never the press
       if (e.button !== 0 || dragId !== null || (e.target as Element).closest(".tw-toolbar, input, textarea, select")) return;
       dragId = e.pointerId; sx = e.clientX; sy = e.clientY; dragMoved = false;
       listen(true);
-      panel.classList.add("is-grabbing"); // brighten the grabber on press: on touch there's no hover
       // Regrab mid–edge-snap: pick the panel up where it visually is, not the parked target.
       if (panel.classList.contains("is-snapping")) {
         clearTimeout(snapT);
@@ -464,7 +476,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (e.buttons === 0) { endDrag(e); return; }
       const dx = e.clientX - sx, dy = e.clientY - sy;
       if (!dragMoved) {
-        if (Math.abs(dx) + Math.abs(dy) < 4) return; // a few px of slop before it counts as a drag, not a click
+        // Drag slop: quick clicks wander a few px, fingers more. Collapsing is common and moving rare, so favour the click.
+        if (Math.hypot(dx, dy) < (e.pointerType === "mouse" ? 6 : 10)) return;
         dragMoved = true; moved = true; lift(); raise(); readGap(); ox = px; oy = py; // the (possibly just-lifted) origin, once the drag starts
         try { header.setPointerCapture(dragId); } catch {}
         panel.classList.add("is-dragging");
@@ -490,7 +503,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         apply();
         if (posKey) writeStore(posKey, { x: px, y: py, corner });
       }
-      panel.classList.remove("is-dragging", "is-grabbing");
+      panel.classList.remove("is-dragging");
     };
     header.addEventListener("lostpointercapture", endDrag); // implicit capture loss mid-drag ends it like a release
     cleanups.push(() => listen(false)); // a destroy() mid-press releases the document listeners
@@ -640,7 +653,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Called from the panel's one keydown listener (registered by assemble(), beside the undo keys). Focus steps to the
   // hidden field for the keypress (the copy selected in it), the browser copies or pastes there, and focus steps back.
   const onClipKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape") return unpick();
+    if (e.key === "Escape") { if (pick) { e.stopPropagation(); unpick(); } return; }
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.target as Element)) return;
     const k = e.key.toLowerCase(); if (k !== "c" && k !== "v") return;
     if (picked && !picked[0].isConnected) picked[1](); // the picking panel left the page without destroy(): free the slot

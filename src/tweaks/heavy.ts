@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -124,6 +124,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   const typed = () => Number(inp.value.replace(spec.unit || "", "").trim() || NaN);
   // Only a readable number that lands on a new value commits; otherwise the field shows the kept value again and fires nothing.
   inp.addEventListener("change", () => { const n = typed(); if (Number.isFinite(n) && fit(n) !== value) set(n); else inp.value = value.toFixed(decimals); });
+  escapeReverts(inp, () => value.toFixed(decimals));
   // ↑/↓ step off the half-typed value (a typed "4" then ↑ reads 5), the keyboard twin of the scrub.
   inp.addEventListener("keydown", (e) => {
     if (e.key === "Enter") return inp.blur();

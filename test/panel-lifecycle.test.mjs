@@ -35,15 +35,14 @@ test("a lifted panel leaves the document with the host container that held it", 
 // The three edges a real pointer hits that header-only listeners missed: a release that
 // lands a hair off the header, a flick whose first move is already outside it, and the
 // click the browser fires on the capturing header once the drag ends.
-test("a press released off the header still ends: the grabber unlights", () => {
+test("a press released off the header still ends", () => {
   const p = tweaks("Press", { a: 1 }); document.body.append(p.el);
   const header = p.el.querySelector(".tw-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};
   header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
-  assert.ok(p.el.classList.contains("is-grabbing"));
   document.body.dispatchEvent(ptr("pointerup", { clientX: 101, clientY: 60, buttons: 0 }));
-  assert.ok(!p.el.classList.contains("is-grabbing"), "the release elsewhere ended the press");
-  assert.equal(p.el.dataset.mode, "inline");
+  document.body.dispatchEvent(ptr("pointermove", { clientX: 300, clientY: 200 }));
+  assert.equal(p.el.dataset.mode, "inline", "the release elsewhere ended the press: a later move drags nothing");
   p.destroy();
 });
 
@@ -55,7 +54,7 @@ test("a flick whose moves land outside the header still drags the panel", () => 
   document.body.dispatchEvent(ptr("pointermove", { clientX: 160, clientY: 90 }));
   document.body.dispatchEvent(ptr("pointerup", { clientX: 160, clientY: 90, buttons: 0 }));
   assert.equal(p.el.dataset.mode, "floating", "the move heard on the document lifted it");
-  assert.ok(!p.el.classList.contains("is-grabbing") && !p.el.classList.contains("is-dragging"));
+  assert.ok(!p.el.classList.contains("is-dragging"));
   p.destroy();
 });
 
@@ -71,6 +70,29 @@ test("the click that ends a drag is swallowed once; the next title click still c
   assert.ok(p.el.classList.contains("is-collapsed"), "the next real click collapses");
   title.click();
   assert.ok(!p.el.classList.contains("is-collapsed"), "and the one after re-expands");
+  p.destroy();
+});
+
+test("a click anywhere on the header but its toolbar folds the panel; a click that wobbles a few px is still a click", () => {
+  const p = tweaks("Hit", { a: 1 }); document.body.append(p.el);
+  const header = p.el.querySelector(".tw-header"), toolbarBtn = p.el.querySelector(".tw-toolbar .tw-toolbar-btn");
+  header.setPointerCapture = header.releasePointerCapture = () => {};
+  const press = (dx, dy, type = "mouse", target = header) => {
+    target.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10, pointerType: type }));
+    target.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: 10 + dy, pointerType: type }));
+    target.dispatchEvent(ptr("pointerup", { clientX: 100 + dx, clientY: 10 + dy, buttons: 0, pointerType: type }));
+    target.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+  };
+  const collapsed = () => p.el.classList.contains("is-collapsed");
+  press(0, 0); assert.ok(collapsed(), "the strip beside the title folds it");
+  press(4, 3); assert.ok(!collapsed(), "5px of wobble from a mouse is still a click"); assert.notEqual(p.el.dataset.mode, "floating", "and moved nothing");
+  press(7, 6, "touch"); assert.ok(collapsed(), "a finger gets 10px");
+  press(6, 4); assert.ok(collapsed(), "past 6px a mouse drags: the click is swallowed"); assert.equal(p.el.dataset.mode, "floating");
+  toolbarBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+  assert.ok(collapsed(), "a toolbar button keeps its own click");
+  toolbarBtn.dispatchEvent(ptr("pointerdown", { clientX: 200, clientY: 10 })); // pressed on a button, slid off onto the strip:
+  header.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true })); // the click lands on the common ancestor
+  assert.ok(collapsed(), "a press that began on the toolbar never folds the panel");
   p.destroy();
 });
 
@@ -90,8 +112,8 @@ test("a floating panel taller than the viewport caps at the viewport below its t
   try {
     // An inline panel lifted by a drag keeps the 8px margin at the bottom (one placed by opts.floating mirrors its inset; see below).
     p.el.getBoundingClientRect = () => ({ left: 60, top: 120, right: 60, bottom: 120, width: 0, height: 0 });
-    drag(0, 4); // lifted where it sat, then 4px down
-    assert.deepEqual([pos(p)[1], cap(p)], ["124px", "calc(100dvh - 132px)"], "the cap is written with the position: 124 top + 8 margin");
+    drag(0, 10); // lifted where it sat, then 10px down (past the click's slop)
+    assert.deepEqual([pos(p)[1], cap(p)], ["130px", "calc(100dvh - 138px)"], "the cap is written with the position: 130 top + 8 margin");
     full(1600);
     window.dispatchEvent(new Event("resize"));
     assert.deepEqual([pos(p)[1], cap(p)], ["8px", "calc(100dvh - 16px)"], "a panel taller than the window clamps to the top margin on its full height, and the cap follows");
@@ -114,7 +136,6 @@ test("draggable: false pins a floating panel too", () => {
   header.dispatchEvent(ptr("pointermove", { clientX: 200, clientY: 110 }));
   header.dispatchEvent(ptr("pointerup", { clientX: 200, clientY: 110, buttons: 0 }));
   assert.deepEqual(pos(p), ["40px", "50px"], "the press moved nothing");
-  assert.ok(!p.el.classList.contains("is-grabbing"));
   p.el.querySelector(".tw-header-toggle").click();
   assert.ok(p.el.classList.contains("is-collapsed"), "the title still collapses");
   p.destroy();
@@ -332,4 +353,46 @@ test("undo brings a free bag key back", async () => {
     p.undo();
     assert.equal(p.params.free, 1);
   } finally { p.destroy(); }
+});
+
+test("collapsing folds the body over the height in view, not its whole content, and cleans up after", () => {
+  const p = tweaks("Tall", { a: 1 }); document.body.append(p.el);
+  const body = p.el.querySelector(".tw-body"), title = p.el.querySelector(".tw-header-toggle");
+  // jsdom lays out nothing: a body 1874px tall starting 50px down a 768px window, so 718px of it is in view. Under a
+  // fold (its rows held at 1fr) it's drawn at `drawn`.
+  let drawn = 0;
+  body.getBoundingClientRect = () => ({ top: 50, height: body.style.gridTemplateRows ? drawn : p.el.classList.contains("is-collapsed") ? 0 : 1874 });
+  const calls = [];
+  body.animate = (frames, o) => { const a = { frames, o, cancel() { a.cancelled = true; }, onfinish: null }; calls.push(a); return a; };
+  title.click();
+  assert.ok(p.el.classList.contains("is-collapsed"));
+  assert.deepEqual(calls[0].frames, [{ height: "718px" }, { height: "0px" }], "from the window's edge, not 1874px");
+  assert.equal(calls[0].o.duration, 350); assert.equal(calls[0].o.fill, "forwards");
+  assert.equal(body.style.gridTemplateRows, "1fr", "the rows stay laid out under the fold");
+  drawn = 300; title.click(); // turned around mid-fold
+  assert.ok(calls[0].cancelled, "the running fold gave way");
+  assert.deepEqual(calls[1].frames, [{ height: "300px" }, { height: "718px" }], "from where it's drawn, open to what fits");
+  calls[1].onfinish();
+  assert.equal(body.style.gridTemplateRows, ""); assert.equal(body.style.transition, ""); assert.ok(calls[1].cancelled, "its held frame released");
+  p.destroy();
+});
+
+test("a folder's click folds over what's in view too, and a restore mid-fold turns it around", () => {
+  const p = tweaks("Folders", { group: { a: 1, b: 2 } }); document.body.append(p.el);
+  const folder = p.el.querySelector(".tw-folder"), body = folder.querySelector(".tw-folder-body");
+  // A 306px folder body starting 700px down a 768px window: 68px of it in view. Under a fold it's drawn at `drawn`.
+  let drawn = 0;
+  body.getBoundingClientRect = () => ({ top: 700, height: body.style.gridTemplateRows ? drawn : folder.classList.contains("is-collapsed") ? 0 : 306 });
+  const calls = [];
+  body.animate = (frames, o) => { const a = { frames, o, cancel() { a.cancelled = true; }, onfinish: null }; calls.push(a); return a; };
+  folder.querySelector(".tw-folder-header").click();
+  assert.ok(folder.classList.contains("is-collapsed"));
+  assert.deepEqual(calls[0].frames, [{ height: "68px" }, { height: "0px" }], "only the 68px above the window's edge");
+  assert.equal(p.toJSON().ui.folders.group, true, "toJSON reads the fold's end state");
+  drawn = 30; p.fromJSON({ ...p.toJSON(), ui: { folders: { group: false } } }); // restored open, mid-fold
+  assert.ok(!folder.classList.contains("is-collapsed"), "restored open");
+  assert.ok(calls[0].cancelled, "the running fold gave way");
+  assert.deepEqual(calls[1].frames, [{ height: "30px" }, { height: "68px" }], "and the restore folds back from where it's drawn");
+  calls[1].onfinish(); assert.equal(body.style.gridTemplateRows, ""); assert.equal(body.style.transition, "");
+  p.destroy();
 });

@@ -69,6 +69,9 @@ test("the markup chunk is lazy and imports only the shared chunk; a page without
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
+// Raised 24 → 25 KiB for folds over only the visible height, panes that drag by their edge, and Escape that reverts a
+// field or cancels a drag (~1 KB gzip together, all in the shared popover and panel code a basic panel loads): 24,487 B
+// on a local Node 24, over the 24 KiB gate on CI's Node 22.
 // Raised 23 → 24 KiB for undo steps sharing unchanged strings (~90 B gzip), which holds an uploaded image once across
 // history instead of once a step (a 4 MB image and 20 edits: 80 MB → under 1 MB). It put main ~100 B under 23 KiB on a
 // local Node 24, about on the gate on CI's Node 22.
@@ -83,14 +86,14 @@ test("the markup chunk is lazy and imports only the shared chunk; a page without
 // 21 KiB by a few dozen bytes; the controls themselves are lazy chunks.
 // Raised 20 → 21 KiB for the gradient's easing (#101): gradientCss() is a core export so a
 // host templates from one place, and it is ~700 B gzip of pure string work.
-test("a basic panel's code-split download stays under 24 KiB gzip", async () => {
+test("a basic panel's code-split download stays under 25 KiB gzip", async () => {
   const { readFile } = await import("node:fs/promises");
   const { gzipSync } = await import("node:zlib");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const core = await readFile(new URL("core.js", dir));
   let bytes = gzipSync(core).length;
   for (const [, c] of String(core).matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)) bytes += gzipSync(await readFile(new URL(c, dir))).length;
-  assert.ok(bytes < 24576, `core + shared chunk is ${bytes} B gzip — over the 24 KiB budget`);
+  assert.ok(bytes < 25600, `core + shared chunk is ${bytes} B gzip — over the 25 KiB budget`);
 });
 
 // Number is lazy on the split build (no shorthand infers it): the standalone and markup

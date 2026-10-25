@@ -21,7 +21,6 @@ test("a header drag lifts the panel before the lazy chunks have landed", async (
   pointer("pointermove", header, 40, 30);
   pointer("pointerup", header, 40, 30, { buttons: 0 });
   assert.equal(p.el.dataset.mode, "floating", "the drag lifted the panel into the floating layer");
-  assert.ok(p.el.querySelector(".tw-grabber"), "the grabber pill is part of the shell, not the build");
   await p.ready;
   assert.equal(p.el.dataset.mode, "floating", "and ready didn't undo it");
   p.destroy();
