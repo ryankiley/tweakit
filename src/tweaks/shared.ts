@@ -428,21 +428,26 @@ const setCollapsed = (root: Element, toggle: Element, body: HTMLElement, c: bool
 type Folding = HTMLElement & { _twFold?: Animation | null };
 const foldBody = (root: Element, toggle: Element, body: Folding, c: boolean, done?: () => void) => {
   if (REDUCE_MOTION.matches || typeof body.animate !== "function") { setCollapsed(root, toggle, body, c); if (done) setTimeout(done, 370); return; }
+  // Everything read before the class flips, so a collapse forces no layout after it.
   const r = body.getBoundingClientRect(), from = r.height; // mid-fold, the height it's drawn at
+  const panel = root.closest<HTMLElement>(".tw-panel"), cs = panel && getComputedStyle(panel), maxH = cs ? parseFloat(cs.maxHeight) : NaN; // border-box, so the cap includes the padding
+  const capBottom = cs && panel.dataset.mode === "floating" && maxH >= 0 ? panel.getBoundingClientRect().top + maxH - parseFloat(cs.paddingBottom) - parseFloat(cs.borderBottomWidth) : Infinity;
+  const room = Math.max(0, Math.min(window.innerHeight, capBottom) - r.top), easing = getComputedStyle(body).getPropertyValue("--tw-ease-fold").trim();
   body._twFold?.cancel(); body._twFold = null;
   body.style.transition = "none"; body.style.gridTemplateRows = "";
   setCollapsed(root, toggle, body, c);
-  // Finish the folder's padding transition now: it's hidden under the fold, and the end height must include it.
-  for (const a of body.firstElementChild?.getAnimations?.() ?? []) if ((a as CSSTransition).transitionProperty !== "opacity") a.finish();
-  const to = body.getBoundingClientRect().height;
-  const panel = root.closest<HTMLElement>(".tw-panel"), cs = panel && getComputedStyle(panel), maxH = cs ? parseFloat(cs.maxHeight) : NaN; // border-box, so the cap includes the padding
-  const capBottom = cs && panel.dataset.mode === "floating" && maxH >= 0 ? panel.getBoundingClientRect().top + maxH - parseFloat(cs.paddingBottom) - parseFloat(cs.borderBottomWidth) : Infinity;
-  const room = Math.max(0, Math.min(window.innerHeight, capBottom) - r.top), f = Math.min(from, room), t = Math.min(to, room);
+  let to = 0; // collapsed is always 0
+  if (!c) {
+    // Finish the folder's padding transition first: it's hidden under the fold, and the end height must include it.
+    for (const a of body.firstElementChild?.getAnimations?.() ?? []) if ((a as CSSTransition).transitionProperty !== "opacity") a.finish();
+    to = body.getBoundingClientRect().height;
+  }
+  const f = Math.min(from, room), t = Math.min(to, room);
   // fill: forwards holds the last frame until the 1fr comes off; otherwise one frame would draw the whole body.
   const finish = () => { body.style.gridTemplateRows = ""; void body.offsetHeight; body._twFold?.cancel(); body._twFold = null; body.style.transition = ""; done?.(); };
   if (Math.abs(f - t) < 1) return finish();
   body.style.gridTemplateRows = "1fr"; // the rows stay laid out under the fold, clipped from the bottom
-  const a = body._twFold = body.animate([{ height: f + "px" }, { height: t + "px" }], { duration: 350, easing: getComputedStyle(body).getPropertyValue("--tw-ease-fold").trim(), fill: "forwards" });
+  const a = body._twFold = body.animate([{ height: f + "px" }, { height: t + "px" }], { duration: 350, easing, fill: "forwards" });
   a.onfinish = () => { if (body._twFold === a) finish(); };
 };
 // The button whose (stringified) value is active — or, when none matches, the first: the
