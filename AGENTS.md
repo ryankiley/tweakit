@@ -117,7 +117,9 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 
 Options, the third argument: `theme` (token overrides), `persist` (a localStorage key, or `true` to key by name; turns presets on), `presets: false`, `filter: true` (a search field; needs the toolbar), `floating: true` or `{ x, y, corner }`, `draggable: false` to pin, `toolbar: false`, `undo: true`, `onReset`, `onEditStart` and `onEditEnd`.
 
-Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from a corner. Its placement is plain `.tw-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
+Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from a corner. A click anywhere on the header outside its toolbar folds the panel; Escape mid-drag puts it back. Its placement is plain `.tw-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
+
+An open pane (a list, an editor, the presets menu) drags by its edge and keeps that spot until it closes. In a pane's field, Escape restores an unsaved edit and a second Escape closes the pane. Escapes the panel handles stop at the document.
 
 ## Copy and paste: how tuned values come back to you
 

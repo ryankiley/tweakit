@@ -104,7 +104,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   }
 
   root.append(pop);
-  popover(root, trigger, pop, { width: 216, fallbackH: 240, gap: 6, onOpen: sync });
+  popover(root, trigger, pop, { fallbackH: 240, onOpen: sync });
   sync();
 
   return {

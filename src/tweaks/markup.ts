@@ -2,7 +2,7 @@
  * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a page
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
-import { el, btn, setCollapsed, getControl, titleCase, setMarkup } from "./shared.js";
+import { el, btn, foldBody, getControl, titleCase, setMarkup } from "./shared.js";
 import type { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS } from "./schema.js";
 import type { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import type { createFolder, createControl } from "./controls/basic.js";
@@ -93,7 +93,7 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
     if (!toggle && title) { toggle = btn("tw-header-toggle"); title.replaceWith(toggle); toggle.append(title); }
     if (!toggle) return;
     toggle.setAttribute("aria-expanded", "true");
-    toggle.addEventListener("click", () => setCollapsed(panel, toggle, body, !panel.classList.contains("is-collapsed")));
+    toggle.addEventListener("click", () => foldBody(panel, toggle, body, !panel.classList.contains("is-collapsed")));
     // The same toolbar tweaks() builds, over this panel's own [data-tw] controls (gathered at click time).
     if (!header.querySelector(".tw-toolbar")) {
       const live = () => [...panel.querySelectorAll<HostEl>("[data-tw]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);

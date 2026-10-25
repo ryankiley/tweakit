@@ -189,7 +189,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   });
 
   // Focus lands on the selected stop, not the first: focus is selection, so that would re-point the picker on every open.
-  popover(root, trigger, pop, { width: 260, fallbackH: 392, gap: 6, onOpen: body.reflow, onReflow: body.reflow, initialFocus: () => handleFor(selStop) });
+  popover(root, trigger, pop, { fallbackH: 392, onOpen: body.reflow, onReflow: body.reflow, initialFocus: () => handleFor(selStop) });
 
   renderHandles(); paint(); reflectCount();
   return {

@@ -104,7 +104,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const summary = () => (mode === "easing" ? `Easing · ${dur} ms` : `Spring · ${Math.round(((spring.get() as SpringOut).visualDuration ?? 0) * 1000)} ms`);
   const update = () => { chipPath.setAttribute("d", curvePath()); valueEl.textContent = summary(); replay(false); };
 
-  popover(root, trigger, pop, { width: 240, fallbackH: 380, gap: 6, onOpen: () => { modeSeg.set(mode); resync(); replay(true); }, initialFocus: () => modeSeg.el.querySelector<HTMLElement>('[tabindex="0"]') }); // hidden until open: measure now; focus the checked option
+  popover(root, trigger, pop, { fallbackH: 380, onOpen: () => { modeSeg.set(mode); resync(); replay(true); }, initialFocus: () => modeSeg.el.querySelector<HTMLElement>('[tabindex="0"]') }); // hidden until open: measure now; focus the checked option
   showMode(); update();
 
   // Set/restore: either mode's shape or a bare keyword; derived fields (easing, a spring's duration) are ignored.

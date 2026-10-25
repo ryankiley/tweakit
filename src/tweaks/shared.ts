@@ -158,13 +158,21 @@ const quietFocus = (input: HTMLElement) => {
   input.addEventListener("focus", () => input.classList.toggle("tw-focus-quiet", pointerModality));
   input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
 };
+// Escape in an edited field restores `kept` and stops; otherwise it passes on and closes the pane. Without this,
+// closing blurred the field and committed the half-typed value.
+const escapeReverts = (input: HTMLInputElement | HTMLTextAreaElement, kept: () => string, revert?: () => void) => input.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key !== "Escape" || input.value === kept()) return;
+  e.preventDefault(); e.stopPropagation(); input.value = kept(); revert?.();
+});
 /** Place a portaled popover under its trigger, flipping above when it won't fit, clamped into
  *  the viewport. width:"match" sizes it to the trigger; align:"end" lines up the right edges. */
 export const placeBelow = (trigger: Element, pop: HTMLElement, { width, fallbackH = 300, gap = 6, align = "start", prefer = "below" }: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end" | "center"; prefer?: "above" | "below" } = {}) => {
   const r = trigger.getBoundingClientRect();
   if (width === "match") pop.style.width = r.width + "px";
-  const w = width === "match" ? r.width : (pop.offsetWidth || width || 0);
-  const x = align === "end" ? r.right - w : align === "center" ? r.left + r.width / 2 - w / 2 : r.left;
+  const w = pop.offsetWidth || (width === "match" ? r.width : width || 0); // drawn width, which min-width may hold above a match
+  // A match held wider by min-width grows left from the trigger's right edge, so in a nested folder it spans the panel's row.
+  const end = align === "end" || (width === "match" && w > r.width + 0.5);
+  const x = end ? r.right - w : align === "center" ? r.left + r.width / 2 - w / 2 : r.left;
   pop.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + "px";
   const h = pop.offsetHeight || fallbackH;
   const below = window.innerHeight - r.bottom, above = r.top, need = h + 12;
@@ -173,6 +181,8 @@ export const placeBelow = (trigger: Element, pop: HTMLElement, { width, fallback
   const goAbove = prefer === "above" ? (fitsAbove || (!fitsBelow && above >= below)) : (!fitsBelow && (fitsAbove || above > below));
   const top = goAbove ? r.top - h - gap : r.bottom + gap;
   pop.style.top = clamp(top, gap, window.innerHeight - h - gap) + "px"; // clamp Y into the viewport
+  // For the CSS entrance: the side it opened on, and its height.
+  pop.dataset.side = goAbove ? "above" : "below"; pop.style.setProperty("--tw-pop-h", String(h));
 };
 
 // ── Theming — the panel runs on --tw-* custom properties, so a theme is a set of those vars:
@@ -236,13 +246,13 @@ const carryScheme = (portal: Element, anchor: Element | null | undefined) => {
 const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => { applyThemeVars(portal, anchor?.closest<PanelEl>(".tw-panel")?._twTheme); carryScheme(portal, anchor); };
 
 // ── Popover — the portal-to-<body> shell behind every transient surface. Opens under its
-// trigger, carries the host theme, closes on outside-press / Esc / scroll-out. Globally
+// trigger at its width (unless opts.width), carries the host theme, closes on outside-press / Esc / scroll-out. Globally
 // single-open. onOpen runs once it's placed at real size; onReflow on resize while open. ──
 let activePopoverClose: null | (() => void) = null, activePopoverTrigger: HTMLElement | null = null;
 // With `owner` given, closes only when the open popover's trigger lives inside it.
 const closeActivePopover = (owner?: Element) => { if (activePopoverClose && (!owner || owner.contains(activePopoverTrigger))) activePopoverClose(); };
 function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
-  let open = false, schemeObs: MutationObserver | null = null;
+  let open = false, schemeObs: MutationObserver | null = null, removeTimer: ReturnType<typeof setTimeout> | undefined;
   pop.classList.add("tw-portal"); // portal-wide CSS rules key off this
   // A closed pop stays in the DOM at opacity 0; inert keeps it out of the tab order and a11y tree.
   pop.inert = true;
@@ -252,7 +262,40 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   // A scroll carries the pop along at its offset from the trigger (follow) instead of
   // re-placing it; once the row has left the viewport the pop closes.
   let dx = 0, dy = 0;
-  const place = () => { placeBelow(trigger, pop, { width: opts.width, fallbackH: opts.fallbackH, gap: opts.gap, align: opts.align }); const r = trigger.getBoundingClientRect(); dx = parseFloat(pop.style.left) - r.left; dy = parseFloat(pop.style.top) - r.top; };
+  // Drag the pane by its edge (padding, or a gap between parts) to uncover what's beneath. It keeps that offset from its
+  // row while open; the next open resets it.
+  let moved = false;
+  const keepInView = () => { pop.style.left = clamp(parseFloat(pop.style.left), 8, window.innerWidth - pop.offsetWidth - 8) + "px"; pop.style.top = clamp(parseFloat(pop.style.top), 8, window.innerHeight - pop.offsetHeight - 8) + "px"; };
+  const place = () => {
+    if (moved) keepInView(); else placeBelow(trigger, pop, { width: opts.width ?? "match", fallbackH: opts.fallbackH, gap: opts.gap, align: opts.align });
+    const r = trigger.getBoundingClientRect(); dx = parseFloat(pop.style.left) - r.left; dy = parseFloat(pop.style.top) - r.top;
+  };
+  pop.addEventListener("pointerdown", (e) => {
+    if (e.target !== pop || e.button !== 0 || !open) return;
+    e.preventDefault(); // no text selection, and focus stays where it was
+    const id = e.pointerId, sx = e.clientX, sy = e.clientY, ox = parseFloat(pop.style.left), oy = parseFloat(pop.style.top), wasMoved = moved;
+    let going = false;
+    try { pop.setPointerCapture(id); } catch {}
+    const move = (m: PointerEvent) => {
+      if (m.pointerId !== id) return;
+      if (!going) { if (Math.hypot(m.clientX - sx, m.clientY - sy) < 4) return; going = moved = true; pop.classList.add("is-moving"); }
+      pop.style.left = ox + m.clientX - sx + "px"; pop.style.top = oy + m.clientY - sy + "px"; place();
+    };
+    const end = (m: PointerEvent) => { if (m.pointerId === id) stop(); };
+    // Escape mid-move puts it back and keeps it open. Capture phase, so it beats the pane's own Escape.
+    const key = (k: KeyboardEvent) => {
+      if (k.key !== "Escape" || !going) return;
+      k.preventDefault(); k.stopPropagation();
+      pop.style.left = ox + "px"; pop.style.top = oy + "px"; moved = wasMoved; place(); stop();
+      try { pop.releasePointerCapture(id); } catch {}
+    };
+    const stop = () => {
+      pop.removeEventListener("pointermove", move); pop.removeEventListener("pointerup", end); pop.removeEventListener("pointercancel", end); pop.removeEventListener("lostpointercapture", end);
+      document.removeEventListener("keydown", key, true); pop.classList.remove("is-moving");
+    };
+    pop.addEventListener("pointermove", move); pop.addEventListener("pointerup", end); pop.addEventListener("pointercancel", end); pop.addEventListener("lostpointercapture", end); // lost: the node left mid-press
+    document.addEventListener("keydown", key, true);
+  });
   // A detached trigger has a zero rect: if the host has unmounted the panel, close instead.
   const reflow = () => { if (open) { if (!root.isConnected) return close(); place(); opts.onReflow && opts.onReflow(); } };
   const follow = () => {
@@ -263,7 +306,8 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     pop.style.left = r.left + dx + "px"; pop.style.top = r.top + dy + "px";
   };
   const onOutside = (e: PointerEvent) => { if (!root.contains(e.target as Node) && !pop.contains(e.target as Node)) close(); };
-  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && open) { close(); trigger.focus(); } };
+  // Escape closes and stops propagation, so a host dialog doesn't close too. A field reverting an edit stops it first.
+  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && open && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); close(); trigger.focus(); } };
   // Focus leaving both the pop and its trigger closes. A blur with no relatedTarget is
   // ambiguous (a press on a drag surface inside the pop blurs to <body> too), so the modality
   // note decides. A Tab that lands outside the panel comes back to the trigger a tick later.
@@ -283,11 +327,14 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open popover first
     activePopoverClose = close; activePopoverTrigger = trigger;
     open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
-    pop.inert = false; document.body.appendChild(pop);
+    // Reopened mid-fade, it's still on <body>; re-appending would kill the transition, so it reverses in place.
+    clearTimeout(removeTimer); const fading = pop.parentNode === document.body; moved = false;
+    pop.inert = false; if (!fading) document.body.appendChild(pop);
     carrySkin(pop, root);
     window.addEventListener("tw-retheme", recarry); // setTheme() while open
     if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] }); } // host scheme flip while open
-    place();
+    // Place with transitions off: the recorded side and height set the closed state the entrance starts from.
+    if (fading) place(); else { pop.style.transition = "none"; place(); void pop.offsetWidth; pop.style.transition = ""; }
     requestAnimationFrame(() => {
       if (!open) return; // a same-tick close already ran
       pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); // render at real size, then re-place
@@ -311,7 +358,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", reflow);
     window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; }
-    setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
+    removeTimer = setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
   };
   trigger.addEventListener("click", () => { if (trigger.disabled) return; open ? close() : openPop(); }); // a disabled trigger stays inert to a synthetic click
   return { open: openPop, close, isOpen: () => open, reflow };
@@ -374,6 +421,28 @@ const rubberRelease = (track: HTMLElement) => {
 const setDisabled = (node: HTMLElement, d: boolean) => { node.classList.toggle("is-disabled", d); for (const c of node.children) if (!c.classList.contains("tw-portal")) (c as HTMLElement).inert = d; }; // a closed popover child keeps its own inert
 // Collapse a section: the fold class, aria-expanded, and `inert` on the body so hidden controls leave the tab order.
 const setCollapsed = (root: Element, toggle: Element, body: HTMLElement, c: boolean) => { root.classList.toggle("is-collapsed", c); toggle.setAttribute("aria-expanded", String(!c)); body.inert = c; };
+// …and animate the fold over only the visible height: content past the height cap or the window would otherwise stall,
+// then snap. Without the Animations API, or with reduced motion, the CSS transition runs; `done` runs once settled.
+type Folding = HTMLElement & { _twFold?: Animation | null };
+const foldBody = (root: Element, toggle: Element, body: Folding, c: boolean, done?: () => void) => {
+  if (REDUCE_MOTION.matches || typeof body.animate !== "function") { setCollapsed(root, toggle, body, c); if (done) setTimeout(done, 370); return; }
+  const r = body.getBoundingClientRect(), from = r.height; // mid-fold, the height it's drawn at
+  body._twFold?.cancel(); body._twFold = null;
+  body.style.transition = "none"; body.style.gridTemplateRows = "";
+  setCollapsed(root, toggle, body, c);
+  // Finish the folder's padding transition now: it's hidden under the fold, and the end height must include it.
+  for (const a of body.firstElementChild?.getAnimations?.() ?? []) if ((a as CSSTransition).transitionProperty !== "opacity") a.finish();
+  const to = body.getBoundingClientRect().height;
+  const panel = root.closest<HTMLElement>(".tw-panel"), cs = panel && getComputedStyle(panel), maxH = cs ? parseFloat(cs.maxHeight) : NaN; // border-box, so the cap includes the padding
+  const capBottom = cs && panel.dataset.mode === "floating" && maxH >= 0 ? panel.getBoundingClientRect().top + maxH - parseFloat(cs.paddingBottom) - parseFloat(cs.borderBottomWidth) : Infinity;
+  const room = Math.max(0, Math.min(window.innerHeight, capBottom) - r.top), f = Math.min(from, room), t = Math.min(to, room);
+  // fill: forwards holds the last frame until the 1fr comes off; otherwise one frame would draw the whole body.
+  const finish = () => { body.style.gridTemplateRows = ""; void body.offsetHeight; body._twFold?.cancel(); body._twFold = null; body.style.transition = ""; done?.(); };
+  if (Math.abs(f - t) < 1) return finish();
+  body.style.gridTemplateRows = "1fr"; // the rows stay laid out under the fold, clipped from the bottom
+  const a = body._twFold = body.animate([{ height: f + "px" }, { height: t + "px" }], { duration: 350, easing: getComputedStyle(body).getPropertyValue("--tw-ease-fold").trim(), fill: "forwards" });
+  a.onfinish = () => { if (body._twFold === a) finish(); };
+};
 // The button whose (stringified) value is active — or, when none matches, the first: the
 // group's roving tab stop. Only an empty group gives −1.
 const activeIndex = (btns: RadioBtn[], value: unknown) => { const i = btns.findIndex((b) => b.dataset.value === String(value)); return i < 0 && btns.length ? 0 : i; };
@@ -451,8 +520,8 @@ export {
   normalizeRange, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
-  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
-  blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce,
+  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
+  blade, quietFocus, escapeReverts, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };
 // Re-exported for the chunking: core and the gradient control both import easing.ts, and a

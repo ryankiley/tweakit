@@ -2,8 +2,8 @@
  * buttons, text, folder) plus createControl. Statically imported by the entry, so basic panels build synchronously. */
 import {
   el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel, json,
-  popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, setCollapsed,
-  quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
+  popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, foldBody,
+  quietFocus, escapeReverts, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
 } from "../shared.js";
 import { ICON_CHEVRON, chevronIcon } from "../icons.js";
@@ -294,7 +294,7 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   // and opening it closes any other popover.
   let typed = "", typedAt = 0; // the type-ahead buffer; a fresh open starts it over, as a native popup does
   const pop = popover(root, trigger, dropdown, {
-    width: "match", fallbackH: 200, gap: 4,
+    fallbackH: 200,
     onOpen: () => { typed = ""; (optButtons.find((b) => b.dataset.value === String(value)) || optButtons[0])?.focus(); },
   });
   // Enter/Space on a focused option selects it natively via click; Tab away closes by the shell's focusout rule.
@@ -362,11 +362,14 @@ function createString(meta: Meta, onChange: OnChange): Control {
   quietFocus(input); // click-to-type stays ringless; Tab rings
   if (meta.placeholder) input.placeholder = meta.placeholder;
   input.addEventListener("input", () => { value = input.value; onChange(value); });
+  // Text commits as you type, so Escape restores the value from when the field took focus.
+  let before = value; input.addEventListener("focus", () => { before = value; });
+  escapeReverts(input, () => before, () => { value = before; onChange(value); });
   // Long text clips softly: the edge with more past it fades (a mask, so the fade is the panel's own backdrop).
   const clip = () => { const more = input.scrollHeight - input.clientHeight > 1; input.classList.toggle("is-clip-top", more && input.scrollTop > 1); input.classList.toggle("is-clip-bottom", more && input.scrollTop + input.clientHeight < input.scrollHeight - 1); };
   if (multi) { input.addEventListener("scroll", clip); input.addEventListener("input", clip); if (typeof ResizeObserver === "function") new ResizeObserver(clip).observe(input); }
   row.append(txt("span", "tw-row-label", meta.label), input);
-  return { el: row, set: (v: unknown) => { value = str(v); input.value = value; if (multi) clip(); }, get: () => value }; // null → "", not the literal "undefined"
+  return { el: row, set: (v: unknown) => { value = before = str(v); input.value = value; if (multi) clip(); }, get: () => value }; // null → "", not the literal "undefined"
 }
 
 // ── Folder — a collapsible titled group; `body` is the inner container the caller fills. ──
@@ -378,7 +381,7 @@ function createFolder(meta: { label: string }) {
   const body = el("div", "tw-folder-body");
   const inner = el("div", "tw-controls"); body.append(inner);
   root.append(header, body);
-  const collapse = (c: boolean) => setCollapsed(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
+  const collapse = (c: boolean) => foldBody(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
   header.addEventListener("click", () => collapse(!root.classList.contains("is-collapsed")));
   return { el: root, body: inner, setCollapsed: collapse };
 }
