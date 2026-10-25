@@ -27,8 +27,11 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   // A refused file's reason takes the button text's place for a moment. It is spoken from a status region beside the
   // button, not inside it: a button's children are presentational, so a live region there is never read.
   const note = el("span", "tw-image-note"), live = el("span", "tw-image-live"); live.setAttribute("role", "status");
+  const notes = [note, live]; // a gallery adds its row's note, so a file refused on the closed row still shows why
   let noteTimer: ReturnType<typeof setTimeout>;
-  const say = (msg: string) => { note.textContent = live.textContent = msg; clearTimeout(noteTimer); noteTimer = setTimeout(() => { note.textContent = live.textContent = ""; }, 2600); };
+  const say = (msg: string) => { for (const n of notes) n.textContent = msg; clearTimeout(noteTimer); noteTimer = setTimeout(() => { for (const n of notes) n.textContent = ""; }, 2600); };
+  // An off-list value's name: its file stem, else what it is. A blob: URL's stem is a UUID, so it counts as an upload.
+  const customName = (v: string) => (/^blob:/i.test(v) ? "" : stem(v)) || (/^(data|blob):/i.test(v) ? "Uploaded image" : "Custom image");
   let render: () => void;
   // Every commit bumps gen, so a file read that lands after a tile was picked, a reset or a host set() is dropped.
   let gen = 0;
@@ -71,17 +74,19 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     row.trigger.addEventListener("click", () => input.click());
     dropZone(row.trigger, row.trigger);
   } else {
-    // The gallery: a trigger row with the chosen image's thumb and name opens a pane holding a label row with Clear, the
-    // tiles as one radio group, and the upload button. The row and the pane both take a dropped file.
+    // The gallery: a trigger row with the chosen image's thumb and name opens a pane of the tiles, as one radio group,
+    // over a foot with the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and
+    // the pane both take a dropped file.
     const row = triggerRow("tw-image", meta.label); root = row.root;
-    const name = el("span", "tw-trigger-value");
+    const name = el("span", "tw-trigger-value"), rowNote = el("span", "tw-image-note");
     const thumb = el("span", "tw-trigger-chip tw-image-thumb");
-    row.right.append(thumb, name); // thumb first, as every chip row
-    const pop = el("div", "tw-color-pop tw-image-pop");
-    const gallery = el("div", "tw-image-gallery"); pop.append(gallery);
+    row.right.append(thumb, rowNote, name); // thumb first, as every chip row
+    notes.push(rowNote);
+    // The pane is the gallery, with no wrapper: its padding and the gaps between tiles and foot are its drag edge.
+    const pop = el("div", "tw-color-pop tw-image-pop tw-image-gallery");
     const upload = canUpload ? btn("tw-button tw-image-upload", ICON_UPLOAD) : null;
     const clear = txt("button", "tw-image-clear", "Clear"); clear.type = "button"; clear.setAttribute("aria-label", `${meta.label}: clear the image`);
-    const head = el("div", "tw-image-head"); head.append(txt("span", "tw-image-label", meta.label)); if (canClear) head.append(clear);
+    const foot = el("div", "tw-image-foot");
     const grid = el("div", "tw-image-grid"); grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
     const n = options.length;
     const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
@@ -94,36 +99,42 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const custom: RadioBtn = btn("tw-image-tile tw-image-custom"); custom.setAttribute("role", "radio");
     const all = () => (custom.parentNode ? [...tiles, custom] : tiles); // parentNode, not isConnected: a panel not yet in the document has no connected nodes
     render = () => {
-      const hadFocus = custom.matches(":focus");
-      if (value && !tiles.some((b) => b._twVal === value)) {
-        custom._twVal = value; custom.style.backgroundImage = urlCss(value); custom.setAttribute("aria-label", stem(value) || "Uploaded image");
+      const k = tiles.findIndex((b) => b._twVal === value);
+      if (value && k < 0) {
+        custom._twVal = value; custom.style.backgroundImage = urlCss(value); custom.setAttribute("aria-label", customName(value));
         if (!custom.parentNode) grid.append(custom); // re-appending an attached node moves it, and a move blurs it
-      } else custom.remove();
+      } else {
+        // The focused tile is leaving (undo, a preset, set()): focus moves on first, since removing a focused node blurs
+        // it to <body>, and that blur closes the pane.
+        if (custom.matches(":focus")) tiles[Math.max(0, k)].focus();
+        custom.remove();
+      }
       const btns = all(), stop = Math.max(0, btns.findIndex((b) => b._twVal === value)); // the roving tab stop: the chosen tile, else the first
-      btns.forEach((b, k) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = k === stop ? 0 : -1; });
-      if (hadFocus && !custom.parentNode) btns[stop].focus(); // the focused tile left (undo, a preset, set()): focus stays in the group, not on <body>
+      btns.forEach((b, j) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = j === stop ? 0 : -1; });
       clear.hidden = !value; // nothing to clear, no button
+      foot.hidden = !upload && clear.hidden; // an empty foot leaves no gap
       thumb.dataset.set = value ? "true" : "false";
       thumb.style.backgroundImage = value ? urlCss(value) : "";
-      const k = tiles.findIndex((b) => b._twVal === value);
-      name.textContent = !value ? "None" : k >= 0 ? names[k] : stem(value) || "Uploaded image";
+      name.textContent = !value ? "None" : k >= 0 ? names[k] : customName(value);
     };
     grid.addEventListener("keydown", (e) => {
       const btns = all(), i = btns.indexOf(e.target as RadioBtn); if (i < 0) return;
-      if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); commit(""); tiles[0].focus(); return; } // a modifier+Delete is the panel's reset, not a clear
+      // Focus moves before the commit: the commit can remove the focused tile (the custom one) or hide Clear.
+      if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); tiles[0].focus(); commit(""); return; } // a modifier+Delete is the panel's reset, not a clear
       const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
-      e.preventDefault(); if (j !== i) { commit(btns[j]._twVal!); btns[j].focus(); }
+      e.preventDefault(); if (j !== i) { btns[j].focus(); commit(btns[j]._twVal!); }
     });
-    clear.addEventListener("click", () => { commit(""); (upload || tiles[0]).focus(); }); // Clear hides itself: hand focus on, not to the body
-    gallery.append(head, grid);
+    clear.addEventListener("click", () => { (upload || tiles[0]).focus(); commit(""); }); // Clear hides itself: hand focus on first, not to the body
+    pop.append(grid, foot);
     root.append(pop, live);
     if (upload) {
       upload.setAttribute("aria-label", `${meta.label}: upload an image`);
       upload.append(note, txt("span", "tw-image-text", "Upload image"));
       upload.addEventListener("click", () => input.click());
-      gallery.append(upload); root.append(input);
-      dropZone(row.trigger, row.trigger); dropZone(gallery, gallery);
+      foot.append(upload); root.append(input);
+      dropZone(row.trigger, row.trigger); dropZone(pop, pop);
     }
+    if (canClear) foot.append(clear);
     popover(root, row.trigger, pop, { fallbackH: 220, initialFocus: () => all().find((b) => b.tabIndex === 0) });
   }
   render();

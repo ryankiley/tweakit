@@ -315,6 +315,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   // note decides. A Tab that lands outside the panel comes back to the trigger a tick later.
   const onFocusOut = (e: FocusEvent) => {
     if (!open) return; const t = e.relatedTarget as Node | null;
+    if (!t && !document.hasFocus()) return; // the window lost focus (a file dialog, another app): the pane waits for it
     if (t ? root.contains(t) || pop.contains(t) : pointerModality) return;
     close();
     if (t && !trigger.closest(".tw-panel")?.contains(t)) setTimeout(() => { if (!open && document.activeElement === t) trigger.focus(); }, 0);
@@ -422,7 +423,10 @@ const rubberRelease = (track: HTMLElement) => {
 
 // Disable a row: `inert` goes on the children, not the row — an inert element hit-tests like
 // pointer-events:none, so an inert row would never show its not-allowed cursor.
-const setDisabled = (node: HTMLElement, d: boolean) => { node.classList.toggle("is-disabled", d); for (const c of node.children) if (!c.classList.contains("tw-portal")) (c as HTMLElement).inert = d; }; // a closed popover child keeps its own inert
+const setDisabled = (node: HTMLElement, d: boolean) => {
+  node.classList.toggle("is-disabled", d); for (const c of node.children) if (!c.classList.contains("tw-portal")) (c as HTMLElement).inert = d; // a closed popover child keeps its own inert
+  if (d) closeActivePopover(node); // an open pane is portaled out of reach of inert: a control disabled mid-edit closes it
+};
 // Collapse a section: the fold class, aria-expanded, and `inert` on the body so hidden controls leave the tab order.
 const setCollapsed = (root: Element, toggle: Element, body: HTMLElement, c: boolean) => { root.classList.toggle("is-collapsed", c); toggle.setAttribute("aria-expanded", String(!c)); body.inert = c; };
 // …and animate the fold over only the visible height: content past the height cap or the window would otherwise stall,

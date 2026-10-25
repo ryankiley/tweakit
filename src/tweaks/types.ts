@@ -104,7 +104,7 @@ export type SchemaObject =
       /** Supplied images to pick from, as URLs or `{ value, label }`. The control becomes a row naming the chosen
        *  image that opens a pane of tiles with the upload below them, and the param is the chosen URL or the upload's data URL. */
       options?: Option[];
-      /** Tiles per row in the gallery, 1 to 6 (2 for up to four options, then 3). */
+      /** Tiles per row in the gallery, 1 to 6 (by default one per option for two or three, 2 for one or four, then 3). */
       cols?: number;
       /** The largest upload taken, in bytes (10 MB unless set); a bigger file is refused with a note. */
       maxSize?: number;

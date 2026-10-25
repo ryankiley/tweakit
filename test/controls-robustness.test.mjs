@@ -207,6 +207,48 @@ test("a gallery is a row naming the chosen image that opens a pane of tiles", as
   p.destroy();
 });
 
+test("the gallery pane: no repeated label, Clear in the foot, and an off-list value named for what it is", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "/a.png", upload: false } });
+  const pop = p.el.querySelector(".tw-image-pop"), name = p.el.querySelector(".tw-image .tw-trigger-value");
+  assert.equal(pop.querySelector(".tw-image-label"), null, "the row names the control; the pane doesn't repeat it");
+  assert.ok(pop.querySelector(".tw-image-foot .tw-image-clear"), "Clear sits under the tiles");
+  p.set("pic", "https://x.com/"); assert.equal(name.textContent, "Custom image", "a host URL with no file stem");
+  p.set("pic", "data:image/gif;base64,R0lGODlhAQABAAAAACw="); assert.equal(name.textContent, "Uploaded image");
+  p.set("pic", "blob:https://x.com/1b4e28ba-2fa1-11d2-883f-0016d3cca427"); assert.equal(name.textContent, "Uploaded image", "a blob URL's stem is a UUID");
+  p.set("pic", ""); assert.ok(pop.querySelector(".tw-image-foot").hidden, "no upload and nothing to clear: no foot");
+  p.destroy();
+});
+
+test("a file refused on the closed gallery row says why in the row", () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], value: "/a.png" } });
+  document.body.append(p.el);
+  const trigger = p.el.querySelector(".tw-image .tw-trigger");
+  dropOn(trigger, new window.File(["hi"], "x.txt", { type: "text/plain" }));
+  assert.equal(trigger.querySelector(".tw-image-note").textContent, "Not an image");
+  assert.equal(p.params.pic, "/a.png");
+  p.destroy();
+});
+
+test("disabling a gallery mid-edit closes its pane", async () => {
+  const p = tweaks("I", { on: true, pic: { type: "image", options: ["/a.png", "/b.png"], value: "/a.png", disabled: (g) => !g("on") } });
+  document.body.append(p.el);
+  const trigger = p.el.querySelector(".tw-image .tw-trigger");
+  trigger.click(); await tick(30); assert.equal(trigger.getAttribute("aria-expanded"), "true");
+  p.set("on", false); await tick(30);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false", "the pane closes with its control");
+  p.destroy();
+});
+
+test("arrowing off the custom tile moves focus before the tile leaves", async () => {
+  const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" } });
+  document.body.append(p.el);
+  const custom = p.el.querySelector(".tw-image-custom"); custom.focus();
+  key(custom, { key: "ArrowLeft" });
+  assert.equal(p.params.pic, "/b.png");
+  assert.equal(document.activeElement?.dataset.value, "/b.png", "focus is on the picked tile, not <body>");
+  p.destroy();
+});
+
 test("the gallery's tiles are one radio group: arrows move and pick, Delete clears", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png", "/c.png"], value: "/a.png" } });
   document.body.append(p.el);
