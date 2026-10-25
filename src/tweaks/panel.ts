@@ -19,7 +19,7 @@ import type { TabsControl } from "./controls/tabs.js";
 /** A params object or one of its folder/tabs sub-objects — the holder a control writes into. */
 type Target = Record<string, unknown>;
 /** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def) and its dotted path. */
-export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement }
+export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement; note?: Control["note"] }
 /** A values snapshot — params minus `_last`, as JSON round-trips it. */
 export type Snapshot = Record<string, any>;
 /** A folder in the filter index: its node, label and body (for the child scan). */
@@ -72,7 +72,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const persist = persistKey ? (() => {
     let saveT = 0;
     // An image's data URL can outgrow storage (~5 MB an origin), and a refused write would drop every value with it: the write
-    // is retried without the image values, so the rest still saves, and a host is told once why its image comes back empty.
+    // is retried without the largest images, so the rest still saves; each image left out says so on its row, and a host is
+    // told once why its image comes back empty.
     // A value storage refused stays out of later saves until it changes, so the serialise-throw-retry runs once per image, not per save.
     let quotaWarned = false;
     const refused = new Map<Entry, unknown>();
@@ -82,10 +83,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       const images = entries.filter((e) => e.persist && e.m.type === "image");
       const kept = images.filter((e) => !(refused.get(e) === e.get() && drop(snap, e)));
       if (writeStore(persistKey, snap)) return;
-      const left = kept.filter((e) => drop(snap, e));
-      if (!left.length) return; // no image to leave out: storage is off, denied or full of something else — silent, as before
-      for (const e of left) refused.set(e, e.get());
-      if (writeStore(persistKey, snap) && !quotaWarned) { quotaWarned = true; console.warn("[tweaks] persist: the values didn't fit in storage with an image included — saved without it"); }
+      // Images leave largest first, only until the rest fits, so a picture that fits keeps its place beside one that doesn't.
+      const left: Entry[] = [];
+      for (const e of kept.filter((e) => e.get()).sort((a, b) => String(b.get()).length - String(a.get()).length)) {
+        if (!drop(snap, e)) continue;
+        left.push(e); refused.set(e, e.get());
+        if (!writeStore(persistKey, snap)) continue;
+        for (const e of left) e.note?.("Too big to save");
+        if (!quotaWarned) { quotaWarned = true; console.warn("[tweaks] persist: the values didn't fit in storage with an image included — saved without it"); }
+        return;
+      }
+      // Refused with every image out too: storage is off, denied or full of something else, and no image is to blame. Silent.
     };
     cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
     return () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };
@@ -324,7 +332,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // A value a host parked on params before assemble ran wins over the schema default.
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el };
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el, note: ctrl.note };
         entries.push(entry); wireReset(ctrl.el, entry); scopes.set(ctrl.el, { kind: "row", entry, label: m.label });
       }
       registerCond(ctrl.el, m);

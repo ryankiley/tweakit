@@ -13,6 +13,40 @@ const MB = 1 << 20;
 const size = (n: number) => (n >= MB ? `${Math.round((n / MB) * 10) / 10} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
 // A tile's accessible name when its option has no label: the URL's file stem; a data URL has none.
 const stem = (url: string) => { if (/^data:/i.test(url)) return ""; const s = url.split(/[?#]/)[0].split("/").pop()!.replace(/\.\w+$/, ""); try { return decodeURIComponent(s); } catch { return s; } };
+// Pixels, not bytes, are what make an upload heavy: a phone photo is ~4 MB as a data URL, and storage holds ~5 MB an origin,
+// so one upload could keep every value from saving. A picture longer than `fit` on its long side is drawn down to it before
+// it becomes the param, and one within `fit` but heavier than 1.5 MB is redrawn at its size. A JPEG stays a JPEG, at `quality`. Anything else is tried as a PNG first, so a screenshot or text
+// isn't smudged, and kept as one up to 1.5 MB: a photo's PNG at 2560px is several times that, while a screenshot's is not.
+// (It's weighed by size, not against the JPEG: drawn down, even a screenshot's PNG runs about twice its JPEG.) Past that it
+// is a JPEG, or with transparency a WebP where the browser writes one, whichever is smaller than the PNG. An SVG has no
+// pixels to fit and a GIF would lose its animation, so both are taken as they are. Resolves "" to take the file as it is:
+// it fits and is light, its format is kept, the browser can't decode or draw it, or the redraw came out no smaller.
+const KEEP = /^image\/(gif|svg\+xml)$/i;
+const PNG_BUDGET = 1.5 * MB;
+const hasAlpha = (ctx: CanvasRenderingContext2D, w: number, h: number) => { const d = ctx.getImageData(0, 0, w, h).data; for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true; return false; };
+// toBlob encodes off the main thread where the browser can. null when it can't write that type (it hands back a PNG instead).
+const encode = (c: HTMLCanvasElement, type: string, q?: number) => new Promise<Blob | null>((r) => c.toBlob((b) => r(b && b.type === type ? b : null), type, q));
+const dataUrl = (b: Blob) => new Promise<string>((r, j) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result)); fr.onerror = j; fr.readAsDataURL(b); });
+const shrink = async (file: File, fit: number, quality: number): Promise<string> => {
+  if (!fit || KEEP.test(file.type) || typeof Image === "undefined" || typeof URL.createObjectURL !== "function") return "";
+  let src = "";
+  try {
+    src = URL.createObjectURL(file);
+    const img = new Image(); img.src = src; await img.decode();
+    const iw = img.naturalWidth, ih = img.naturalHeight, k = Math.min(1, fit / Math.max(iw, ih));
+    if (!(iw > 0 && ih > 0) || (k === 1 && file.size <= PNG_BUDGET)) return ""; // within fit and light: a picture already shrunk is never redrawn
+    const c = document.createElement("canvas"), w = (c.width = Math.max(1, Math.round(iw * k))), h = (c.height = Math.max(1, Math.round(ih * k)));
+    const ctx = c.getContext("2d"); if (!ctx) return "";
+    ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, 0, 0, w, h);
+    const jpeg = /^image\/jpe?g$/i.test(file.type);
+    let out = jpeg ? null : await encode(c, "image/png");
+    if (!out || out.size > PNG_BUDGET) {
+      const alt = await encode(c, !jpeg && hasAlpha(ctx, w, h) ? "image/webp" : "image/jpeg", quality);
+      if (alt && (!out || alt.size < out.size)) out = alt;
+    }
+    return out && out.size < file.size ? await dataUrl(out) : "";
+  } catch { return ""; } finally { if (src) URL.revokeObjectURL(src); }
+};
 const ICON_UPLOAD = icon('<path d="M12 15V4m-4.5 4.5L12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>');
 
 function createImage(meta: Meta, onChange: OnChange): Control {
@@ -23,6 +57,9 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   const canUpload = meta.upload !== false || !options.length; // the plain row is the upload: there is nothing else to leave
   const canClear = meta.clear !== false; // false: a required choice, with no Clear and no Delete to empty it
   const maxSize = +meta.maxSize! > 0 ? +meta.maxSize! : 10 * MB;
+  // A number only: `fit: true` would read as 1 and draw every upload as one pixel.
+  const fit = meta.fit === false || meta.fit === 0 ? 0 : typeof meta.fit === "number" && meta.fit >= 1 ? Math.round(meta.fit) : 2560; // false or 0: uploads as they are
+  const quality = typeof meta.quality === "number" && meta.quality > 0 && meta.quality <= 1 ? meta.quality : 0.85;
   const input = el("input", "tw-image-input"); input.type = "file"; input.accept = "image/*";
   // A refused file's reason takes the button text's place for a moment. It is spoken from a status region beside the
   // button, not inside it: a button's children are presentational, so a live region there is never read.
@@ -40,10 +77,16 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     if (!file) return;
     if (!file.type.startsWith("image/")) return say("Not an image");
     if (file.size > maxSize) return say(`${size(file.size)}, max ${size(maxSize)}`);
-    const fr = new FileReader(), at = ++gen;
-    fr.onload = () => { if (gen === at) commit(String(fr.result)); };
-    fr.onerror = () => say("Couldn't read the file");
-    fr.readAsDataURL(file);
+    // One commit, of the shrunk picture when there is one: one change event, one save.
+    const at = ++gen;
+    shrink(file, fit, quality).then((url) => {
+      if (gen !== at) return;
+      if (url) return commit(url);
+      const fr = new FileReader();
+      fr.onload = () => { if (gen === at) commit(String(fr.result)); };
+      fr.onerror = () => say("Couldn't read the file");
+      fr.readAsDataURL(file);
+    });
   };
   // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the children doesn't drop the outline.
   // A disabled control's root stays hit-testable (only its children go inert), so the zone checks for itself; on the
@@ -141,7 +184,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     popover(root, row.trigger, pop, { fallbackH: 220, initialFocus: () => all().find((b) => b.tabIndex === 0) });
   }
   render();
-  return { el: root, set: (v: string | null | undefined) => { if (v != null && typeof v !== "string") return; commit(v || "", false); }, get: () => value };
+  return { el: root, set: (v: string | null | undefined) => { if (v != null && typeof v !== "string") return; commit(v || "", false); }, get: () => value, note: say };
 }
 
 registerControl("image", createImage);

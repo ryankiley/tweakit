@@ -356,6 +356,132 @@ test("a refusal under 1 KB reads in bytes, and is spoken from a status region ou
   assert.equal(live.textContent, "400 B, max 300 B");
 });
 
+// ── A large upload is drawn down to `fit` before it becomes the param. jsdom decodes no images and draws no canvas, so a
+// picture of w × h, with or without transparency, is stubbed in, and every redraw and encode is recorded. `bytes` sets the
+// size each type encodes to, null for a type the browser can't write (it hands back a PNG instead). ──
+const withPicture = async ({ w, h, alpha = false, bytes = {} }, fn) => {
+  const proto = window.HTMLCanvasElement.prototype, was = { Image: globalThis.Image, create: URL.createObjectURL, revoke: URL.revokeObjectURL, getContext: proto.getContext, toBlob: proto.toBlob };
+  const calls = { decoded: 0, drawn: [], encoded: [] };
+  globalThis.Image = class { decode() { calls.decoded++; return Promise.resolve(); } get naturalWidth() { return w; } get naturalHeight() { return h; } };
+  URL.createObjectURL = () => "blob:http://localhost/1"; URL.revokeObjectURL = () => {};
+  proto.getContext = function () { return { drawImage: (img, x, y, dw, dh) => calls.drawn.push([dw, dh]), getImageData: () => ({ data: new Uint8ClampedArray([9, 9, 9, 255, 9, 9, 9, alpha ? 128 : 255]) }) }; };
+  proto.toBlob = function (cb, type, q) {
+    calls.encoded.push([type, q, this.width, this.height]);
+    const n = bytes[type] === undefined ? 6 : bytes[type];
+    setTimeout(() => cb(n === null ? new window.Blob(["x"], { type: "image/png" }) : new window.Blob(["S".repeat(n)], { type })));
+  };
+  try { await fn(calls); } finally { Object.assign(URL, { createObjectURL: was.create, revokeObjectURL: was.revoke }); globalThis.Image = was.Image; proto.getContext = was.getContext; proto.toBlob = was.toBlob; }
+};
+const photo = (name, type, size = 4000) => new window.File(["x".repeat(size)], name, { type });
+const MiB = 1 << 20;
+
+test("an upload past fit is drawn down to it as a JPEG before it lands: one change, the shrunk URL", async () => {
+  await withPicture({ w: 3000, h: 6000 }, async (calls) => {
+    const p = tweaks("I", { pic: { type: "image" } }), seen = []; p.on((v) => seen.push(v.pic));
+    dropOn(p.el.querySelector(".tw-trigger"), photo("phone.jpg", "image/jpeg"));
+    await tick(30);
+    assert.deepEqual(calls.drawn, [[1280, 2560]], "the long side drawn to 2560");
+    assert.deepEqual(calls.encoded, [["image/jpeg", 0.85, 1280, 2560]], "a JPEG stays a JPEG, with no PNG tried");
+    assert.deepEqual(seen, ["data:image/jpeg;base64,U1NTU1NT"], "one change event, carrying the shrunk picture");
+    p.destroy();
+  });
+});
+
+test("anything but a JPEG is a PNG within 1.5 MB; past that a JPEG, or a WebP with transparency", async () => {
+  const cases = [
+    [{ bytes: { "image/png": 2000 } }, 4000, "image/png", ["image/png"], "a screenshot's PNG within budget is kept, with nothing else tried"],
+    [{ alpha: true, bytes: { "image/png": 2000 } }, 4000, "image/png", ["image/png"], "transparency within budget stays a PNG"],
+    [{ bytes: { "image/png": 2 * MiB, "image/jpeg": 100 } }, 4000, "image/jpeg", ["image/png", "image/jpeg"], "a photo saved as PNG is a JPEG"],
+    [{ alpha: true, bytes: { "image/png": 2 * MiB, "image/webp": 100 } }, 4000, "image/webp", ["image/png", "image/webp"], "a big cutout is a WebP, keeping its alpha"],
+    [{ alpha: true, bytes: { "image/png": 2 * MiB, "image/webp": null } }, 3 * MiB, "image/png", ["image/png", "image/webp"], "with no WebP to write, the PNG"],
+  ];
+  for (const [pic, size, type, tried, msg] of cases) {
+    await withPicture({ w: 4000, h: 3000, ...pic }, async (calls) => {
+      const p = tweaks("I", { pic: { type: "image" } });
+      dropOn(p.el.querySelector(".tw-trigger"), photo("art.png", "image/png", size));
+      await tick(60);
+      assert.deepEqual(calls.encoded.map((e) => e[0]), tried, msg);
+      assert.match(p.params.pic, new RegExp(`^data:${type};base64,U1NT`), msg);
+      p.destroy();
+    });
+  }
+});
+
+test("a picture within fit, a GIF and an SVG are taken as they are, and fit: false keeps every upload whole", async () => {
+  await withPicture({ w: 2560, h: 1440 }, async (calls) => {
+    const p = tweaks("I", { pic: { type: "image" } });
+    dropOn(p.el.querySelector(".tw-trigger"), photo("small.png", "image/png"));
+    await tick(30);
+    assert.equal(calls.decoded, 1); assert.equal(calls.drawn.length, 0, "a picture at fit is never redrawn");
+    assert.match(p.params.pic, /^data:image\/png;base64,eHh4/, "the file as it was read");
+    p.destroy();
+  });
+  await withPicture({ w: 5000, h: 5000 }, async (calls) => {
+    const p = tweaks("I", { pic: { type: "image" }, raw: { type: "image", fit: false } });
+    const [pic, raw] = p.el.querySelectorAll(".tw-trigger");
+    dropOn(pic, photo("loop.gif", "image/gif")); await tick(30);
+    assert.match(p.params.pic, /^data:image\/gif;/, "a GIF would lose its animation");
+    dropOn(pic, photo("logo.svg", "image/svg+xml")); await tick(30);
+    assert.match(p.params.pic, /^data:image\/svg\+xml;/, "an SVG has no pixels to fit");
+    dropOn(raw, photo("raw.jpg", "image/jpeg")); await tick(30);
+    assert.match(p.params.raw, /^data:image\/jpeg;base64,eHh4/);
+    assert.equal(calls.decoded, 0, "none of them decoded"); assert.equal(calls.encoded.length, 0);
+    p.destroy();
+  });
+});
+
+test("fit and quality set the size and the quality, a non-number fit is the default, and a redraw no smaller than the file is dropped", async () => {
+  await withPicture({ w: 6000, h: 3000 }, async (calls) => {
+    const p = tweaks("I", { pic: { type: "image", fit: 800, quality: 0.6 }, yes: { type: "image", fit: true, quality: "high" } });
+    const [pic, yes] = p.el.querySelectorAll(".tw-trigger");
+    dropOn(pic, photo("wide.jpg", "image/jpeg")); await tick(30);
+    dropOn(yes, photo("wide.jpg", "image/jpeg")); await tick(30);
+    assert.deepEqual(calls.encoded, [["image/jpeg", 0.6, 800, 400], ["image/jpeg", 0.85, 2560, 1280]], "fit: true isn't one pixel");
+    dropOn(pic, photo("tiny.jpg", "image/jpeg", 1)); await tick(30);
+    assert.equal(p.params.pic, "data:image/jpeg;base64,eA==", "the 1-byte file beats its redraw, so it is kept");
+    p.destroy();
+  });
+});
+
+test("a heavy upload within fit is redrawn at its size; a light one is taken as it is", async () => {
+  await withPicture({ w: 2400, h: 1600, bytes: { "image/png": 2 * MiB, "image/jpeg": 100 } }, async (calls) => {
+    const p = tweaks("I", { pic: { type: "image" } });
+    dropOn(p.el.querySelector(".tw-trigger"), photo("heavy.png", "image/png", 2 * MiB)); await tick(60);
+    assert.deepEqual(calls.drawn, [[2400, 1600]], "drawn at its own size");
+    assert.match(p.params.pic, /^data:image\/jpeg;base64,U1NT/, "a heavy PNG photo is a JPEG");
+    dropOn(p.el.querySelector(".tw-trigger"), photo("light.png", "image/png", 1.5 * MiB)); await tick(60);
+    assert.equal(calls.drawn.length, 1, "1.5 MB or less within fit: never redrawn");
+    p.destroy();
+  });
+});
+
+test("a pick, a set() or a second upload while a shrink is pending wins over it", async () => {
+  await withPicture({ w: 4000, h: 3000 }, async () => {
+    const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"] } }), seen = []; p.on((v) => seen.push(v.pic));
+    const upload = p.el.querySelector(".tw-image-upload");
+    dropOn(upload, photo("big.jpg", "image/jpeg")); p.el.querySelectorAll(".tw-image-tile")[1].click();
+    await tick(30);
+    assert.equal(p.params.pic, "/b.png"); assert.deepEqual(seen, ["/b.png"], "the late shrink fires nothing");
+    dropOn(upload, photo("big.jpg", "image/jpeg")); p.set("pic", "/a.png");
+    await tick(30);
+    assert.equal(p.params.pic, "/a.png");
+    dropOn(upload, photo("one.jpg", "image/jpeg")); dropOn(upload, photo("two.png", "image/png"));
+    await tick(60);
+    assert.match(p.params.pic, /^data:image\/png;/, "the second upload lands, not the first");
+    p.destroy();
+  });
+});
+
+test("a file that can't be decoded falls back to the file as it is", async () => {
+  await withPicture({ w: 4000, h: 3000 }, async () => {
+    globalThis.Image = class { decode() { return Promise.reject(new Error("EncodingError")); } };
+    const p = tweaks("I", { pic: { type: "image" } });
+    dropOn(p.el.querySelector(".tw-trigger"), photo("odd.heic", "image/heic")); await tick(30);
+    assert.match(p.params.pic, /^data:image\/heic;base64,/);
+    p.destroy();
+  });
+});
+
 test("the stylesheet rings a focused gallery tile with an outline", () => {
   // jsdom honours [hidden] over display: flex, so this is checked in the built CSS, not on the element.
   const css = distCss();

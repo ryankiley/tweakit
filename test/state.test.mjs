@@ -123,6 +123,7 @@ test("a persist write storage refuses is retried without the image values, so th
     assert.equal(stored.x, 7, "the slider value was saved");
     assert.equal("im" in stored, false, "the image that didn't fit was left out");
     assert.equal(warned.length, 1, "and the host was told once");
+    assert.equal(p.el.querySelector(".tw-image-note").textContent, "Too big to save", "and the person, on the image's row");
     assert.equal(refusals, 1);
     p.set("x", 8); await tick(250);
     assert.equal(JSON.parse(localStorage.getItem("tw:t-quota")).x, 8);
@@ -133,6 +134,43 @@ test("a persist write storage refuses is retried without the image values, so th
     assert.equal(p.savePreset("big"), false, "a preset carries its image whole, so storage refuses it and the call says so");
     assert.equal(localStorage.getItem("tw:t-quota:presets"), null, "nothing claimed to be stored");
     assert.equal(warned.length, 2, "and the host was told which preset");
+    p.destroy();
+  } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
+});
+
+test("only an image storage left out says so on its row: not an empty one, and none when storage is off", async () => {
+  const big = "data:image/gif;base64," + "A".repeat(4096);
+  const setItem = window.Storage.prototype.setItem;
+  let off = false;
+  window.Storage.prototype.setItem = function (k, v) { if (off || String(v).includes(big)) throw new DOMException("quota", "QuotaExceededError"); return setItem.call(this, k, v); };
+  const warn = console.warn; console.warn = () => {};
+  try {
+    const p = tweaks("N", { x: [1, 0, 10, 1], im: { type: "image" }, empty: { type: "image" } }, { persist: "t-note" });
+    const [im, empty] = p.el.querySelectorAll(".tw-image-note");
+    p.set("im", big); await tick(250);
+    assert.equal(im.textContent, "Too big to save");
+    assert.equal(empty.textContent, "", "an empty image row has nothing that went unsaved");
+    im.textContent = ""; off = true; p.set("im", big + "B"); await tick(250);
+    assert.equal(im.textContent, "", "refused without the image too: no note");
+    const q = tweaks("M", { x: [1, 0, 10, 1], im: { type: "image", value: "/a.png" } }, { persist: "t-note-off" });
+    q.set("x", 2); await tick(250);
+    assert.equal(q.el.querySelector(".tw-image-note").textContent, "", "storage is off: the image isn't to blame");
+    p.destroy(); q.destroy();
+  } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
+});
+
+test("storage that can't take two images leaves out the larger one only, and only that row says so", async () => {
+  const big = "data:image/gif;base64," + "A".repeat(8192), small = "data:image/gif;base64," + "B".repeat(1024);
+  const setItem = window.Storage.prototype.setItem;
+  window.Storage.prototype.setItem = function (k, v) { if (String(v).includes(big)) throw new DOMException("quota", "QuotaExceededError"); return setItem.call(this, k, v); };
+  const warn = console.warn; console.warn = () => {};
+  try {
+    const p = tweaks("L", { a: { type: "image" }, b: { type: "image" } }, { persist: "t-largest" });
+    const [a, b] = p.el.querySelectorAll(".tw-image-note");
+    p.setMany({ a: small, b: big }); await tick(250);
+    const stored = JSON.parse(localStorage.getItem("tw:t-largest"));
+    assert.equal(stored.a, small, "the image that fits keeps its place"); assert.equal("b" in stored, false);
+    assert.equal(a.textContent, ""); assert.equal(b.textContent, "Too big to save");
     p.destroy();
   } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
 });
