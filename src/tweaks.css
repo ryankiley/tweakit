@@ -448,7 +448,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .tw-select-trigger:hover { background: var(--tw-surface-hover); } /* the whole row is the button */
-  .tw-select-trigger:hover .tw-select-label { color: var(--tw-text-primary); }
+  .tw-select-trigger:hover .tw-select-label, .tw-select-trigger:hover .tw-select-chevron { color: var(--tw-text-primary); } /* the chevron lights like a folder's */
 }
 .tw-select-trigger:active { transform: scale(var(--tw-press-row)); transition: background 0.15s, transform 0.08s ease-out; }
 .tw-select.is-open .tw-select-trigger { background: var(--tw-surface-active); }
@@ -456,7 +456,7 @@
 .tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 .tw-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The folder's 15px chevron; the glyph sits 3.75px inside its box, so pull it out by that side-bearing. */
-.tw-select-chevron { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.6; margin-right: -3.75px; transition: transform 0.2s var(--tw-ease-out); }
+.tw-select-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); margin-right: -3.75px; transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
 .tw-select.is-open .tw-select-chevron { transform: rotate(180deg); }
 .tw-select-dropdown {
   position: fixed; z-index: 99999; /* portaled to <body>, JS-placed */
