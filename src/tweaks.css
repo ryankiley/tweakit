@@ -454,6 +454,8 @@
   transform-origin: top; opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s));
   pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.22s var(--tw-ease-spring);
 }
+/* A pane matches its row, but never runs past the window's 8px margins. */
+:is(.tw-select-dropdown, .tw-color-pop) { max-width: calc(100vw - 16px); }
 /* Opened above the trigger: grow up from it. */
 :is(.tw-select-dropdown, .tw-color-pop)[data-side="above"] { transform-origin: bottom; transform: translateY(6px) scale(var(--tw-pop-s)); }
 .tw-select-dropdown.is-open { opacity: 1; transform: none; pointer-events: auto; }

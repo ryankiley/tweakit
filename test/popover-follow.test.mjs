@@ -183,3 +183,17 @@ test("a list's dropdown doesn't move: it's a menu that closes on a pick", async 
     assert.deepEqual([dd.style.left, dd.style.top], at);
   } finally { p.destroy(); }
 });
+
+test("a pane that changes size while open is placed again: it stays on its row", async () => {
+  const observed = []; globalThis.ResizeObserver = window.ResizeObserver = class { constructor(cb) { this.cb = cb; observed.push(this); } observe() {} disconnect() { this.off = true; } };
+  const p = tweaks("Z", { tint: "#7C5CFF" }); document.body.append(p.el); await p.ready;
+  try {
+    const trigger = p.el.querySelector(".tw-color .tw-trigger"); trigger.getBoundingClientRect = () => rect(700); // near the bottom of a 768 window: it opens above
+    trigger.click(); await wait(60);
+    const pop = document.body.querySelector(".tw-color-pop.is-open"), ro = observed.at(-1);
+    let h = 340; Object.defineProperty(pop, "offsetHeight", { get: () => h, configurable: true });
+    ro.cb(); assert.equal(pop.style.top, `${700 - 340 - 6}px`, "above its row");
+    h = 290; ro.cb(); assert.equal(pop.style.top, `${700 - 290 - 6}px`, "shrunk, it stays 6px above its row instead of leaving a gap");
+    trigger.click(); await wait(10); assert.ok(ro.off, "closing lets go of the observer");
+  } finally { p.destroy(); delete globalThis.ResizeObserver; delete window.ResizeObserver; }
+});

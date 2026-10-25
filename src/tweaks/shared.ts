@@ -252,7 +252,7 @@ let activePopoverClose: null | (() => void) = null, activePopoverTrigger: HTMLEl
 // With `owner` given, closes only when the open popover's trigger lives inside it.
 const closeActivePopover = (owner?: Element) => { if (activePopoverClose && (!owner || owner.contains(activePopoverTrigger))) activePopoverClose(); };
 function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; movable?: boolean; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
-  let open = false, schemeObs: MutationObserver | null = null, removeTimer: ReturnType<typeof setTimeout> | undefined, byPointer = false;
+  let open = false, schemeObs: MutationObserver | null = null, removeTimer: ReturnType<typeof setTimeout> | undefined, byPointer = false, sizeObs: ResizeObserver | null = null;
   // Focus goes back to the row as the pane was opened: quietly after a click, even when an Escape closes it.
   const refocus = () => trigger.focus({ focusVisible: !byPointer });
   pop.classList.add("tw-portal"); // portal-wide CSS rules key off this
@@ -337,6 +337,8 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] }); } // host scheme flip while open
     // Place with transitions off: the recorded side and height set the closed state the entrance starts from.
     if (fading) place(); else { pop.style.transition = "none"; place(); void pop.offsetWidth; pop.style.transition = ""; }
+    // A pane that changes size while open (a mode switch, a disclosed picker) stays on its row and inside the window.
+    if (typeof ResizeObserver === "function") { sizeObs = new ResizeObserver(() => { if (open) place(); }); sizeObs.observe(pop); }
     requestAnimationFrame(() => {
       if (!open) return; // a same-tick close already ran
       pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); // render at real size, then re-place
@@ -359,7 +361,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); pop.inert = true; trigger.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", reflow);
-    window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; }
+    window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; } sizeObs?.disconnect(); sizeObs = null;
     removeTimer = setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
   };
   trigger.addEventListener("click", () => { if (trigger.disabled) return; open ? close() : openPop(); }); // a disabled trigger stays inert to a synthetic click
