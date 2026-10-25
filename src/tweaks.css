@@ -456,7 +456,7 @@
 .tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 .tw-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The folder's 15px chevron; the glyph sits 3.75px inside its box, so pull it out by that side-bearing. */
-.tw-select-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); margin-right: -3.75px; transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
+.tw-select-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); opacity: 0.6; margin-right: -3.75px; transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
 .tw-select.is-open .tw-select-chevron { transform: rotate(180deg); }
 .tw-select-dropdown {
   position: fixed; z-index: 99999; /* portaled to <body>, JS-placed */
@@ -746,7 +746,7 @@
 }
 /* The 15px box carries 3.75px of side-bearing; pull it out so the glyph lands 2px in. The
  * caret rides the body's 0.35s --fold clock so it turns in step with the fade. */
-.tw-folder-header .tw-chevron { color: var(--tw-text-section); margin-right: -1.75px; transition: transform 0.35s var(--tw-ease-fold), color 0.15s; }
+.tw-folder-header .tw-chevron { color: var(--tw-text-section); opacity: 0.6; margin-right: -1.75px; transition: transform 0.35s var(--tw-ease-fold), color 0.15s; }
 .tw-folder.is-collapsed .tw-folder-header .tw-chevron { transform: rotate(180deg); }
 /* contain: layout isolates the fold's per-frame re-layout from the rest of the panel. */
 .tw-folder-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s var(--tw-ease-fold); contain: layout; }
