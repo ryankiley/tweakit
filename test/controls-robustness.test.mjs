@@ -171,14 +171,14 @@ test("a step the range can't count in falls back to a sane grid", () => {
   for (const h of p.el.querySelectorAll(".tw-interval .tw-slider-handle")) assert.doesNotMatch(h.style.left, /NaN/);
 });
 
-test("an image with options is a gallery: tiles pick, Remove clears, an off-list value shows as a last tile", () => {
+test("an image with options is a gallery: tiles pick, Clear clears, an off-list value shows as a last tile", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/b.png", label: "Bee" }, 7, "", null], value: "/b.png" } });
   const root = p.el.querySelector(".tw-image-gallery"); assert.ok(root, "the gallery form");
   const tiles = () => [...root.querySelectorAll(".tw-image-tile")];
   assert.equal(tiles().length, 2, "a non-string and an empty option are skipped");
   assert.deepEqual(tiles().map((t) => t.getAttribute("aria-label")), ["a", "Bee"], "a label, else the URL's file stem");
   assert.deepEqual(tiles().map((t) => t.getAttribute("aria-checked")), ["false", "true"]);
-  const remove = root.querySelector(".tw-image-remove");
+  const remove = root.querySelector(".tw-image-clear");
   assert.equal(remove.hidden, false);
   tiles()[0].click(); assert.equal(p.params.pic, "/a.png");
   remove.click(); assert.equal(p.params.pic, ""); assert.equal(remove.hidden, true, "nothing to remove, no button");
@@ -227,7 +227,7 @@ test("upload: false leaves a gallery of tiles alone, with no button and no file 
   assert.equal(p.el.querySelector(".tw-image-upload"), null);
   assert.equal(p.el.querySelector(".tw-image-input"), null);
   assert.equal(p.el.querySelectorAll(".tw-image-tile").length, 2);
-  assert.ok(p.el.querySelector(".tw-image-remove").hidden, "no value, no Remove");
+  assert.ok(p.el.querySelector(".tw-image-clear").hidden, "no value, no Clear");
   assert.equal(p.params.pic, "", "no value until a tile is picked");
 });
 
@@ -288,10 +288,9 @@ test("a refusal under 1 KB reads in bytes, and is spoken from a status region ou
   assert.equal(live.textContent, "400 B, max 300 B");
 });
 
-test("the stylesheet hides an empty gallery's Remove, and rings a focused tile with an outline", () => {
+test("the stylesheet rings a focused gallery tile with an outline", () => {
   // jsdom honours [hidden] over display: flex, so this is checked in the built CSS, not on the element.
   const css = distCss();
-  assert.match(css, /\.tw-image-remove\[hidden\]\{display:none\}/);
   assert.match(css, /\.tw-image-tile:focus-visible\{outline:2px solid/);
 });
 

@@ -13,7 +13,6 @@ const MB = 1 << 20;
 const size = (n: number) => (n >= MB ? `${Math.round((n / MB) * 10) / 10} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
 // A tile's accessible name when its option has no label: the URL's file stem; a data URL has none.
 const stem = (url: string) => { if (/^data:/i.test(url)) return ""; const s = url.split(/[?#]/)[0].split("/").pop()!.replace(/\.\w+$/, ""); try { return decodeURIComponent(s); } catch { return s; } };
-const ICON_X = icon('<path d="M18 6 6 18m12 0L6 6"/>', "", 2.2); // the kit's cancel glyph, local to this lazy chunk
 const ICON_UPLOAD = icon('<path d="M12 15V4m-4.5 4.5L12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>');
 
 function createImage(meta: Meta, onChange: OnChange): Control {
@@ -70,11 +69,11 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     row.trigger.addEventListener("click", () => input.click());
     dropZone(row.trigger, row.trigger);
   } else {
-    // The gallery: a label row with Remove, the tiles as one radio group, and the upload button, which is the block's drop zone.
+    // The gallery: a label row with Clear, the tiles as one radio group, and the upload button, which is the block's drop zone.
     root = el("div", "tw-image tw-image-gallery");
     const upload = canUpload ? btn("tw-button tw-image-upload", ICON_UPLOAD) : null;
-    const remove = btn("tw-image-remove", ICON_X); remove.setAttribute("aria-label", `${meta.label}: remove the image`);
-    const head = el("div", "tw-image-head"); head.append(txt("span", "tw-image-label", meta.label), remove);
+    const clear = txt("button", "tw-image-clear", "Clear"); clear.type = "button"; clear.setAttribute("aria-label", `${meta.label}: clear the image`);
+    const head = el("div", "tw-image-head"); head.append(txt("span", "tw-image-label", meta.label), clear);
     const grid = el("div", "tw-image-grid"); grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
     const n = options.length;
     const cols = Math.min(4, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
@@ -94,7 +93,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       const btns = all(), stop = Math.max(0, btns.findIndex((b) => b._twVal === value)); // the roving tab stop: the chosen tile, else the first
       btns.forEach((b, k) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = k === stop ? 0 : -1; });
       if (hadFocus && !custom.parentNode) btns[stop].focus(); // the focused tile left (undo, a preset, set()): focus stays in the group, not on <body>
-      remove.hidden = !value; // nothing to remove, no button
+      clear.hidden = !value; // nothing to clear, no button
     };
     grid.addEventListener("keydown", (e) => {
       const btns = all(), i = btns.indexOf(e.target as RadioBtn); if (i < 0) return;
@@ -102,7 +101,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
       e.preventDefault(); if (j !== i) { commit(btns[j]._twVal!); btns[j].focus(); }
     });
-    remove.addEventListener("click", () => { commit(""); (upload || tiles[0]).focus(); }); // Remove hides itself: hand focus on, not to the body
+    clear.addEventListener("click", () => { commit(""); (upload || tiles[0]).focus(); }); // Clear hides itself: hand focus on, not to the body
     root.append(head, grid, live);
     if (upload) {
       upload.setAttribute("aria-label", `${meta.label}: upload an image`);
