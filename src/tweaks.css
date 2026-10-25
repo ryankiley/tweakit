@@ -677,9 +677,9 @@
 /* JS toggles [data-over] on the trigger, or on the gallery root, while a file is dragged over it. */
 .tw-image .tw-trigger[data-over="true"], .tw-image-gallery[data-over="true"] .tw-image-upload { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
 .tw-image .tw-trigger[data-over="true"] .tw-image-thumb { transform: scale(1.14); }
-.tw-image-gallery { display: flex; flex-direction: column; gap: 6px; }
+.tw-image-gallery { display: flex; flex-direction: column; gap: 4px; } /* the frame's 4px, so label, tiles and upload sit on one even grid */
 .tw-image-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; } /* the delete button's height, so the grid holds still when Remove leaves */
-.tw-image-grid { display: grid; grid-template-columns: repeat(var(--tw-img-cols, 2), minmax(0, 1fr)); gap: 6px; }
+.tw-image-grid { display: grid; grid-template-columns: repeat(var(--tw-img-cols, 2), minmax(0, 1fr)); gap: 4px; }
 /* A tile is its image; a hairline ring set off by a gap marks the chosen one, so the picture stays readable.
  * The gap is outline-offset, which shows the panel behind it. */
 .tw-image-tile {
