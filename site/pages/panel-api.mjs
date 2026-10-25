@@ -315,7 +315,7 @@ export const examples = [
       restores it. With the title focused, ⌥+arrow keys move the panel 10px at a time (⇧: 50px),
       the keyboard's drag. A click anywhere on the header outside the toolbar folds the panel. A
       press becomes a drag only after a few pixels, and Escape mid-drag puts the panel back.</p>
-      <p>An open pane (a list, an editor, the presets menu) drags by its edge, so you can move it
+      <p>An open editor pane or the presets menu drags by its edge, so you can move it
       off what it covers. It keeps that spot until it closes. In a pane's field, Escape restores
       what you typed over and a second Escape closes the pane. Escapes the panel handles stop at
       the document, so <code>window</code> listeners don't see them.</p>

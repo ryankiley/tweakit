@@ -294,7 +294,7 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   // and opening it closes any other popover.
   let typed = "", typedAt = 0; // the type-ahead buffer; a fresh open starts it over, as a native popup does
   const pop = popover(root, trigger, dropdown, {
-    fallbackH: 200,
+    fallbackH: 200, movable: false, // a menu: it closes on a pick, so it never stays in the way
     onOpen: () => { typed = ""; (optButtons.find((b) => b.dataset.value === String(value)) || optButtons[0])?.focus(); },
   });
   // Enter/Space on a focused option selects it natively via click; Tab away closes by the shell's focusout rule.

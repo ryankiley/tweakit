@@ -171,3 +171,15 @@ test("Escape hands focus back to the row as the pane was opened: quietly after a
     assert.deepEqual(calls.at(-1), { focusVisible: true }, "opened from the keyboard: the ring shows where focus went");
   } finally { p.destroy(); }
 });
+
+test("a list's dropdown doesn't move: it's a menu that closes on a pick", async () => {
+  const p = tweaks("L", { pick: ["a", "b"] }); document.body.append(p.el); await p.ready;
+  try {
+    const trigger = p.el.querySelector(".tw-select-trigger"); trigger.getBoundingClientRect = () => rect(100);
+    trigger.click(); await wait(60);
+    const dd = document.body.querySelector(".tw-select-dropdown.is-open"); dd.setPointerCapture = () => {};
+    const at = [dd.style.left, dd.style.top];
+    dd.dispatchEvent(ptr("pointerdown", { clientX: 52, clientY: 140 })); dd.dispatchEvent(ptr("pointermove", { clientX: 252, clientY: 240 })); dd.dispatchEvent(ptr("pointerup", { clientX: 252, clientY: 240, buttons: 0 }));
+    assert.deepEqual([dd.style.left, dd.style.top], at);
+  } finally { p.destroy(); }
+});

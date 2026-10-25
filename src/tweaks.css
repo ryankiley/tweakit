@@ -115,9 +115,9 @@
 /* Every :hover rule sits inside `@media (hover: hover) and (pointer: fine)`: a touch
  * screen keeps :hover on after a tap, so an unguarded hover style sticks. */
 /* A pane drags by its edge (popover() in shared.ts); its parts keep their own cursors. */
-:is(.tw-select-dropdown, .tw-color-pop, .tw-presets-menu) { cursor: grab; }
-:is(.tw-select-dropdown, .tw-color-pop, .tw-presets-menu) > * { cursor: auto; }
-:is(.tw-select-dropdown, .tw-color-pop, .tw-presets-menu).is-moving, :is(.tw-select-dropdown, .tw-color-pop, .tw-presets-menu).is-moving * { cursor: grabbing; }
+:is(.tw-color-pop, .tw-presets-menu) { cursor: grab; }
+:is(.tw-color-pop, .tw-presets-menu) > * { cursor: auto; }
+:is(.tw-color-pop, .tw-presets-menu).is-moving, :is(.tw-color-pop, .tw-presets-menu).is-moving * { cursor: grabbing; }
 
 /* ── Header (root folder title) ── */
 .tw-header {

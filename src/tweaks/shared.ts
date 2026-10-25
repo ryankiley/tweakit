@@ -251,7 +251,7 @@ const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => {
 let activePopoverClose: null | (() => void) = null, activePopoverTrigger: HTMLElement | null = null;
 // With `owner` given, closes only when the open popover's trigger lives inside it.
 const closeActivePopover = (owner?: Element) => { if (activePopoverClose && (!owner || owner.contains(activePopoverTrigger))) activePopoverClose(); };
-function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
+function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; movable?: boolean; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
   let open = false, schemeObs: MutationObserver | null = null, removeTimer: ReturnType<typeof setTimeout> | undefined, byPointer = false;
   // Focus goes back to the row as the pane was opened: quietly after a click, even when an Escape closes it.
   const refocus = () => trigger.focus({ focusVisible: !byPointer });
@@ -273,7 +273,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     const r = trigger.getBoundingClientRect(); dx = parseFloat(pop.style.left) - r.left; dy = parseFloat(pop.style.top) - r.top;
   };
   pop.addEventListener("pointerdown", (e) => {
-    if (e.target !== pop || e.button !== 0 || !open) return;
+    if (e.target !== pop || e.button !== 0 || !open || opts.movable === false) return;
     e.preventDefault(); // no text selection, and focus stays where it was
     const id = e.pointerId, sx = e.clientX, sy = e.clientY, ox = parseFloat(pop.style.left), oy = parseFloat(pop.style.top), wasMoved = moved;
     let going = false;
