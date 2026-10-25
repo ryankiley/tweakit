@@ -448,15 +448,15 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .tw-select-trigger:hover { background: var(--tw-surface-hover); } /* the whole row is the button */
-  .tw-select-trigger:hover .tw-select-label { color: var(--tw-text-primary); }
+  .tw-select-trigger:hover .tw-select-label, .tw-select-trigger:hover .tw-select-chevron { color: var(--tw-text-primary); } /* the chevron lights like a folder's */
 }
 .tw-select-trigger:active { transform: scale(var(--tw-press-row)); transition: background 0.15s, transform 0.08s ease-out; }
 .tw-select.is-open .tw-select-trigger { background: var(--tw-surface-active); }
 .tw-select-label { transition: color 0.15s; font-weight: 500; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a rigid label took the chevron out of the panel */
 .tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 .tw-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The glyph sits 4.5px inside its 18px box; pull it out by that side-bearing. */
-.tw-select-chevron { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; margin-right: -4.5px; transition: transform 0.2s var(--tw-ease-out); }
+/* The folder's 15px chevron; the glyph sits 3.75px inside its box, so pull it out by that side-bearing. */
+.tw-select-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); margin-right: -3.75px; transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
 .tw-select.is-open .tw-select-chevron { transform: rotate(180deg); }
 .tw-select-dropdown {
   position: fixed; z-index: 99999; /* portaled to <body>, JS-placed */
@@ -584,7 +584,7 @@
 /* The picker body as one column, so the gradient pop can mount it under the stop bar. */
 .tw-color-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .tw-color-mode-row { display: flex; align-items: center; gap: 8px; }
-.tw-color-mode { appearance: none; -webkit-appearance: none; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background-color: var(--tw-surface); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6px center; border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 4px 26px 4px 10px; cursor: pointer; outline: none; } /* right 6px + the chevron's 4px side-bearing = 10 */
+.tw-color-mode { appearance: none; -webkit-appearance: none; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background-color: var(--tw-surface); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6.25px center; border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 4px 26px 4px 10px; cursor: pointer; outline: none; } /* the folder's 15px chevron: right 6.25px + its 3.75px side-bearing = 10 */
 @media (hover: hover) and (pointer: fine) {
   .tw-color-mode:hover { background-color: var(--tw-surface-hover); }
 }
