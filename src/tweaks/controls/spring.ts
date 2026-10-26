@@ -98,7 +98,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     // Set the field (it snaps and clamps), then read back, so readout, value and preview agree.
     if (mode === "time") {
       durFld.set((DRAG_DUR_MIN + px * (DRAG_DUR_MAX - DRAG_DUR_MIN)) * 1000); time.visualDuration = durFld.get() / 1000;
-      bounceFld.set((1 - py) * 100); time.bounce = bounceFld.get() / 100; // top = bouncier
+      bounceFld.set((1 - 2 * py) * 100); time.bounce = bounceFld.get() / 100; // top = bounce 100%, the middle 0, the bottom −100% (overdamped)
     } else {
       flds.stiffness.set(ST_MIN + px * (ST_MAX - ST_MIN)); phys.stiffness = flds.stiffness.get();
       flds.damping.set(DA_MIN + py * (DA_MAX - DA_MIN)); phys.damping = flds.damping.get(); // top = low damping

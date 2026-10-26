@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, wait, mounter, warnings } from "./_helpers.mjs";
+import { loadSingle, wait, mounter, warnings, ptr } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 let runs = [];
@@ -252,5 +252,17 @@ test("authored springs survive: physics a host wrote come back as written, and a
   bounce.value = "10"; bounce.dispatchEvent(new window.Event("change", { bubbles: true }));
   assert.equal(p.params.m.bounce, 0.1); assert.ok(Math.abs(p.params.m.visualDuration - 1.3519262) < 1e-6, "at the kept spring's duration");
   p.reset(); assert.equal(p.params.m.stiffness, 15, "reset brings the written physics back");
+  p.destroy();
+});
+
+// The drag mapped the preview's height to bounce 0–100% only, though a negative bounce (overdamped) is valid since #222.
+test("dragging a time-mode spring's preview spans bounce −100% to 100%, the middle 0", async () => {
+  const p = await mount({ s: { type: "spring", visualDuration: 0.5, bounce: 0.2 } });
+  const viz = p.el.querySelector(".tw-spring-viz");
+  viz.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 });
+  viz.setPointerCapture = () => {};
+  const at = (y) => { viz.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: y })); viz.dispatchEvent(ptr("pointerup", { clientX: 100, clientY: y })); return p.params.s.bounce; };
+  assert.equal(at(0), 1, "top"); assert.equal(at(50), 0, "middle"); assert.equal(at(100), -1, "bottom");
+  assert.equal(at(75), -0.5); assert.ok(p.params.s.damping > 2 * Math.sqrt(p.params.s.stiffness), "a negative bounce overdamps");
   p.destroy();
 });
