@@ -187,3 +187,16 @@ test("string option labels: camel humps split, capital runs and digits do not", 
   assert.deepEqual([...p.el.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up"]);
   p.destroy();
 });
+
+// A typo in `type` built a folder of `type` and `value` rows without a word.
+test("an unknown type warns, naming the near type and the real ones; it still builds a folder, as a child named type may mean", async () => {
+  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
+  try {
+    const p = tweaks("Types", { typo: { type: "slidr", value: 1 }, font: { type: "Inter", size: [12, 8, 40, 1] } });
+    assert.deepEqual(p.params.font, { type: "Inter", size: 12 });
+    await new Promise((r) => setTimeout(r, 20)); // the message comes from a lazy chunk
+    assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"?') && m.includes("Types: button")));
+    assert.ok(msgs.some((m) => m.includes('"font": "Inter" isn\'t a control type. It builds a folder')));
+    p.destroy();
+  } finally { console.warn = warn; }
+});

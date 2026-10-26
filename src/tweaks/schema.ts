@@ -1,7 +1,7 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
  * or verbose `{ type }`), and a [data-tw] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
-import { titleCase, isObj, isColorStr, inferStep, defaultRange, optValue, getControl } from "./shared.js";
+import { titleCase, isObj, isColorStr, inferStep, defaultRange, optValue, getControl, controlTypes } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
@@ -165,6 +165,10 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     const { type, label: _l, ...fields } = value;
     return meta(type, fields, ownLabel(value, label));
   }
+  // A `type` no control answers to: a typo (`slidr`) built a folder of `type` and `value` rows without a word. It may be a
+  // folder with a child named `type`, so it still builds one; the console says so, with the near type, from a lazy chunk.
+  else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && !hasOwn(TYPED_META, value.type))
+    import("./heavy.js").then((m) => m.unknownType(`"${key}"`, value.type, [...Object.keys(TYPED_META), ...Object.keys(LAZY_IMPORT), ...controlTypes()], "builds a folder"), () => {});
   // ── Shorthand inference ──
   // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple.
   if (Array.isArray(value) && Array.isArray(value[0]) && value[0].length === 2 && typeof value[0][0] === "number") {
