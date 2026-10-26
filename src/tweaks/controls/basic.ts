@@ -15,7 +15,7 @@ import type { Control, Option } from "../types.js";
 const CLICK_THRESHOLD = 3;
 function createSlider(meta: Meta, onChange: OnChange): Control {
   const label = meta.label;
-  let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step);
+  let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, 0, null, +(meta.value as number));
   // A hard slider's range is its reachable grid: the ends move in to the first/last grid point,
   // so notches, hashmarks, keyboard ends, aria bounds and the emitted value agree. A soft slider keeps its authored range.
   if (!meta.soft) [min, max] = gridEnds(min, max, step);

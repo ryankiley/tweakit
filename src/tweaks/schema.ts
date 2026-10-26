@@ -77,7 +77,7 @@ const radiogridMeta = (v: any): MetaFields => Array.isArray(v.options) && { type
 const rangeOf = (v: any, ...seeds: unknown[]) => {
   const ranges = (seeds.length ? seeds : [0]).map((s) => defaultRange(Number.isFinite(+s) ? +s : 0));
   const min = v.min ?? Math.min(...ranges.map((r) => r[0])), max = v.max ?? Math.max(...ranges.map((r) => r[1]));
-  return { min, max, step: v.step ?? inferStep(min, max) };
+  return { min, max, step: v.step ?? inferStep(min, max, ...seeds.map(Number)) };
 };
 // `??` semantics: an explicit "" (no label) survives where `||` fell back to the key.
 const ownLabel = (v: any, label: string) => (v.label == null ? label : String(v.label));
@@ -170,7 +170,7 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   if (Array.isArray(value) && Array.isArray(value[0]) && value[0].length === 2 && typeof value[0][0] === "number") {
     // Missing bounds fall back to the tuple itself ([[2,8]] → min 2, max 8).
     const mn = Number.isFinite(+value[1]) ? +value[1] : +value[0][0], mx = Number.isFinite(+value[2]) ? +value[2] : +value[0][1];
-    return meta("interval", { value: value[0].map(Number), min: mn, max: mx, step: value[3] ?? inferStep(mn, mx) });
+    return meta("interval", { value: value[0].map(Number), min: mn, max: mx, step: value[3] ?? inferStep(mn, mx, ...value[0].map(Number)) });
   }
   if (Array.isArray(value) && value.length <= 4 && typeof value[0] === "number") {
     // A short array ([n] = "just a default") takes the bare-number range.
@@ -178,11 +178,11 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     const [dmin, dmax] = defaultRange(v0);
     const min = value.length > 1 ? value[1] : dmin;
     const max = value.length > 2 ? value[2] : dmax;
-    return meta("slider", { value: v0, min, max, step: value[3] ?? inferStep(min, max) });
+    return meta("slider", { value: v0, min, max, step: value[3] ?? inferStep(min, max, v0) });
   }
   if (typeof value === "number") {
     const [min, max] = defaultRange(value);
-    return meta("slider", { value, min, max, step: inferStep(min, max) });
+    return meta("slider", { value, min, max, step: inferStep(min, max, value) });
   }
   if (typeof value === "boolean") return meta("checkbox", { value });
   if (Array.isArray(value)) return meta("list", { options: value, value: optValue(value[0]) });

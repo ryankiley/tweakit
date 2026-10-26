@@ -62,21 +62,24 @@ const gridEnds = (min: number, max: number, step: number, anchor = min): [number
   if (hi > max) hi = r(hi - step);
   return lo > hi ? [min, min] : [lo, hi];
 };
-const inferStep = (min: number, max: number) => {
+// By the span, then finer, a tenth at a time and at most twice, until each value the range was built around sits on the
+// grid from min: a coarser grid snapped the default off what was written (37 over 0–110 became 40). A value finer still
+// (3.14159) rounds to the last of those.
+const inferStep = (min: number, max: number, ...vals: number[]) => {
   const range = max - min;
-  if (range <= 1) return 0.01;
-  if (range <= 10) return 0.1;
-  if (range <= 100) return 1;
-  return 10;
+  let step = range <= 1 ? 0.01 : range <= 10 ? 0.1 : range <= 100 ? 1 : 10;
+  const off = (v: number) => { const n = (v - min) / step; return Number.isFinite(n) && Math.abs(n - Math.round(n)) > 1e-6; };
+  for (let i = 0; i < 2 && vals.some(off); i++) step /= 10;
+  return step;
 };
 // Normalise a slider-style range: non-finite bounds take the defaults (max: min+100), an
 // inverted pair swaps, a degenerate step re-infers. Every range source funnels through here.
-const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, defMin = 0, defMax: number | null = null) => {
+const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, defMin = 0, defMax: number | null = null, ...vals: number[]) => {
   let min = +rawMin, max = +rawMax, step = +rawStep;
   if (!Number.isFinite(min)) min = defMin;
   if (!Number.isFinite(max)) max = defMax != null ? defMax : min + 100;
   if (max < min) { const t = min; min = max; max = t; }
-  if (!(step > 0) || step > max - min) step = inferStep(min, max);
+  if (!(step > 0) || step > max - min) step = inferStep(min, max, ...vals);
   return { min, max, step };
 };
 // One keyboard model for every 1-D range surface: arrows step (⇧ = ×10), Home/End snap to

@@ -64,6 +64,20 @@ test("a negative default spans either side of zero, so it can cross it", () => {
   p.destroy();
 });
 
+test("an inferred step fits the default, so a value is never snapped off what was written", () => {
+  const p = tweaks("Fit", { neg: -23, dec: -2.3, size: 37, big: 1234, tup: [37, 0, 200], v: { type: "slider", value: -23 }, i: { type: "interval", value: [-23, 37] }, e: [[-2.3, 7.7], -10, 10], pi: 3.14159, round: 40 });
+  assert.deepEqual([p.params.neg, p.params.dec, p.params.size, p.params.big, p.params.tup, p.params.v], [-23, -2.3, 37, 1234, 37, -23]);
+  assert.deepEqual(p.params.i, [-23, 37]);
+  assert.deepEqual(p.params.e, [-2.3, 7.7]);
+  assert.equal(p.params.pi, 3.142, "a value finer than two tenths of the span's step still rounds");
+  const [neg] = p.el.querySelectorAll("[role=slider]");
+  assert.deepEqual([neg.getAttribute("aria-valuemin"), neg.getAttribute("aria-valuemax")], ["-69", "69"], "and the range stays whole");
+  const round = [...p.el.querySelectorAll("[role=slider]")].at(-1); // 40 sits on the span's own grid: the step stays 10
+  round.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.equal(p.params.round, 50);
+  p.destroy();
+});
+
 test("an explicit min/max still wins over the derived range", () => {
   const p = tweaks("E", { s: { type: "slider", value: 50, min: 0, max: 10 }, i: { type: "interval", value: [2, 8], min: 0, max: 10 } });
   assert.equal(p.params.s, 10);
