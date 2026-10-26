@@ -6,7 +6,7 @@ import { LAZY_IMPORT } from "./lazy.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
 /** A point control's component spec, as the public verbose form declares it. */
-type PointComponent = Extract<SchemaObject, { type: "point" }>["components"][number];
+type PointComponent = Extract<SchemaObject, { type: "point"; components: ReadonlyArray<unknown> }>["components"][number];
 /** One page of a tabs control: its slug key, title and the metas built inside it. */
 interface TabPage { key: string; title: string; children: Meta[] }
 /** The normalized control meta — ONE shape for every control type. The per-type fields are

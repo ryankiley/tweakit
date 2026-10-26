@@ -96,7 +96,8 @@ export type SchemaObject =
   | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
   | { type: "sides"; value?: SidesInput; corners?: boolean; unit?: string; step?: number; min?: number; max?: number; top?: number; right?: number; bottom?: number; left?: number }
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
-  | { type: "point"; components: ReadonlyArray<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
+  | { type: "point"; components: ReadonlyArray<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; value?: { readonly [key: string]: number }; pad?: boolean; invertY?: boolean }
+  | { type: "point"; value: { readonly [key: string]: number }; components?: undefined; pad?: boolean; invertY?: boolean } // the value names its components
   | { type: "gradient"; value?: GradientValue | ReadonlyArray<GradientStop | readonly [string, number]>; stops?: ReadonlyArray<GradientStop | readonly [string, number]> }
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
   | { type: "fpsgraph" }
@@ -177,7 +178,7 @@ type TabClash<P> = true extends { [T in keyof P & string]: TabKey<T> extends { [
 type Valueless = "button" | "buttongroup" | "separator" | "fpsgraph" | "monitor";
 // The field each falsy-capable form hinges on (schema.ts REQUIRED): without it the object isn't
 // that control but a shorthand or a folder holding a child named `type`.
-type Hinge = { list: "options"; radiogrid: "options"; segmented: "options"; point: "components"; tabs: "pages" };
+type Hinge = { list: "options"; radiogrid: "options"; segmented: "options"; point: "components" | "value"; tabs: "pages" };
 // A hinge field there but unusable skips the control at runtime, so it puts nothing on params.
 type TypedValue<V> =
   V extends { readonly type: "slider" | "number" } ? number
@@ -191,14 +192,15 @@ type TypedValue<V> =
   : V extends { readonly type: "shadow" } ? ShadowValue
   : V extends { readonly type: "sides" } ? SidesValue
   : V extends { readonly type: "gradient" } ? GradientValue
-  : V extends { readonly type: "point" } ? (V extends { readonly components: readonly [] } ? never : V extends { readonly components: readonly (infer C)[] } ? { [K in C extends { readonly key: infer Key extends string } ? Key : never]: number } : never)
+  : V extends { readonly type: "point" } ? (V extends { readonly components: readonly [] } ? never : V extends { readonly components: readonly (infer C)[] } ? { [K in C extends { readonly key: infer Key extends string } ? Key : never]: number }
+    : V extends { readonly value: infer P extends object } ? (keyof P extends never ? never : { -readonly [K in keyof P & string]: number }) : never)
   : V extends { readonly type: "tabs" } ? (V extends { readonly pages: infer P extends object } ? (keyof P extends never ? never : TabClash<P> extends true ? Record<string, Params> : { [T in keyof P & string as TabKey<T>]: ParamsOf<P[T]> }) : never)
   : unknown;
 /** The value a schema entry puts on `params`. */
 export type ValueOf<V> =
   V extends { readonly type: infer T } ? (
     string extends T ? any                                   // a `type` widened by a schema held in a variable: the control can't be known
-    : T extends SchemaObject["type"] ? (T extends keyof Hinge ? (Hinge[T] extends keyof V ? VerboseValue<V, T> : ShorthandValue<V>) : VerboseValue<V, T>)
+    : T extends SchemaObject["type"] ? (T extends keyof Hinge ? ([Extract<Hinge[T], keyof V>] extends [never] ? ShorthandValue<V> : VerboseValue<V, T>) : VerboseValue<V, T>)
     : ShorthandValue<V>)
   : ShorthandValue<V>;
 type VerboseValue<V, T> = T extends Valueless ? never : TypedValue<V>;
@@ -226,6 +228,24 @@ type Entries<S, Nested extends boolean> = string extends keyof S ? Params
   : { -readonly [K in keyof S & string as K extends Reserved ? never : ValueOf<S[K]> extends never ? never : Nested extends true ? (FolderChrome<S[K], K> extends true ? never : K) : K]: ValueOf<S[K]> };
 /** The live values a schema builds, nested like the schema; a plain `Schema` gives the loose `Params`. */
 export type ParamsOf<S> = Entries<S, false>;
+
+// ── Type names checked at the call ──
+// Schema's folder branch takes any object, so `{ type: "slidr", value: 1 }` fit it and compiled. tweaks() and mountControl()
+// intersect their argument with these, which keep a known name, a widened `string` (a schema held in a variable: the
+// runtime decides), and every shorthand as they are, and turn an unknown name into the list of known ones, so it fails
+// right where it's written. A known name without its hinge field is a folder at runtime and isn't checked further.
+type CheckValue<V> =
+  V extends { readonly type: infer T } ? (string extends T ? V : T extends SchemaObject["type"] ? (V extends { readonly type: "tabs"; readonly pages: infer P } ? { readonly pages: { [K in keyof P]: KnownTypes<P[K]> } } : unknown) : { readonly type: NotAControlType })
+  : V extends readonly unknown[] | ((...a: any[]) => any) ? unknown
+  : V extends object ? KnownTypes<V>
+  : unknown;
+// A brand, not the list of names: a literal intersected with the list collapses the whole entry to `never`, and the error
+// read "not assignable to type 'never'" on every key. The brand keeps the entry and puts its text in the error.
+type NotAControlType = { readonly "names no control: see the type list in AGENTS.md": true };
+/** A schema whose every `type` names a control (`tweaks()` checks it; `{ type: "slidr" }` is an error). */
+export type KnownTypes<S> = { [K in keyof S]: CheckValue<S[K]> };
+/** One schema value whose `type` names a control (`mountControl()` checks it). */
+export type KnownType<V> = CheckValue<V>;
 
 /** A theme — token overrides applied over the default monochrome look. Every key is
  *  optional, so a partial theme only moves what it names; unset tokens keep their default.

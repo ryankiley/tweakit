@@ -147,3 +147,23 @@ paths.set("nope", 5);
 paths.setMany({ nope: 5 });
 const plain: Schema = { a: 1 };
 tweaks("Plain", plain).set("anything", 1);
+
+// A type name no control has fails where it's written, at any depth; a known name, an alias, a widened `string` and a
+// known name without its hinge field (a folder at runtime) all still compile.
+// @ts-expect-error "slidr" names no control
+tweaks("Typo", { a: { type: "slidr", value: 1 } });
+// @ts-expect-error nor inside a folder
+tweaks("Typo", { f: { inner: { type: "chekbox", value: true } } });
+// @ts-expect-error nor on a tab page
+tweaks("Typo", { t: { type: "tabs", pages: { One: { b: { type: "colr", value: "#fff" } } } } });
+// @ts-expect-error nor in mountControl
+mountControl(document.body, { type: "numbr", value: 1 });
+tweaks("Known", { a: { type: "slider", value: 1 }, b: { type: "bezier" }, c: { type: "toggle" }, marker: { type: "point", size: 3 } });
+mountControl(document.body, { type: "number", value: 1 });
+const heldTypo = { a: { type: "slidr", value: 1 } }; // held without as const: `type` is string, the runtime decides
+tweaks("Held", heldTypo);
+
+// A point names its components from `value` when it has none, as the runtime does.
+const pv = tweaks("Pv", { at: { type: "point", value: { x: 0, y: 10 } }, both: { type: "point", components: [{ key: "u" }], value: { u: 2 } } });
+expect<Equal<typeof pv.params.at, { x: number; y: number }>>();
+expect<Equal<typeof pv.params.both, { u: number }>>();
