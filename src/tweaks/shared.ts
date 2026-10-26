@@ -21,7 +21,7 @@ type Built<E extends Element> = E & Stringifying;
 /** The labeled numeric field's spec (numField). */
 interface NumSpec { label: string; value?: unknown; min?: unknown; max?: unknown; step?: unknown; soft?: boolean; row?: boolean; unit?: string } // unit: muted suffix, also in the accessible name
 /** The numeric field's handle: set() coerces and fits, get() reads the fitted number. */
-interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number }
+interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number; range: [number, number] }
 /** The popover shell's handle (popover). */
 interface Popover { open(): void; close(): void; isOpen(): boolean; reflow(): void }
 /** A control constructor: normalized meta in, handle out. The registry holds every one under

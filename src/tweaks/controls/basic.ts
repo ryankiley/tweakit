@@ -232,7 +232,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   valueEl.addEventListener("click", () => { if (valueEl.classList.contains("is-editable")) openEditor(); });
   track.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === track && !downPos) { e.preventDefault(); openEditor(); } });
 
-  return { el: wrap, set: (v: number | string) => set(v, false), get: () => q(value) };
+  return { el: wrap, set: (v: number | string) => set(v, false), get: () => q(value), range: [min, max] };
 }
 
 function createToggle(meta: Meta, onChange: OnChange): Control {

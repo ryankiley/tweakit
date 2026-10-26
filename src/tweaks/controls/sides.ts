@@ -80,7 +80,7 @@ function createSides(meta: Meta, onChange: OnChange): Control {
 
   // Set/restore: equal sides re-link, unequal ones unlink, so a restored "8 16 8 16" opens the fields it needs.
   const set = (x: unknown) => { const n = read(x, v); if (!n) return; flds.forEach((f, i) => f.set(n[i])); v = flds.map((f) => f.get()); linked = v.every((s) => s === v[0]); update(); };
-  return { el: root, set, get: value };
+  return { el: root, set, get: value, range: all.range };
 }
 
 registerControl("sides", createSides);

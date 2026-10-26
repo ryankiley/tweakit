@@ -134,7 +134,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     set((Number.isFinite(n) ? n : value) + d * step * (e.shiftKey ? 10 : 1));
   });
   attachScrub(grab, wrap, step, () => value, set, () => inp.value);
-  return { el: root, set: (val: number | string) => set(val, false), get: () => value };
+  return { el: root, set: (val: number | string) => set(val, false), get: () => value, range: [lo, hi] };
 }
 
 // ── Number — numField in its row chrome. ──
@@ -225,7 +225,7 @@ const badTheme = (key: string, v: unknown, kind: string, keys: string[]) => {
 
 // The words for the core's notices (shared.ts notice()): what went wrong and the way out, downloaded only when one fires.
 const NOTICES: Record<string, (...a: any[]) => string> = {
-  clamp: (key, v, min, max) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min ?? "−∞"}–${max ?? "∞"}; widen min/max, or set soft: true to allow it`,
+  clamp: (key, v, min, max, type) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min > -Infinity ? min : "−∞"}–${max < Infinity ? max : "∞"}; widen min/max${type === "slider" || type === "number" ? ", or set soft: true to allow it" : ""}`,
   sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
   swap: (label, min, max) => `"${label}": min ${min} is above max ${max}, so they were swapped`,
   ambiguousPath: (key, n) => `set("${key}") is ambiguous — ${n} controls read as that path (a key holding "." beside a folder); rename one`,

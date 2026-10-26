@@ -114,6 +114,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     el: root,
     set: (v: Record<string, number | string>) => { if (v) comps.forEach((c, k) => { if (v[c.key] != null) flds[k].set(v[c.key]); }); sync(); },
     get: read,
+    range: Object.fromEntries(comps.map((c, k) => [c.key, flds[k].range])),
   };
 }
 
