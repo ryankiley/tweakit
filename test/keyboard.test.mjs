@@ -161,11 +161,9 @@ test("gradient: focusing a stop selects it, and its label carries position + sel
   assert.equal(stops[0].dataset.sel, "false");
   assert.match(stops[1].getAttribute("aria-label"), /selected/i, "and the label says so");
   // Delete now removes the focused stop (it acts on the selected one).
-  const pop = p.el.querySelector(".tw-gradient .tw-color-pop");
   key(stops[1], { key: "Delete" });
   assert.equal(p.params.ramp.stops.length, 2, "Delete removed the focused stop");
   assert.deepEqual(p.params.ramp.stops.map((s) => s.pos), [0, 1]);
-  void pop;
   p.destroy();
 });
 

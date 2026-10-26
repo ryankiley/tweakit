@@ -7,10 +7,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, loadSplit, tick, quiet, warnings, dragHeader } from "./_helpers.mjs";
+import { loadSplit, tick, quiet, warnings, dragHeader } from "./_helpers.mjs";
 
 globalThis.MutationObserver ??= window.MutationObserver; // the lift watchdog feature-detects it by bare identifier
-const { tweaks } = await loadSingle();
 const lazy = await loadSplit();
 
 // A value no control's set() can coerce: `+Object.create(null)` throws (no toString/valueOf),
