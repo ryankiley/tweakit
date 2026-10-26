@@ -775,6 +775,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     for (const b of toolbarBtns) b.disabled = false; // the controls exist now
   };
 
+  // A set() past a hard range clamps, which is right, but silent it reads as the value not taking: say so, once a key.
+  const clamped = new Set<Entry>();
+  const clampNote = (e: Entry, key: string, v: unknown) => {
+    const { type, min, max, soft } = e.m;
+    if (soft || clamped.has(e) || !(type === "slider" || type === "number" || type === "interval")) return;
+    const out = (n: unknown) => typeof n === "number" && ((min != null && n < min) || (max != null && n > max));
+    if (!(Array.isArray(v) ? v.some(out) : out(v))) return;
+    clamped.add(e); console.warn(`[tweaks] set("${key}", ${JSON.stringify(v)}) clamped to ${min ?? "−∞"}–${max ?? "∞"}; widen min/max, or set soft: true to allow it`);
+  };
   // Resolve a (possibly dotted) key, apply, report whether the leaf changed; never notifies, so setMany fires one notify.
   const applySet = (key: string, v: unknown) => {
     if (String(key).split(".").some(isReservedKey)) { console.warn(`[tweaks] set("${key}") ignored — reserved key`); return false; } // never write through to the prototype
@@ -804,6 +813,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Same isolation as applySnapshot: a hostile value costs only that key.
     if (notAValue(v)) { console.warn(`[tweaks] set("${key}") ignored — a ${typeof v} is not a control value`); return false; } // warns like the API's other refusals
     try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; }
+    clampNote(e, key, v);
     if (!valueChanged(prev, e.target[e.key])) return false; // keeps a store-sync listener from echoing forever
     last = e.key; // on((p, last)) sees programmatic sets like control edits
     return true;
