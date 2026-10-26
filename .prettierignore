@@ -1,6 +1,6 @@
-# Formatted: the TypeScript and JavaScript. The rest keeps its own layout: CSS one rule a line, the guides under their
-# size caps, the docs snapshot one example a line, the docs pages (whose examples print as written), the fixtures and
-# the built output as they are.
+# Formatted: the TypeScript and JavaScript, and the YAML under .github. The rest keeps its own layout: CSS one rule a
+# line, the guides under their size caps, the docs snapshot one example a line, the docs pages (whose examples print as
+# written), the HTML shells (site/shell.html, site/og/card.html), the fixtures and the built output as they are.
 dist/
 node_modules/
 *.css
