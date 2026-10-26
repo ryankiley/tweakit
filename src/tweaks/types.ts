@@ -310,7 +310,8 @@ export interface Panel<P = Params> {
   el: HTMLElement;
   /** Live values, updated in place as controls change. */
   params: P;
-  /** Resolves once any lazily-loaded controls have hydrated (resolves immediately when none). */
+  /** Resolves once any lazily-loaded controls have hydrated and, for a panel that persists an image control, its
+   *  stored images have loaded (resolves immediately when there's neither). */
   ready: Promise<Panel<P>>;
   /** Subscribe to changes; `last` is the changed key, the bare leaf (`blur`, not `shadow.blur`). */
   on(fn: (params: P, last?: string) => void): () => void;

@@ -58,6 +58,17 @@ test("every one-line control is one 32px row, its label 12px in", async () => {
   await page.close();
 });
 
+test("the motion editor's mode toggle is a 24px chip, whatever the font", async () => {
+  const { page } = await fixture();
+  await page.locator(".tw-panel", { hasText: "Rows" }).locator(".tw-motion .tw-trigger").click();
+  await page.waitForTimeout(400);
+  // offsetHeight: the layout box, not the popover's scale-in transform.
+  const heights = await page.evaluate(() => [...document.querySelectorAll(".tw-seg-btn")].map((b) => b.offsetHeight).filter(Boolean));
+  assert.ok(heights.length >= 2, `found ${heights.length} toggle buttons`);
+  for (const h of heights) assert.equal(h, 24);
+  await page.close();
+});
+
 test("long options, long tab titles, a wide button group and a long label stay inside a 256px panel", async () => {
   const { page, errors } = await fixture();
   const width = await page.evaluate(() => [...document.querySelectorAll(".tw-panel")].map((p) => p.getBoundingClientRect().width));
