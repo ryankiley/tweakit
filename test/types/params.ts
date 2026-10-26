@@ -131,8 +131,12 @@ const clash = tweaks("Clash", { v: { type: "tabs", pages: { "A!": { a: 1 }, "A?"
 expect<Equal<typeof clash.params.v, Record<string, Params>>>();
 
 // A `type` child without its control's hinge field is a folder, or the shorthand it otherwise reads as.
-const hinge = tweaks("Hinge", { marker: { type: "point", size: 3 }, pick: { type: "point", options: ["a", "b"] }, bad: { type: "list", options: 5 } });
+const hinge = tweaks("Hinge", { marker: { type: "point", size: 3 }, pick: { type: "point", options: ["a", "b"] } });
 expect<Equal<typeof hinge.params, { marker: { type: string; size: number }; pick: "a" | "b" }>>();
+// With the hinge field there it's that control, so an unusable one is an error, and the runtime skips it.
+// @ts-expect-error a list's options are a list
+const badHinge = tweaks("Hinge", { bad: { type: "list", options: 5 } });
+expect<Equal<typeof badHinge.params, {}>>();
 
 // Numeric choices put the number on params, as the runtime does, bare or as `{ value, label }`.
 const nums = tweaks("Nums", {
@@ -186,6 +190,14 @@ tweaks("Typo", { t: { type: "tabs", pages: { One: { b: { type: "colr", value: "#
 mountControl(document.body, { type: "numbr", value: 1 });
 tweaks("Known", { a: { type: "slider", value: 1 }, b: { type: "bezier" }, c: { type: "toggle" }, marker: { type: "point", size: 3 } });
 mountControl(document.body, { type: "number", value: 1 });
+// A known name the runtime builds holds its fields to that control's form, rather than reading as a folder.
+// @ts-expect-error an image's options are URLs
+tweaks("Img", { pic: { type: "image", options: [1] } });
+// @ts-expect-error nor in mountControl
+mountControl(document.body, { type: "image", options: [1] });
+// @ts-expect-error a slider holds a number, not a string
+tweaks("Slider", { s: { type: "slider", value: "12" } });
+tweaks("Img", { pic: { type: "image", options: ["a.png", { value: "b.png", label: "B" }], hint: "Pick" } });
 const heldTypo = { a: { type: "slidr", value: 1 } }; // held without as const: `type` is string, the runtime decides
 tweaks("Held", heldTypo);
 
