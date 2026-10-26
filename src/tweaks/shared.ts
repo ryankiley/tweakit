@@ -77,7 +77,8 @@ const gridEnds = (min: number, max: number, step: number, anchor = min): [number
 const inferStep = (min: number, max: number, ...vals: number[]) => {
   const range = max - min;
   if (min < 0 && max > 0) vals.push(0);
-  const base = range <= 1 ? 0.01 : range <= 10 ? 0.1 : range <= 100 ? 1 : 10;
+  // A span under the finest step the bands reach (0.0001) starts at a hundredth of its own decade, or [5e-6, 0, 1e-5] was 0–0.
+  const base = range > 0 && range < 1e-4 ? 10 ** Math.floor(Math.log10(range)) / 100 : range <= 1 ? 0.01 : range <= 10 ? 0.1 : range <= 100 ? 1 : 10;
   const on = (n: number) => !Number.isFinite(n) || Math.abs(n - Math.round(n)) <= 1e-6;
   const fits = (step: number, vs: number[]) => on(min / Math.min(step, 1)) && vs.every((v) => on((v - min) / step));
   const finest = (vs: number[]) => { let step = base; for (let i = 0; i < 2 && !fits(step, vs); i++) step /= 10; return step; };

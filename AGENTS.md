@@ -27,7 +27,7 @@ import { tweaks } from "tweakit/single";   // single-file build: every control i
 import "tweakit/css";                      // the stylesheet, needed by either build
 ```
 
-Without a bundler, copy `dist/tweaks.js` and `dist/tweaks.css` out of the package; the script is an ES module, so load it with `<script type="module">`. Both builds share one API. On the code-split build a panel whose schema needs a lazy control (color, gradient, shadow, motion, point and others) fills in when `panel.ready` resolves; the single-file build resolves it at once, except that a panel persisting an image control resolves it once its stored images are back, on either build.
+Without a bundler, copy `dist/tweaks.js` and `dist/tweaks.css` out of the package; the script is an ES module, so load it with `<script type="module">`. Both builds share one API. On the code-split build a panel whose schema needs a lazy control (color, gradient, shadow, motion, point and others) fills in when `panel.ready` resolves; the single-file build resolves it at once, except that a panel persisting an image control waits for its stored images on either build.
 
 ## A first panel
 
@@ -69,9 +69,9 @@ panel.ready.then(() => apply(panel.params));
 | `{ x: 0, y: 10 }` | folder of controls | nested object |
 | `{ type: "…", … }` | that control, verbatim (next table) | per control |
 
-A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, the min, or 0 in a range across zero would fall between steps, and for the max too when that reaches it (`37` steps by 1, not 10, `[1.25, 0.25, 4]` by 0.01, and `-45` reaches 0); a negative's derived range steps like its positive twin (`-0.5` by 0.01). A `number` or `point` with no step fits its default (`0.5` steps by 0.1, a whole `number` by 1, `1/3` by 0.0001). Keys become labels, humanised (`fontSize` reads "Font Size"); option strings show as written. `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
+A missing step is 0.01 for a range up to 1 (a written span under 0.0001: a hundredth of its decade), 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, the min, or 0 in a range across zero would fall between steps, and for the max too when that reaches it (`37` steps by 1, not 10, `[1.25, 0.25, 4]` by 0.01, and `-45` reaches 0); a negative's derived range steps like its positive twin (`-0.5` by 0.01). A `number` or `point` with no step fits its default (`0.5` steps by 0.1, a whole `number` by 1, `1/3` by 0.0001). Keys become labels, humanised (`fontSize` reads "Font Size"); option strings show as written. `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
 
-In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and its shorthands' types, but widens list options to `string` and a verbose form's `type` to `string`, which leaves that value `any`; write it `as const` to keep them all, or `satisfies Schema` to keep the verbose forms. A `type` that names no control (`{ type: "slidr" }`) is a compile error where it's written, as it is in `mountControl()`.
+In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and its shorthands' types, but widens list options to `string` and a verbose form's `type` to `string`, which leaves that value `any`; write it `as const` to keep them all, or `satisfies Schema` to keep the verbose forms. A `type` that names no control (`{ type: "slidr" }`) is a compile error where it's written, in `mountControl()` too.
 
 ## Every control, as `{ type, … }`, and what it returns
 
@@ -82,7 +82,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `slider` | `value, min, max, step, unit, soft, format, parse` | number |
 | `number` | `value, min, max, step, unit, soft` | number |
 | `interval` | `value: [lo, hi], min, max, step` | `[lo, hi]` |
-| `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`, whose unit is used when `unit` isn't given), `unit, step, min, max, corners`; the four floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
+| `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`, whose unit is used when `unit` isn't given), `unit, step, min, max, corners`; only corners floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
 | `point` | `components: [{ key, label, value, min, max, step }]`, or `value: { x: 0, y: 10 }` alone, which names them; `pad, invertY` | an object keyed by component, such as `{ x, y }` |
 | `checkbox` | `value`; `type: "toggle"` or `"switch"` names it too | boolean |
 | `text` | `value, rows, placeholder` | string |
@@ -111,7 +111,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 - `panel.el`: append it. `panel.params`: live values, nested like the schema, updated in place. It holds values only.
 - `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the control's dotted path, as `set()` and `changes()` name it (`size` at the top, `card.size` in a folder), or `undefined` when many changed at once (a restore, `reset()`, `fromJSON`, `setMany`).
 - `panel.ready`: resolves once lazy controls have built and, for a panel persisting an image control, its stored images are back; when they arrive, `on()` fires once more with no changed key.
-- `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; a key no control has is refused with a console warning (and is a type error on a panel whose schema is written inline), and a number past a hard range clamps, with a console warning once a key; `{ silent: true }` skips your listeners.
+- `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; a key no control has is refused with a console warning (and a type error on an inline schema), and a number past a hard range clamps, warning once a key; `{ silent: true }` skips your listeners.
 - `panel.changes()`: the values that differ from their defaults, keyed by dotted path. `panel.reset()` restores the defaults.
 - `panel.toJSON()` and `panel.fromJSON(state)`: every value, nested, plus folder and tab UI state, JSON-safe; `JSON.stringify(panel)` uses it.
 - `panel.setTheme(theme)`, `panel.setName(name)`; `panel.undo()` and `panel.redo()` with `undo: true`; `savePreset`, `loadPreset`, `deletePreset` and `presets()` with `persist`.

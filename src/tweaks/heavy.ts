@@ -276,7 +276,8 @@ const badGradient = (fn: string, value: unknown, all: unknown, n: number) => {
 const NOTICES: Record<string, (...a: any[]) => string> = {
   clamp: (key, v, min, max, type) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min > -Infinity ? min : "−∞"}–${max < Infinity ? max : "∞"}; widen min/max${type === "slider" || type === "number" ? ", or set soft: true to allow it" : ""}`,
   sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
-  swap: (label, min, max) => `"${label}": min ${min} is above max ${max}, so they were swapped`,
+  pointValue: (key, comps) => `"${key}": a point value that isn't a number starts at 0 (${comps})`,
+  swap: (label, min, max) =>`"${label}": min ${min} is above max ${max}, so they were swapped`,
   ambiguousPath: (key, n) => `set("${key}") is ambiguous — ${n} controls read as that path (a key holding "." beside a folder); rename one`,
   filter: () => "opts.filter needs the toolbar (its search button lives there) — ignored alongside toolbar:false",
   presetFull: (nm) => `preset "${nm}" didn't fit in storage — not saved`,

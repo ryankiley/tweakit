@@ -88,6 +88,22 @@ test("an inferred step fits the default, so a value is never snapped off what wa
   p.destroy();
 });
 
+// The bands' finest step is 0.0001, so a written span under it had a step past its own width and collapsed to 0–0.
+test("an explicit range narrower than the finest band steps within itself", () => {
+  const p = tweaks("Tiny", { t: [5e-6, 0, 1e-5], i: [[2e-6, 8e-6], 0, 1e-5], keep: [0.0003, 0, 0.001] });
+  const [t, i0, i1, keep] = p.el.querySelectorAll("[role=slider]");
+  assert.equal(p.params.t, 5e-6);
+  assert.deepEqual([t.getAttribute("aria-valuemin"), t.getAttribute("aria-valuemax")], ["0", "0.00001"]);
+  assert.deepEqual(p.params.i, [2e-6, 8e-6]);
+  for (const h of [i0, i1]) assert.equal(h.getAttribute("aria-valuemax"), "0.00001");
+  p.set("t", 7e-6); assert.equal(p.params.t, 7e-6);
+  t.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.ok(p.params.t > 7e-6 && p.params.t <= 1e-5, `an arrow moves within the span (${p.params.t})`);
+  assert.equal(keep.getAttribute("aria-valuemax"), "0.001", "a span the bands reach steps as before");
+  p.set("keep", 0.00042); assert.equal(p.params.keep, 0.0004);
+  p.destroy();
+});
+
 // 2.3 × 3 is 6.8999… in floating point, and the grid's top trimmed it to 6.8.
 test("a derived range reaches three times the default, float error and all", () => {
   const p = tweaks("X3", { up: 2.3, down: -2.3, odd: 4.1 });
@@ -407,4 +423,21 @@ test("a point takes its components from value: { x, y }, and a value beside comp
   assert.deepEqual(p.params.both, { x: 0.5, y: 0 });
   assert.deepEqual(p.params.marker, { type: "point", size: 3 }, "with neither, still a folder holding a child named type");
   p.destroy();
+});
+
+// null and true read as 0 and 1, "abc" dropped its component without a word, and a JSON "__proto__" became a component.
+test("a point's value components are numbers: a numeric string parses, junk starts at 0 with one notice, reserved keys are skipped", async () => {
+  const warns = [], orig = console.warn; console.warn = (...a) => warns.push(a.join(" "));
+  try {
+    const p = tweaks("PtV", { a: { type: "point", value: { x: null, y: true } }, b: { type: "point", value: { x: "3", y: "abc" } }, c: { type: "point", value: JSON.parse('{"x":1,"__proto__":5,"constructor":2}') }, d: { type: "point", components: [{ key: "x" }, { key: "__proto__" }], value: { x: " " } } });
+    await p.ready; await new Promise((r) => setTimeout(r, 20)); // the message comes from a lazy chunk
+    assert.deepEqual(p.params.a, { x: 0, y: 0 });
+    assert.deepEqual(p.params.b, { x: 3, y: 0 });
+    assert.deepEqual(Object.keys(p.params.c), ["x"]); assert.equal(p.params.c.x, 1);
+    assert.deepEqual(Object.keys(p.params.d), ["x"]); assert.equal(p.params.d.x, 0);
+    assert.equal(warns.length, 3, warns.join("\n"));
+    assert.match(warns[0], /"a".*isn't a number.*\(x, y\)/);
+    assert.match(warns[1], /"b".*\(y\)/);
+    p.destroy();
+  } finally { console.warn = orig; }
 });
