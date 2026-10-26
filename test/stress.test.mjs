@@ -267,9 +267,8 @@ function genSchema(r, ctx, count, depth, prefix) {
       if (value && typeof value === "object" && !Array.isArray(value) && r.chance(0.2)) { // per-control options ride on any object form
         Object.assign(value, r.pick([{ hint: "a hint" }, { disabled: true }, { disabled: (get) => !!get(r.pick(WORDS)) }, { render: (get) => get(r.pick(WORDS)) !== false }, { hint: 5 }, { render: "yes" }]));
       }
-      // A top-level "_last" is the changed-key channel (the kit skips that entry by contract), and
-      // the prototype names are refused at every depth — neither is a control path to check.
-      const refused = (depth === 0 && key === "_last") || ["__proto__", "constructor", "prototype"].includes(key);
+      // The prototype names are refused at every depth — not a control path to check.
+      const refused = ["__proto__", "constructor", "prototype"].includes(key);
       if (VALUE_TYPES.includes(type) && !refused) ctx.paths.push({ path: [...prefix, key], type });
     }
     defineKey(schema, key, value);

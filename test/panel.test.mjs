@@ -210,7 +210,7 @@ test("setMany applies a batch across folders and notifies once", () => {
   assert.equal(p.params.b, 7);
   assert.equal(p.params.folder.c, 9);
   assert.equal(calls, 1);          // one notification for the whole batch, not one per key
-  assert.equal(lastKey, "c");      // _last reflects the final applied key
+  assert.equal(lastKey, "c");      // on()'s last key is the final applied key
 });
 
 test("setMany skips reserved + no-op keys but applies the rest, still notifying once", () => {
@@ -401,7 +401,7 @@ test("destroy() in the same tick as opening a popover leaves no stray menu, focu
   assert.equal(menu.isConnected, false, "the menu was removed");
 });
 
-test("the toolbar's copy emits the values snapshot (nested, no _last) and its reset restores defaults", async () => {
+test("the toolbar's copy emits the values snapshot (nested) and its reset restores defaults", async () => {
   const p = tweaks("Tb", { a: [1, 0, 10, 1], f: { b: [2, 0, 10, 1] } });
   document.body.append(p.el);
   p.set("a", 7); p.set("f.b", 9);
@@ -419,6 +419,20 @@ test("the toolbar's copy emits the values snapshot (nested, no _last) and its re
   p.el.querySelector(".tw-toolbar-btn--reset").click();
   assert.equal(p.params.a, 1);
   assert.equal(p.params.f.b, 2);
+  p.destroy();
+});
+
+test("params holds only values: the changed key rides on on(), and _last is a key like any other", () => {
+  const p = tweaks("Keys", { a: [1, 0, 10, 1], _last: [2, 0, 10, 1] });
+  let seen;
+  p.on((_, last) => { seen = last; });
+  p.set("a", 4);
+  assert.equal(seen, "a");
+  assert.deepEqual(Object.keys(p.params), ["a", "_last"]);
+  assert.deepEqual({ ...p.params }, { a: 4, _last: 2 });
+  p.set("_last", 6);
+  assert.equal(seen, "_last");
+  assert.equal(p.params._last, 6);
   p.destroy();
 });
 

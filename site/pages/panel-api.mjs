@@ -18,7 +18,7 @@ export const examples = [
     id: "events",
     title: "Events",
     prose: `<p><code>panel.on(fn)</code> fires on every change with the params bag and the
-      changed key (also on <code>params._last</code>), and returns an unsubscribe function.
+      changed key, and returns an unsubscribe function.
       Move things and watch the feed.</p>`,
     target: `<pre class="pa-log">Change something</pre>`,
     css: `

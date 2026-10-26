@@ -18,7 +18,7 @@ export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" |
  *  string like `"8px 16px"` (the numbers are read in the control's unit); or any subset of
  *  the four as an object. With `corners: true` the four are the corners from top-left round,
  *  the same CSS order, under the same keys, and they floor at 0 unless `min` says otherwise. */
-export type SidesInput = number | number[] | string | { top?: number; right?: number; bottom?: number; left?: number };
+export type SidesInput = number | readonly number[] | string | { top?: number; right?: number; bottom?: number; left?: number };
 /** A sides control's value: the four numbers in CSS order plus the shorthand they collapse
  *  to (`css`, in the control's unit, `0` bare), so `el.style.padding = css`. */
 export interface SidesValue { top: number; right: number; bottom: number; left: number; css: string }
@@ -33,7 +33,7 @@ export interface ShadowValue { inset: boolean; x: number; y: number; blur: numbe
 /** What a motion control accepts — any subset of either mode's fields. A `curve` may be
  *  the four cubic-bezier numbers or a CSS keyword (`ease`, `ease-out`, …); `duration` is
  *  the easing's, in ms. Spring keys select the spring mode unless `mode` says otherwise. */
-export interface MotionInput { mode?: "easing" | "spring"; curve?: [number, number, number, number] | string; duration?: number; stiffness?: number; damping?: number; mass?: number; visualDuration?: number; bounce?: number }
+export interface MotionInput { mode?: "easing" | "spring"; curve?: readonly [number, number, number, number] | string; duration?: number; stiffness?: number; damping?: number; mass?: number; visualDuration?: number; bounce?: number }
 /** A motion control's value: an easing curve with its duration, or a spring — each also
  *  carrying the CSS it resolves to, `duration` in ms and an `easing` string (`cubic-bezier(…)`,
  *  or a sampled `linear(…)` for the spring), so a host can write
@@ -85,18 +85,18 @@ export type SchemaObject =
       parse?: (text: string) => number }
   | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
   | { type: "checkbox"; value?: boolean }
-  | { type: "list"; options: Option[]; value?: string }
-  | { type: "radiogrid" | "segmented"; options: Option[]; value?: string; cols?: number }
+  | { type: "list"; options: readonly Option[]; value?: string }
+  | { type: "radiogrid" | "segmented"; options: readonly Option[]; value?: string; cols?: number }
   | { type: "color"; value?: string }
   | { type: "text"; value?: string; rows?: number; placeholder?: string }
-  | { type: "interval"; value?: [number, number]; min?: number; max?: number; step?: number }
+  | { type: "interval"; value?: readonly [number, number]; min?: number; max?: number; step?: number }
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
-  | { type: "cubicbezier"; value?: [number, number, number, number] }
+  | { type: "cubicbezier"; value?: readonly [number, number, number, number] }
   | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
   | { type: "sides"; value?: SidesInput; corners?: boolean; unit?: string; step?: number; min?: number; max?: number; top?: number; right?: number; bottom?: number; left?: number }
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
-  | { type: "point"; components: Array<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
-  | { type: "gradient"; value?: GradientValue | Array<GradientStop | [string, number]>; stops?: Array<GradientStop | [string, number]> }
+  | { type: "point"; components: ReadonlyArray<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; pad?: boolean; invertY?: boolean }
+  | { type: "gradient"; value?: GradientValue | ReadonlyArray<GradientStop | readonly [string, number]>; stops?: ReadonlyArray<GradientStop | readonly [string, number]> }
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
   | { type: "fpsgraph" }
   | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }
@@ -121,23 +121,79 @@ export type SchemaObject =
       /** `false` leaves Clear out of a gallery, and Delete no longer empties it: for a choice that must keep a value. */
       clear?: boolean }
   | { type: "button"; action: () => void; label?: string }
-  | { type: "buttongroup"; buttons: Record<string, () => void> | Array<{ label: string; action: () => void }> }
+  | { type: "buttongroup"; buttons: Record<string, () => void> | ReadonlyArray<{ label: string; action: () => void }> }
   | { type: "separator" }
-  | { type: "tabs"; pages: Record<string, Schema> };
+  | { type: "tabs"; pages: { readonly [title: string]: Schema } };
 
 /** A schema value — a shorthand, a verbose `{ type }` object, or a nested folder. */
 export type SchemaValue =
   | number                                          // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative mirrors that below zero)
   | boolean                                         // → checkbox
   | string                                          // a label, or a color string → color picker
-  | [number] | [number, number] | [number, number, number] | [number, number, number, number] // [value, min?, max?, step?] → slider
-  | [[number, number], number, number] | [[number, number], number, number, number]           // [[lo,hi], min, max, step?] → interval
-  | Option[]                                        // a list of options → list (dropdown)
+  | readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number] // [value, min?, max?, step?] → slider
+  | readonly [readonly [number, number], number, number] | readonly [readonly [number, number], number, number, number]           // [[lo,hi], min, max, step?] → interval
+  | readonly number[] | readonly (number | readonly number[])[] // either of the above, widened by a schema held in a variable
+  | readonly Option[]                               // a list of options → list (dropdown)
+  | { options: readonly Option[]; value?: string }           // a list with a chosen default
+  | { action: () => void; label?: string }          // → button
   | (SchemaObject & ControlOptions)                 // verbose form (+ render/disabled/hint)
-  | Schema;                                         // nested object → folder
+  | Schema                                          // nested object → folder
+  | ((get: Get) => boolean);                        // a folder's own render / disabled predicate
 
 /** The object you hand to `tweaks(name, schema, opts?)`. */
-export interface Schema { [key: string]: SchemaValue; }
+export interface Schema { readonly [key: string]: SchemaValue; }
+
+// ── Params inferred from a schema ──
+// tweaks() takes its schema as a const type parameter, so each value keeps its literal shape and
+// these types read the control it builds the way schema.ts does, in the same order.
+
+/** A spring control's value: the physics, plus the time pair and mode when tuned by feel. */
+export interface SpringValue { stiffness: number; damping: number; mass: number; visualDuration?: number; bounce?: number; mode?: "time" | "physics" }
+
+type OptionValue<O> = O extends string ? O : O extends { readonly value: infer V extends string } ? V : never;
+type Alnum = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+type Dashed<S extends string, Acc extends string = "", Run = false> =
+  S extends `${infer C}${infer R}` ? C extends Alnum ? Dashed<R, `${Acc}${C}`, false> : Run extends true ? Dashed<R, Acc, true> : Dashed<R, `${Acc}-`, true> : Acc;
+type TrimDash<S extends string> = S extends `-${infer R}` ? TrimDash<R> : S extends `${infer R}-` ? TrimDash<R> : S;
+/** A tab title's key under `params`: lower-case, each run of other characters a `-`, trimmed
+ *  (`"Layout & Grid"` → `"layout-grid"`). Two titles that slug alike are told apart at runtime only. */
+export type TabKey<T extends string> = string extends T ? string : TrimDash<Dashed<Lowercase<T>>> extends infer K extends string ? (K extends "" ? "tab" : K) : never;
+
+type Valueless = "button" | "buttongroup" | "separator" | "fpsgraph" | "monitor";
+type TypedValue<V> =
+  V extends { readonly type: "slider" | "number" } ? number
+  : V extends { readonly type: "checkbox" } ? boolean
+  : V extends { readonly type: "list" | "radiogrid" | "segmented"; readonly options: readonly (infer O)[] } ? OptionValue<O>
+  : V extends { readonly type: "color" | "text" | "image" | "plot" } ? string
+  : V extends { readonly type: "interval" } ? [number, number]
+  : V extends { readonly type: "cubicbezier" } ? [number, number, number, number]
+  : V extends { readonly type: "spring" } ? SpringValue
+  : V extends { readonly type: "motion" } ? MotionValue
+  : V extends { readonly type: "shadow" } ? ShadowValue
+  : V extends { readonly type: "sides" } ? SidesValue
+  : V extends { readonly type: "gradient" } ? GradientValue
+  : V extends { readonly type: "point"; readonly components: readonly (infer C)[] } ? { [K in C extends { readonly key: infer Key extends string } ? Key : never]: number }
+  : V extends { readonly type: "tabs"; readonly pages: infer P } ? { [T in keyof P & string as TabKey<T>]: ParamsOf<P[T]> }
+  : unknown;
+/** The value a schema entry puts on `params`. */
+export type ValueOf<V> =
+  V extends { readonly type: Valueless } | { readonly action: (...a: any[]) => any } ? never
+  : V extends { readonly type: SchemaObject["type"] } ? TypedValue<V>
+  : V extends readonly [readonly [number, number], ...unknown[]] ? [number, number]
+  : V extends readonly [number, ...number[]] ? number
+  : V extends readonly number[] ? number                     // a tuple widened by a schema held in a variable
+  : V extends readonly (number | readonly number[])[] ? [number, number]
+  : V extends number ? number
+  : V extends boolean ? boolean
+  : V extends string ? string
+  : V extends readonly (infer O)[] ? OptionValue<O>
+  : V extends { readonly options: readonly (infer O)[] } ? OptionValue<O>
+  : V extends object ? ParamsOf<V>
+  : unknown;
+type FolderChrome<V, K> = K extends "disabled" | "hint" ? true : K extends "render" ? (V extends (...a: any[]) => any ? true : false) : false;
+/** The live values a schema builds, nested like the schema; a plain `Schema` gives the loose `Params`. */
+export type ParamsOf<S> = string extends keyof S ? Params
+  : { -readonly [K in keyof S & string as ValueOf<S[K]> extends never ? never : FolderChrome<S[K], K> extends true ? never : K]: ValueOf<S[K]> };
 
 /** A theme — token overrides applied over the default monochrome look. Every key is
  *  optional, so a partial theme only moves what it names; unset tokens keep their default.
@@ -221,8 +277,9 @@ export interface TweaksOptions {
   onEditEnd?: () => void;
 }
 
-/** The live values bag — `params[key]` for each control; `_last` is the last-changed key. */
-export type Params = Record<string, any> & { _last?: string };
+/** The live values bag, loosely typed — `params[key]` for each control. A schema literal passed
+ *  to `tweaks()` gets its exact shape instead (`ParamsOf`). */
+export type Params = Record<string, any>;
 
 /** The whole-panel state `toJSON()` returns / `fromJSON()` accepts: every control value
  *  (nested to mirror folders/tabs) plus UI state — which folders are collapsed and which
@@ -246,16 +303,16 @@ export interface PanelState {
   };
 }
 
-/** The panel object `tweaks()` returns. */
-export interface Panel {
+/** The panel object `tweaks()` returns; `P` is its values' shape. */
+export interface Panel<P = Params> {
   /** The panel root element — append it to the DOM. */
   el: HTMLElement;
   /** Live values, updated in place as controls change. */
-  params: Params;
+  params: P;
   /** Resolves once any lazily-loaded controls have hydrated (resolves immediately when none). */
-  ready: Promise<Panel>;
-  /** Subscribe to changes; returns an unsubscribe fn. */
-  on(fn: (params: Params, last?: string) => void): () => void;
+  ready: Promise<Panel<P>>;
+  /** Subscribe to changes; `last` is the changed key, the bare leaf (`blur`, not `shadow.blur`). */
+  on(fn: (params: P, last?: string) => void): () => void;
   /** Set a control's value programmatically. Nested controls take a dotted path
    *  ("folder.child", "tabs.page.child"); a bare key also reaches a nested control
    *  when it's unambiguous. A key matching no control is stored on `params` as-is. */

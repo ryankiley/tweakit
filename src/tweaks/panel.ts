@@ -10,7 +10,7 @@ import { ensureForMetas } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
-import type { Schema, TweaksOptions, Panel, Params, PanelState, Control } from "./types.js";
+import type { Schema, TweaksOptions, Panel, Params, ParamsOf, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { ClipCtx, Scope } from "./clip.js";
 import type { PanelEl } from "./shared.js";
@@ -20,7 +20,7 @@ import type { TabsControl } from "./controls/tabs.js";
 type Target = Record<string, unknown>;
 /** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def) and its dotted path. */
 export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement; note?: Control["note"] }
-/** A values snapshot — params minus `_last`, as JSON round-trips it. */
+/** A values snapshot — params as JSON round-trips it. */
 export type Snapshot = Record<string, any>;
 /** A folder in the filter index: its node, label and body (for the child scan). */
 interface FolderItem { el: HTMLElement; label: string; body: HTMLElement }
@@ -31,11 +31,13 @@ let picked: [HTMLElement, () => void] | null = null; // the panel holding the pa
 // it: the system clipboard both ways, with no permission to ask. `onCatch` is that keypress's answer.
 let catchEl: HTMLTextAreaElement | null = null, onCatch: ((e: ClipboardEvent) => void) | null = null;
 
-/** Build a panel from `schema`; the shell and API exist synchronously, lazy controls fill in on `ready`. */
+/** Build a panel from `schema`; the shell and API exist synchronously, lazy controls fill in on `ready`.
+ *  A schema written inline (or `as const`) types `params` from its shape. */
+export function tweaks<const S extends Schema>(name: string, schema: S, opts?: TweaksOptions): Panel<ParamsOf<S>>;
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
-  // "_last" is the changed-key channel on params; a schema entry by that name would fight it.
-  const metas = Object.entries(schema).filter(([k]) => k !== "_last" || (console.warn('[tweaks] "_last" is reserved (the changed-key channel) — schema entry skipped'), false)).map(([k, v]) => metaFor(k, v)).filter(Boolean);
+  const metas = Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean);
   const params: Params = {};
+  let last: string | undefined; // the key the latest change touched, the bare leaf: on()'s second argument
   const entries: Entry[] = []; // flattened across folders, for reset + persist
   const subTrees = new Set<Target>(); // set() refuses to overwrite one: it orphans every child
   const listeners = new Set<(p: Params, last?: string) => void>();
@@ -51,9 +53,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let built = -1; // cleanups.length as assemble() enters build()
   const later = (fn: () => void) => { if (destroyed) return; if (failed) { console.warn("[tweaks] call ignored — the panel could not be built"); return; } assembled ? fn() : queue.push(fn); }; // a refused call says so, like every other refusal here
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its slot
-  // The values snapshot: params minus `_last`, undefined written as null (JSON would drop the key).
-  // A function, not an arrow: `this` is the holder, so only the top-level `_last` strips.
-  const replacer = function (this: unknown, k: string, v: unknown) { return k === "_last" && this === params ? undefined : v === undefined ? null : typeof v === "bigint" ? String(v) : v; }; // a bigint would throw out of every snapshot
+  // The values snapshot: undefined written as null (JSON would drop the key).
+  const replacer = (_k: string, v: unknown) => v === undefined ? null : typeof v === "bigint" ? String(v) : v; // a bigint would throw out of every snapshot
   // A bag value JSON can't take must not throw out of every snapshot: fall back to the controls' values, say so once.
   let snapshotWarned = false;
   const controlsSnapshot = (): Snapshot => { const out: Record<string, any> = {}; for (const e of entries) { let o = out; for (const k of e.path.slice(0, -1)) o = o[k] ||= {}; o[e.key] = e.get(); } return JSON.parse(JSON.stringify(out, replacer)); };
@@ -100,7 +101,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   })() : () => {};
   // Each listener runs isolated: a throwing callback can't break the others or skip persist().
   // `last` is read once, so a write one listener makes can't change the key the rest are told.
-  const notify = (silent?: boolean, last = params._last) => { (silent ? own : listeners).forEach((fn) => { try { fn(params, last); } catch (e) { console.error("[tweaks] listener threw:", e); } }); if (!destroyed) persist(); }; // a listener may destroy() the panel: arm no save behind it
+  const notify = (silent?: boolean, changed = last) => { (silent ? own : listeners).forEach((fn) => { try { fn(params, changed); } catch (e) { console.error("[tweaks] listener threw:", e); } }); if (!destroyed) persist(); }; // a listener may destroy() the panel: arm no save behind it
   // The one write path behind restores and set(). A function/symbol/bigint is no control value (JSON can't carry those).
   const notAValue = (v: unknown) => typeof v === "function" || typeof v === "symbol" || typeof v === "bigint";
   const assign = (e: Entry, v: unknown) => { if (notAValue(v)) throw new TypeError(`a ${typeof v} is not a control value`); e.set(v); e.target[e.key] = e.get(); };
@@ -117,7 +118,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       try { assignDefault(e); }
       catch (err) { console.error(`[tweaks] resetting "${e.path.join(".")}" failed — control skipped:`, err); }
     }
-    params._last = undefined; notify();
+    last = undefined; notify();
   };
 
   const panel: PanelEl = el("div", "tw-panel"); panel.dataset.mode = "inline";
@@ -238,7 +239,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   }
 
   // Per-control reset. The target is LABEL_SEL — the hint marker's list, so the two can't drift — or the root.
-  const resetEntry = (e: Entry) => { assignDefault(e); params._last = e.key; notify(); };
+  const resetEntry = (e: Entry) => { assignDefault(e); last = e.key; notify(); };
   const wireReset = (root: HTMLElement, entry: Entry) => {
     const t = root.querySelector<HTMLElement>(".tw-slider-value")
       || root.querySelector<HTMLElement>(LABEL_SEL)
@@ -323,7 +324,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         continue;
       }
       const valued = !VALUELESS.has(m.type);
-      const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; params._last = m.key; notify(); } : () => {}); // same-value emits (a re-entrant echo) don't notify
+      const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; last = m.key; notify(); } : () => {}); // same-value emits (a re-entrant echo) don't notify
       if (!ctrl) continue;
       adopt(ctrl);
       if (valued) {
@@ -379,8 +380,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       catch (err) { console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err); }
     }
     // Free bag keys the host parked on params ride along, so a restore brings them back too.
-    for (const k of Object.keys(snap)) if (!owned.has(k) && k !== "_last" && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) { try { params[k] = snap[k]; } catch (err) { console.error(`[tweaks] restoring "${k}" failed — value skipped:`, err); } } // a getter-only bag key costs only itself
-    params._last = undefined; notify(silent);
+    for (const k of Object.keys(snap)) if (!owned.has(k) && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) { try { params[k] = snap[k]; } catch (err) { console.error(`[tweaks] restoring "${k}" failed — value skipped:`, err); } } // a getter-only bag key costs only itself
+    last = undefined; notify(silent);
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets" ──
   const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
@@ -747,7 +748,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     else if (subTrees.has(params[key])) { console.warn(`[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead`); return false; } // overwriting it would orphan every child value
     else params[key] = v; // bag passthrough — hosts park free keys on params
     if (!valueChanged(prev, target[leaf])) return false; // keeps a store-sync listener from echoing forever
-    params._last = leaf; // on((p, last)) sees programmatic sets like control edits
+    last = leaf; // on((p, last)) sees programmatic sets like control edits
     return true;
   };
 
