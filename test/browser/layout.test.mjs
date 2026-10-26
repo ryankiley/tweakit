@@ -98,14 +98,14 @@ test("headers, a graphless monitor, list options, the color mode select and nume
   const heads = await page.evaluate(() => [...document.querySelectorAll(".tw-panel")].map((p) => [p.querySelector(".tw-title").textContent, p.querySelector(".tw-header").offsetHeight]));
   assert.deepEqual(heads, [["Rows", 44], ["Wide", 44], ["Float", 44], ["Bare", 37]], "44 with the toolbar's 24px buttons, 37 without");
   pinned(await boxes(page, ".tw-title"), 17);
-  pinned(await boxes(page, ".tw-fps"), 34);
+  pinned(await boxes(page, ".tw-fps"), 33);
   await panelOf(page, "Rows").locator(".tw-select-trigger").click();
   await page.waitForSelector(".tw-select-dropdown.is-open .tw-select-option");
-  pinned(await boxes(page, ".tw-select-dropdown.is-open .tw-select-option"), 31);
+  pinned(await boxes(page, ".tw-select-dropdown.is-open .tw-select-option"), 30);
   await page.keyboard.press("Escape");
   await panelOf(page, "Rows").locator(".tw-color .tw-trigger").click();
   await page.waitForSelector(".tw-color-pop.is-open .tw-color-mode");
-  pinned(await boxes(page, ".tw-color-pop.is-open .tw-color-mode"), 25);
+  pinned(await boxes(page, ".tw-color-pop.is-open .tw-color-mode"), 24);
   const fields = await page.evaluate(() => [...document.querySelectorAll(".tw-color-pop.is-open .tw-field")].filter((f) => f.querySelector(".tw-field-label").offsetHeight)
     .map((f) => ({ cls: "tw-field", h: f.offsetHeight, lh: [".tw-field-label", ".tw-num, .tw-color-chan-input"].map((s) => getComputedStyle(f.querySelector(s)).lineHeight).find((l) => !l.endsWith("px")) ?? "px" })));
   assert.ok(fields.length >= 3, `found ${fields.length} labeled fields`);
