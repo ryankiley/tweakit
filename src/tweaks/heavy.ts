@@ -138,7 +138,17 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
 }
 
 // ── Number — numField in its row chrome. ──
-registerControl("number", (meta: Meta, onChange?: OnChange) => numField({ ...meta, row: true }, onChange));
+// The coarsest power of ten a number sits on (0.5 → 0.1, 3.14159 → 0.00001, 1230 → 10), read at 12 significant digits so
+// 0.1 + 0.2 counts as 0.3; Infinity for 0 or a non-number, which constrains nothing. A step no coarser keeps it exactly.
+const decimalStep = (v: unknown) => {
+  const n = Number(Math.abs(+(v as number)).toPrecision(12)); if (!n || !Number.isFinite(n)) return Infinity;
+  const d = stepPrecision(n); if (d) return Number(`1e-${d}`);
+  let k = 0; while (k < 15 && n % 10 ** (k + 1) === 0) k++;
+  return 10 ** k;
+};
+// A number with no step takes 1, or finer when its default or min has decimals (0.5 steps by 0.5): decided here, in the
+// lazy chunk, so the basic panel carries none of it.
+registerControl("number", (meta: Meta, onChange?: OnChange) => numField({ ...meta, step: meta.step ?? Math.min(1, decimalStep(meta.value), decimalStep(meta.min)), row: true }, onChange));
 
 // ── Spring step response — shared by the spring and motion controls. The window runs to the
 // settle, capped at 2.2 s. ──
@@ -211,4 +221,4 @@ const badTheme = (key: string, v: unknown, kind: string, keys: string[]) => {
     : `[tweaks] theme: "${key}" isn't a theme key${near ? ` — did you mean "${near}"?` : "."} It is skipped. Keys: ${keys.join(", ")}, or any raw --tw-* token`);
 };
 
-export { unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };
+export { decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };

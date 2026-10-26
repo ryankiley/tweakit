@@ -29,9 +29,10 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node build.mjs --sourcemap && node --enable-source-maps --test \"test/*.test.mjs\"",
-    "prepublishOnly": "npm test && npm run build",
+    "prepublishOnly": "npm test",
+    "prepack": "node build.mjs",
     "serve": "node build.mjs && python3 -m http.server 4330 --directory dist",
-    "test:browser": "node --test \"test/browser/*.test.mjs\""
+    "test:browser": "node build.mjs && node --test \"test/browser/*.test.mjs\""
   },
   "exports": {
     ".": {

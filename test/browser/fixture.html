@@ -5,11 +5,12 @@
 <link rel="stylesheet" href="/tweaks.css">
 <style>body { margin: 24px; display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; font: 13px system-ui, sans-serif; }</style>
 <script type="module">
-  // Panels the layout tests measure: one of each one-line control, then content built to push a row wide.
+  // Panels the layout tests measure: one of each one-line control, content built to push a row wide, a floating panel,
+  // and a bare one (no toolbar) with a graphless monitor.
   import { tweaks } from "/tweaks/core.js";
   const rows = tweaks("Rows", {
     slider: [5, 0, 10, 1], number: { type: "number", value: 3 }, check: true, list: ["a", "b"], color: "#7c5cff",
-    text: "Hi", seg: { type: "segmented", options: ["a", "b", "c"] }, image: { type: "image" },
+    text: "Hi", seg: { type: "segmented", options: ["a", "b", "c"] }, grid: { type: "radiogrid", options: ["a", "b", "c"] }, image: { type: "image" },
     ramp: { type: "gradient", stops: [["#000", 0], ["#fff", 1]] }, drop: { type: "shadow" }, pad: { type: "sides", value: 8 },
     ease: { type: "motion" }, at: { type: "point", components: [{ key: "x" }, { key: "y" }] }, go: { action: () => {} },
   });
@@ -20,6 +21,7 @@
     aVeryLongKeyNameThatWouldMakeALabelOverflow: [1, 0, 2, 0.1], note: long + " " + long,
   });
   const float = tweaks("Float", { x: [1, 0, 2, 0.1] }, { floating: { x: 40, y: 400 } });
-  document.body.append(rows.el, wide.el, float.el);
-  Promise.all([rows.ready, wide.ready, float.ready]).then(() => { document.body.dataset.ready = ""; });
+  const bare = tweaks("Bare", { watch: { type: "monitor", get: () => 1, graph: false } }, { toolbar: false });
+  document.body.append(rows.el, wide.el, float.el, bare.el);
+  Promise.all([rows.ready, wide.ready, float.ready, bare.ready]).then(() => { document.body.dataset.ready = ""; });
 </script>

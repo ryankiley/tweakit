@@ -1,4 +1,4 @@
-/* Color parsing by the engine's own maths, not through a canvas: a canvas echoes 8-bit
+/* Color parsing by the engine's own math, not through a canvas: a canvas echoes 8-bit
  * `#rrggbb`, which moved a near-gray hwb's hue a whole degree on every round trip
  * (hwb(210 10% 77%) came back as 211 — the stress harness's seed 155). And the stop gate
  * (isColor) holds every color function to CSS Color 4's grammar, not a shape: hsl/hwb

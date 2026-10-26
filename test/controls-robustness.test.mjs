@@ -519,3 +519,15 @@ test("a markup host with an unknown data-tw type is skipped with a warning namin
     assert.ok(msgs.some((m) => m.includes('data-tw="slidr": "slidr" isn\'t a control type — did you mean "slider"? It is skipped.')));
   } finally { console.warn = warn; host.remove(); }
 });
+
+// y was clamped to −0.25–1.25, so easeOutBack [0.34, 1.56, 0.64, 1] and easeInOutBack [0.68, -0.6, 0.32, 1.6] came back
+// flattened. CSS takes any y; x stays 0–1.
+test("a cubicbezier keeps an overshoot curve's y, from −1 to 2, and still fits x to 0–1", async () => {
+  const p = tweaks("Back", { out: { type: "cubicbezier", value: [0.34, 1.56, 0.64, 1] }, io: { type: "cubicbezier", value: [0.68, -0.6, 0.32, 1.6] } });
+  await p.ready;
+  assert.deepEqual(p.params.out, [0.34, 1.56, 0.64, 1]);
+  assert.deepEqual(p.params.io, [0.68, -0.6, 0.32, 1.6]);
+  p.set("out", [1.4, 3, -0.2, -2]);
+  assert.deepEqual(p.params.out, [1, 2, 0, -1]);
+  p.destroy();
+});

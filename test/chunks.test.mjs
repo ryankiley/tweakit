@@ -69,6 +69,9 @@ test("the markup chunk is lazy and imports only the shared chunk; a page without
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
+// Raised 26 → 27 KiB for the saved-data format version, a color kept in the notation it was written in, and the toggle
+// as one switch (role, aria-checked, Space and Enter), together ~190 B gzip; on CI's Node 22, which gzips ~100 B heavier
+// than a local Node 24, they would have put a basic panel at about 26.7 KB.
 // Raised 25 → 26 KiB for the console warnings that end silent failures: a set() that clamps, a key no control has,
 // two live panels on one persist key, an image restore that no longer holds up the build, and on()'s dotted paths
 // (~300 B gzip together; the unknown-type message itself lives in heavy.ts). 25,432 B locally, 25,613 B on CI's Node 22.
@@ -89,14 +92,14 @@ test("the markup chunk is lazy and imports only the shared chunk; a page without
 // 21 KiB by a few dozen bytes; the controls themselves are lazy chunks.
 // Raised 20 → 21 KiB for the gradient's easing (#101): gradientCss() is a core export so a
 // host templates from one place, and it is ~700 B gzip of pure string work.
-test("a basic panel's code-split download stays under 26 KiB gzip", async () => {
+test("a basic panel's code-split download stays under 27 KiB gzip", async () => {
   const { readFile } = await import("node:fs/promises");
   const { gzipSync } = await import("node:zlib");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const core = await readFile(new URL("core.js", dir));
   let bytes = gzipSync(core).length;
   for (const [, c] of String(core).matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)) bytes += gzipSync(await readFile(new URL(c, dir))).length;
-  assert.ok(bytes < 26624, `core + shared chunk is ${bytes} B gzip — over the 26 KiB budget`);
+  assert.ok(bytes < 27648, `core + shared chunk is ${bytes} B gzip — over the 27 KiB budget`);
 });
 
 // Number is lazy on the split build (no shorthand infers it): the standalone and markup
