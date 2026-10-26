@@ -104,7 +104,6 @@ test("the four length fields sit two by two (X Y / Blur Spread), not four across
   // It has to win the cascade, not just exist: the generic .tw-fields rule (four across) comes
   // later in the sheet, so the 2×2 rule needs more classes than it, or a later place. (jsdom's
   // getComputedStyle doesn't settle this the way a browser does, so the test reasons it out.)
-  const { readFile } = await import("node:fs/promises");
   const css = (distCss()).replace(/@media[^{]*\{([^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, sel, body], i) => ({ i, sels: sel.split(",").map((x) => x.trim()), body }));
   const classes = (sel) => (sel.match(/\.[\w-]+/g) || []).length;

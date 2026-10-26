@@ -93,8 +93,7 @@ test("destroy() inerts the API and removes the panel", () => {
 });
 
 test("monitor: a negative `rows` doesn't spin the buffer trim into an infinite loop", async () => {
-  // Regression: `while (lines.length > rows)` with rows < 0 never terminates (length
-  // floors at 0, still > the negative bound) — a frozen tab on the first poll tick.
+  // Regression: a negative rows kept `while (lines.length > rows)` true forever: a frozen tab on the first poll.
   const p = tweaks("M", { m: { type: "monitor", rows: -5, get: () => "tick", interval: 30 } });
   document.body.append(p.el);
   await wait(100); // several poll ticks at the 30ms floor
@@ -105,10 +104,7 @@ test("monitor: a negative `rows` doesn't spin the buffer trim into an infinite l
 });
 
 test("destroy() releases a monitor's poll even on a panel that never mounted", async () => {
-  // Regression: the poll deliberately idles through the "built but not appended yet"
-  // window, so it never saw an unmount to stop on — a panel destroyed before it ever
-  // connected left the interval running for the life of the page. The control now hands
-  // its teardown to the panel, so destroy() reaches it.
+  // Regression: the poll idles until mounted, so a panel destroyed before it connected left the interval running.
   const p = tweaks("MD", { m: { type: "monitor", get: () => 42, interval: 30, view: "text" } });
   p.destroy();                                  // never mounted
   document.body.append(p.el);                   // re-attach the dead node: a live poll would find it connected and tick
@@ -118,10 +114,7 @@ test("destroy() releases a monitor's poll even on a panel that never mounted", a
 });
 
 test("a hostile color string is skipped, not thrown, and the rest of a restore still lands", () => {
-  // Regression, two halves: `color(constructor …)` resolved its space off Object.prototype
-  // — truthy, so it slipped past the unknown-space guard and reached the conversion math
-  // as a non-space, throwing a TypeError out of set(); and applySnapshot ran its entries
-  // unguarded, so that one throw abandoned every later value AND the notify with it.
+  // Regression: `color(constructor …)` read its space off Object.prototype and threw out of set(), and that throw abandoned the rest of the restore.
   const p = tweaks("CX", { a: [1, 0, 10, 1], c: { type: "color", value: "#ff0000" }, z: [1, 0, 10, 1] });
   p.set("c", "color(constructor 1 0 0)");       // must not throw…
   p.set("c", "color(__proto__ 1 0 0)");         // …nor this: an unknown color() space
@@ -137,8 +130,7 @@ test("a hostile color string is skipped, not thrown, and the rest of a restore s
 });
 
 test("a slider survives a step too fine for toFixed", () => {
-  // Regression: stepPrecision(1e-101) → 101 decimals, past toFixed's 100-digit ceiling —
-  // a RangeError at construction that degraded the whole control to "skipped".
+  // Regression: a 1e-101 step asked toFixed for 101 decimals, a RangeError that skipped the control.
   const p = tweaks("Fine", { x: { type: "slider", value: 0.5, min: 0, max: 1, step: 1e-101 } });
   assert.ok("x" in p.params, "control built");
   p.set("x", 0.25);
@@ -146,9 +138,7 @@ test("a slider survives a step too fine for toFixed", () => {
 });
 
 test("markup mode echoes an object-valued control as its components, not [object Object]", async () => {
-  // Regression: enhance() assigned ctrl.get() straight onto data-value, so the controls
-  // whose value is an object (point, spring) wrote the default toString — and data-value
-  // is the very attribute the markup parsers read a point back out of.
+  // Regression: data-value got ctrl.get() as is, so a point or spring wrote [object Object] into the attribute its parser reads.
   const holder = document.createElement("div");
   holder.innerHTML = `<div data-tw="point" data-label="Offset" data-components="X,Y" data-value="3,4" data-step="1"></div>`;
   document.body.append(holder);
@@ -162,8 +152,7 @@ test("markup mode echoes an object-valued control as its components, not [object
 });
 
 test("markup mode's copy keys by data-key and suffixes duplicates", async () => {
-  // Regression: the copy keyed every control by its LABEL, so two same-labeled hosts
-  // collided and the later one silently overwrote the earlier in the copied JSON.
+  // Regression: the copy keyed hosts by label, so two with one label overwrote each other.
   const holder = document.createElement("div");
   holder.innerHTML = `<div class="tw-panel" data-mode="inline"><div class="tw-header"><span class="tw-title">P</span></div><div class="tw-controls">
     <div data-tw="slider" data-label="Size" data-value="1" data-min="0" data-max="10"></div>
@@ -295,11 +284,7 @@ test("fromJSON applies known value paths, skips stale ones, and notifies once", 
 
 
 test("a header press released off the header can't leave the panel dragging on hover", () => {
-  // Regression: pointer capture is only taken once the press crosses the 4px drag
-  // threshold, so a release just off the header (a hair of drift onto the body, or the
-  // page scrolling under a held button) never reached endDrag and left dragId set. The
-  // next plain hover then passed the threshold against the stale origin and lifted the
-  // panel into a drag with no button held.
+  // Regression: capture starts past the 4px threshold, so a release off the header left dragId set and the next hover dragged.
   const p = tweaks("Drag", { a: [1, 0, 10, 1] });
   document.body.append(p.el);
   const header = p.el.querySelector(".tw-header"), body = p.el.querySelector(".tw-body");
@@ -316,9 +301,7 @@ test("a header press released off the header can't leave the panel dragging on h
 });
 
 test("double-clicking a slider readout resets it even once the hover armed the editor", async () => {
-  // Regression: the readout is both the reset target and the click-to-type trigger. After
-  // an 800ms hover — exactly what precedes a deliberate double-click — click #1 swapped it
-  // for the inline input, so the dblclick landed on the input and the reset never fired.
+  // Regression: after the hover armed click-to-type, click #1 swapped in the input and the dblclick landed there.
   const p = tweaks("DblEdit", { x: [5, 0, 100, 1] });
   document.body.append(p.el);
   p.set("x", 42);
@@ -361,10 +344,7 @@ test("every button the kit renders is type=button, never a form submit", async (
 });
 
 test("destroy() in the same tick as opening a popover leaves no stray menu, focus, or listener", async () => {
-  // Regression: popover() deferred its is-open/onOpen work to the next frame and its outside-press
-  // listener to a setTimeout(0), neither re-checking `open` — so a close() in between (a destroy()
-  // right after the open) was undone: the dead menu re-showed, onOpen focused its input, and the
-  // document listener was re-added after close() had removed it.
+  // Regression: the open's deferred work didn't re-check `open`, so a close in between was undone.
   const p = tweaks("Race", { a: 1 }, { persist: "t-popover-race" });
   document.body.append(p.el);
   p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click();
@@ -407,9 +387,7 @@ test("params holds only values: the changed key rides on on(), and _last is a ke
 });
 
 test("a keyboard step during a snap slider's settle doesn't leave it lit", async () => {
-  // Regression: after a press-release the discrete slider springs to its notch over ~300ms
-  // and only that settle dropped .is-active; an arrow key in that window canceled the
-  // settle (keyboard steps are instant) and the active styling stuck until the next press.
+  // Regression: only the settle dropped .is-active, and an arrow key cancels the settle.
   const p = tweaks("Settle", { snap: [3, 0, 6, 1] });
   document.body.append(p.el);
   const track = p.el.querySelector(".tw-slider");
@@ -426,8 +404,7 @@ test("a keyboard step during a snap slider's settle doesn't leave it lit", async
 });
 
 test("a color control given no value resets to the color it opened on, not black", () => {
-  // Regression: `{ type: "color" }` built on the picker's default, but its meta carried
-  // value: undefined, so reset() handed the control undefined — which parsed as black.
+  // Regression: the meta carried value: undefined, and reset() parsed that as black.
   const p = tweaks("Col", { c: { type: "color" } });
   const opened = p.params.c;
   assert.match(opened, /^oklch\(/);
@@ -460,8 +437,7 @@ test("reset() restores the value a control opened on, not the raw schema value i
 });
 
 test("reset() re-parses the authored color exactly, whatever mode the picker is in", () => {
-  // Regression: the default was the opened form alone — the readout's rounded string
-  // ("oklch(87% 0.29 142)"), which re-parses a step off the authored #00ff00.
+  // Regression: the default was the readout's rounded string, a step off the authored color.
   const p = tweaks("Cx", { c: "#00ff00" });
   document.body.append(p.el);
   const mode = p.el.querySelector(".tw-color-mode");
@@ -664,8 +640,7 @@ test("text-field focus is quiet after a pointer press, ringed after a key press"
 // resolution, the onReset re-entrancy guard, and a destroy() that stays out of another
 // panel's popover. ──
 test("destroy() flushes a pending persist write instead of dropping the last edit", () => {
-  // Regression: set() schedules a 150ms debounced save and destroy() cleared the timer,
-  // so the last edit before a teardown (an SPA route change) never reached storage.
+  // Regression: destroy() cleared the 150ms save timer, dropping the last edit.
   localStorage.removeItem("tw:t-flush");
   const p = tweaks("Flush", { a: [1, 0, 10, 1] }, { persist: "t-flush" });
   p.set("a", 7);
@@ -674,8 +649,7 @@ test("destroy() flushes a pending persist write instead of dropping the last edi
 });
 
 test("⌘Z inside a text field is left to the field's native undo", () => {
-  // Regression: the panel-level keydown preventDefaulted every ⌘Z with focus anywhere
-  // inside the panel — including the text control, where it killed the field's own undo.
+  // Regression: the panel took every ⌘Z inside it, the text field's own included.
   const p = tweaks("Undo", { label: { type: "text", value: "hi" }, x: [1, 0, 10, 1] }, { undo: true });
   document.body.append(p.el);
   const input = p.el.querySelector(".tw-text");
@@ -691,9 +665,7 @@ test("⌘Z inside a text field is left to the field's native undo", () => {
 });
 
 test("double-clicking inside the plot's expression box selects a word, not a reset", () => {
-  // Regression: the per-control reset's label list lacked .tw-plot-label, so the plot's
-  // reset target fell back to the whole control root — and a dblclick in the expression
-  // input bubbled up to it and wiped the expression.
+  // Regression: the plot had no reset label, so its root was the target and a dblclick in the field wiped the expression.
   const p = tweaks("Plot", { f: { type: "plot", expr: "x*x", label: "Curve" } });
   document.body.append(p.el);
   const root = p.el.querySelector(".tw-plot");
@@ -708,9 +680,7 @@ test("double-clicking inside the plot's expression box selects a word, not a res
 });
 
 test("a radio group whose value matches no option still has a tab stop and a keyboard start", () => {
-  // Regression: setRadioActive put every button at tabIndex -1 when nothing matched, and
-  // the keydown handler bailed on the missing active index — the group fell out of the
-  // tab order entirely and arrow keys did nothing.
+  // Regression: with nothing matched every button sat at tabIndex -1 and the arrows bailed.
   const p = tweaks("Radio", { pick: { type: "radiogrid", options: ["a", "b", "c"], value: "zzz" } });
   document.body.append(p.el);
   const btns = [...p.el.querySelectorAll(".tw-radiogrid-btn")];
@@ -742,9 +712,7 @@ test("a control revealed by a render condition asks for a re-measure", async () 
 });
 
 test("a global listener on a panel built before it mounted survives an event in that window", () => {
-  // Regression: onLive dropped its whole listener set on the first event that found the
-  // owner disconnected — including the window between tweaks() and the host's append,
-  // so a resize there permanently unsubscribed the floating panel's viewport clamp.
+  // Regression: onLive dropped its listeners on the first event before the host appended the panel.
   const p = tweaks("Live", { a: 1 }, { floating: { x: 500, y: 16 } });
   assert.equal(p.el.style.getPropertyValue("--tw-float-x"), "500px");
   window.dispatchEvent(new Event("resize"));      // fires while the panel is not yet connected
@@ -757,8 +725,7 @@ test("a global listener on a panel built before it mounted survives an event in 
 });
 
 test("a bare key that names a top-level control wins over a nested namesake", async () => {
-  // Regression: set("x") warned "ambiguous" and did nothing when a folder also had an x —
-  // but a top-level key has no dotted form, so there was no way to reach it at all.
+  // Regression: set("x") called itself ambiguous beside a nested x, leaving the top-level x unreachable.
   const p = tweaks("Bare", { x: [1, 0, 10, 1], f: { x: [2, 0, 10, 1] } });
   assert.deepEqual(await warnings(() => p.set("x", 5)), [], "no ambiguity warning");
   assert.equal(p.params.x, 5);
@@ -771,7 +738,7 @@ test("a bare key that names a top-level control wins over a nested namesake", as
 });
 
 test("an onReset that calls panel.reset() performs the default reset instead of recursing", () => {
-  // Regression: doReset → opts.onReset → api.reset → doReset → … until the stack blew.
+  // Regression: onReset → reset() → onReset recursed until the stack blew.
   let calls = 0, p;
   p = tweaks("OnReset", { a: [1, 0, 10, 1] }, { onReset: () => { calls++; p.reset(); } });
   p.set("a", 5);
@@ -783,8 +750,7 @@ test("an onReset that calls panel.reset() performs the default reset instead of 
 });
 
 test("destroy() closes its own popover and hint, not another panel's", async () => {
-  // Regression: popovers are globally single-open and destroy() closed whichever was up —
-  // tearing down panel A dismissed the presets menu (or color picker) open on panel B.
+  // Regression: popovers are single-open page-wide, and destroy() closed whichever was up.
   const a = tweaks("A", { a: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "a hint" } }, { persist: "t-popover-a" });
   const b = tweaks("B", { b: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "b hint" } }, { persist: "t-popover-b" });
   document.body.append(a.el, b.el);
