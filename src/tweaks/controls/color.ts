@@ -1,6 +1,6 @@
 // ── Color — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, rangeStep, popover, quietFocus, activeIn, registerControl, words } from "../shared.js";
+import { el, txt, clamp, rangeStep, popover, quietFocus, activeIn, registerControl, words, using } from "../shared.js";
 import { escapeReverts, numField, grabSurface, boxFrac, arrowStep, sayWhenKeysStop, triggerRow, selectAllOnFocus } from "../heavy.js";
 import { oklchGamutProbe, chromaCeil, toGamut, hexByte, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 import type { Vec3, Space, Gamut } from "../../wide-gamut.js";
@@ -286,7 +286,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     hueThumb.style.left = inside(H / 360, 16); alphaThumb.style.left = inside(A, 16);
     alphaBar.setAttribute("aria-valuenow", String(+A.toFixed(2)));
     const hDeg = Math.round(H); hueBar.setAttribute("aria-valuenow", String(hDeg)); hueBar.setAttribute("aria-valuetext", `${hDeg}°`); // H may be 360: End reads as the top of the range
-    area.setAttribute("aria-description", `lightness ${Math.round(L * 100)}%, chroma ${+C.toFixed(3)}`);
+    area.setAttribute("aria-description", tr("colorReadout", "lightness {l}%, chroma {c}", { l: Math.round(L * 100), c: +C.toFixed(3) }));
     alphaGrad.style.background = `linear-gradient(to right, oklch(${L} ${C} ${H} / 0), oklch(${L} ${C} ${H}))`;
     // Filled rings: a grabbed thumb scales past its track, so each ring carries its own
     // color instead of revealing the dropdown bg in the slivers above and below the strip.
@@ -297,7 +297,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   };
   const hexText = () => serialize([L, C, H], "hex", A);
   const refresh = () => {
-    gamut2.textContent = gamutLabel([L, C, H], mode);
+    const g = gamutLabel([L, C, H], mode); gamut2.textContent = g === "wide" ? tr("wide", "wide") : g; // sRGB and P3 are names
     if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".twk-color-chan-input"); if (hx && activeIn(hx) !== hx) hx.value = hexText(); }
     else { const vals = channelValues([L, C, H], mode); chanFields.forEach((f, i) => { if (!f.el.contains(activeIn(f.el))) f.set(vals[i]); }); }
   };
@@ -361,7 +361,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 
   // A mode switch is formatting-only and never emits: notifying would push a no-op change into
   // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode); setMode is the host pushing a mode in, so it fires neither.
-  const remode = (m: ColorMode) => { mode = m; raw = null; flavor = null; showMode(); renderChannels(); renderArea(); positionThumbs(); };
+  // The channel fields are rebuilt for the new mode, after the build: under the picker's own words again.
+  const remode = (m: ColorMode) => { mode = m; raw = null; flavor = null; showMode(); using(tr.s, renderChannels); renderArea(); positionThumbs(); };
   modeSel.addEventListener("change", () => { if (modeSel.value === "kept") return; remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); }); // the dropdown holds EDIT_MODES and the kept flavor
 
   renderChannels();

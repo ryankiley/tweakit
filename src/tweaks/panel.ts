@@ -35,7 +35,7 @@ let catchEl: HTMLTextAreaElement | null = null, onCatch: ((e: ClipboardEvent) =>
  *  A schema written inline (or `as const`) types `params` from its shape. */
 export function tweaks<const S extends HeldSchema>(name: string, schema: S & KnownTypes<S>, opts?: TweaksOptions): Panel<ParamsOf<S>>;
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
-  const metas = Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean);
+  const metas = using(opts.strings, () => Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean)); // an untitled tab page's name is a word too
   const tr = words(opts.strings); // the panel's own words; its controls take them as assemble() builds them
   const params: Params = {};
   let last: string | undefined; // the dotted path the latest change touched (`card.size`), as set() and changes() name it: on()'s second argument
@@ -576,7 +576,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // menu's popover owns the clicks. A chunk that fails to load is tried again on the next press.
   if (presetsBtn) {
     const b = presetsBtn; let menu: Promise<ReturnType<typeof import("./presets.js")["presetsMenu"]>> | undefined, made = false;
-    const load = () => (menu ||= import("./presets.js").then((m) => { if (destroyed) throw 0; made = true; return m.presetsMenu(b, () => Object.keys(listPresets()), savePreset, loadPreset, deletePreset, announce, ICON_X, tr); }, (e) => { menu = undefined; if (e !== 0) console.error("[tweaks] the presets menu failed to load:", e); throw e; }));
+    const load = () => (menu ||= import("./presets.js").then((m) => { if (destroyed) throw 0; made = true; return m.presetsMenu(b, () => Object.keys(listPresets()), savePreset, loadPreset, deletePreset, announce, ICON_X, tr); }, (e) => { menu = undefined; if (e !== 0) console.error("[tweaks] presets:", e); throw e; }));
     for (const t of ["pointerenter", "focus"]) b.addEventListener(t, () => { load().catch(() => {}); }, { once: true });
     let want = false;
     const cancel = (e: Event) => { if (e.type === "keydown" ? (e as KeyboardEvent).key === "Escape" : !e.composedPath().includes(b)) want = false; }; // Escape, or a press or focus elsewhere

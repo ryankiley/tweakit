@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { window } from "./_setup-dom.mjs";
-import { loadSingle, wait, armPresets } from "./_helpers.mjs";
+import { loadSingle, wait, armPresets, copyFrom } from "./_helpers.mjs";
 globalThis.MutationObserver = window.MutationObserver;
 
 const { tweaks, mountControl, createColorPicker, enhance } = await loadSingle();
@@ -44,24 +44,35 @@ const shown = (roots) => roots.flatMap((r) => [r, ...r.querySelectorAll("*")]).f
   ...["aria-label", "title", "placeholder", "aria-description", "aria-roledescription"].map((a) => n.getAttribute?.(a)),
 ]).filter((t) => t && t.trim());
 
-test("with every word replaced, a panel with every control and every pane open shows no default word", async () => {
-  const p = tweaks("", schema, { strings: marks, persist: "t-strings" }); document.body.append(p.el); await p.ready;
+// Words a panel shows that aren't English to translate: color notations, CSS keywords a value is written in, and units.
+const NAMES = new Set(["HEX", "RGB", "CSS", "HSL", "HWB", "OKLCH", "OKLab", "LCH", "Lab", "sRGB", "Rec", "oklch", "rgb", "hsl", "linear", "ease", "out", "spring"]);
+test("with every word replaced, every control and pane, in every state the review found, shows no English", async () => {
+  const p = tweaks("", { ...schema, k30: { type: "shadow", inset: true }, t10: { type: "tabs", pages: { " ": { k31: 1 } } } }, { strings: marks, persist: "t-strings" });
+  document.body.append(p.el); await p.ready;
+  const texts = [], scan = () => texts.push(...shown([p.el, ...document.querySelectorAll(".twk-portal")]));
   try {
-    // Open what opens: every trigger row, the list, the presets menu, the sides' split toggles.
-    for (const t of p.el.querySelectorAll(".twk-trigger, .twk-select-trigger")) { t.click(); await wait(30); }
-    (await armPresets(p)).click(); await wait(30);
+    // Open what opens, one at a time, and read each while it's up: a closed pane leaves the page 200 ms later.
+    for (const t of p.el.querySelectorAll(".twk-trigger, .twk-select-trigger")) {
+      t.click(); await wait(30); scan();
+      const pop = [...document.querySelectorAll(".twk-portal.is-open")].at(-1);
+      // A color pane: switch its mode (the channel fields are rebuilt) and move the plane by key (its readout is said).
+      const mode = pop?.querySelector(".twk-color-mode"); if (mode) { mode.value = "oklch"; mode.dispatchEvent(new window.Event("change", { bubbles: true })); await wait(10); scan(); }
+      const area = pop?.querySelector(".twk-wg-area"); if (area) { area.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })); await wait(300); scan(); }
+    }
+    (await armPresets(p)).click(); await wait(30); scan();
     for (const b of p.el.querySelectorAll(".twk-sides-link")) b.click();
-    const texts = shown([p.el, ...document.querySelectorAll(".twk-portal")]).map((t) => t.replace(/«\w+»/g, "")); // a marker's own key isn't a word shown
-    const defaults = [...KEYS.values()].flatMap((d) => d.split(/\{\w+\}/)).map((s) => s.trim()).filter((s) => /[A-Za-z]{3}/.test(s));
-    const left = texts.filter((t) => defaults.some((d) => t.includes(d)));
-    assert.deepEqual(left, [], "a default word is still showing");
+    scan(); texts.push(document.querySelector(".twk-sr[role=status]")?.textContent ?? "");
+    // A marker's own key and a hex value aren't words shown.
+    const left = [...new Set(texts.map((t) => t.replace(/«\w+»|#[0-9a-f]{3,8}\b/gi, "")))].filter((t) => t.match(/[A-Za-z]{3,}/g)?.some((w) => !NAMES.has(w)));
+    assert.deepEqual(left, [], "English is still showing");
     const neverAsked = [...KEYS.keys()].filter((k) => !asked.has(k));
     // What only an event or a rarer build says: a copy, a paste, a refused file or save, a preset loaded, a stop selected, a
     // value storage refused; and a control's name when it has no label of its own, an easing off the menu, an unnamed image.
-    const eventOnly = ["monitor", "fps", "plot", "point", "gradient", "motion", "shadow", "custom", "imageN", "copied", "copiedChanged", "nothingChanged", "copyFailed", "rowCopied", "notSaved", "pasted", "nothingToPaste", "clipboardUnread", "presetLoaded", "presetSaved", "presetFull", "presetDelete", "notAnImage", "unreadable", "tooLarge", "folder", "customImage", "uploadedImage", "stopAtSelected", "replace", "dropOrChoose", "springSummary", "button"];
+    const eventOnly = ["monitor", "fps", "plot", "point", "gradient", "motion", "shadow", "custom", "imageN", "copied", "copiedChanged", "nothingChanged", "copyFailed", "rowCopied", "notSaved", "pasted", "nothingToPaste", "clipboardUnread", "presetLoaded", "presetSaved", "presetFull", "presetDelete", "notAnImage", "unreadable", "tooLarge", "folder", "customImage", "uploadedImage", "stopAtSelected", "replace", "dropOrChoose", "springSummary", "button", "wide"];
     assert.deepEqual(neverAsked.filter((k) => !eventOnly.includes(k)), [], "every word a build shows was asked for");
   } finally { p.destroy(); await wait(220); }
 });
+
 
 test("a key's placeholders are filled, a function gets the values, and a key left out keeps its English", async () => {
   localStorage.clear();
@@ -80,6 +91,11 @@ test("a key's placeholders are filled, a function gets the values, and a key lef
     const input = document.querySelector(".twk-presets-input"); input.value = "Hell"; input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await wait(120); heard.push(sr());
     assert.equal(heard[0], "Voreinstellung Hell gespeichert");
+    // A ⇧-copy of the changed values calls the plural function with their count.
+    for (const [changed, said] of [[{ size: 3 }, "1 Wert kopiert"], [{ size: 4, n: 5 }, "2 Werte kopiert"]]) {
+      p.setMany(changed); await copyFrom(p.el, { shiftKey: true }); await wait(120);
+      assert.equal(sr(), said);
+    }
   } finally { p.destroy(); await wait(220); }
 });
 

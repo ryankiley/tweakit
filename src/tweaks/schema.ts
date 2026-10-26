@@ -1,7 +1,7 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
  * or verbose `{ type }`), and a [data-twk] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
-import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, hasOwn, isReservedKey, SPRING_KEYS, notice } from "./shared.js";
+import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, hasOwn, isReservedKey, SPRING_KEYS, notice, words } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
@@ -133,7 +133,7 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
     return { pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => {
       const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "tab";
       let k = base, n = 2; while (used.has(k)) k = `${base}-${n++}`; used.add(k);
-      return { key: k, title: title.trim() ? title : "Tab", children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) }; // an empty title still gets a visible tab
+      return { key: k, title: title.trim() ? title : words()("tab", "Tab"), children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) }; // an empty title still gets a visible tab
     }) };
   },
 };

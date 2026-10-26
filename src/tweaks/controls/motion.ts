@@ -77,7 +77,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   durRow.append(durFld.el); easingPane.append(bezier.el, durRow); springPane.append(spring.el);
   const stage = el("div", "twk-motion-stage"), box = el("div", "twk-motion-box"); stage.append(box);
   const modeSeg = createSegmented([{ value: "easing", label: tr("easing", "Easing") }, { value: "spring", label: tr("spring", "Spring") }], mode, (m: unknown) => { if ((m === "easing" || m === "spring") && m !== mode) { mode = m; showMode(); update(); emit(); } }, tr("motionType", "Motion type"));
-  const typeRow = el("div", "twk-row"); typeRow.append(txt("span", "twk-row-label", "Type"), modeSeg.el);
+  const typeRow = el("div", "twk-row"); typeRow.append(txt("span", "twk-row-label", tr("type", "Type")), modeSeg.el);
   body.append(typeRow, easingPane, springPane, stage);
   root.append(pop);
 

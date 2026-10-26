@@ -64,7 +64,7 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const update = () => {
     card.style.boxShadow = cssAt(1); chipTile.style.boxShadow = cssAt(0.3);
     const [x, y, blur, spread] = lengths();
-    valueEl.textContent = `${inset ? "in " : ""}${fmt(x)} ${fmt(y)} ${fmt(blur)}${spread ? " " + fmt(spread) : ""}`;
+    valueEl.textContent = `${inset ? tr("inset", "in") + " " : ""}${fmt(x)} ${fmt(y)} ${fmt(blur)}${spread ? " " + fmt(spread) : ""}`;
     cSwatch.style.background = body.swatchCss(); cText.textContent = body.valueText();
   };
   const pop_ = popover(root, trigger, pop, { fallbackH: 300, onOpen: body.reflow, onReflow: body.reflow });

@@ -260,14 +260,13 @@ const home = (n: Node): Node => { const h = (n.getRootNode() as ShadowRoot).host
 const activeIn = (n: Node) => (n.getRootNode() as Document | ShadowRoot).activeElement;
 const holds = (box: Node, t: Node | null) => !!t && (box.contains(t) || t === (box.getRootNode() as ShadowRoot).host);
 // opts.shadow (a panel, mountControl, createColorPicker): `root` goes in a shadow root on a host of its own, hidden until
-// shadow-root.ts has styled it. Returns what goes in the page, the promise `ready` waits for, and the teardown, which
-// runs late if the dressing lands after a destroy().
+// shadow-root.ts has styled it. Returns what goes in the page, the promise `ready` waits for (it holds the dressing's own
+// teardown), and the teardown, which waits for the dressing if a destroy() comes first.
 const isolate = (root: HTMLElement, shadow: boolean | { href?: string } | undefined) => {
   if (!shadow) return { box: root, end: () => {} };
   const box = el("twk-host" as "div", "twk-host"); box.attachShadow({ mode: "open" }).append(root); root.classList.add("twk-in-shadow"); box.style.visibility = "hidden";
-  let stop: (() => void) | undefined, gone = false;
-  const dressed = import("./shadow-root.js").then((m) => { stop = m.dress(box, root, shadow); if (gone) stop(); }, (e) => { box.style.visibility = ""; console.error("[tweaks] shadow: shadow-root.js failed to load — unstyled:", e); });
-  return { box, dressed, end: () => { gone = true; stop?.(); box.remove(); } };
+  const dressed = import("./shadow-root.js").then((m) => m.dress(box, root, shadow), (e) => { box.style.visibility = ""; console.error("[tweaks] shadow:", e); });
+  return { box, dressed, end: () => { box.remove(); dressed.then((stop) => stop && stop()); } };
 };
 // Put a portal where `from`'s portals go; in a shadow root .twk-in-shadow leaves its tokens to that root's :host.
 const portalTo = (n: HTMLElement, from: Node) => { const h = home(from); n.classList.toggle("twk-in-shadow", h !== document.body); if (n.parentNode !== h) h.appendChild(n); };
@@ -534,10 +533,11 @@ type Word = string | ((v: any) => string);
 type Words = Strings;
 let inForce: Words = {};
 const using = <T>(s: Words | null | undefined, fn: () => T): T => { const was = inForce; inForce = s || was; try { return fn(); } finally { inForce = was; } };
-const words = (s: Words | null | undefined = inForce) => (k: string, d: Word, v?: Record<string, unknown>): string => {
+// `.s` is the set it reads, for a control that rebuilds a part after its build to do so under it again (using(tr.s, …)).
+const words = (s: Words | null | undefined = inForce) => Object.assign((k: string, d: Word, v?: Record<string, unknown>): string => {
   const w = (s as Record<string, Word | undefined> | null | undefined)?.[k] ?? d;
-  return typeof w === "function" ? w(v) : v ? w.replace(/\{(\w+)\}/g, (m, n) => (n in v ? String(v[n]) : m)) : w;
-};
+  return typeof w === "function" ? w(v) : v ? w.replace(/\{(\w+)\}/g, (m, n) => (hasOwn(v, n) ? String(v[n]) : m)) : w;
+}, { s });
 type Tr = ReturnType<typeof words>;
 
 // What a click or a run of keys did, in words, for a screen reader: one visually hidden status region for the page,

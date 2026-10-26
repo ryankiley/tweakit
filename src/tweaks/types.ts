@@ -317,7 +317,7 @@ export interface FloatingPlacement { x?: number; y?: number }
 
 /** The words a panel shows and says, by key, for the `strings` option (each line notes the English default). A key
  *  with a `{placeholder}` takes a string that uses it, or a function given the values, for a language whose plurals
- *  need more than two forms. Units (px, ms, %), axis letters and color notations stay as they are. */
+ *  need more than one form. Units (px, ms, %), axis letters and color notations stay as they are. */
 export type Word<V = never> = [V] extends [never] ? string : string | ((v: V) => string);
 export interface Strings {
   // The panel and its toolbar
@@ -348,6 +348,7 @@ export interface Strings {
   /** "Off" — a checkbox */ off?: string;
   /** "On" — a checkbox */ on?: string;
   /** "Button" — a group button with no label */ button?: string;
+  /** "Tab" — a tab page whose title is blank */ tab?: string;
   /** "Folder" — a markup folder with no data-label */ folder?: string;
   /** "Drag to adjust" — a number field's grip */ dragToAdjust?: string;
   /** "{label} minimum" */ intervalMin?: Word<{ label: string }>;
@@ -367,6 +368,8 @@ export interface Strings {
   /** "Hex color" */ hex?: string;
   /** "Hue" */ hue?: string;
   /** "Alpha" */ alpha?: string;
+  /** "lightness {l}%, chroma {c}" — the color plane's description, said after a run of keys */ colorReadout?: Word<{ l: number; c: number }>;
+  /** "wide" — the gamut badge past P3 (sRGB and P3 are names) */ wide?: string;
   // Gradient
   /** "Gradient" — a gradient with no label */ gradient?: string;
   /** "{n} stops" — 1 stop for one */ stops?: Word<{ n: number }>;
@@ -400,6 +403,7 @@ export interface Strings {
   // Motion and spring
   /** "Motion" — a motion row with no label */ motion?: string;
   /** "Motion type" */ motionType?: string;
+  /** "Type" — the motion pane's row label beside that switch */ type?: string;
   /** "Easing" */ easing?: string;
   /** "Spring" */ spring?: string;
   /** "Duration" */ duration?: string;
@@ -417,6 +421,7 @@ export interface Strings {
   // Shadow
   /** "Shadow" — a shadow with no label */ shadow?: string;
   /** "Shadow position" */ shadowPosition?: string;
+  /** "in" — an inset shadow's summary, before its numbers */ inset?: string;
   /** "Position" */ position?: string;
   /** "Outer" */ outer?: string;
   /** "Inner" */ inner?: string;

@@ -59,7 +59,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   const sync = () => { positionPad(); paintValue(); };
   const emit = () => onChange(read());
   const flds = comps.map((c, k) => {
-    const fld = numField({ label: c.label, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max }, () => { sync(); emit(); });
+    const fld = numField({ label: c.label ?? c.key, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max }, () => { sync(); emit(); });
     fields.append(fld.el); return fld;
   });
   const read = () => Object.fromEntries(comps.map((c, k) => [c.key, flds[k].get()])); // the emitted map, straight off the fields
