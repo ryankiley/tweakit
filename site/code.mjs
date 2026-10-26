@@ -3,6 +3,8 @@
 import { highlightJS, highlightHTML } from "./highlight.mjs";
 
 export const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+/** The build's gzip sizes into their {{size-*}} tokens, in a page or its Markdown mirror. */
+export const fillSizes = (s, sizes = {}) => Object.entries(sizes).reduce((t, [k, v]) => t.replaceAll(`{{size-${k}}}`, v), s);
 
 export function dedent(text) {
   const lines = String(text).replace(/^\n+/, "").replace(/\s+$/, "").split("\n");

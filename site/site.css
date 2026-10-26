@@ -22,9 +22,6 @@
   --site-code-bg: #131313;
   --site-code-border: #1e1e1e;
   --site-code-fg: #b0b0b0;
-  --site-h1-a: #fafafa;
-  --site-h1-b: #b4b4b4;
-  --site-bloom: rgba(255, 255, 255, 0.045);
   --site-stage-a: #161616;
   --site-stage-b: #121212;
   --site-stage-dot: rgba(255, 255, 255, 0.03);
@@ -67,16 +64,11 @@
   --demo-well-line: #1f1f1f;
   --demo-well-ink: #b9b9b9;
   --demo-shadow: rgba(0, 0, 0, 0.4);
-  --demo-contrast: #ffffff;
   --site-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   /* Motion vocabulary borrowed from the design system tweakit spun out of. */
   --site-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --site-ease-in: cubic-bezier(0.32, 0, 0.67, 0);
-  --site-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --site-dur-fast: 160ms;
   --site-dur-base: 250ms;
-  --site-dur-slow: 420ms;
-  --site-dur-slower: 800ms;
 }
 
 /* ── Light palette — neutral grays, no temperature; soft light per the kit
@@ -98,9 +90,6 @@
     --site-code-bg: #f9f9f9;
     --site-code-border: #e4e4e4;
     --site-code-fg: #4f4f4f;
-    --site-h1-a: #161616;
-    --site-h1-b: #5e5e5e;
-    --site-bloom: rgba(255, 255, 255, 0.55);
     --site-stage-a: #fafafa;
     --site-stage-b: #f4f4f4;
     --site-stage-dot: rgba(0, 0, 0, 0.05);
@@ -139,7 +128,6 @@
     --demo-well-line: #e2e2e2;
     --demo-well-ink: #4a4a4a;
     --demo-shadow: rgba(0, 0, 0, 0.18);
-    --demo-contrast: #111111;
   }
 }
 
@@ -219,7 +207,7 @@ a { color: inherit; text-decoration: none; }
 }
 .sb-brand .site-version { font-size: 11px; font-weight: 400; letter-spacing: 0; color: var(--site-faint); }
 @media (hover: hover) and (pointer: fine) {
-  .site-version:hover, .sb-brand .site-version:hover { color: var(--site-text); border-color: var(--site-border-hover); }
+  .site-version:hover { color: var(--site-text); border-color: var(--site-border-hover); }
 }
 .sb-group { margin-bottom: 20px; }
 .sb-section {
@@ -251,8 +239,6 @@ a { color: inherit; text-decoration: none; }
   .doc.doc-wide { margin-left: max(0px, (100% - 780px) / 2); margin-right: 0; }
 }
 
-/* No page-to-page transition — navigations are a plain instant load on every viewport.
- * (Cross-document View Transitions janked on mobile Safari; removed entirely.) */
 
 /* ── Typography ── */
 /* Heading craft from the design system: fluid clamp() sizing, balanced wrapping, and
@@ -265,8 +251,7 @@ a { color: inherit; text-decoration: none; }
 .doc h3 { margin-block: 32px 8px; font-size: 1.05rem; font-weight: 520; text-wrap: balance; }
 
 /* One width: type, example stages, and code all fill the same reading column (the doc's
- * content box), viewport-centered via the centered .doc. (An earlier pass narrowed the type
- * and let the examples break wider — reverted; one shared width reads cleaner.) */
+ * content box), viewport-centered via the centered .doc. */
 .doc p { margin-block: 0 14px; color: var(--site-muted); text-wrap: pretty; } /* pretty kills the last-line orphan; headings get balance */
 .doc p strong, .doc li strong { color: var(--site-text); font-weight: 600; }
 /* House style (design-system): emphasis is a weight shift, not italics. */
@@ -427,7 +412,7 @@ a { color: inherit; text-decoration: none; }
   transform: rotate(-45deg); transition: transform var(--site-dur-base) var(--site-ease-out);
 }
 .ex-fold-toggle[aria-expanded="true"]::before { transform: rotate(45deg); }
-.ex-fold-toggle:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
+.ex-fold-toggle:focus-visible, .ex-tab:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
 @media (hover: hover) and (pointer: fine) {
   .ex-fold-toggle:hover { color: var(--site-text); }
 }
@@ -440,7 +425,6 @@ a { color: inherit; text-decoration: none; }
   color: var(--site-faint); cursor: pointer; transition: color var(--site-dur-fast) var(--site-ease-out);
 }
 .ex-tab[aria-selected="true"] { color: var(--site-text); }
-.ex-tab:focus-visible { outline: 2px solid var(--site-text); outline-offset: 3px; border-radius: 4px; }
 @media (hover: hover) and (pointer: fine) {
   .ex-tab:hover { color: var(--site-text); }
 }
@@ -448,6 +432,10 @@ a { color: inherit; text-decoration: none; }
 /* A demo's own action button (the panel-API remotes) — neutral chrome on the --demo-* tokens. */
 .demo-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--demo-line-strong); background: var(--demo-fill); color: var(--demo-ink); font-weight: 600; font-size: 12.5px; line-height: 1.4; font-family: inherit; cursor: pointer; }
 .demo-btn:active { background: var(--demo-bar); }
+/* A demo's output well (an event log, a state readout), and the column a demo's tile and its buttons stack in. */
+.demo-well { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--demo-well); border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.6; color: var(--demo-well-ink); white-space: pre-wrap; }
+.demo-remote { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.demo-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 @media (hover: hover) and (pointer: fine) { .demo-btn:hover { background: var(--demo-bar); } }
 
 /* ── Highlighter tokens — vivid, anchored on the kit's violet: violet keywords/attrs,

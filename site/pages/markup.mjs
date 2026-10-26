@@ -94,12 +94,11 @@ export const examples = [
           </div>
         </div>
         <button class="demo-btn mk-set" type="button">host._tw.ctrl.set(random)</button>
-        <pre class="mk-log">Change something</pre>
+        <pre class="demo-well mk-log">Change something</pre>
       </div>`,
     css: `
       .mk-change { display: flex; flex-direction: column; gap: 12px; width: 100%; align-self: stretch; }
-      .mk-log { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--demo-well);
-                border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.6; color: var(--demo-well-ink); }`,
+      .mk-log { white-space: pre; }`,
     noMount: true,
     noCaption: true,
     run: ({ enhance, target }) => {

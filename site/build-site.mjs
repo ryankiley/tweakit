@@ -9,11 +9,10 @@
  * `md`, blocks shaped like examples that only its Markdown mirror shows (for a page whose
  * content lives in demo markup the mirror can't read). */
 import { readFile, writeFile, cp } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { highlightJS, highlightHTML } from "./highlight.mjs";
-import { esc, dedent, codeBlock, renderCode, codeTabs, extractBody, demoCaption } from "./code.mjs";
+import { esc, dedent, codeBlock, renderCode, codeTabs, extractBody, demoCaption, fillSizes } from "./code.mjs";
 import { pageToMd } from "./markdown.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -39,7 +38,7 @@ export async function buildSite({ outDir, esbuild, sizes, chunks = [], version, 
     const { code } = await esbuild.transform(await readFile(path.join(HERE, file), "utf8"), { minify: true, loader });
     await writeFile(path.join(outDir, file), code);
   }
-  if (existsSync(path.join(HERE, "static"))) await cp(path.join(HERE, "static"), outDir, { recursive: true });
+  await cp(path.join(HERE, "static"), outDir, { recursive: true });
 
   // Import every page up front, so a syntax error fails before any file writes.
   const pages = [];
@@ -54,8 +53,7 @@ export async function buildSite({ outDir, esbuild, sizes, chunks = [], version, 
 
   for (let i = 0; i < pages.length; i++) {
     // Hyphenated size tokens survive the shell's {{\w+}} pass; a leaked one means no sizes were passed.
-    let html = renderPage(shell, pages, i, chunks, version);
-    if (sizes) for (const [k, v] of Object.entries(sizes)) html = html.replaceAll(`{{size-${k}}}`, v);
+    const html = fillSizes(renderPage(shell, pages, i, chunks, version), sizes);
     const leak = html.match(/\{\{size-[\w-]+\}\}/);
     if (leak) throw new Error(`pages/${pages[i].meta.slug}.mjs: unsubstituted ${leak[0]} — pass sizes to buildSite()`);
     await writeFile(path.join(outDir, `${pages[i].meta.slug}.html`), html);
@@ -100,6 +98,8 @@ async function writeAgentFiles({ outDir, pages, sizes, version, site }) {
   console.log(`agents → AGENTS.md, llms.txt, llms-full.txt (${full.length} chars), ${mirrors.length} .md mirrors`);
 }
 
+const GITHUB_ICON = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
+
 function renderPage(shell, pages, idx, chunks = [], version = "") {
   const page = pages[idx];
   const { meta } = page;
@@ -128,6 +128,9 @@ function renderPage(shell, pages, idx, chunks = [], version = "") {
     styles: css ? `  <style>${css}</style>` : "",
     nav: renderNav(pages, meta.slug),
     version: esc(version),
+    // Topbar and sidebar both carry these; written once here.
+    versionLink: `<a class="site-version" href="https://github.com/ryankiley/tweakit/releases/tag/v${esc(version)}" rel="noopener" title="Release notes for v${esc(version)}">v${esc(version)}</a>`,
+    github: GITHUB_ICON,
     docClass: meta.wide ? " doc-wide" : "",
     content,
     footnav: renderFootnav(pages, idx),

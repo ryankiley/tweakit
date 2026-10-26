@@ -20,11 +20,9 @@ export const examples = [
     prose: `<p><code>panel.on(fn)</code> fires on every change with the params bag and the
       changed key, and returns an unsubscribe function.
       Move things and watch the feed.</p>`,
-    target: `<pre class="pa-log">Change something</pre>`,
+    target: `<pre class="demo-well pa-log">Change something</pre>`,
     css: `
-      .pa-log { width: 100%; align-self: stretch; margin: 0; padding: 14px 16px; border-radius: 10px;
-                background: var(--demo-well); border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.8;
-                color: var(--demo-well-ink); white-space: pre-wrap; }`,
+      .pa-log { width: 100%; align-self: stretch; padding: 14px 16px; line-height: 1.8; }`,
     run: ({ tweaks, mount, target }) => {
       const log = target.querySelector(".pa-log");
       const lines = [];
@@ -64,18 +62,16 @@ export const examples = [
       stays its storage key, so saved values and
       presets survive a rename.</p>`,
     target: `
-      <div class="pa-remote">
+      <div class="demo-remote">
         <div class="pa-tile"></div>
-        <div class="pa-remote-row">
+        <div class="demo-remote-row">
           <button class="demo-btn pa-shuffle" type="button">panel.set(…) random</button>
           <button class="demo-btn pa-restore" type="button">panel.reset()</button>
         </div>
       </div>`,
     css: `
-      .pa-remote { display: flex; flex-direction: column; align-items: center; gap: 18px; }
       .pa-tile { width: 120px; height: 120px; border-radius: 18px; background: oklch(0.65 0.2 260);
-                 transition: background 0.15s, transform 0.2s; }
-      .pa-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }`,
+                 transition: background 0.15s, transform 0.2s; }`,
     run: ({ tweaks, mount, target }) => {
       const tile = target.querySelector(".pa-tile");
       const panel = tweaks("Remote", {
@@ -149,14 +145,12 @@ export const examples = [
           <button class="demo-btn pa-do-save" type="button">panel.toJSON()</button>
           <button class="demo-btn pa-do-load" type="button">panel.fromJSON(…)</button>
         </div>
-        <pre class="pa-state">Save to capture state</pre>
+        <pre class="demo-well pa-state">Save to capture state</pre>
       </div>`,
     css: `
       .pa-save { display: flex; flex-direction: column; gap: 10px; width: 100%; align-self: stretch; }
       .pa-save-row { display: flex; flex-wrap: wrap; gap: 8px; }
-      .pa-state { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--demo-well);
-                  border: 1px solid var(--demo-well-line); font-size: 11px; line-height: 1.6;
-                  color: var(--demo-well-ink); white-space: pre-wrap; max-height: 180px; overflow: auto; }`,
+      .pa-state { font-size: 11px; max-height: 180px; overflow: auto; }`,
     run: ({ tweaks, mount, target }) => {
       const out = target.querySelector(".pa-state");
       let saved = null;
@@ -217,16 +211,14 @@ export const examples = [
       page's own undo), a continuous drag coalesces into one step, and
       <code>panel.undo()</code> / <code>panel.redo()</code> drive it from outside.</p>`,
     target: `
-      <div class="ud-remote">
+      <div class="demo-remote">
         <div class="ud-card"></div>
-        <div class="ud-remote-row">
+        <div class="demo-remote-row">
           <button class="demo-btn ud-undo-btn" type="button">⌘Z undo</button>
           <button class="demo-btn ud-redo-btn" type="button">⇧⌘Z redo</button>
         </div>
       </div>`,
     css: `
-      .ud-remote { display: flex; flex-direction: column; align-items: center; gap: 18px; }
-      .ud-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
       .ud-card { width: 160px; height: 100px; border-radius: 18px; background: #7C5CFF;
                  transition: width 0.15s, border-radius 0.15s; }`,
     run: ({ tweaks, mount, target }) => {
@@ -263,17 +255,15 @@ export const examples = [
       panel that persists one has it back by <code>panel.ready</code>; the other values don't wait for it.
       With no IndexedDB, an upload saves inline in localStorage when it fits.</p>`,
     target: `
-      <div class="ps-remote">
+      <div class="demo-remote">
         <div class="ps-tile"></div>
-        <div class="ps-remote-row">
+        <div class="demo-remote-row">
           <button class="demo-btn ps-save" type="button">savePreset("mine")</button>
           <button class="demo-btn ps-load" type="button">loadPreset("mine")</button>
         </div>
         <div class="ps-note">&nbsp;</div>
       </div>`,
     css: `
-      .ps-remote { display: flex; flex-direction: column; align-items: center; gap: 18px; }
-      .ps-remote-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
       .ps-tile { width: 120px; height: 120px; border-radius: 18px; background: oklch(0.6 0.18 260);
                  transition: all 0.15s; }
       .ps-note { font-size: 12px; color: var(--demo-faint); min-height: 1em; }`,

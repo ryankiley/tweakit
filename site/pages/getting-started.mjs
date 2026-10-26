@@ -71,11 +71,9 @@ export const examples = [
     prose: `<p>Live values sit on <code>panel.params</code>: plain properties, updated in
       place. Subscribe with <code>panel.on(fn)</code>; the callback receives the params bag
       and the key that changed. Move a slider and watch the log.</p>`,
-    target: `<pre class="gs-log">Move a control</pre>`,
+    target: `<pre class="demo-well gs-log">Move a control</pre>`,
     css: `
-      .gs-log { width: 100%; margin: 0; padding: 14px 16px; border-radius: 10px; background: var(--demo-well);
-                border: 1px solid var(--demo-well-line); font-size: 12px; line-height: 1.7; color: var(--demo-well-ink);
-                white-space: pre-wrap; word-break: break-all; align-self: stretch; }`,
+      .gs-log { width: 100%; padding: 14px 16px; line-height: 1.7; word-break: break-all; align-self: stretch; }`,
     run: ({ tweaks, mount, target }) => {
       const log = target.querySelector(".gs-log");
       const panel = tweaks("State", {
