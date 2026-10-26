@@ -53,4 +53,18 @@ const put = (key: string, ref: string, dataUrl: string) => run("readwrite", (s) 
 /** Delete the images under `key` that `refs` name. */
 const prune = (key: string, refs: string[]) => run("readwrite", (s) => { for (const r of refs) s.delete([key, r.slice(REF.length)]); return true; });
 
-export { refFor, load, get, put, prune };
+/** Each ref a stored snapshot or preset names, read from its JSON whatever the schema: a renamed field's preset still counts. */
+const refsIn = (v: unknown) => new Set<string>(JSON.stringify(v ?? null).match(/tw-image:[0-9a-z]+/g) || []);
+/** Delete the records under `key` this panel knows (`known`) that nothing in `named` names any more. */
+const pruneUnnamed = (key: string, known: Map<string, string>, named: unknown[]) => {
+  const keep = refsIn(named), gone = [...known.keys()].filter((r) => !keep.has(r));
+  for (const r of gone) known.delete(r);
+  if (gone.length) prune(key, gone);
+};
+/** `presets` with `ref` swapped for `with` everywhere it appears, or null when nothing names it. */
+const swapRef = (presets: unknown, ref: string, withText: string) => {
+  const text = JSON.stringify(presets);
+  return text.includes(ref) ? JSON.parse(text.split(ref).join(JSON.stringify(withText).slice(1, -1))) : null;
+};
+
+export { refFor, load, get, put, prune, refsIn, pruneUnnamed, swapRef };

@@ -83,8 +83,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const isRef = (v: unknown): v is string => typeof v === "string" && v.startsWith("tw-image:"); // image-store.ts's ref, readable before that chunk loads
   const isDataUrl = (v: unknown): v is string => typeof v === "string" && v.startsWith("data:");
   const imageEntries = () => entries.filter((e) => e.m.type === "image");
-  // Each ref saved storage or a preset names, read from the JSON whatever the schema: a renamed field's preset still counts.
-  const refsIn = (v: unknown) => new Set(JSON.stringify(v ?? null).match(/tw-image:[0-9a-z]+/g) || []);
   const unsavable = new Map<Entry, unknown>(), failedRefs = new Set<string>();
   const notSaved = (e: Entry, v: unknown) => { if (unsavable.get(e) === v) return; unsavable.set(e, v); e.note?.("Not saved"); };
   // Each row's last data URL and its ref, so a save that didn't touch the image doesn't hash megabytes again.
@@ -92,15 +90,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const refOf = (e: Entry, v: string) => { const c = hashed.get(e); if (c?.[0] === v) return c[1]; const r = imgs!.refFor(v); hashed.set(e, [v, r]); return r; };
   // A record the store refused: a preset that names it takes the data URL inline, or an empty image if storage can't fit it.
   const inlineInPresets = (ref: string, v: string) => {
-    if (!presetsKey) return;
-    const text = JSON.stringify(listPresets());
-    if (!text.includes(ref)) return;
-    if (writeStore(presetsKey, JSON.parse(text.split(ref).join(JSON.stringify(v).slice(1, -1))))) return;
-    writeStore(presetsKey, JSON.parse(text.split(ref).join("")));
+    const inlined = presetsKey && imgs!.swapRef(listPresets(), ref, v);
+    if (!inlined || writeStore(presetsKey, inlined)) return;
+    writeStore(presetsKey, imgs!.swapRef(listPresets(), ref, ""));
     console.warn("[tweaks] persist: an image a preset holds didn't fit in storage — the preset keeps the rest");
   };
   const toRefs = (snap: Snapshot) => {
-    const named = imagesReady && savedImages ? refsIn(readStore(persistKey!)) : null;
+    const named = imagesReady && savedImages ? imgs!.refsIn(readStore(persistKey!)) : null;
     for (const e of imageEntries()) {
       const o: any = atPath(snap, e.path.slice(0, -1)), v = o?.[e.key], w = waiting.get(e);
       if (w && o && hasOwn(o, e.key) && !valueChanged(w[1], v)) { o[e.key] = w[0]; continue; } // still loading: keep the stored ref
@@ -156,13 +152,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
   // Delete the records nothing names any more: not the saved values, not a preset. Only records this panel knows, loaded
   // or written: another tab's panel on the same key may have just stored one this panel has never seen.
-  const pruneImages = () => {
-    if (!imgs || !savedImages?.size) return;
-    const keep = new Set([...refsIn(readStore(persistKey!)), ...refsIn(listPresets())]);
-    const gone = [...savedImages.keys()].filter((r) => !keep.has(r));
-    for (const r of gone) savedImages.delete(r);
-    if (gone.length) imgs.prune(persistKey!, gone);
-  };
+  const pruneImages = () => { if (imgs && savedImages?.size) imgs.pruneUnnamed(persistKey!, savedImages, [readStore(persistKey!), listPresets()]); };
   // Debounced save; destroy() flushes a pending write rather than dropping it.
   const persist = persistKey ? (() => {
     let saveT = 0;
