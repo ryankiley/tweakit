@@ -793,15 +793,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (!top && matches.length > 1) { console.warn(`[tweaks] set("${key}") is ambiguous — ${matches.length} controls share that key; use a dotted path (e.g. "${matches[0].path.join(".")}")`); return false; }
       e = top || matches[0];
     }
-    const target = e ? e.target : params, leaf = e ? e.key : key;
-    const prev = target[leaf];
+    // A key no control owns is refused: written through, a typo landed on params and in every save after.
+    if (!e) { console.warn(subTrees.has(params[key]) ? `[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead` : `[tweaks] set("${key}") ignored — no control has that key`); return false; }
+    const prev = e.target[e.key];
     // Same isolation as applySnapshot: a hostile value costs only that key.
-    if (e && notAValue(v)) { console.warn(`[tweaks] set("${key}") ignored — a ${typeof v} is not a control value`); return false; } // warns like the API's other refusals; bag keys stay free
-    if (e) { try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; } }
-    else if (subTrees.has(params[key])) { console.warn(`[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead`); return false; } // overwriting it would orphan every child value
-    else params[key] = v; // bag passthrough — hosts park free keys on params
-    if (!valueChanged(prev, target[leaf])) return false; // keeps a store-sync listener from echoing forever
-    last = leaf; // on((p, last)) sees programmatic sets like control edits
+    if (notAValue(v)) { console.warn(`[tweaks] set("${key}") ignored — a ${typeof v} is not a control value`); return false; } // warns like the API's other refusals
+    try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; }
+    if (!valueChanged(prev, e.target[e.key])) return false; // keeps a store-sync listener from echoing forever
+    last = e.key; // on((p, last)) sees programmatic sets like control edits
     return true;
   };
 
