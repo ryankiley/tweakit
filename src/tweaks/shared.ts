@@ -76,6 +76,11 @@ const inferStep = (min: number, max: number, ...vals: number[]) => {
 };
 // Normalise a slider-style range: non-finite bounds take the defaults (max: min+100), an
 // inverted pair swaps, a degenerate step re-infers. Every range source funnels through here.
+// Every range swaps an inverted min/max, which is the right recovery, but silent it hides a typo: say so.
+const swapNote = (label: string, min: unknown, max: unknown) => {
+  const n = (v: unknown) => (v == null || v === "" ? NaN : +v!);
+  if (n(max) < n(min)) console.warn(`[tweaks] "${label}": min ${min} is above max ${max}, so they were swapped`);
+};
 const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, defMin = 0, defMax: number | null = null, ...vals: number[]) => {
   let min = +rawMin, max = +rawMax, step = +rawStep;
   if (!Number.isFinite(min)) min = defMin;
@@ -542,7 +547,7 @@ const announce = (msg: string) => {
 
 export {
   titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
-  normalizeRange, rangeStep, overlapsText,
+  normalizeRange, swapNote, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
