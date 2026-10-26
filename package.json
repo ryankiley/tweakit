@@ -64,6 +64,7 @@
     "dist/tweaks.css",
     "dist/tweaks.css.d.ts",
     "dist/types",
+    "src",
     "THIRD-PARTY-NOTICES.md"
   ],
   "devDependencies": {
