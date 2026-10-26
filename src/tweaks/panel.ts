@@ -26,6 +26,7 @@ export type Snapshot = Record<string, any>;
 interface FolderItem { el: HTMLElement; label: string; body: HTMLElement }
 
 let topFloating: HTMLElement | null = null; // the floating panel raised last (raise())
+const liveKeys = new Map<string, number>(); // persist keys of the panels alive now, for the shared-key warning
 let picked: [HTMLElement, () => void] | null = null; // the panel holding the page's one pick, and how to drop it
 // The page's one hidden field that a picked ⌘C / ⌘V focuses for the keypress, so the browser's own copy and paste run on
 // it: the system clipboard both ways, with no permission to ask. `onCatch` is that keypress's answer.
@@ -62,6 +63,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Storage keys — opt-in via opts.persist (a string key, or `true` to key by name).
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
+  // Two live panels on one key overwrite each other's saves, the last write winning: say so. A remount after destroy() is fine.
+  if (persistKey) { const n = liveKeys.get(persistKey) || 0; if (n) console.warn(`[tweaks] persist: another live panel already saves under "${persistKey.slice(3)}", so each overwrites the other's values; give one its own persist key`); liveKeys.set(persistKey, n + 1); }
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
   const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj); // own keys only: a control keyed toString must not read Object.prototype's
@@ -837,6 +840,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      if (persistKey) { const n = (liveKeys.get(persistKey) || 1) - 1; if (n) liveKeys.set(persistKey, n); else liveKeys.delete(persistKey); }
       closeActivePopover(panel); // page-wide singletons: close only what's anchored here
       hideHintNow(panel);
       for (const fn of cleanups.splice(0)) { try { fn(); } catch {} }
