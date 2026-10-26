@@ -5,8 +5,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 import { loadSingle, key } from "./_helpers.mjs";
+import { bundle } from "./_bundle.mjs";
 
 const { tweaks, createColorPicker } = await loadSingle();
+const { serialize, convert } = await bundle("src/wide-gamut.ts");
 
 test("a color reads back exactly as it was written, in any notation the picker edits", async () => {
   const written = { hex: "#ff0000", short: "#7C5CFF", rgb: "rgb(10 20 30)", legacy: "rgba(10, 20, 30, 0.5)", hsl: "hsl(200 50% 40%)", ok: "oklch(0.6 0.2 280)", p3: "color(display-p3 1 0 0)" };
@@ -34,6 +36,22 @@ test("a grey's hue is written none, so a gradient through it doesn't bend", asyn
   key(hsl.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" });
   assert.match(hsl.get(), /^hsl\(none 0% 50\.\d%\)$/);
   picker.el.remove(); hsl.el.remove();
+});
+
+test("HSL's black and white have no hue, whatever float noise makes of S", async () => {
+  // S divides by min(L, 1 - L), so a breath off black read as hsl(247 100% 0%) and bent an `in hsl` gradient through it.
+  assert.equal(serialize(convert([1, 1, 0.99999], "srgb", "oklch"), "hsl", 1), "hsl(none 0% 100%)", "white was hsl(60 100% 100%)");
+  assert.equal(serialize([0.99999, 0.0001, 350], "hsl", 1), "hsl(none 0% 100%)", "white was hsl(300 100% 100%)");
+  assert.equal(serialize(convert([0.00001, 0, 0.00002], "srgb", "oklch"), "hsl", 1), "hsl(none 0% 0%)", "black was hsl(270 100% 0%)");
+  const p = createColorPicker({ value: "oklch(0.1% 0.1 256)", mode: "hsl", onChange: () => {} }); document.body.append(p.el); await p.ready;
+  const hue = p.el.querySelector(".tw-wg-hue"); key(hue, { key: "ArrowRight" });
+  assert.equal(p.get(), "hsl(none 0% 0%)", "an edit next to black was hsl(247 100% 0%)");
+  p.set(p.get()); key(hue, { key: "ArrowRight" });
+  assert.equal(p.get(), "hsl(none 0% 0%)", "and it reads back in without drifting");
+  p.el.remove();
+  // LCH and OKLCH test chroma, which doesn't blow up at either end: a real chroma at L 0 keeps its hue.
+  assert.equal(serialize([0, 0.1, 256], "oklch", 1), "oklch(0% 0.1 256)");
+  assert.match(serialize([0, 0.1, 256], "lch", 1), /^lch\(0% [1-9][\d.]* \d[\d.]*\)$/);
 });
 
 test("a hostile number isn't handed back as written: it reads as the picker normalizes it", async () => {
