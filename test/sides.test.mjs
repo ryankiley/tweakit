@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, mounter, distCss } from "./_helpers.mjs";
+import { loadSingle, mounter, distCss, warnings } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const mount = mounter(tweaks, "B");
@@ -30,11 +30,6 @@ test("every input form, and the CSS shorthand the four collapse to", async () =>
   q.destroy();
 });
 
-// Collect the warnings fn raises.
-const warnings = async (fn) => {
-  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
-  try { await fn(); return msgs; } finally { console.warn = warn; }
-};
 
 test("a string keeps its unit when its sides agree; an explicit unit wins; mixed units warn and read as px", async () => {
   let p;

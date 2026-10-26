@@ -5,26 +5,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, mounter, key, ptr, distCss } from "./_helpers.mjs";
+import { loadSingle, mounter, key, ptr, distCss, wait, copyFrom, pressBeside } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 const schema = () => ({ blur: [24, 0, 100, 1], on: true, shape: { radius: [8, 0, 40, 1], origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
 const mount = () => mountPanel(schema());
 const mountPanel = mounter(tweaks, "C");
-// Drive the real copy button with a stubbed clipboard; returns what it wrote (null = nothing).
-const copyVia = async (p, init) => {
-  let copied = null;
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
-  try { p.el.querySelector(".tw-toolbar-btn--swap").dispatchEvent(new window.MouseEvent("click", { bubbles: true, ...init })); await new Promise((r) => setTimeout(r, 0)); }
-  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
-  return copied;
-};
 
 // ⌘C / ⌘V on `target`, then the browser's own copy or paste on the hidden field the keypress focused, carrying `text`
 // (an Error: a paste with no clipboard data): what was copied, whether the key was taken, and how it went: "ok" or "failed" from the copy icon's check, the picked band's flash, or with nothing
 // picked the words a screen reader heard; "none" when nothing answered.
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // What the browser does after the keydown when focus sits in the panel's hidden field: a copy event whose data the
 // panel sets, or a paste event carrying `text`, fired on `on` (default: the field; a slower browser fires it wherever
 // focus is by then). Returns the copied text, true for a paste, or false when the keypress left focus where it was.
@@ -58,13 +48,6 @@ const clipKey = async (target, k, text, props = {}) => {
 };
 const scoped = () => ({ a: { x: [1, 0, 10, 1], y: [2, 0, 10, 1] }, b: { x: [5, 0, 10, 1], y: [6, 0, 10, 1] }, blur: [24, 0, 100, 1], name: { type: "text", value: "hi" } });
 const mount2 = () => mountPanel(scoped());
-// A press in the panel's side padding level with `node` (jsdom lays nothing out, so the row or folder header it sits in
-// is given a box at the press's height for the moment of the press).
-const pressBeside = (p, node, props = {}) => {
-  const box = node && (node.closest(".tw-folder-header") || node.closest(".tw-controls > *"));
-  if (box) box.getBoundingClientRect = () => ({ top: 40, bottom: 72, height: 32, left: 0, right: 0, width: 0 });
-  try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { if (box) delete box.getBoundingClientRect; }
-};
 const picked = () => [...document.querySelectorAll(".is-picked")];
 const said = () => document.querySelector(".tw-sr[role=status]")?.textContent;
 const safety = () => ({ f: { blur: [24, 0, 100, 1], on: true, tint: "#ff0000", pick: { type: "list", value: "a", options: ["a", "b"] }, span: { type: "interval", value: [2, 8], min: 0, max: 10 }, locked: { type: "slider", value: 3, min: 0, max: 10, disabled: true }, origin: { type: "point", pad: false, components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } } });
@@ -115,10 +98,10 @@ test("⌘C on a folder copies its values object; ⌘V on a folder with the same 
   heads[0].focus();
   const c = await clipKey(heads[0], "c");
   assert.deepEqual([JSON.parse(c.copied), c.prevented, c.flash], [{ x: 1, y: 2 }, true, "ok"], "the folder's subtree, not the whole panel");
-  await new Promise((r) => setTimeout(r, 150));
+  await wait(150);
   assert.equal(document.querySelector(".tw-sr[role=status]")?.textContent, "A copied", "and a screen reader hears what was copied");
   assert.ok(!p.el.querySelector(".tw-toolbar-btn--swap").classList.contains("is-copied"), "the toolbar's copy button shows nothing: it didn't copy");
-  await new Promise((r) => setTimeout(r, 400)); // past the undo debounce
+  await wait(400); // past the undo debounce
   let notified = 0; p.on(() => notified++);
   heads[1].focus();
   const v = await clipKey(heads[1], "v", c.copied);
@@ -306,10 +289,10 @@ test("changes() is empty at the defaults, lists moved values by dotted path, and
 
 test("the toolbar copy: plain click copies the full snapshot, Shift-click only the changes, and a Shift-click with nothing changed copies nothing", async () => {
   const p = await mount();
-  assert.equal(await copyVia(p, { shiftKey: true }), null, "nothing changed → nothing written");
+  assert.equal(await copyFrom(p.el, { shiftKey: true }), null, "nothing changed → nothing written");
   p.set("blur", 31);
-  assert.deepEqual(JSON.parse(await copyVia(p, { shiftKey: true })), { blur: 31 }, "Shift-click: the changes only");
-  const full = JSON.parse(await copyVia(p, {}));
+  assert.deepEqual(JSON.parse(await copyFrom(p.el, { shiftKey: true })), { blur: 31 }, "Shift-click: the changes only");
+  const full = JSON.parse(await copyFrom(p.el));
   assert.deepEqual(full, { blur: 31, on: true, shape: { radius: 8, origin: { x: 0, y: 0 } } }, "plain click: the nested snapshot, defaults included — unchanged behavior");
   p.destroy();
 });

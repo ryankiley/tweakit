@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, tick, key, distCss } from "./_helpers.mjs";
+import { loadSingle, tick, key, distCss, warnings } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -512,15 +512,14 @@ test("a markup host with an unknown data-tw type is skipped with a warning namin
   const { enhance } = await loadSingle();
   const host = document.createElement("div"); host.dataset.tw = "slidr";
   document.body.append(host);
-  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
+  const msgs = await warnings(() => enhance(host));
   try {
-    await enhance(host); await tick(20);
     assert.equal(host.children.length, 0);
     assert.ok(msgs.some((m) => m.includes('data-tw="slidr": "slidr" isn\'t a control type — did you mean "slider"? It is skipped.')));
     const types = msgs.find((m) => m.includes("slidr")).split("Types: ")[1].split(", ");
     for (const t of ["segmented", "toggle", "switch", "bezier", "radiogrid"]) assert.ok(types.includes(t), `the list names ${t}`);
     for (const t of ["colorpicker", "tabs"]) assert.ok(!types.includes(t), `and not ${t}, which markup can't build`);
-  } finally { console.warn = warn; host.remove(); }
+  } finally { host.remove(); }
 });
 
 // data-tw="segmented" was warned "isn't a control type", though a schema takes it; data-tw="tabs" fell through to a folder
