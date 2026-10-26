@@ -354,3 +354,19 @@ test("the panel is a labeled region, renamed by setName", () => {
   assert.equal(blank.el.getAttribute("aria-label"), "Tweaks");
   blank.destroy();
 });
+
+// The Off/On toggle read as two radio buttons ("radio button, On, 2 of 2"); a toggle is a switch.
+test("a boolean toggle is one switch: role, aria-checked, one tab stop, Space and Enter flip it", () => {
+  const p = mount({ on: true });
+  const sw = p.el.querySelector('.tw-seg[role="switch"]');
+  assert.ok(sw, "the row is a switch");
+  assert.equal(sw.getAttribute("aria-checked"), "true"); assert.equal(sw.getAttribute("aria-label"), "On");
+  assert.equal(sw.tabIndex, 0);
+  assert.ok([...sw.querySelectorAll("button")].every((b) => b.tabIndex === -1 && b.getAttribute("aria-hidden") === "true"), "its segments are the pointer's, not tab stops");
+  key(sw, { key: " " }); assert.equal(p.params.on, false); assert.equal(sw.getAttribute("aria-checked"), "false");
+  key(sw, { key: "Enter" }); assert.equal(p.params.on, true);
+  sw.querySelector("button").focus(); assert.equal(document.activeElement, sw, "a segment that takes focus hands it to the switch");
+  sw.querySelector("button").click(); assert.equal(p.params.on, false, "a click on Off still sets it");
+  assert.ok([...sw.querySelectorAll("button")].every((b) => b.tabIndex === -1), "and leaves no tab stop behind");
+  p.destroy();
+});

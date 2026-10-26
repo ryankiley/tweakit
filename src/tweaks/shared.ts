@@ -524,19 +524,23 @@ const navIndex = (key: string, i: number, n: number, cols = 0) => {
   return -1;
 };
 // ── Segmented control — a single-select pill row (the boolean toggle, the spring's mode switch). ──
-function createSegmented(options: Option[], value: unknown, onChange: OnChange, ariaLabel?: string) {
-  const seg = el("div", "tw-seg"); seg.setAttribute("role", "radiogroup");
+// `onIs`: the boolean toggle, a two-segment row that is one switch to a screen reader (role="switch", aria-checked, one tab
+// stop, Space or Enter flips it) rather than "radio button, On, 2 of 2"; its Off/On segments stay as the pointer's targets.
+function createSegmented(options: Option[], value: unknown, onChange: OnChange, ariaLabel?: string, onIs?: unknown) {
+  const sw = onIs !== undefined, seg = el("div", "tw-seg"); seg.setAttribute("role", sw ? "switch" : "radiogroup");
   if (ariaLabel) seg.setAttribute("aria-label", ariaLabel);
+  if (sw) seg.tabIndex = 0;
   const pill = el("div", "tw-seg-pill");
   seg.append(pill);
-  const btns = options.map((o) => { const b = radioButton("tw-seg-btn", o, (v) => set(v)); seg.append(b); return b; }); // lazy `set` — it's declared below
+  const btns = options.map((o) => { const b = radioButton("tw-seg-btn", o, (v) => set(v)); if (sw) { b.setAttribute("aria-hidden", "true"); b.addEventListener("focus", () => seg.focus()); } seg.append(b); return b; }); // lazy `set` — it's declared below; a clicked segment hands focus to the switch, never parks it hidden
   const measure = (animate?: boolean) => measurePill(seg, pill, animate);
-  const reflect = () => { setRadioActive(btns, value); measure(true); };
+  const reflect = () => { setRadioActive(btns, value); if (sw) { seg.setAttribute("aria-checked", String(value === onIs)); btns.forEach((b) => (b.tabIndex = -1)); } measure(true); };
   const set = (v: unknown, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears; a value matching no segment is ignored
   seg.addEventListener("keydown", (e) => {
     const i = activeIndex(btns, value); if (i < 0) return;
+    if (sw && (e.key === " " || e.key === "Enter")) { e.preventDefault(); set(btns[1 - i]._twVal); return; }
     const j = navIndex(e.key, i, btns.length); if (j < 0) return;
-    e.preventDefault(); set(btns[j]._twVal); btns[j].focus(); // _twVal: the real, possibly non-string value
+    e.preventDefault(); set(btns[j]._twVal); (sw ? seg : btns[j]).focus(); // _twVal: the real, possibly non-string value
   });
   reflect();
   onReady(() => { measure(); seg.classList.add("is-ready"); }); // once laid out, again when fonts land
