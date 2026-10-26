@@ -1,5 +1,5 @@
 /* Tweakit build. One TypeScript source, several outputs:
- *   dist/tweaks/      minified code-split chunks (TW_SPLIT=true)
+ *   dist/tweaks/      minified code-split chunks (TW_SPLIT=true), and auto.js, core plus the on-load markup scan
  *   dist/tweaks.js    one self-contained file, every control inlined (TW_SPLIT=false)
  *   dist/tweaks.css   minified panel CSS
  *   dist/types/       .d.ts declarations
@@ -33,6 +33,14 @@ const splitBuild = await esbuild.build({
   outdir: p("dist/tweaks"),
   bundle: true, splitting: true, format: "esm", minify: true, target: "es2020",
   legalComments: "none", define: { TW_SPLIT: "true" }, metafile: true, sourcemap, sourcesContent,
+});
+
+// 1b) tweakit/auto → dist/tweaks/auto.js: core re-exported, plus enhance(document) on load. Unbundled, so it imports
+// ./core.js as written and leaves the split build's chunks as they are.
+await esbuild.build({
+  entryPoints: [p("src/tweaks/auto.ts")],
+  outfile: p("dist/tweaks/auto.js"),
+  bundle: false, format: "esm", minify: true, target: "es2020", legalComments: "none", sourcemap, sourcesContent,
 });
 
 // 2) single self-contained file → dist/tweaks.js, the drop-in that needs no bundler
@@ -117,7 +125,7 @@ console.log(`sizes (gzip): code-split ${sizes.split} (core + shared chunk) · si
 // 5) docs site → dist/*.html. Page modules are imported raw, never through esbuild: each run
 // function is toString()-serialized into both the snippet and the page script.
 const { buildSite } = await import("./site/build-site.mjs");
-const chunks = Object.keys(splitBuild.metafile.outputs).filter((k) => k.endsWith(".js")).map((k) => path.basename(k)); // every split file; the pages preload them
+const chunks = [...Object.keys(splitBuild.metafile.outputs).filter((k) => k.endsWith(".js")).map((k) => path.basename(k)), "auto.js"]; // every split file; the pages preload them
 const { version, homepage } = JSON.parse(await readFile(p("package.json"), "utf8")); // the sidebar shows the version; the Markdown files link by the homepage
 await buildSite({ outDir: p("dist"), esbuild, sizes, chunks, version, site: (homepage || "").replace(/\/$/, "") });
 

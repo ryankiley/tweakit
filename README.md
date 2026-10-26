@@ -53,6 +53,10 @@ document.body.append(panel.el);
 panel.on((values) => { /* values.blur, values.tint, … */ });
 ```
 
+Panels can also come from `[data-tw]` markup, bound by `enhance()`. Importing `tweakit` binds
+nothing on its own; import `tweakit/auto` instead (the same API) to bind the page's markup once it
+has parsed.
+
 ### In React (or Vue, Svelte, Solid)
 
 The panel isn't a component: create it once in a mount effect, append `panel.el` to a ref, and

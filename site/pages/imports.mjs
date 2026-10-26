@@ -14,11 +14,14 @@ export const intro = `
   <tr><th>Entry</th><th>Size</th><th>Loading</th></tr>
   <tr><td><code>tweakit</code></td><td>{{size-split}} gzip</td><td>code-split; color engine and heavy controls dynamic-import on first use</td></tr>
   <tr><td><code>tweakit/single</code></td><td>{{size-single}} gzip</td><td>the single-file build; every control inlined, fully synchronous</td></tr>
+  <tr><td><code>tweakit/auto</code></td><td>{{size-split}} gzip</td><td>the code-split entry, plus <code>enhance(document)</code> once the page has parsed, for a page of <code>[data-tw]</code> markup</td></tr>
   <tr><td><code>tweakit/css</code></td><td>{{size-css}} gzip</td><td>the stylesheet, the same for both builds; add it to either figure for the full weight on the wire</td></tr>
 </table>
 <p>The default suits an app: users who never open a picker never download the color
 engine. Pick <code>/single</code> for one file you can drop in, or when you want every control
-built the moment <code>tweaks()</code> returns.</p>`;
+built the moment <code>tweaks()</code> returns. Only <code>tweakit/auto</code> and the
+stylesheet act on the page when imported, so a bundler drops an import of the kit that your
+production code never calls.</p>`;
 
 export const examples = [
   {
@@ -69,11 +72,12 @@ export const examples = [
   },
   {
     title: "The exports map",
-    prose: `<p>Everything the package ships, by import path. Types ride along with both
-      entries.</p>`,
+    prose: `<p>Everything the package ships, by import path. Types ride along with every
+      entry.</p>`,
     code: `
       import { tweaks, enhance, mountControl, createColorPicker, gradientCss, gradientStops } from "tweakit";          // code-split
       import { tweaks, enhance, mountControl, createColorPicker, gradientCss, gradientStops } from "tweakit/single";   // single-file build
+      import { tweaks, enhance, mountControl, createColorPicker, gradientCss, gradientStops } from "tweakit/auto";     // code-split, binds [data-tw] on load
       import "tweakit/css";                                                                                          // panel styles
 
       import type { Schema, Panel, PanelState, Theme, TweaksOptions, GradientValue, MotionValue, ShadowValue } from "tweakit";`,

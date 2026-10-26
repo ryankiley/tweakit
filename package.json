@@ -50,12 +50,23 @@
       "import": "./dist/tweaks/core.js",
       "default": "./dist/tweaks/core.js"
     },
+    "./auto": {
+      "types": "./dist/types/tweaks/core.d.ts",
+      "import": "./dist/tweaks/auto.js",
+      "default": "./dist/tweaks/auto.js"
+    },
     "./css": {
       "types": "./dist/tweaks.css.d.ts",
       "default": "./dist/tweaks.css"
     },
     "./package.json": "./package.json"
   },
+  "sideEffects": [
+    "./dist/tweaks.css",
+    "./dist/tweaks/auto.js",
+    "./dist/tweaks/*-*.js",
+    "./src/**"
+  ],
   "files": [
     "/AGENTS.md",
     "dist/tweaks",

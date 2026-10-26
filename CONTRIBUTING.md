@@ -30,9 +30,9 @@ for the build (esbuild, typescript) and the tests (jsdom, fake-indexeddb, and Pl
   first use). Five more modules are lazy chunks of the code-split build, so a basic panel
   never fetches them: `heavy.ts` (the numeric field, scrub and canvas helpers only the
   heavy controls use, plus the Number control), `markup.ts` (the `[data-tw]` parsers and
-  the binding behind `enhance()`; `enhance.ts` is core's side of it and the on-load
-  auto-run), `clip.ts` (a picked row's paste), `image-store.ts` (uploaded images in IndexedDB)
-  and `fold.ts` (the conditional row's fold).
+  the binding behind `enhance()`; `enhance.ts` is core's side of it, and `auto.ts`, the
+  `tweakit/auto` entry, its opt-in run on load), `clip.ts` (a picked row's paste),
+  `image-store.ts` (uploaded images in IndexedDB) and `fold.ts` (the conditional row's fold).
 - `src/wide-gamut.ts` — the OKLCH / wide-gamut color engine.
 - `src/tweaks.css` — panel styling, entirely on `--tw-*` custom properties.
 - `site/` — the docs/examples site and its zero-dependency generator.
@@ -44,6 +44,11 @@ A few things aren't obvious from the file tree and will trip you up otherwise:
 
 - **One source, two builds.** The same `src/` produces both the code-split chunks and the
   single inlined file via an esbuild `TW_SPLIT` define — don't fork logic per build.
+- **`sideEffects` in package.json** leaves out only the two entries, `dist/tweaks/core.js`
+  and `dist/tweaks.js`, so a bundler can drop an unused import of the kit. Every other file
+  counts as having effects, `src/` included: the build bundles `src/` under the same field, and
+  a side-effect-free `src/` drops single.ts's bare control imports. A new entry that acts on
+  import belongs in the list; `test/side-effects.test.mjs` checks it against `dist/`.
 - **Adding a control** = a type in `types.ts` (`SchemaObject`), a `registerControl`
   constructor, and (for a heavy control) a `LAZY_IMPORT` key + a static import in
   `single.ts`. A lazy control's verbose form passes through `metaFor` as given, so its
