@@ -1,5 +1,5 @@
 /* Wide-gamut engine — conversion round-trips across every space, reference
- * values, and the gamut machinery (toGamut / probe / chromaCeil). Pure maths,
+ * values, and the gamut machinery (toGamut / probe / chromaCeil). Pure math,
  * bundled straight from src/ (no DOM, no dist). */
 import test from "node:test";
 import assert from "node:assert/strict";
