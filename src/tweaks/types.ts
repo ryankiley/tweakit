@@ -313,7 +313,8 @@ export interface Panel<P = Params> {
   /** Resolves once any lazily-loaded controls have hydrated and, for a panel that persists an image control, its
    *  stored images have loaded (resolves immediately when there's neither). */
   ready: Promise<Panel<P>>;
-  /** Subscribe to changes; `last` is the changed key, the bare leaf (`blur`, not `shadow.blur`). */
+  /** Subscribe to changes; `last` is the changed control's dotted path (`size`, `card.size`), as `set()` and `changes()`
+   *  name it, or undefined when many changed at once (a restore, `reset()`, `fromJSON`, `setMany`). */
   on(fn: (params: P, last?: string) => void): () => void;
   /** Set a control's value programmatically. Nested controls take a dotted path
    *  ("folder.child", "tabs.page.child"); a bare key also reaches a nested control

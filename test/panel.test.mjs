@@ -67,7 +67,7 @@ test("on() hears changes with the changed key; reset() restores defaults", () =>
   let heard = null;
   p.on((params, last) => { heard = last; });
   p.set("folder.y", 9);
-  assert.equal(heard, "y");
+  assert.equal(heard, "folder.y", "the dotted path, as set() names it");
   assert.equal(p.params.folder.y, 9);
   p.reset();
   assert.equal(p.params.folder.y, 1);
@@ -210,7 +210,7 @@ test("setMany applies a batch across folders and notifies once", () => {
   assert.equal(p.params.b, 7);
   assert.equal(p.params.folder.c, 9);
   assert.equal(calls, 1);          // one notification for the whole batch, not one per key
-  assert.equal(lastKey, "c");      // on()'s last key is the final applied key
+  assert.equal(lastKey, undefined); // several changed at once: no one key is named, as after a restore
 });
 
 test("setMany skips reserved + no-op keys but applies the rest, still notifying once", () => {
@@ -943,5 +943,15 @@ test("a setMany() batch isolates a key it refuses", () => {
   try { p.setMany({ x: 5, bag: loop }); } finally { console.warn = warn; }
   assert.equal(p.params.x, 5); assert.equal(calls, 1, "the good key still notifies");
   assert.ok(warned.some((m) => m.includes('set("bag") ignored')));
+  p.destroy();
+});
+
+// on() reported the bare leaf, so size, card.size and btn.size all arrived as "size" and a listener couldn't tell them apart.
+test("on() names a nested control by its dotted path, from the control and from set()", () => {
+  const p = tweaks("Paths", { size: [1, 0, 10, 1], card: { size: [2, 0, 10, 1] }, btn: { size: [3, 0, 10, 1] } });
+  const seen = []; p.on((_, k) => seen.push(k));
+  p.set("size", 4); p.set("card.size", 5); p.set("btn.size", 6); p.setMany({ "card.size": 7 });
+  assert.deepEqual(seen, ["size", "card.size", "btn.size", "card.size"]);
+  assert.deepEqual(Object.keys(p.changes()), ["size", "card.size", "btn.size"], "the names changes() uses");
   p.destroy();
 });
