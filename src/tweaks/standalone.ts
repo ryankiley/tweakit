@@ -5,7 +5,7 @@ import { metaFor, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createControl } from "./controls/basic.js";
 import { addHintMarker } from "./feedback.js";
-import type { SchemaValue, KnownType, MountOptions, MountedControl, ColorPickerOptions, ColorPicker, ColorMode, Control , Get } from "./types.js";
+import type { SchemaValue, HeldValue, KnownType, MountOptions, MountedControl, ColorPickerOptions, ColorPicker, ColorMode, Control , Get } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { PickerBody, PickerOptions } from "./controls/color.js";
 
@@ -21,7 +21,7 @@ const whenLoaded = <H>(metas: Array<Pick<Meta, "type">>, build: () => void, hand
 };
 
 /** One control from a schema value, into `host`; a folder or tabs set is tweaks()'s to build. */
-export function mountControl<const V extends SchemaValue>(host: Element, value: V & KnownType<V>, opts?: MountOptions): MountedControl;
+export function mountControl<const V extends HeldValue>(host: Element, value: V & KnownType<V>, opts?: MountOptions): MountedControl;
 export function mountControl(host: Element, value: SchemaValue, opts: MountOptions = {}): MountedControl {
   const key = opts.key ?? "value";
   const meta = metaFor(key, value);

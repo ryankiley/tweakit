@@ -93,7 +93,11 @@ const derivedRange = (...vals: number[]) => {
 };
 // A console notice for a mistake. Its words live in the lazy heavy chunk (heavy.ts NOTICES), so a panel that makes none
 // never downloads them; it lands a moment later, which a console doesn't mind.
-const notice = (kind: string, ...args: unknown[]) => { import("./heavy.js").then((m) => m.notice(kind, args), () => {}); };
+// Once the heavy chunk is in (always on the single-file build), a notice prints at once, so code that reads the console
+// right after the set() that caused it sees it; before, it waits for the chunk.
+let says: ((kind: string, args: unknown[]) => void) | null = null;
+const sayNow = (f: typeof says) => { says = f; };
+const notice = (kind: string, ...args: unknown[]) => { if (says) says(kind, args); else import("./heavy.js").then((m) => m.notice(kind, args), () => {}); };
 // Normalize a slider-style range: an absent or non-finite bound derives from the values, an inverted pair swaps (with a
 // note, given the control's label), and only then does an absent or unusable step infer, so a NaN min can't hand it a NaN
 // span. Every range source funnels here.
@@ -567,7 +571,7 @@ const announce = (msg: string) => {
 
 export {
   titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
-  normalizeRange, notice, rangeStep, overlapsText,
+  normalizeRange, notice, sayNow, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,

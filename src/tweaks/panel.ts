@@ -10,7 +10,7 @@ import { ensureForMetas, scanTypes } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
-import type { Schema, TweaksOptions, Panel, Params, ParamsOf, KnownTypes, PanelState, Control } from "./types.js";
+import type { Schema, HeldSchema, TweaksOptions, Panel, Params, ParamsOf, KnownTypes, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { ClipCtx, Scope } from "./clip.js";
 import type { PanelEl } from "./shared.js";
@@ -34,7 +34,7 @@ let catchEl: HTMLTextAreaElement | null = null, onCatch: ((e: ClipboardEvent) =>
 
 /** Build a panel from `schema`; the shell and API exist synchronously, lazy controls fill in on `ready`.
  *  A schema written inline (or `as const`) types `params` from its shape. */
-export function tweaks<const S extends Schema>(name: string, schema: S & KnownTypes<S>, opts?: TweaksOptions): Panel<ParamsOf<S>>;
+export function tweaks<const S extends HeldSchema>(name: string, schema: S & KnownTypes<S>, opts?: TweaksOptions): Panel<ParamsOf<S>>;
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
   const metas = Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean);
   const params: Params = {};

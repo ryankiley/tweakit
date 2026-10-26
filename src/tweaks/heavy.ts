@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, TYPE_ALIASES, announce } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, TYPE_ALIASES, announce, sayNow } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -287,5 +287,6 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
   noControl: (key, group) => (group ? `set("${key}") ignored — it's a folder/tabs group; set its children instead` : `set("${key}") ignored — no control has that key`),
 };
 const notice = (kind: string, args: unknown[]) => { const say = NOTICES[kind]; if (say) console.warn(`[tweaks] ${say(...args)}`); };
+sayNow(notice);
 
 export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring, arrowStep, sayWhenKeysStop };

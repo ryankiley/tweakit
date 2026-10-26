@@ -43,13 +43,15 @@ const canvas2d = () => (c2dCache === undefined ? (c2dCache = document.createElem
 // `black` isn't mistaken for the "junk leaves fillStyle unchanged" echo.
 const COLOR_TOKEN = /^(#[0-9a-f]{3,8}|[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
 /** Is `str` one CSS color token and nothing more? The gate a gradient stop passes before it reaches a style sink. */
+// CSS's named colors, for a page with no canvas to ask: without them any word passed as a color.
+const NAMED = new Set("aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen transparent currentcolor".split(" "));
 export function isColor(str: string | null | undefined) {
   str = String(str == null ? "" : str).trim();
   if (!COLOR_TOKEN.test(str)) return false;
   if (HEX_RE.test(str)) return true;
   if (ENGINE_FN_RE.test(str)) return engineFn(str);
   if (SRGB_FN_RE.test(str)) return srgbFn(str) !== null;
-  const c2d = canvas2d(); if (!c2d) return true;
+  const c2d = canvas2d(); if (!c2d) return !str.includes("(") && NAMED.has(str.toLowerCase()); // no canvas (jsdom, a worker): only CSS's own names, so "junk" isn't read as black
   return ["#000", "#fff"].some((sentinel) => { c2d.fillStyle = sentinel; const before = c2d.fillStyle; c2d.fillStyle = str; return c2d.fillStyle !== before; });
 }
 // The sRGB-family functions by CSS Color 4's own grammar — modern and legacy syntax, `none`,
