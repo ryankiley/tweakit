@@ -30,7 +30,8 @@ type ControlCtor<M = Meta, C = Control> = (meta: M, onChange?: OnChange) => C;
 
 // ── helpers ──
 // A word starts at a camel hump or where a capital opens a lowercase word ("myURLParser" → "My URL Parser").
-const titleCase = (s: string) => s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim();
+// Lowercase then a run of capitals is a name written as meant ("sRGB", "macOS", not "S RGB"), kept whole.
+const titleCase = (s: string) => (/^[a-z]+[A-Z]{2,}$/.test(s) ? s : s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim());
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
 // Hex or any CSS color function: routes a schema string to the color control.
@@ -123,8 +124,9 @@ const defaultRange = (v: number): [number, number] => {
 const optValue = (o: Option) => (o == null ? undefined : typeof o === "object" ? o.value : o);
 // An object's readable form: its JSON, or String() when it can't be stringified (a cycle).
 const json = (v: unknown) => { try { return JSON.stringify(v); } catch { return String(v); } };
-// A { value } option with no label reads as its value's string; an object with neither, as its JSON.
-const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? titleCase(o) : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : json(o)) : String(o));
+// A string option shows as written ("px", "sRGB"): it's the author's text, not a key. A { value }
+// option with no label reads as its value's string; an object with neither, as its JSON.
+const optLabel = (o: Option) => (o == null ? "" : typeof o === "string" ? o : typeof o === "object" ? o.label ?? (o.value !== undefined ? String(o.value) : json(o)) : String(o));
 
 // The DOM factory, typed by tag like createElement (svgEl in heavy.ts is its SVG twin). A field it
 // makes is a setting, not a form: autofill and the password managers leave it alone.

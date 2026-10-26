@@ -69,7 +69,7 @@ panel.ready.then(() => apply(panel.params));
 | `{ x: 0, y: 10 }` | folder of controls | nested object |
 | `{ type: "…", … }` | that control, verbatim (next table) | per control |
 
-A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, or 0 in a range across zero, would fall between steps (`37` steps by 1, not 10, and `-45` reaches 0). Keys become labels, title-cased; `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
+A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, or 0 in a range across zero, would fall between steps (`37` steps by 1, not 10, and `-45` reaches 0). Keys become labels, humanised (`fontSize` reads "Font Size"); option strings show as written. `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
 
 In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and its shorthands' types, but widens list options to `string` and a verbose form's `type` to `string`, which leaves that value `any`; write it `as const` to keep them all, or `satisfies Schema` to keep the verbose forms.
 

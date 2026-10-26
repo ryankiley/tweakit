@@ -12,7 +12,7 @@ test("colored options get a swatch in the list and on the row; plain ones do not
   document.body.append(p.el); await p.ready;
   const sel = p.el.querySelector(".tw-select"), options = [...sel.querySelectorAll(".tw-select-option")];
   assert.deepEqual(options.map((o) => !!o.querySelector(".tw-option-swatch")), [true, true, false]);
-  assert.deepEqual(options.map((o) => o.textContent), ["Neutral 10", "Neutral 90", "Plain"], "labels are text, the swatch adds none");
+  assert.deepEqual(options.map((o) => o.textContent), ["Neutral 10", "Neutral 90", "plain"], "labels are text, the swatch adds none");
   assert.match(options[1].querySelector(".tw-option-swatch").style.background, /rgba?\(24,? 24,? 27,? ?\/? ?0\.8\)/);
   const rowSwatch = sel.querySelector(".tw-select-right .tw-option-swatch");
   assert.equal(rowSwatch.style.display, "", "the chosen option's swatch shows on the row"); assert.equal(sel.querySelector(".tw-select-value").textContent, "Neutral 90");
