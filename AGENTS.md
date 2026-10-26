@@ -71,7 +71,7 @@ panel.ready.then(() => apply(panel.params));
 
 A missing step is 0.01 for a range up to 1 (a written span under 0.0001: a hundredth of its decade), 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, the min, or 0 in a range across zero would fall between steps, and for the max too when that reaches it (`37` steps by 1, not 10, `[1.25, 0.25, 4]` by 0.01, and `-45` reaches 0); a negative's derived range steps like its positive twin (`-0.5` by 0.01). A `number` or `point` with no step fits its default (`0.5` steps by 0.1, a whole `number` by 1, `1/3` by 0.0001). Keys become labels, humanised (`fontSize` reads "Font Size"); option strings show as written. `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
 
-In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and its shorthands' types, but widens list options to `string` and a verbose form's `type` to `string`, which leaves that value `any`; write it `as const` to keep them all, or `satisfies Schema` to keep the verbose forms. A `type` that names no control (`{ type: "slidr" }`) is a compile error where it's written, as it is in `mountControl()`.
+In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and its shorthands' types, but widens list options to `string` and a verbose form's `type` to `string`, which leaves that value `any`; write it `as const` to keep them all, or `satisfies Schema` to keep the verbose forms. A `type` that names no control (`{ type: "slidr" }`) is a compile error where it's written, in `mountControl()` too.
 
 ## Every control, as `{ type, … }`, and what it returns
 
@@ -82,7 +82,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `slider` | `value, min, max, step, unit, soft, format, parse` | number |
 | `number` | `value, min, max, step, unit, soft` | number |
 | `interval` | `value: [lo, hi], min, max, step` | `[lo, hi]` |
-| `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`, whose unit is used when `unit` isn't given), `unit, step, min, max, corners`; the four floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
+| `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`, whose unit is used when `unit` isn't given), `unit, step, min, max, corners`; only corners floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
 | `point` | `components: [{ key, label, value, min, max, step }]`, or `value: { x: 0, y: 10 }` alone, which names them; `pad, invertY` | an object keyed by component, such as `{ x, y }` |
 | `checkbox` | `value`; `type: "toggle"` or `"switch"` names it too | boolean |
 | `text` | `value, rows, placeholder` | string |
