@@ -1,4 +1,4 @@
-/* Wide-gamut colour engine and mode model for the OKLCH colour picker: CSS Color 4
+/* Wide-gamut color engine and mode model for the OKLCH color picker: CSS Color 4
  * conversions hubbed through CIE XYZ, gamut mapping, and the channel/mode tables. */
 import type { ColorMode, GradientInterpolation } from "./tweaks/types.js";
 
@@ -144,7 +144,7 @@ const deltaEOK = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2]
 export function toGamut(oklch: Vec3, dest: Gamut): Vec3 {
   if (inGamut(oklch, dest)) return convert(oklch, "oklch", dest);
   const L = oklch[0]; if (L >= 1) return [1, 1, 1]; if (L <= 0) return [0, 0, 0];
-  // An unbounded chroma can't be bisected; fall to the achromatic colour at this lightness.
+  // An unbounded chroma can't be bisected; fall to the achromatic color at this lightness.
   if (!Number.isFinite(oklch[1])) return clip(convert([L, 0, num(oklch[2])], "oklch", dest));
   const JND = 0.02, EPS = 0.0001; const cur: Vec3 = [oklch[0], oklch[1], oklch[2]];
   let min = 0, max = oklch[1], minIn = true, clipped = clip(convert(cur, "oklch", dest));
@@ -236,7 +236,7 @@ export const MODE_CHANNELS: Partial<Record<ColorMode, readonly Channel[]>> = {
 const digitsFor = (step: number) => (step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3);
 
 // Display coords for `mode` from canonical OKLCH. sRGB-bound modes read off the same
-// chroma-reduced sRGB hex uses, so every narrow-gamut mode agrees on the colour.
+// chroma-reduced sRGB hex uses, so every narrow-gamut mode agrees on the color.
 const modeCoords = (oklch: Vec3, sid: Space, mode: ColorMode): Vec3 =>
   sid === "oklch" ? [oklch[0], oklch[1], oklch[2]]
   : SRGB_BOUND.includes(mode) ? (sid === "srgb" ? toGamut(oklch, "srgb") : convert(toGamut(oklch, "srgb"), "srgb", sid))

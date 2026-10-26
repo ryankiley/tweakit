@@ -118,7 +118,7 @@ test("a destroyed panel says nothing when its chunk later fails", async () => {
   } finally { console.warn = warn; console.error = err; await rm(dir, { recursive: true, force: true }); }
 });
 
-// A colour value: a chunk nothing above has loaded.
+// A color value: a chunk nothing above has loaded.
 test("a listener that destroys the panel on the persisted restore leaves no listener behind", async () => {
   localStorage.clear(); localStorage.setItem("tw:rf-d", JSON.stringify({ x: 4 }));
   const counts = { add: 0, remove: 0 };

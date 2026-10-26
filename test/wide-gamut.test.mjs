@@ -45,7 +45,7 @@ test("toGamut maps out-of-gamut chroma into the destination range", () => {
   assert.ok(rgb.every((c) => c >= 0 && c <= 1), `got ${rgb}`);
 });
 
-test("chromaCeil agrees with a known boundary colour", () => {
+test("chromaCeil agrees with a known boundary color", () => {
   // sRGB red sits ON the sRGB gamut boundary: its chroma is the ceiling at its L/H.
   const probe = oklchGamutProbe(29.234, "srgb");
   assert.ok(close(chromaCeil(probe, 0.62796), 0.25768, 0.01));
@@ -68,7 +68,7 @@ test("serialize stays in-mode for opaque and translucent alike", () => {
   assert.equal(serialize(c, "hex", 0.5).length, 9);               // #rrggbbaa
 });
 
-test("narrow-gamut modes agree with hex on an out-of-gamut colour (chroma-reduce, not per-channel clip)", () => {
+test("narrow-gamut modes agree with hex on an out-of-gamut color (chroma-reduce, not per-channel clip)", () => {
   const oog = [0.7, 0.4, 150]; // far outside sRGB
   const rgb = channelValues(oog, "srgb").map((v) => Math.round(v));
   const hex = oklchToHex(oog[0], oog[1], oog[2]);

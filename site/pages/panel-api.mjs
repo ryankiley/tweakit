@@ -108,7 +108,7 @@ export const examples = [
       the second light takes the first's look.</p>
       <p>A paste goes through <code>fromJSON</code>, so it's one undo step, saved and
       announced like any load, and the band flashes as it lands. A value only lands where it
-      fits, the same type as the control holds (a colour for a colour, one of a list's
+      fits, the same type as the control holds (a color for a color, one of a list's
       options); if nothing fits, the band flashes red and nothing changes. With nothing
       picked, the keys act on the row holding focus; Escape or a press elsewhere drops the
       pick, and in a text field or over selected text the keys stay the browser's.</p>`,

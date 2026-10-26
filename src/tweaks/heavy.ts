@@ -11,7 +11,7 @@ const svgEl = <K extends keyof SVGElementTagNameMap>(tag: K, cls?: string): Buil
 const cssVar = (node: Element, name: string) => getComputedStyle(node).getPropertyValue(name).trim();
 // One getComputedStyle for both reads — this runs in the FPS draw loop.
 const accentColor = (node: Element) => { const r = getComputedStyle(node); const v = (n: string) => r.getPropertyValue(n).trim(); return v("--tw-accent") || v("--tw-text-primary") || "#fff"; };
-// Select the whole value on focus (the hex field: you type a new colour, never edit a digit).
+// Select the whole value on focus (the hex field: you type a new color, never edit a digit).
 // Browsers collapse a focus-time selection on the click's own mouseup, so the first primary
 // mouseup after a pointer-initiated focus is swallowed while the whole value is still selected.
 const selectAllOnFocus = (input: HTMLInputElement) => {
@@ -50,7 +50,7 @@ const fitCanvas = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, max
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return [r.width, r.height];
 };
-// The modal-trigger row (colour, gradient, point): a row button, label left, a preview cluster (`right`) the caller fills.
+// The modal-trigger row (color, gradient, point): a row button, label left, a preview cluster (`right`) the caller fills.
 const triggerRow = (cls: string, label: string) => {
   const root = el("div", cls);
   const trigger = btn("tw-trigger"); trigger.setAttribute("aria-expanded", "false");

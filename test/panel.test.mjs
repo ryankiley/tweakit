@@ -118,7 +118,7 @@ test("destroy() releases a monitor's poll even on a panel that never mounted", a
   p.el.remove();
 });
 
-test("a hostile colour string is skipped, not thrown, and the rest of a restore still lands", () => {
+test("a hostile color string is skipped, not thrown, and the rest of a restore still lands", () => {
   // Regression, two halves: `color(constructor …)` resolved its space off Object.prototype
   // — truthy, so it slipped past the unknown-space guard and reached the conversion maths
   // as a non-space, throwing a TypeError out of set(); and applySnapshot ran its entries
@@ -127,7 +127,7 @@ test("a hostile colour string is skipped, not thrown, and the rest of a restore 
   p.set("c", "color(constructor 1 0 0)");       // must not throw…
   p.set("c", "color(__proto__ 1 0 0)");         // …nor this: an unknown color() space
   const neutral = p.params.c;                   // degrades to the picker's neutral default, like any other unsupported space
-  assert.match(String(neutral), /^oklch\(/, "an unrecognised space degrades to a real colour");
+  assert.match(String(neutral), /^oklch\(/, "an unrecognised space degrades to a real color");
 
   let calls = 0;
   p.on(() => calls++);
@@ -441,7 +441,7 @@ test("a keyboard step during a snap slider's settle doesn't leave it lit", async
   p.destroy();
 });
 
-test("a colour control given no value resets to the colour it opened on, not black", () => {
+test("a color control given no value resets to the color it opened on, not black", () => {
   // Regression: `{ type: "color" }` built on the picker's default, but its meta carried
   // value: undefined, so reset() handed the control undefined — which parsed as black.
   const p = tweaks("Col", { c: { type: "color" } });
@@ -475,7 +475,7 @@ test("reset() restores the value a control opened on, not the raw schema value i
   p.destroy();
 });
 
-test("reset() re-parses the authored colour exactly, whatever mode the picker is in", () => {
+test("reset() re-parses the authored color exactly, whatever mode the picker is in", () => {
   // Regression: the default was the opened form alone — the readout's rounded string
   // ("oklch(87% 0.29 142)"), which re-parses a step off the authored #00ff00.
   const p = tweaks("Cx", { c: "#00ff00" });
@@ -636,7 +636,7 @@ test("a control holding undefined serialises as null, so undo/redo and the copy 
   p.destroy();
 });
 
-test("a click into the colour picker's hex field selects the whole value", () => {
+test("a click into the color picker's hex field selects the whole value", () => {
   const p = tweaks("Hex", { c: "#ff0000" });
   document.body.append(p.el);
   const mode = p.el.querySelector(".tw-color-mode");
@@ -818,7 +818,7 @@ test("an onReset that calls panel.reset() performs the default reset instead of 
 
 test("destroy() closes its own popover and hint, not another panel's", async () => {
   // Regression: popovers are globally single-open and destroy() closed whichever was up —
-  // tearing down panel A dismissed the presets menu (or colour picker) open on panel B.
+  // tearing down panel A dismissed the presets menu (or color picker) open on panel B.
   const a = tweaks("A", { a: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "a hint" } }, { persist: "t-popover-a" });
   const b = tweaks("B", { b: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "b hint" } }, { persist: "t-popover-b" });
   document.body.append(a.el, b.el);

@@ -2,7 +2,7 @@
  * kept in one module so the licence notice below covers them all. */
 // ── Icons for the toolbar ──
 // Adapted from Hugeicons' free set (MIT; per-icon origins in ../../THIRD-PARTY-NOTICES.md), path
-// data compacted. The icon colour is translucent, so strokes that cross double-composite into a
+// data compacted. The icon color is translucent, so strokes that cross double-composite into a
 // bright hotspot: each icon is one path. Copy and presets keep separate parts so the hover can
 // move them (tweaks.css), drawn to abut rather than overlap.
 import { icon } from "./shared.js";

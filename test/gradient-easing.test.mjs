@@ -77,7 +77,7 @@ test("set() applies an easing it names and leaves one it doesn't; reset returns 
   assert.equal(easeSel(p).value, "linear");
 });
 
-test("a stop added to an eased ramp samples the eased colour, so it lands on the ramp the bar draws", () => {
+test("a stop added to an eased ramp samples the eased color, so it lands on the ramp the bar draws", () => {
   // Black → white, ease-in-out: at 25% the eased ramp is well below the straight blend's 25% grey.
   const lin = tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "#000000", pos: 0 }, { color: "#ffffff", pos: 1 }] } } });
   const eas = tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "#000000", pos: 0 }, { color: "#ffffff", pos: 1 }], easing: "ease-in-out" } } });

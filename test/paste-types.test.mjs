@@ -18,7 +18,7 @@ const all = (b) => ({
   list: { type: "list", value: b ? "c" : "a", options: ["a", "b", "c"] },
   text: b ? "bye" : "hello",
   multiline: { type: "text", value: b ? "x\ny" : "one\ntwo", rows: 3 },
-  colour: b ? "#00ff00" : "#7c5cff",
+  color: b ? "#00ff00" : "#7c5cff",
   gradient: { type: "gradient", value: b ? [["#ff0000", 0], ["#0000ff", 1]] : [["#000000", 0], ["#ffffff", 1]] },
   image: { type: "image", value: b ? "https://example.test/b.png" : "https://example.test/a.png" },
   pad: { type: "point", pad: true, components: [{ key: "x", value: b ? 0.5 : 0, min: -1, max: 1 }, { key: "y", value: b ? -0.5 : 0, min: -1, max: 1 }] },
@@ -97,10 +97,10 @@ test("a value pasted onto a row of another type is refused and moves nothing", a
     }
   }
   // A value crosses only to a row holding the same kind of value (a number to a number, a string to a free string, an
-  // object carrying every key the target holds); never into a colour or gradient, nor onto a row with fixed options from
+  // object carrying every key the target holds); never into a color or gradient, nor onto a row with fixed options from
   // anything but another option.
-  const kind = (v) => (Array.isArray(v) ? "array" : typeof v), COLOURED = new Set(["colour", "gradient"]), OPTIONED = new Set(["segmented", "radiogrid", "list"]);
-  const unexpected = landed.map((l) => l.split(" → ")).filter(([f, t]) => kind(p.params.A[f]) !== kind(p.params.B[t]) || COLOURED.has(t) || (OPTIONED.has(t) && !OPTIONED.has(f)));
+  const kind = (v) => (Array.isArray(v) ? "array" : typeof v), COLORED = new Set(["color", "gradient"]), OPTIONED = new Set(["segmented", "radiogrid", "list"]);
+  const unexpected = landed.map((l) => l.split(" → ")).filter(([f, t]) => kind(p.params.A[f]) !== kind(p.params.B[t]) || COLORED.has(t) || (OPTIONED.has(t) && !OPTIONED.has(f)));
   assert.deepEqual(unexpected, [], `crossings that broke the rule, of ${landed.length} that landed: ${landed.join(", ")}`);
   assert.ok(refused > 300, `refused ${refused} of ${KEYS.length * (KEYS.length - 1)} cross-type pastes`);
   p.destroy();

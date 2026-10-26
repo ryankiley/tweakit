@@ -1,7 +1,7 @@
-/* Colour parsing by the engine's own maths, not through a canvas: a canvas echoes 8-bit
+/* Color parsing by the engine's own maths, not through a canvas: a canvas echoes 8-bit
  * `#rrggbb`, which moved a near-grey hwb's hue a whole degree on every round trip
  * (hwb(210 10% 77%) came back as 211 — the stress harness's seed 155). And the stop gate
- * (isColor) holds every colour function to CSS Color 4's grammar, not a shape: hsl/hwb
+ * (isColor) holds every color function to CSS Color 4's grammar, not a shape: hsl/hwb
  * readouts are fixed points at greys and at hue 360, infinities clamp to the slot, `none`
  * is a case-insensitive keyword, and an invalid stop never reaches a gradient. */
 import test from "node:test";
@@ -10,7 +10,7 @@ import "./_setup-dom.mjs";
 import { bundle } from "./_bundle.mjs";
 import { loadSingle, near } from "./_helpers.mjs";
 
-const { parseColor, isColor } = await bundle("src/tweaks/controls/colour.ts");
+const { parseColor, isColor } = await bundle("src/tweaks/controls/color.ts");
 const { convert, serialize } = await bundle("src/wide-gamut.ts");
 const { tweaks } = await loadSingle();
 const oklch = (c, space) => { const k = convert(c, space, "oklch"); return [k[0], k[1], ((k[2] % 360) + 360) % 360]; };
@@ -45,7 +45,7 @@ test("isColor accepts the sRGB functions without asking a canvas", () => {
   for (const s of ["rgb(1 2 3) url(x)", "hsl(", "rgb(1 2 (3))"]) assert.ok(!isColor(s), s);
 });
 
-// ── The stop gate: CSS's grammar for every colour function, like the sRGB family ──
+// ── The stop gate: CSS's grammar for every color function, like the sRGB family ──
 test("the stop gate follows CSS's grammar: shape alone no longer passes", () => {
   for (const s of ["rgb(a b c)", "rgb(1 2)", "rgb(1 2 3 4 5)", "hwb(120, 0%, 0%)", "rgb(255, 0%, 0)", "rgb(255, none, 0)", "hsl(120, 100, 50)", "hsl(50% 100% 50%)", "rgb(255 0 0 0.5)", "rgb(255, 0, 0 / 0.5)", "rgb(255,0,0,)", "rgb(255 0 0 /)", "rgb(255 0 0 / 0.5 / 0.2)", "rgb(255 0 0 / 50 %)", "rgb(1\u00a02 3)"]) assert.ok(!isColor(s), `refused: ${s}`);
   for (const s of ["rgb(255 0 0 / none)", "RGB(1 2 3)", "hsla(120deg, 100%, 50%, 0.5)", "hwb(120 0% 0%)", "rgb(100%, 0%, 0%)", "hsl(120 100 50)", "rgb(1e2 0 0)", "rgb( 1 , 2 , 3 )", "rgb(1\t2\n3)"]) assert.ok(isColor(s), `accepted: ${s}`);

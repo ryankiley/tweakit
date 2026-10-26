@@ -2,7 +2,7 @@
  * surface, and the markup path's change channel — a [data-tw] host dispatches tw:change
  * (and writes data-value) on an edit, on its handle's set(), and on the toolbar reset;
  * enhance(el) enhances el itself. Runs against the built single-file bundle, plus the
- * code-split core for the lazy window (the picker must load the colour chunk first). */
+ * code-split core for the lazy window (the picker must load the color chunk first). */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
@@ -36,7 +36,7 @@ test("mountControl takes the verbose forms too, honors label, and refuses a fold
   const host = document.createElement("div");
   const h = mountControl(host, { type: "color", value: "#ff0000" }, { label: "" });
   await h.ready;
-  assert.ok(host.querySelector(".tw-color"), "a verbose colour value builds the colour control");
+  assert.ok(host.querySelector(".tw-color"), "a verbose color value builds the color control");
   assert.equal(host.querySelector(".tw-trigger-label").textContent, "", 'label: "" shows no label');
   assert.throws(() => mountControl(host, { a: 1, b: 2 }), /not a single-control/);
   h.destroy();
@@ -62,7 +62,7 @@ test("createColorPicker hands out the editor surface alone; set()/get() round-tr
   assert.ok(!p.el.isConnected);
 });
 
-test("on the code-split build the picker loads the colour chunk first; set() in the lazy window applies on ready", async () => {
+test("on the code-split build the picker loads the color chunk first; set() in the lazy window applies on ready", async () => {
   const seen = [];
   const p = split.createColorPicker({ value: "#ff0000", mode: "hex", onChange: (v) => seen.push(v) });
   document.body.append(p.el);

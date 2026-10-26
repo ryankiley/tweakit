@@ -1,5 +1,5 @@
 /* Standalone controls — the kit's controls without the panel: mountControl() builds one control
- * into a host of your own, createColorPicker() hands out the colour editor surface alone. */
+ * into a host of your own, createColorPicker() hands out the color editor surface alone. */
 import { el, getControl, onReady, setDisabled } from "./shared.js";
 import { metaFor, valueChanged, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
@@ -7,7 +7,7 @@ import { createControl } from "./controls/basic.js";
 import { addHintMarker } from "./feedback.js";
 import type { SchemaValue, MountOptions, MountedControl, ColorPickerOptions, ColorPicker, ColorMode, Control , Get } from "./types.js";
 import type { Meta } from "./schema.js";
-import type { PickerBody, PickerOptions } from "./controls/colour.js";
+import type { PickerBody, PickerOptions } from "./controls/color.js";
 
 // Outside a .tw-panel the cascade delivers none of the kit's tokens, so the wrapper carries .tw-portal.
 const scope = (cls: string) => el("div", `${cls} tw-standalone tw-portal`);
@@ -57,14 +57,14 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
   return handle;
 }
 
-/** The colour editor surface alone, for a host page that brings its own swatch. */
+/** The color editor surface alone, for a host page that brings its own swatch. */
 export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
   const root = scope("tw-color-picker");
   let body: PickerBody | null = null, destroyed = false, last = opts.value, parked: string, queued = false, parkedMode: ColorMode = null;
   const emit = (v: string) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v); };
   const build = () => {
     if (destroyed) return;
-    const make = getControl<PickerBody, PickerOptions>("colorpicker"); // registered by the colour module beside its control
+    const make = getControl<PickerBody, PickerOptions>("colorpicker"); // registered by the color module beside its control
     if (!make) return;
     body = make({ value: opts.value, mode: opts.mode }, emit);
     last = body.get();
