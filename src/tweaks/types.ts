@@ -313,6 +313,11 @@ export interface TweaksOptions {
 /** The live values bag, loosely typed — `params[key]` for each control. A schema literal passed
  *  to `tweaks()` gets its exact shape instead (`ParamsOf`). */
 export type Params = Record<string, any>;
+/** The keys `set()` and `setMany()` take: a typed panel's controls by dotted path (`size`, `card.size`), so a typo is a
+ *  compile error; any string for a panel built from a plain `Schema`. An object-valued control's own fields read as
+ *  paths too (`drop.blur`): the types can't tell its value from a folder, so they allow what the runtime refuses. */
+export type PanelPath<P> = string extends keyof P ? string
+  : { [K in keyof P & string]: K | (P[K] extends readonly unknown[] ? never : P[K] extends object ? `${K}.${PanelPath<P[K]>}` : never) }[keyof P & string];
 
 /** The whole-panel state `toJSON()` returns / `fromJSON()` accepts: every control value
  *  (nested to mirror folders/tabs) plus UI state — which folders are collapsed and which
@@ -351,12 +356,12 @@ export interface Panel<P = Params> {
   /** Set a control's value programmatically. Nested controls take a dotted path
    *  ("folder.child", "tabs.page.child"); a bare key also reaches a nested control
    *  when it's unambiguous. A key matching no control is stored on `params` as-is. */
-  set(key: string, value: unknown, options?: SetOptions): void;
+  set(key: PanelPath<P>, value: unknown, options?: SetOptions): void;
   /** Set several controls at once — a flat map of keys (dotted for nested controls), e.g.
    *  `setMany({ "shadow.radius": 28, blur: 48 })`. Resolves each key like `set()`, then fires
    *  listeners + persists ONCE for the whole batch, where N separate `set()` calls would fire
    *  N times. Unknown / ambiguous / reserved keys warn and are skipped. */
-  setMany(values: Record<string, unknown>, options?: SetOptions): void;
+  setMany(values: { readonly [K in PanelPath<P>]?: unknown }, options?: SetOptions): void;
   /** Reset every control to its default (or run `opts.onReset`). */
   reset(): void;
   /** Serialize the whole panel — every control value plus UI state (collapsed folders,
