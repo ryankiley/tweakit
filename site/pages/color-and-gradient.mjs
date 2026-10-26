@@ -118,8 +118,9 @@ export const examples = [
       down to it first (<code>fit</code>, in px, or <code>false</code> to keep uploads as they are),
       and one over 1.5 MB is redrawn at its size, so a phone photo can't fill storage. A JPEG stays a JPEG at <code>quality</code> 0.85;
       anything else stays a PNG when that comes to 1.5 MB or less, as a screenshot does, so its
-      text isn't smudged, and past that is a JPEG, or a WebP when it has transparency. A GIF or
-      an SVG is kept as it is. <code>upload: false</code> leaves only the tiles,
+      text isn't smudged, and past that is a JPEG, or a WebP when it has transparency. The redraw keeps
+      Display P3 where the browser can. A GIF, an SVG, or an animated PNG or WebP is kept as it is, and a JPEG or PNG kept as it
+      is loses its Exif and XMP, GPS included, so a photo's location doesn't ride into a save or a paste. <code>upload: false</code> leaves only the tiles,
       <code>clear: false</code> leaves out Clear for a choice that must keep a value, and
       <code>cols</code> sets the tiles per row, up to 6.</p>`,
     target: `<div class="img-tile"><span>Pick a texture, or drop one on the control →</span></div>`,
