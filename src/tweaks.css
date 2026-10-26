@@ -226,7 +226,7 @@
  * on the chips and handles. :focus-visible matches a clicked text field too, so
  * quietFocus (shared.ts) marks pointer-origin focus with .tw-focus-quiet. */
 .tw-trigger:focus-visible, .tw-select-trigger:focus-visible, .tw-button:focus-visible,
-.tw-seg-btn:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
+.tw-seg-btn:focus-visible, .tw-seg[role="switch"]:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
 .tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
 .tw-image-clear:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),

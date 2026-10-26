@@ -239,7 +239,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
 function createToggle(meta: Meta, onChange: OnChange): Control {
   const row = el("div", "tw-row");
   // The segmented control IS the state; this maps boolean ↔ "on"/"off" at the rim.
-  const seg = createSegmented([{ value: "off", label: "Off" }, { value: "on", label: "On" }], meta.value ? "on" : "off", (v) => onChange(v === "on"), meta.label);
+  const seg = createSegmented([{ value: "off", label: "Off" }, { value: "on", label: "On" }], meta.value ? "on" : "off", (v) => onChange(v === "on"), meta.label, "on");
   row.append(txt("span", "tw-row-label", meta.label), seg.el);
   return { el: row, set: (v: unknown) => seg.set(v ? "on" : "off"), get: () => seg.get() === "on" };
 }
