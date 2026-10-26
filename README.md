@@ -16,7 +16,9 @@ npm install tweakit
 ```
 
 tweakit is an ES module only. In a CommonJS project, set `"type": "module"` in package.json, or load it
-with `await import("tweakit")`; TypeScript under `moduleResolution: node16` needs the same.
+with `await import("tweakit")`; TypeScript under `moduleResolution: node16` needs the same. There, a `.cts` file
+imports the types as `import type { Schema } from "tweakit" with { "resolution-mode": "import" }` (TS1541 without it;
+`nodenext` on current TypeScript does without it).
 
 ## Use
 

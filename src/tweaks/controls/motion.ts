@@ -1,7 +1,7 @@
 // ── Motion — a transition's timing: an easing curve with a duration, or a spring, in one popover over one value. The
 // value carries the CSS it resolves to — `duration` in ms and an `easing` string, cubic-bezier() or a sampled linear(). Lazy. ──
 import { el, txt, clamp, isObj, createSegmented, getControl, popover, registerControl, REDUCE_MOTION } from "../shared.js";
-import { numField, triggerRow, svgEl, springCurve, springRun, timeFromSpring } from "../heavy.js";
+import { numField, triggerRow, svgEl, springCurve, springRun, timeFromSpring, notice, SPRING_DUR } from "../heavy.js";
 import { KEYWORDS } from "../easing.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -28,6 +28,15 @@ const springTime = (v: MotionInput) => {
   if (has(v.bounce)) out.bounce = clamp(+v.bounce!, -1, BOUNCE_MAX);
   return out;
 };
+// A stiffness and damping the host wrote, kept as written rather than resolved through the editor's time pair, which
+// rounds and clamps: unless a time pair rides along that isn't the one they resolve to (this control's own value back).
+const exactSpring = (v: MotionInput): SpringOut | null => {
+  if (!has(v.stiffness) || !has(v.damping)) return null;
+  const k = +v.stiffness!, d = +v.damping!, m = has(v.mass) ? +v.mass! : 1;
+  if (!(k > 0 && d >= 0 && m > 0)) return null;
+  const t = timeFromSpring(k, d, m), off = (a: unknown, b: number) => has(a) && Math.abs(+a! - b) > 1e-6 * Math.max(1, Math.abs(b));
+  return off(v.visualDuration, t.visualDuration) || off(v.bounce, t.bounce) ? null : { stiffness: k, damping: d, mass: m, ...t };
+};
 const modeOf = (v: MotionInput, keep: Mode): Mode => (v.mode === "spring" || v.mode === "easing" ? v.mode : springKeys(v) ? "spring" : curveOf(v.curve) ? "easing" : keep); // a curve that doesn't parse is no reason to switch
 
 function createMotion(meta: Meta, onChange: OnChange): Control {
@@ -49,7 +58,18 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const pop = el("div", "tw-color-pop tw-motion-pop"), body = el("div", "tw-motion-body"); pop.append(body);
   const bezier = Bezier({ ...meta, type: "cubicbezier", label: "", value: curve.slice() } as Meta, (v) => { curve = v as Curve; update(); emit(); });
   curve = bezier.get() as Curve; // as the editor fitted it, so no invalid cubic-bezier()
-  const spring = Spring({ ...meta, type: "spring", label: "", value: springTime(init) } as Meta, () => { update(); emit(); }); // time mode only; its Mode row is hidden (tweaks.css)
+  // Host-written physics the editor can't draw exactly: it shows the nearest, clamped here so it doesn't warn as well.
+  let exact: SpringOut | null = null, said = false;
+  const editorTime = (inp: MotionInput) => {
+    exact = exactSpring(inp);
+    if (!exact) return springTime(inp);
+    const vd = clamp(exact.visualDuration!, SPRING_DUR[0], SPRING_DUR[1]), z = exact.damping / (2 * Math.sqrt(exact.stiffness * exact.mass));
+    if ((vd !== exact.visualDuration || z < 0.05 || z > 20) && !said) { said = true; notice("springKept", [meta.key, exact.stiffness, exact.damping, exact.mass]); }
+    return { mode: "time" as const, visualDuration: vd, bounce: exact.bounce };
+  };
+  // Time mode only; its Mode row is hidden (tweaks.css). An edit there drops the kept physics.
+  const spring = Spring({ ...meta, type: "spring", label: "", value: editorTime(init) } as Meta, () => { exact = null; update(); emit(); });
+  const springNow = () => exact ?? (spring.get() as SpringOut);
   const durFld = numField({ label: "Duration", value: dur, step: 10, min: 0, max: DUR_MAX, unit: "ms" }, (v) => { dur = clamp(v, 0, DUR_MAX); update(); emit(); });
   dur = durFld.get(); // as the field snapped it
   const easingPane = el("div", "tw-motion-pane"), springPane = el("div", "tw-motion-pane"), durRow = el("div", "tw-fields");
@@ -63,7 +83,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const value = (): MotionValue => {
     if (mode === "easing") return { mode, curve: curve.slice() as Curve, duration: dur, easing: `cubic-bezier(${curve.join(", ")})` };
     // The run lasts until the spring is at rest (the drawn curve stops at 2.2 s): springRun.
-    const s = spring.get() as SpringOut;
+    const s = springNow();
     return { mode, ...s, ...springRun(s.stiffness, s.damping, s.mass) };
   };
   const emit = () => onChange(value());
@@ -90,7 +110,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const curvePath = () => {
     let pts: [number, number][];
     if (mode === "easing") { const [x1, y1, x2, y2] = curve; pts = []; for (let i = 0; i <= 24; i++) { const t = i / 24, u = 1 - t, a = 3 * u * u * t, b = 3 * u * t * t, c = t * t * t; pts.push([a * x1 + b * x2 + c, a * y1 + b * y2 + c]); } }
-    else { const s = spring.get() as SpringOut; pts = springCurve(s.stiffness, s.damping, s.mass, 32).map((y, i) => [i / 31, y]); }
+    else { const s = springNow(); pts = springCurve(s.stiffness, s.damping, s.mass, 32).map((y, i) => [i / 31, y]); }
     const hi = Math.max(1, ...pts.map((p) => p[1])), lo = Math.min(0, ...pts.map((p) => p[1]));
     return pts.map(([x, y], i) => `${i ? "L" : "M"}${(10 + x * 80).toFixed(1)},${(90 - ((y - lo) / (hi - lo)) * 80).toFixed(1)}`).join(" ");
   };
@@ -99,7 +119,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const resync = () => { if (mode === "easing") bezier.set(curve.slice()); else spring.set(spring.get()); };
   const showMode = () => { easingPane.style.display = mode === "easing" ? "" : "none"; springPane.style.display = mode === "spring" ? "" : "none"; resync(); };
   // The summary shows the authored duration; a spring's emitted run (its settle) is longer.
-  const summary = () => (mode === "easing" ? `Easing · ${dur} ms` : `Spring · ${Math.round(((spring.get() as SpringOut).visualDuration ?? 0) * 1000)} ms`);
+  const summary = () => (mode === "easing" ? `Easing · ${dur} ms` : `Spring · ${Math.round((springNow().visualDuration ?? 0) * 1000)} ms`);
   const update = () => { chipPath.setAttribute("d", curvePath()); valueEl.textContent = summary(); replay(false); };
 
   popover(root, trigger, pop, { fallbackH: 380, onOpen: () => { modeSeg.set(mode); resync(); replay(true); }, initialFocus: () => modeSeg.el.querySelector<HTMLElement>('[tabindex="0"]') }); // hidden until open: measure now; focus the checked option
@@ -112,7 +132,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
     mode = modeOf(inp, mode);
     const c = curveOf(inp.curve); if (c) { bezier.set(c.slice()); curve = bezier.get() as Curve; } // read back fitted
     if (mode === "easing" && has(inp.duration)) { durFld.set(clamp(+inp.duration!, 0, DUR_MAX)); dur = durFld.get(); } // read back snapped
-    if (springKeys(inp)) spring.set(springTime(inp));
+    if (springKeys(inp)) spring.set(editorTime(inp));
     modeSeg.set(mode); showMode(); update();
   };
   return { el: root, set, get: value, destroy: () => spring.destroy && spring.destroy() };

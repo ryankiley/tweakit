@@ -51,9 +51,25 @@ test("a number before a name or a parenthesis multiplies; names never split", ()
   assert.equal(ev("1/2x", 4), 2);    // left to right, as with *
   assert.equal(ev("2e3x", 1), 2000); // the exponent stays part of the number
   assert.equal(parseExpr("xy"), 'unknown name "xy"');
-  assert.equal(parseExpr("x(2)"), 'unknown function "x"');
-  assert.equal(compileExpr("(x)2"), null); // only a number implies the product
+  assert.equal(ev("x(2)", 3), 6); // x is never a function, so this is a product
+  assert.equal(parseExpr("y(2)"), 'unknown function "y"');
+  assert.equal(compileExpr("(x)2"), null); // a number after an operand asks for an operator
   assert.equal(compileExpr("2 3"), null);
+});
+
+// These read only "not a valid expression", against the parser's promise to say why, and 3x(x) as an unknown function x.
+test("x, a constant or a closing parenthesis before a name or \"(\" multiplies too, and what's left says why", () => {
+  const x = 1.7;
+  for (const [s, want] of [["pi x", Math.PI * x], ["e x", Math.E * x], ["2 pi x", 2 * Math.PI * x], ["(x)(x)", x * x], ["sin(x)cos(x)", Math.sin(x) * Math.cos(x)],
+    ["3x(x)", 3 * x * x], ["x pi", x * Math.PI], ["(x+1)x", (x + 1) * x], ["2x sin(x)", 2 * x * Math.sin(x)], ["pi(x+1)", Math.PI * (x + 1)], ["x^2(x)", x * x * x]])
+    assert.ok(Math.abs(ev(s, x) - want) < 1e-12, `${s}: ${ev(s, x)} vs ${want}`);
+  // An e is an exponent only with a digit right after it: 2e+1 is 20, 2e+x the constant, 2·e + x.
+  assert.equal(ev("2e+1"), 20); assert.equal(ev("2e+x", 1), 2 * Math.E + 1); assert.equal(ev("2e-x", 1), 2 * Math.E - 1);
+  for (const [s, why] of [["2 3", "missing an operator before 3"], ["(x)2", "missing an operator before 2"], ["x 2", "missing an operator before 2"], ["2+", '"+" needs a value on each side'],
+    ["*x", '"*" needs a value on each side'], ["(x", 'missing ")"'], ["sin(x", 'missing ")"'], ["x)", 'unmatched ")"'], ["()", "nothing inside the parentheses"], ["x,2", '"," outside a function\'s parentheses']])
+    assert.equal(parseExpr(s), why, s);
+  // The whitelist holds on every new path.
+  for (const s of ["pi constructor", "x __proto__", "(x)toString", "sin(x)constructor(1)", "x constructor(1)", "e __proto__(x)"]) assert.equal(compileExpr(s), null, s);
 });
 
 test("a one-argument function takes a bare term; anything longer asks for parentheses", () => {

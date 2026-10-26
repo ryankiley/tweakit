@@ -61,9 +61,11 @@ function normalizeStops(value: any): GradientStop[] {
 }
 function createGradient(meta: Meta, onChange: OnChange): Control {
   meta.value ??= meta.stops; // the verbose form's `stops` aliases `value`
+  // The blend and easing read off `value: {…}` first, else the verbose form's top level, where a pasted value's fields land.
+  const interp0 = parseInterp(meta.value) ?? parseInterp(meta), ease0 = parseEase(meta.value) ?? parseEase(meta);
   let stops = normalizeStops(meta.value);
   let selStop = stops[0];
-  let easing = easingName(parseEase(meta.value)); // unrecognized reads as linear
+  let easing = easingName(ease0); // unrecognized reads as linear
 
   // ── Trigger row — the strip is the readout; the stop count rides along for the accessibility tree. ──
   const { root, trigger, right } = triggerRow("tw-gradient", meta.label ?? "Gradient"); // ??: an explicit "" label renders none
@@ -92,7 +94,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
 
   const handleFor = (s: GradientStop) => [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s); // the rail holds only stop handles
   // Unlike the standalone color control, a mode switch here IS a change to the gradient's output, so it repaints and re-emits.
-  const body = createPickerBody({ value: selStop.color, mode: interpolationMode(parseInterp(meta.value) || "oklch"), onMode: () => { paint(); emit(); } }, (c) => { // oklch: the documented default and colorAt's blend space
+  const body = createPickerBody({ value: selStop.color, mode: interpolationMode(interp0 || "oklch"), onMode: () => { paint(); emit(); } }, (c) => { // oklch: the documented default and colorAt's blend space
     selStop.color = c;
     handleFor(selStop)?.style.setProperty("--stop", c);
     paint(); emit();
