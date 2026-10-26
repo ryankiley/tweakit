@@ -86,9 +86,9 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `point` | `components: [{ key, label, value, min, max, step }]`, or `value: { x: 0, y: 10 }` alone, which names them; `pad, invertY` | an object keyed by component, such as `{ x, y }` |
 | `checkbox` | `value`; `type: "toggle"` or `"switch"` names it too | boolean |
 | `text` | `value, rows, placeholder` | string |
-| `list` | `options, value` | string |
-| `segmented` | `options, value, cols` | string |
-| `radiogrid` | `options, value, cols` | string |
+| `list` | `options, value` | the option's value |
+| `segmented` | `options, value, cols` | the option's value |
+| `radiogrid` | `options, value, cols` | the option's value |
 | `color` | `value`, `mode` | color string exactly as you wrote it (`"#7c5cff"` reads back `"#7c5cff"`) until it's edited; an edit writes the same notation, a digit finer than the readout, and a grey's hue as `none` |
 | `gradient` | `stops: [[color, position], …]` | `{ stops: [{ color, pos }], interpolation, easing }`, which goes back in whole as `value`; `gradientCss(value, angle)` makes the CSS |
 | `shadow` | `x, y, blur, spread, color, inset`, or `value` as a `box-shadow` string | `{ x, y, blur, spread, color, inset, css }`; `css` is ready for `box-shadow` |

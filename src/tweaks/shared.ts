@@ -13,7 +13,7 @@ interface PanelEl extends HTMLElement { _twTheme?: ThemeVars | null; _twEditPoin
 /** A node applyThemeVars has written to; remembers which properties, to clear them next time. */
 interface ThemedEl extends HTMLElement { _twAppliedVars?: string[] | null }
 /** A single-select radio button carrying its option's real value (dataset stringifies). */
-interface RadioBtn extends HTMLButtonElement { _twVal?: string }
+interface RadioBtn extends HTMLButtonElement { _twVal?: string | number }
 /** setAttribute() / style.setProperty() taking a number as well as a string (the DOM
  *  stringifies either). Type-level only. */
 interface Stringifying { setAttribute(name: string, value: string | number): void; style: { setProperty(name: string, value: string | number | null, priority?: string): void } }
@@ -518,7 +518,7 @@ const activeIndex = (btns: RadioBtn[], value: unknown) => { const i = btns.findI
 const setRadioActive = (btns: RadioBtn[], value: unknown) => { const stop = activeIndex(btns, value); btns.forEach((b, k) => { const on = b.dataset.value === String(value); b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = k === stop ? 0 : -1; }); };
 // A single-select radio button. _twVal carries the option's real value — dataset stringifies,
 // so a keyboard pick off dataset.value turned a numeric option into a string.
-const radioButton = (cls: string, o: Option, onPick: (v: string) => void) => { const b: RadioBtn = txt("button", cls, optLabel(o)); b.setAttribute("role", "radio"); b._twVal = optValue(o); b.dataset.value = b._twVal; b.addEventListener("click", () => onPick(b._twVal)); return b; };
+const radioButton = (cls: string, o: Option, onPick: (v: string | number | undefined) => void) => { const b: RadioBtn = txt("button", cls, optLabel(o)); b.setAttribute("role", "radio"); b._twVal = optValue(o); b.dataset.value = String(b._twVal); b.addEventListener("click", () => onPick(b._twVal)); return b; };
 // Arrow-key navigation → the next index, or −1 when the key isn't the group's. cols > 0 jumps
 // ↑/↓ by a row (the radio grid); 0 treats ↑/↓ as ←/→; < 0 leaves ↑/↓ to the page (the tab bar).
 const navIndex = (key: string, i: number, n: number, cols = 0) => {

@@ -2,8 +2,8 @@
  * panel you get back. These are what ship as .d.ts, so consumers get autocomplete on
  * the schema shorthands + the verbose control forms + the panel methods. */
 
-/** An option for a select / radio grid: a bare string, or `{ value, label }`. */
-export type Option = string | { value: string; label?: string; color?: string }; // color: any CSS color, shown as a swatch beside a dropdown option (and the chosen one on the row)
+/** An option for a select / radio grid: a bare string or number, or `{ value, label }`; the param is the value as written. */
+export type Option = string | number | { value: string | number; label?: string; color?: string }; // color: any CSS color, shown as a swatch beside a dropdown option (and the chosen one on the row)
 
 /** A color stop in a gradient. */
 export type GradientStop = { color: string; pos: number };
@@ -86,8 +86,8 @@ export type SchemaObject =
       parse?: (text: string) => number }
   | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
   | { type: "checkbox" | "toggle" | "switch"; value?: boolean }
-  | { type: "list"; options: readonly Option[]; value?: string }
-  | { type: "radiogrid" | "segmented"; options: readonly Option[]; value?: string; cols?: number }
+  | { type: "list"; options: readonly Option[]; value?: string | number }
+  | { type: "radiogrid" | "segmented"; options: readonly Option[]; value?: string | number; cols?: number }
   | { type: "color"; value?: string }
   | { type: "text"; value?: string; rows?: number; placeholder?: string }
   | { type: "interval"; value?: readonly [number, number]; min?: number; max?: number; step?: number }
@@ -105,7 +105,7 @@ export type SchemaObject =
   | { type: "image"; value?: string;
       /** Supplied images to pick from, as URLs or `{ value, label }`. The control becomes a row naming the chosen
        *  image that opens a pane of tiles with the upload below them, and the param is the chosen URL or the upload's data URL. */
-      options?: Option[];
+      options?: ReadonlyArray<string | { value: string; label?: string }>;
       /** Tiles per row in the gallery, 1 to 6 (by default one per option for two or three, 2 for one or four, then 3). */
       cols?: number;
       /** The largest upload taken, in bytes (10 MB unless set); a bigger file is refused with a note. */
@@ -136,7 +136,7 @@ export type SchemaValue =
   | readonly [readonly [number, number], number, number] | readonly [readonly [number, number], number, number, number]           // [[lo,hi], min, max, step?] → interval
   | readonly number[] | readonly (number | readonly number[])[] // either of the above, widened by a schema held in a variable
   | readonly Option[]                               // a list of options → list (dropdown)
-  | { options: readonly Option[]; value?: string }           // a list with a chosen default
+  | { options: readonly Option[]; value?: string | number }  // a list with a chosen default
   | { action: () => void; label?: string }          // → button
   | (SchemaObject & ControlOptions)                 // verbose form (+ render/disabled/hint)
   | Schema                                          // nested object → folder
@@ -163,7 +163,9 @@ export interface SchemaFolder {
 /** A spring control's value: the physics, plus the time pair and mode when tuned by feel. */
 export interface SpringValue { stiffness: number; damping: number; mass: number; visualDuration?: number; bounce?: number; mode?: "time" | "physics" }
 
-type OptionValue<O> = O extends string ? O : O extends { readonly value: infer V extends string } ? V : never;
+type OptionValue<O> = O extends string | number ? O : O extends { readonly value: infer V extends string | number } ? V : never;
+// A list's param: one of its options, or a `value` off the list, which the control keeps as given until a pick.
+type ChoiceValue<V> = (V extends { readonly options: readonly (infer O)[] } ? OptionValue<O> : never) | (V extends { readonly value: infer D extends string | number } ? D : never);
 type Alnum = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 type Dashed<S extends string, Acc extends string = "", Run = false> =
   S extends `${infer C}${infer R}` ? C extends Alnum ? Dashed<R, `${Acc}${C}`, false> : Run extends true ? Dashed<R, Acc, true> : Dashed<R, `${Acc}-`, true> : Acc;
@@ -183,7 +185,7 @@ type Hinge = { list: "options"; radiogrid: "options"; segmented: "options"; poin
 type TypedValue<V> =
   V extends { readonly type: "slider" | "number" } ? number
   : V extends { readonly type: "checkbox" | "toggle" | "switch" } ? boolean
-  : V extends { readonly type: "list" | "radiogrid" | "segmented" } ? (V extends { readonly options: readonly (infer O)[] } ? OptionValue<O> : never)
+  : V extends { readonly type: "list" | "radiogrid" | "segmented" } ? (V extends { readonly options: readonly unknown[] } ? ChoiceValue<V> : never)
   : V extends { readonly type: "color" | "text" | "image" | "plot" } ? string
   : V extends { readonly type: "interval" } ? [number, number]
   : V extends { readonly type: "cubicbezier" | "bezier" } ? [number, number, number, number]
@@ -216,7 +218,7 @@ type ShorthandValue<V> =
   : V extends string ? string
   : V extends readonly (infer O)[] ? OptionValue<O>
   : V extends { readonly action: (...a: any[]) => any } ? never
-  : V extends { readonly options: readonly (infer O)[] } ? OptionValue<O>
+  : V extends { readonly options: readonly unknown[] } ? ChoiceValue<V>
   : V extends object ? Entries<V, true>
   : unknown;
 // Keys the runtime skips at every level, since they would write through to Object.prototype.
