@@ -64,8 +64,9 @@ const jpegCut = (b: Bytes) => {
   if (b[0] !== 0xff || b[1] !== 0xd8) return null;
   const out: Bytes[] = []; let i = 2, from = 0, turned = 0;
   for (;;) {
+    while (b[i] === 0xff && b[i + 1] === 0xff) i++; // fill bytes before a marker (T.81 B.1.1.2) stay with what's kept
     const m = b[i + 1], end = i + 2 + ((b[i + 2] << 8) | b[i + 3]);
-    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null; // fill bytes or a marker out of place
+    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null; // a marker out of place
     if (m === 0xda) break; // start of scan: the picture itself, kept to the end
     const exif = m === 0xe1 && ascii(b, i + 4, "Exif\0");
     if (exif || (m === 0xe1 && ascii(b, i + 4, "http://ns.adobe.com/x"))) { // XMP, and its extension

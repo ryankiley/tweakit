@@ -75,6 +75,12 @@ test("a JPEG loses its Exif (GPS and all) and XMP, and keeps JFIF, its ICC profi
   assert.deepEqual(out, jpeg(JFIF, ICC));
 });
 
+// Fill bytes before a marker are valid JPEG; read as a parse failure, they kept the file whole, GPS and all.
+test("a JPEG with fill bytes before a marker still loses its Exif", async () => {
+  const out = await read(await strip(file(bytes(SOI, [0xff, 0xff], seg(0xe1, "Exif\0\0", tiff()), JFIF, DQT, SCAN), "image/jpeg")));
+  assert.deepEqual(out, bytes(SOI, [0xff, 0xff], JFIF, DQT, SCAN));
+});
+
 test("a turned JPEG keeps a bare Exif holding only its Orientation", async () => {
   const out = await read(await strip(file(jpeg(JFIF, seg(0xe1, "Exif\0\0", tiff(6)), ICC), "image/jpeg")));
   const bare = seg(0xe1, "Exif\0\0", "MM", [0, 42], u32be(8), [0, 1], [1, 0x12, 0, 3], u32be(1), [0, 6, 0, 0], u32be(0));
