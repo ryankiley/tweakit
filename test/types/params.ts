@@ -133,6 +133,9 @@ expect<Equal<typeof hinge.params, { marker: { type: string; size: number }; pick
 // @ts-expect-error a list's options are a list
 const badHinge = tweaks("Hinge", { bad: { type: "list", options: 5 } });
 expect<Equal<typeof badHinge.params, {}>>();
+// A value is a hinge too: a list holding one but no options is skipped at runtime, not a folder of `type` and `value`.
+// @ts-expect-error a list needs its options
+tweaks("Hinge", { noOptions: { type: "list", value: "a" } });
 
 // Numeric choices put the number on params, as the runtime does, bare or as `{ value, label }`.
 const nums = tweaks("Nums", {

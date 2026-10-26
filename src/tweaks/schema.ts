@@ -151,19 +151,23 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     try { fields = TYPED_META[value.type as keyof typeof TYPED_META]!(value, depth, key); } // a guard can't narrow a property of an `any`
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
     if (fields) return meta(String(value.type), fields, ownLabel(value, label)); // a String object would miss m.type === "tabs" downstream
-    // Nothing back with the hinge field present is malformed. Absent, this is a plain folder
+    // Nothing back with the hinge field or a value present is malformed. With neither, this is a plain folder
     // holding a child named `type` (`marker: { type: "point", size: 3 }`) — fall through.
-    if (hasOwn(value, REQUIRED[value.type])) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped`); return null; }
+    if (hasOwn(value, REQUIRED[value.type]) || hasOwn(value, "value")) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — it needs ${REQUIRED[value.type]}; control skipped`); return null; }
   }
   // A lazy control with no handler reads its own fields off the verbose form as given.
   else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && (LAZY_IMPORT[value.type] || getControl(value.type))) {
     const { type, label: _l, ...fields } = value;
     return meta(type, fields, ownLabel(value, label));
   }
-  // A `type` no control answers to: a typo (`slidr`) built a folder of `type` and `value` rows without a word. It may be a
-  // folder with a child named `type`, so it still builds one; the console says so, with the near type, from a lazy chunk.
-  else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && !hasOwn(TYPED_META, value.type))
-    import("./heavy.js").then((m) => m.unknownType(`"${key}"`, value.type, [...Object.keys(TYPED_META), ...Object.keys(LAZY_IMPORT), ...controlTypes()], "builds a folder"), () => {});
+  // A `type` no control answers to (a typo, or another library's name for one). With a field only a control reads, it was
+  // meant as one: built anyway, `bezier`'s value array read as a slider's [value, min, max] and warned of a swap. So it's
+  // skipped. Without one it's a folder with a child named `type` (`font: { type: "Inter", size: 12 }`). Words lazy.
+  else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string") {
+    const control = hasOwn(value, "value") || Array.isArray(value.options) || typeof value.action === "function";
+    import("./heavy.js").then((m) => m.unknownType(`"${key}"`, value.type, [...Object.keys(TYPED_META), ...Object.keys(LAZY_IMPORT), ...controlTypes()], control ? "control" : "folder"), () => {});
+    if (control) return null;
+  }
   // ── Shorthand inference ──
   // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple. Missing bounds and step derive in the
   // control, as for `{ type: "interval" }`: [[20, 80]] spans 0–240 (the tuple's own 20–80 pinned both handles).

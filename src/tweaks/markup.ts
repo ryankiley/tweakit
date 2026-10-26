@@ -60,7 +60,7 @@ const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
   // A lazy type with no parser takes the dataset as its fields.
   const v = hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (kit.LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
   // A typo (`data-tw="slidr"`) rendered nothing and said nothing. The list names what markup builds, so not tabs.
-  if (!v) { import("./heavy.js").then((m) => m.unknownType(`data-tw="${type}"`, String(type), [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()].filter((t) => t !== "tabs"), "is skipped"), () => {}); return null; }
+  if (!v) { import("./heavy.js").then((m) => m.unknownType(`data-tw="${type}"`, String(type), [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()].filter((t) => t !== "tabs"), "markup"), () => {}); return null; }
   // The label rides the verbose value; v spreads after, so a parser's own type or label wins. A form that comes back a
   // folder (a lazy type's verbose form missing the field it hinges on) is no control either.
   const m = kit.metaFor("v", { type, label, ...v });

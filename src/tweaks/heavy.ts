@@ -263,16 +263,19 @@ const springRun = (k: number, d: number, m: number) => {
   return { duration: Math.round(span * 1000), easing: `linear(${stops.join(", ")})` };
 };
 
-// The name a typo is a single edit from (a letter added, dropped or changed). It and the notices below are lazy, as
-// only a mistake needs them. unknownType: a schema or markup `type` no control answers to. Its list holds the aliases
-// (toggle, bezier) and not the color module's picker body, which is registered as a control but isn't a type to write.
+// The name a typo is a single edit from (a letter added, dropped or changed), or that another library or an older tweakit
+// calls it by. It and the notices below are lazy, as only a mistake needs them. unknownType: a schema or markup `type` no
+// control answers to. Its list leaves out the color module's picker body, registered as a control but not a type to write.
+const SYNONYMS: Record<string, string> = Object.assign(Object.create(null), { bezier: "cubicbezier", "cubic-bezier": "cubicbezier", easing: "cubicbezier", toggle: "checkbox", switch: "checkbox", bool: "checkbox", boolean: "checkbox", dropdown: "list", select: "list", string: "text", textarea: "text", range: "slider", fps: "fpsgraph" });
 const nearest = (s: string, names: string[]) => {
   const a = s.toLowerCase(); // case-blind, so "textmuted" finds "textMuted"
+  if (names.includes(SYNONYMS[a])) return SYNONYMS[a];
   return names.find((n) => { const k = n.toLowerCase(); let i = 0; while (i < a.length && a[i] === k[i]) i++; return [[1, 1], [0, 1], [1, 0]].some(([x, y]) => a.slice(i + x) === k.slice(i + y)); });
 };
-const unknownType = (where: string, type: string, known: string[], then: string) => {
+const THEN: Record<string, string> = { control: "is skipped, as an object with value, options or action is read as a control", folder: "builds a folder", markup: "is skipped" };
+const unknownType = (where: string, type: string, known: string[], then: "control" | "folder" | "markup") => {
   const names = [...new Set(known)].filter((t) => t !== "folder" && t !== "colorpicker").sort(), near = nearest(type, names);
-  console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${then}. Types: ${names.join(", ")}`);
+  console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${THEN[then]}. Types: ${names.join(", ")}`);
 };
 
 const warned = new Set<string>();
