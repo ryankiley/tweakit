@@ -114,13 +114,18 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) =
     return { value };
   },
   point: (v) => {
+    // `value: { x: 0, y: 0 }`, the shape the control hands back, names the components itself; a value beside components sets
+    // their defaults. Without either, it's a folder with a child named `type`, as before.
+    const named = isObj(v.value) && !Array.isArray(v.value) ? Object.entries(v.value).filter(([, n]) => Number.isFinite(+(n as number))) : [];
+    if ((!Array.isArray(v.components) || !v.components.length) && named.length) v = { ...v, components: named.map(([key, n]) => ({ key, value: +(n as number) })) };
     if (!Array.isArray(v.components) || !v.components.length) return false;
     // A keyless component takes its label (lower-cased) or index; keys dedupe so two can't share one param.
     const used = new Set<string>();
     const components = v.components.map((c: any, k: number) => {
       const base = String(c.key ?? ((c.label ? String(c.label).toLowerCase() : "") || `c${k}`));
       let key = base, n = 2; while (used.has(key)) key = `${base}-${n++}`; used.add(key);
-      return { ...c, key };
+      const own = isObj(v.value) && hasOwn(v.value, key) && Number.isFinite(+v.value[key]) ? +v.value[key] : undefined;
+      return { ...c, key, ...(own !== undefined && { value: own }) };
     });
     return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) }; // the default component map, for reset()
   },
