@@ -127,7 +127,7 @@ test("a hostile color string is skipped, not thrown, and the rest of a restore s
   p.set("c", "color(constructor 1 0 0)");       // must not throw…
   p.set("c", "color(__proto__ 1 0 0)");         // …nor this: an unknown color() space
   const neutral = p.params.c;                   // degrades to the picker's neutral default, like any other unsupported space
-  assert.match(String(neutral), /^oklch\(/, "an unrecognized space degrades to a real color");
+  assert.equal(neutral, "#ff0000", "an unrecognized space is refused, and the color keeps its value");
 
   let calls = 0;
   p.on(() => calls++);

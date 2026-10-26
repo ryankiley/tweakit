@@ -278,11 +278,24 @@ const wrapCss = (t: string, mode: ColorMode) =>
   mode === "hex" ? t : mode === "srgb" ? `rgb(${t})` : mode === "css" ? `rgba(${t}, 1)` :
   mode === "hsl" ? `hsl(${t})` : mode === "hwb" ? `hwb(${t})` :
   mode === "p3" ? `color(display-p3 ${t})` : mode === "rec2020" ? `color(rec2020 ${t})` : `${mode}(${t})`;
-/** The emitted CSS value in `mode`'s own syntax and display precision, alpha appended. */
+// The value's channels, a digit finer than the readout (L 63.2%, C 0.257, H 29.2): rounded to the readout, 98% of colors came
+// back different (#939796's faint green read as a neutral grey). A powerless hue is `none`, as CSS Color 4 writes it: a
+// float-noise hue on white (180, cyan) or a grey bent every oklch gradient and color-mix() through it.
+function precise(oklch: Vec3, mode: ColorMode) {
+  const chans = MODE_CHANNELS[mode], c = modeCoords(oklch, modeSpaceId(mode), mode);
+  const v = chans.map((ch, i) => { const d = digitsFor(ch.step) + 1, x = +clamp(num(c[i]) * ch.scale, ch.min, ch.max).toFixed(d); return ch.k === "H" && x === 360 ? 0 : x + 0; }); // + 0: no -0
+  const grey = mode === "oklch" || mode === "lch" || mode === "hsl" ? v[1] === 0 : mode === "hwb" && v[1] + v[2] >= 100;
+  const s = (i: number) => (grey && chans[i].k === "H" ? "none" : String(v[i]));
+  if (mode === "css") return `${s(0)}, ${s(1)}, ${s(2)}`;
+  if (mode === "oklch" || mode === "oklab" || mode === "lch" || mode === "lab") return `${s(0)}% ${s(1)} ${s(2)}`;
+  if (mode === "hsl" || mode === "hwb") return `${s(0)} ${s(1)}% ${s(2)}%`;
+  return `${s(0)} ${s(1)} ${s(2)}`; // srgb / p3 / rec2020
+}
+/** The emitted CSS value in `mode`'s own syntax, a digit finer than the readout, alpha appended. */
 export function serialize(oklch: Vec3, mode: ColorMode, alpha: number) {
   const a = num(alpha);
   if (mode === "hex") return oklchToHex(oklch[0], oklch[1], oklch[2]) + (a < 0.999 ? hexByte(a) : "");
-  const t = readout(oklch, mode);
+  const t = precise(oklch, mode);
   if (a >= 0.999) return wrapCss(t, mode);
   const av = +a.toFixed(3);
   return mode === "css" ? `rgba(${t}, ${av})` : wrapCss(`${t} / ${av}`, mode); // comma alpha for legacy rgba, slash otherwise

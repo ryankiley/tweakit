@@ -146,15 +146,34 @@ function parseColor(str: string | null | undefined): Oklcha {
   return [num(k[0]), num(k[1]), num(k[2]), cm[3] != null ? clamp(num(cm[3]), 0, 1) : 1];
 }
 
+// Whether a written color is handed back as written: a color in a notation the picker edits, with every number a plain
+// one. Anything else (1e999, a named color) is normalized, as the picker reads it.
+const verbatim = (v: unknown): v is string => typeof v === "string" && isColor(v) && notationOf(v) !== null && (v.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).every((n) => Math.abs(+n) <= 1000);
+// The edit mode a written color's notation maps to; null for one with no mode of its own (a named color, lab() with
+// alpha in a form the picker can't echo), which opens in OKLCH.
+const notationOf = (v: unknown): ColorMode | null => {
+  const t = String(v ?? "").trim().toLowerCase();
+  if (HEX_RE.test(t)) return "hex";
+  const fn = /^([a-z]+)\(\s*([a-z0-9-]*)/.exec(t);
+  if (!fn) return null;
+  if (fn[1] === "rgb" || fn[1] === "rgba") return t.includes(",") ? "css" : "srgb";
+  if (fn[1] === "color") return fn[2] === "display-p3" ? "p3" : fn[2] === "rec2020" ? "rec2020" : fn[2] === "srgb" ? "srgb" : null;
+  return (["hsl", "hwb", "oklch", "oklab", "lch", "lab"] as const).find((m) => m === fn[1] || fn[1] === "hsla" && m === "hsl") ?? null;
+};
+
 // ── Picker body ──
 /** The editor surface: L×C plane, hue + alpha strips, mode dropdown + gamut label, and per-mode channel inputs.
  *  No trigger or popover of its own: the color control mounts one in its popover, the gradient editor re-points one at the selected stop. */
 function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): PickerBody {
   let [L, C, H, A] = parseColor(isColor(meta.value) ? meta.value : "#7c5cff"); // the kit's default color, for none or junk (parseColor reads junk as black)
-  let mode = EDIT_MODES.includes(meta.mode) ? meta.mode : "oklch"; // the host can seed the mode
+  // It opens in the notation the color was written in, unless the host seeds a mode, and hands back that exact string
+  // until it's edited: "#ff0000" read back as oklch(63% 0.26 29), so code expecting hex broke and pasted values drifted.
+  const seeded = EDIT_MODES.includes(meta.mode); // a host's mode (the gradient's blend space) holds; only an unseeded picker follows a color's notation
+  let mode = seeded ? meta.mode : notationOf(meta.value) ?? "oklch";
+  let raw: string | null = verbatim(meta.value) ? meta.value.trim() : null;
   let paintedHue = NaN, chromaCurve: Float64Array | null = null, chanFields: NumField[] = [];
   let hueRingH = NaN, hueRingBg = ""; // the hue ring depends only on H; cached
-  const colorStr = () => serialize([L, C, H], mode, A);
+  const colorStr = () => raw ?? serialize([L, C, H], mode, A);
 
   const root = el("div", "tw-color-body");
   const area = el("div", "tw-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "tw-wg-canvas"; const areaThumb = el("div", "tw-wg-thumb"); area.append(areaCanvas, areaThumb);
@@ -253,7 +272,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const emit = () => onChange(colorStr());
   // renderArea bails on zero width, so an offscreen repaint is a cheap no-op.
   const sync = (repaint: boolean) => { if (repaint && H !== paintedHue) renderArea(); positionThumbs(); refresh(); };
-  const commit = (repaint: boolean) => { sync(repaint); emit(); };
+  const commit = (repaint: boolean) => { raw = null; sync(repaint); emit(); }; // an edit writes the picker's own notation
 
   const renderChannels = () => {
     channels.replaceChildren(); chanFields = [];
@@ -318,7 +337,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 
   // A mode switch is formatting-only and never emits: notifying would push a no-op change into
   // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode); setMode is the host pushing a mode in, so it fires neither.
-  const remode = (m: ColorMode) => { mode = m; modeSel.value = m; renderChannels(); renderArea(); positionThumbs(); };
+  const remode = (m: ColorMode) => { mode = m; raw = null; modeSel.value = m; renderChannels(); renderArea(); positionThumbs(); };
   modeSel.addEventListener("change", () => { remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); }); // the dropdown only holds EDIT_MODES
 
   renderChannels();
@@ -327,7 +346,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     el: root,
     // Blur a focused text field before re-pointing: its change handler commits typed text against
     // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as focus leaving the popover, which closes it.
-    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); sync(true); },
+    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
     get: () => colorStr(),
     // The gradient reads the mode to choose its blend space and re-points it on a stored ramp.
     mode: () => mode,

@@ -15,19 +15,19 @@ test("defaults, the value shape, and the CSS it resolves to", async () => {
   const p = await mount({ s: { type: "shadow" } });
   const v = p.params.s;
   assert.deepEqual({ ...v, color: undefined, css: undefined }, { inset: false, x: 0, y: 8, blur: 24, spread: 0, color: undefined, css: undefined });
-  assert.match(v.color, /^oklch\(/, "the color is the picker's own notation");
+  assert.match(v.color, /^rgb\(0 0 0 \/ 0\.18\)$/, "the default color, as the control writes it");
   assert.equal(v.css, `0px 8px 24px 0px ${v.color}`);
   assert.equal(p.el.querySelector(".tw-shadow .tw-trigger-value").textContent, "0 8 24", "the summary skips a zero spread");
   assert.equal(p.el.querySelector(".tw-shadow-card").style.boxShadow, v.css, "the preview card wears the value");
   p.destroy();
 });
 
-test("authoring: top-level fields, a nested value, or a box-shadow string; set() takes the same, ignores derived css, and re-serializes the color", async () => {
+test("authoring: top-level fields, a nested value, or a box-shadow string; set() takes the same, ignores derived css, and keeps a clean color as written", async () => {
   const a = await mount({ s: { type: "shadow", inset: true, x: 0, y: 1, blur: 0, spread: 1, color: "#ff0000" } });
   assert.equal(a.params.s.css.startsWith("inset 0px 1px 0px 1px "), true); a.destroy();
   const b = await mount({ s: { type: "shadow", value: "0 12px 32px -4px rgb(124 92 255 / 0.35)" } });
   assert.deepEqual([b.params.s.x, b.params.s.y, b.params.s.blur, b.params.s.spread, b.params.s.inset], [0, 12, 32, -4, false]);
-  assert.doesNotMatch(b.params.s.css, /rgb\(124 92 255/, "the host's color string is re-serialized, not echoed");
+  assert.match(b.params.s.css, / rgb\(124 92 255 \/ 0\.35\)$/, "the host's color is kept as written; only a clean single color token is (see the hostile cases)");
   b.set("s", { y: 20, inset: true });
   assert.equal(b.params.s.y, 20); assert.equal(b.params.s.inset, true); assert.equal(b.params.s.blur, 32, "untouched fields stay");
   b.set("s", "inset 0 0 0 1px #00ff00");
