@@ -1,6 +1,6 @@
 {
   "name": "tweakit",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "type": "module",
   "main": "./dist/tweaks/core.js",
   "types": "./dist/types/tweaks/core.d.ts",
