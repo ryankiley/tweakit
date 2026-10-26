@@ -91,7 +91,7 @@ test("review follow-ups: an out-of-range curve is emitted fitted, an off-grid du
   const p = await mount({ t: { type: "motion", curve: [2, 0, 0, 1], duration: 245 } });
   assert.deepEqual(p.params.t.curve, [1, 0, 0, 1], "x fitted into [0, 1]"); assert.equal(p.params.t.easing, "cubic-bezier(1, 0, 0, 1)");
   assert.equal(p.params.t.duration, 250, "snapped to the field's 10 ms grid");
-  p.set("t", { curve: [0, 0, 1, 2] }); assert.equal(p.params.t.curve[3], 1.25, "y fitted into the editor's range");
+  p.set("t", { curve: [0, 0, 1, 3] }); assert.equal(p.params.t.curve[3], 2, "y fitted into the editor's range, −1 to 2");
   p.set("t", { duration: 1234.5 }); assert.equal(p.params.t.duration, 1230);
   p.set("t", [0.42, 0, 1, 1]); assert.deepEqual(p.params.t.curve, [0.42, 0, 1, 1]);
   p.set("t", { visualDuration: 0.3 }); assert.equal(p.params.t.mode, "spring");

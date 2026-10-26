@@ -1,5 +1,5 @@
 // ── Interval / range slider — dual-handle [lo,hi]. Lazy.
-import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, swapNote, rangeStep, defaultRange, overlapsText, wireHoverClass, onReady, onLive, registerControl, rubberBand, rubberRelease } from "../shared.js";
+import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, overlapsText, wireHoverClass, onReady, onLive, registerControl, rubberBand, rubberRelease } from "../shared.js";
 import { dragGesture } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -7,14 +7,11 @@ import type { Control } from "../types.js";
 
 function createInterval(meta: Meta, onChange: OnChange): Control {
   const label = meta.label;
-  // normalizeRange, the slider's guard: non-finite bounds fall back and an inverted pair swaps, so data-min="abc" can't ride in as NaN.
   const t0 = +(meta.value && meta.value[0]), t1 = +(meta.value && meta.value[1]);
   const lo0 = Number.isFinite(t0) ? t0 : 0, hi0 = Number.isFinite(t1) ? t1 : 1;
-  // An absent bound derives from the values, each end widening it: [20, 80] spans 0–240, not 20–80 (which pinned both handles).
-  const [a, b] = [defaultRange(lo0), defaultRange(hi0)];
-  const given = (n: unknown) => n != null && n !== "" && Number.isFinite(+n!);
-  swapNote(meta.label, meta.min, meta.max);
-  let { min, max, step } = normalizeRange(given(meta.min) ? meta.min : Math.min(a[0], b[0]), given(meta.max) ? meta.max : Math.max(a[1], b[1]), meta.step, lo0, hi0, lo0, hi0);
+  // normalizeRange, the slider's guard: an absent or non-finite bound (data-min="abc") derives from the values, each end
+  // widening it, for the shorthand and the verbose form alike: [20, 80] spans 0–240, not 20–80 (which pinned both handles).
+  let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, [lo0, hi0], label);
   [min, max] = gridEnds(min, max, step); // the slider's rule: no value past an off-grid bound
   const decimals = stepPrecision(step);
   const q = (v: number) => roundToStep(v, min, step);
@@ -86,8 +83,9 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   onLive(track, [[window, "resize"], [window, "tw-reflow"]], render); // tw-reflow: a tab page revealing this re-measures it
 
   // Home/End snap a handle to its neighbor-or-limit, so the two can't cross.
+  const page = (max - min) / 10 || step * 10; // PageUp/Down: a tenth of the range, as the slider jumps
   const onKey = (which: "lo" | "hi") => (e: KeyboardEvent) => {
-    const nv = which === "lo" ? rangeStep(e, lo, step, min, hi) : rangeStep(e, hi, step, lo, max);
+    const nv = which === "lo" ? rangeStep(e, lo, step, min, hi, page) : rangeStep(e, hi, step, lo, max, page);
     if (nv == null) return;
     e.preventDefault(); which === "lo" ? setLo(nv) : setHi(nv); emit();
   };

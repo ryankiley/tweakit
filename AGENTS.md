@@ -59,7 +59,7 @@ panel.ready.then(() => apply(panel.params));
 | --- | --- | --- |
 | `24` | slider; range 0 to 1 for a value up to 1, else 0 to 3 times the value; a negative value spans that either side of 0 (`-45` gives −135 to 135) | number |
 | `[1.2, 0, 3, 0.1]` | slider with min, max, step; `[v]`, `[v, min]` and `[v, min, max]` fill in the rest; up to four numbers are always this tuple, never a list | number |
-| `[[20, 80], 0, 100]` | interval, two handles | `[lo, hi]` |
+| `[[20, 80], 0, 100]` | interval, two handles; missing bounds widen from each end as for a bare number (`[[20, 80]]` spans 0 to 240) | `[lo, hi]` |
 | `true` | checkbox | boolean |
 | `"Hello"` | text input | string |
 | `"#7C5CFF"` | color picker, for hex or a color function (`oklch(…)`, `rgb(…)`, `hsl(…)`, `color(…)`); a named color such as `"red"` or `"transparent"` builds a text input, so write it as hex | color string |
@@ -69,7 +69,7 @@ panel.ready.then(() => apply(panel.params));
 | `{ x: 0, y: 10 }` | folder of controls | nested object |
 | `{ type: "…", … }` | that control, verbatim (next table) | per control |
 
-A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, or 0 in a range across zero, would fall between steps (`37` steps by 1, not 10, and `-45` reaches 0). Keys become labels, title-cased; `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
+A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, the min, or 0 in a range across zero would fall between steps, and for the max too when that reaches it (`37` steps by 1, not 10, `[1.25, 0.25, 4]` by 0.01, and `-45` reaches 0); a negative's derived range steps like its positive twin (`-0.5` by 0.01). A `number` or `point` with no step fits its default exactly (`0.5` steps by 0.1; a whole `number` by 1). Keys become labels, title-cased; `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
 
 In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and its shorthands' types, but widens list options to `string` and a verbose form's `type` to `string`, which leaves that value `any`; write it `as const` to keep them all, or `satisfies Schema` to keep the verbose forms.
 
@@ -95,7 +95,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `image` | `value`; `options` (URLs or `{ value, label }`) makes a row that opens a gallery pane, with `cols` (1 to 6), `maxSize, upload`, and `clear: false` to keep a value chosen; an upload past `fit` px (2560) on its long side, or over 1.5 MB, is redrawn, in Display P3 where the browser can, as a PNG up to 1.5 MB, else JPEG at `quality` (0.85), or WebP for transparency; an animated GIF, WebP or PNG is never redrawn, and a JPEG or PNG kept as it is loses its Exif and XMP (GPS); `fit: false` never redraws | the chosen URL, the upload's data URL, or `""` |
 | `motion` | `mode: "easing"` with `curve` and `duration` (ms), or `mode: "spring"` with `stiffness, damping, mass` or `visualDuration, bounce` | `{ mode, …, duration, easing }`; `easing` is a `cubic-bezier(…)` or sampled `linear(…)` string for a CSS transition; a spring's `duration` is its settle time |
 | `spring` | `mode: "time"` or `"physics"`, `visualDuration, bounce, stiffness, damping, mass` | `{ stiffness, damping, mass }`, plus the time pair when tuned by feel; that pair resolves exactly as Motion's `{ visualDuration, bounce }` does, bounce −1 to 1 |
-| `cubicbezier` | `value: [x1, y1, x2, y2]`; `type: "bezier"` names it too | `[x1, y1, x2, y2]` |
+| `cubicbezier` | `value: [x1, y1, x2, y2]`; `type: "bezier"` names it too | `[x1, y1, x2, y2]`, x 0 to 1, y −1 to 2 |
 | `plot` | `expr` or `fn`, `xMin, xMax, yMin, yMax, samples, editable` | the expression string, `""` when drawn from `fn` |
 | `monitor` | `get: () => number` (or a string), or `value`, `graph, view, min, max, interval, rows, decimals` | none; it watches |
 | `fpsgraph` | none | none; a frame-rate graph |
