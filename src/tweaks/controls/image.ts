@@ -19,24 +19,108 @@ const stem = (url: string) => { if (/^data:/i.test(url)) return ""; const s = ur
 // isn't smudged, and kept as one up to 1.5 MB: a photo's PNG at 2560px is several times that, while a screenshot's is not.
 // (It's weighed by size, not against the JPEG: drawn down, even a screenshot's PNG runs about twice its JPEG.) Past that it
 // is a JPEG, or with transparency a WebP where the browser writes one, whichever is smaller than the PNG. An SVG has no
-// pixels to fit and a GIF would lose its animation, so both are taken as they are. Resolves "" to take the file as it is:
-// it fits and is light, its format is kept, the browser can't decode or draw it, or the redraw came out no smaller.
+// pixels to fit, and a GIF, an animated WebP or an APNG would keep only its first frame, so they are taken as they are.
+// Resolves "" to take the file as it is: it fits and is light, its format is kept, the browser can't decode or draw it, or
+// the redraw came out no smaller.
 const KEEP = /^image\/(gif|svg\+xml)$/i;
 const PNG_BUDGET = 1.5 * MB;
+const PNG_SIG = "\x89PNG\r\n\x1a\n";
+const ascii = (b: Uint8Array, at: number, s: string) => { for (let k = 0; k < s.length; k++) if (b[at + k] !== s.charCodeAt(k)) return false; return true; };
+// The file says it's animated before its first frame: WebP in VP8X's animation flag or an ANIM chunk, a PNG in an acTL
+// chunk ahead of its first IDAT. Only chunk headers are read, never the frames.
+export const animated = async (file: Blob) => {
+  const at = async (i: number, n: number) => new Uint8Array(await file.slice(i, i + n).arrayBuffer());
+  const h = await at(0, 21), webp = ascii(h, 0, "RIFF") && ascii(h, 8, "WEBP");
+  if (webp && ascii(h, 12, "VP8X") && h[20] & 2) return true;
+  if (!webp && !ascii(h, 0, PNG_SIG)) return false;
+  for (let i = webp ? 12 : 8, k = 0; k < 64; k++) {
+    const c = await at(i, 8); if (c.length < 8) return false;
+    const type = String.fromCharCode(...c.subarray(webp ? 0 : 4, webp ? 4 : 8));
+    if (type === (webp ? "ANIM" : "acTL")) return true;
+    if (webp ? /^(VP8 |VP8L|ANMF)$/.test(type) : type === "IDAT") return false; // the picture has begun
+    const n = new DataView(c.buffer).getUint32(webp ? 4 : 0, webp); // a WebP chunk's size is little-endian and padded to even
+    i += webp ? 8 + n + (n & 1) : 12 + n;
+  }
+  return false;
+};
+// A picture taken as it is keeps its bytes, and a phone's carry where it was taken: Exif's GPS, and XMP, which can repeat
+// it. The value is stored and copied as JSON into source, so those blocks are cut from the bytes, losslessly: the ICC
+// profile, which carries a wide gamut, and everything else stays. Exif's Orientation decides which way up the picture
+// shows, so a turned one gets a bare Exif back holding only that tag. A redraw needs none of this: a canvas writes no Exif.
+// Each parser hands back the bytes left, or null to keep the file whole: nothing to cut, or a block it can't read.
+const orientation = (t: Uint8Array) => {
+  const le = ascii(t, 0, "II"), v = new DataView(t.buffer, t.byteOffset, t.byteLength); if (!le && !ascii(t, 0, "MM")) return null;
+  try {
+    const ifd = v.getUint32(4, le);
+    for (let k = 0, n = v.getUint16(ifd, le); k < n; k++) if (v.getUint16(ifd + 2 + k * 12, le) === 0x112) { const o = v.getUint16(ifd + 10 + k * 12, le); return o > 1 && o <= 8 ? o : 1; }
+    return 1;
+  } catch { return null; } // an offset past the end
+};
+// A big-endian TIFF header and one IFD with the one entry: Orientation, a SHORT.
+const bareExif = (o: number) => new Uint8Array([77, 77, 0, 42, 0, 0, 0, 8, 0, 1, 1, 0x12, 0, 3, 0, 0, 0, 1, 0, o, 0, 0, 0, 0, 0, 0]);
+type Bytes = Uint8Array<ArrayBuffer>; // what a Blob takes: never a SharedArrayBuffer
+const crc32 = (b: Uint8Array) => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
+const jpegCut = (b: Bytes) => {
+  if (b[0] !== 0xff || b[1] !== 0xd8) return null;
+  const out: Bytes[] = []; let i = 2, from = 0, turned = 0;
+  for (;;) {
+    const m = b[i + 1], end = i + 2 + ((b[i + 2] << 8) | b[i + 3]);
+    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null; // fill bytes or a marker out of place
+    if (m === 0xda) break; // start of scan: the picture itself, kept to the end
+    const exif = m === 0xe1 && ascii(b, i + 4, "Exif\0");
+    if (exif || (m === 0xe1 && ascii(b, i + 4, "http://ns.adobe.com/x"))) { // XMP, and its extension
+      const o = exif ? orientation(b.subarray(i + 10, end)) : 1; if (o === null) return null;
+      out.push(b.subarray(from, i)); from = end;
+      if (o > 1 && !turned++) out.push(new Uint8Array([0xff, 0xe1, 0, 34, 69, 120, 105, 102, 0, 0, ...bareExif(o)]));
+    }
+    i = end;
+  }
+  return out.length ? [...out, b.subarray(from)] : null;
+};
+const pngCut = (b: Bytes) => {
+  if (!ascii(b, 0, PNG_SIG)) return null;
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength), out: Bytes[] = [];
+  let i = 8, from = 0, turned = 0;
+  for (let type = ""; type !== "IEND"; ) {
+    const end = i + 12 > b.length ? Infinity : i + 12 + v.getUint32(i); if (end > b.length) return null;
+    type = String.fromCharCode(...b.subarray(i + 4, i + 8));
+    // A text chunk is metadata by its keyword: XMP's, or ImageMagick's raw Exif and XMP. Other text stays.
+    const key = /^[tiz]TXt$/.test(type) ? String.fromCharCode(...b.subarray(i + 8, Math.min(end - 4, i + 88))).split("\0")[0] : "";
+    if (type === "eXIf" || /^(XML:com\.adobe\.xmp|Raw profile type (exif|app1|xmp))$/i.test(key)) {
+      const o = type === "eXIf" ? orientation(b.subarray(i + 8, end - 4)) : 1; if (o === null) return null;
+      out.push(b.subarray(from, i)); from = end;
+      if (o > 1 && !turned++) {
+        const c = new Uint8Array(38), cv = new DataView(c.buffer);
+        cv.setUint32(0, 26); c.set([101, 88, 73, 102], 4); c.set(bareExif(o), 8); cv.setUint32(34, crc32(c.subarray(4, 34)));
+        out.push(c);
+      }
+    }
+    i = end;
+  }
+  return out.length ? [...out, b.subarray(from)] : null;
+};
+export const strip = async (file: File): Promise<Blob> => {
+  try { const b = new Uint8Array(await file.arrayBuffer()), parts = jpegCut(b) || pngCut(b); return parts ? new Blob(parts, { type: file.type }) : file; } catch { return file; }
+};
 const hasAlpha = (ctx: CanvasRenderingContext2D, w: number, h: number) => { const d = ctx.getImageData(0, 0, w, h).data; for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true; return false; };
 // toBlob encodes off the main thread where the browser can. null when it can't write that type (it hands back a PNG instead).
 const encode = (c: HTMLCanvasElement, type: string, q?: number) => new Promise<Blob | null>((r) => c.toBlob((b) => r(b && b.type === type ? b : null), type, q));
 const dataUrl = (b: Blob) => new Promise<string>((r, j) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result)); fr.onerror = j; fr.readAsDataURL(b); });
+// A 2D context is sRGB unless asked, and a Display P3 photo (every iPhone's) drawn into it is flattened to sRGB. A P3
+// canvas keeps the gamut, and toBlob tags what it writes with the P3 profile. A browser that doesn't know the option
+// ignores it and hands back sRGB, as before; one that refuses the value throws, and gets the plain context.
+const context = (c: HTMLCanvasElement) => { try { const ctx = c.getContext("2d", { colorSpace: "display-p3" }); if (ctx) return ctx; } catch { /* the plain context */ } return c.getContext("2d"); };
 const shrink = async (file: File, fit: number, quality: number): Promise<string> => {
   if (!fit || KEEP.test(file.type) || typeof Image === "undefined" || typeof URL.createObjectURL !== "function") return "";
   let src = "";
   try {
+    if (await animated(file)) return "";
     src = URL.createObjectURL(file);
     const img = new Image(); img.src = src; await img.decode();
     const iw = img.naturalWidth, ih = img.naturalHeight, k = Math.min(1, fit / Math.max(iw, ih));
     if (!(iw > 0 && ih > 0) || (k === 1 && file.size <= PNG_BUDGET)) return ""; // within fit and light: a picture already shrunk is never redrawn
     const c = document.createElement("canvas"), w = (c.width = Math.max(1, Math.round(iw * k))), h = (c.height = Math.max(1, Math.round(ih * k)));
-    const ctx = c.getContext("2d"); if (!ctx) return "";
+    const ctx = context(c); if (!ctx) return "";
     ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, 0, 0, w, h);
     const jpeg = /^image\/jpe?g$/i.test(file.type);
     let out = jpeg ? null : await encode(c, "image/png");
@@ -77,15 +161,15 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     if (!file) return;
     if (!file.type.startsWith("image/")) return say("Not an image");
     if (file.size > maxSize) return say(`${size(file.size)}, max ${size(maxSize)}`);
-    // One commit, of the shrunk picture when there is one: one change event, one save.
+    // One commit, of the shrunk picture when there is one, else of the file as it is less its metadata: one change event, one save.
     const at = ++gen;
-    shrink(file, fit, quality).then((url) => {
+    shrink(file, fit, quality).then(async (url) => {
       if (gen !== at) return;
       if (url) return commit(url);
       const fr = new FileReader();
       fr.onload = () => { if (gen === at) commit(String(fr.result)); };
       fr.onerror = () => say("Couldn't read the file");
-      fr.readAsDataURL(file);
+      fr.readAsDataURL(await strip(file));
     });
   };
   // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the children doesn't drop the outline.
