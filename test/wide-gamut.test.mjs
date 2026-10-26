@@ -37,7 +37,7 @@ test("hsl and hwb round-trip", () => {
 });
 
 test("hex helpers round-trip", () => {
-  assert.equal(oklchToHex(...hexToOklch("#3366cc")), "#3366cc");
+  assert.equal(oklchToHex(...hexToOklch("#3366cc")), "#3366CC"); // written upper-case, as the readout shows hex
 });
 
 test("toGamut maps out-of-gamut chroma into the destination range", () => {

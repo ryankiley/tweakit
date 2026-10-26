@@ -496,7 +496,7 @@ test("reset() re-parses the authored color exactly, whatever mode the picker is 
   document.body.append(p.el);
   const mode = p.el.querySelector(".tw-color-mode");
   mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
-  assert.equal(p.el.querySelector(".tw-color-chan-input").value, "#00ff00"); // (params keep the last emitted string until a value changes)
+  assert.equal(p.el.querySelector(".tw-color-chan-input").value, "#00FF00"); // (params keep the last emitted string until a value changes)
   p.set("c", "#123456");
   p.reset();
   assert.equal(p.params.c, "#00ff00");                  // not #29ff0e, the re-parse of the rounded readout string
@@ -597,7 +597,7 @@ test("the hex field catches up on blur after a plane tap while it was focused", 
   hue.dispatchEvent(ptr("pointerdown", { clientX: 50, clientY: 5 }));
   hue.dispatchEvent(ptr("pointerup", { clientX: 50, clientY: 5, buttons: 0 }));
   assert.notEqual(p.params.c, "#ff0000");
-  assert.equal(inp.value, "#ff0000");                   // refresh() skips the focused field (a typed edit must not be clobbered)
+  assert.equal(inp.value, "#FF0000");                   // refresh() skips the focused field (a typed edit must not be clobbered)
   inp.blur();
   assert.equal(inp.value, p.params.c);                  // used to stay stale until the next edit
   p.destroy();
@@ -656,7 +656,7 @@ test("a click into the color picker's hex field selects the whole value", () => 
   const mode = p.el.querySelector(".tw-color-mode");
   mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
   const inp = p.el.querySelector(".tw-color-chan-input");
-  assert.equal(inp.value, "#ff0000");
+  assert.equal(inp.value, "#FF0000");
   const mid = ptr("mouseup", { button: 1 });
   inp.dispatchEvent(ptr("pointerdown", { button: 1 }));                    // a middle click into the unfocused field: its mouseup carries the X11 paste
   inp.focus(); inp.dispatchEvent(mid);

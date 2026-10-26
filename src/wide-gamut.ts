@@ -193,8 +193,8 @@ export function chromaCeil(probe: (L: number, C: number) => boolean, L: number, 
 }
 
 // ── hex ──
-/** One 0–1 channel → a 2-digit hex byte (also the alpha suffix for #RRGGBBAA). */
-export const hexByte = (n: number) => Math.round(Math.min(1, Math.max(0, n)) * 255).toString(16).padStart(2, "0");
+/** One 0–1 channel → a 2-digit hex byte (also the alpha suffix for #RRGGBBAA), upper-case as the readout shows it. */
+export const hexByte = (n: number) => Math.round(Math.min(1, Math.max(0, n)) * 255).toString(16).padStart(2, "0").toUpperCase();
 const rgbToHex = (rgb: Vec3) => `#${hexByte(rgb[0])}${hexByte(rgb[1])}${hexByte(rgb[2])}`;
 export const oklchToHex = (L: number, C: number, H: number) => rgbToHex(toGamut([L, C, H], "srgb"));
 export function hexToOklch(hex: string): Vec3 {

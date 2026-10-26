@@ -364,7 +364,7 @@ export const examples = [
       (the OKLCH plane, strips and channel fields, no trigger row), for a swatch of your
       own. Append <code>el</code> wherever you like (a popover, a sidebar), call
       <code>reflow()</code> after showing it, and read <code>get()</code> back in whatever
-      notation the mode dropdown is set to: <code>hex</code> gives <code>#rrggbb</code>; the
+      notation the mode dropdown is set to: <code>hex</code> gives <code>#RRGGBB</code>; the
       wide-gamut modes give a CSS color like <code>oklch(…)</code>, which a native
       <code>&lt;input type="color"&gt;</code> won't accept; feed that only hex. Both handles
       exist synchronously; on the code-split build a lazy control fills its <code>el</code>
