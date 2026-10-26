@@ -118,6 +118,29 @@ test("a stored or set color that can't be read keeps the default, and says so, e
   } finally { console.warn = warn; localStorage.removeItem("tw:t-junk-color"); }
 });
 
+// color(srgb …) opened with the dropdown on RGB while edits wrote color(srgb …), and choosing RGB again fired no change, so
+// rgb() came back only by way of another mode.
+test("a kept flavor shows as its own option beside its mode's, so choosing the mode drops it", async () => {
+  const open = async (value) => { const p = createColorPicker({ value, onChange: () => {} }); document.body.append(p.el); await p.ready; return [p, p.el.querySelector(".tw-color-mode")]; };
+  const shown = (sel) => sel.selectedOptions[0].textContent;
+  for (const [value, mode, label] of [["color(srgb 1 0 0)", "srgb", "color(srgb)"], ["rgba(10 20 30 / 0.5)", "srgb", "rgba()"], ["hsla(200, 50%, 40%, 0.5)", "hsl", "hsla(,)"], ["hsl(200, 50%, 40%)", "hsl", "hsl(,)"], ["rgb(10, 20, 30)", "css", "rgb(,)"]]) {
+    const [p, sel] = await open(value);
+    assert.equal(shown(sel), label, value);
+    assert.equal(sel.selectedOptions[0].previousElementSibling.value, mode, `${value}: right after its mode's option`);
+    sel.value = mode; sel.dispatchEvent(new window.Event("change"));
+    assert.equal(sel.value, mode); assert.ok(![...sel.options].some((o) => o.value === "kept"), `${value}: the kept option goes`);
+    key(p.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" });
+    assert.match(p.get(), mode === "srgb" ? /^rgb\(\d[^,]*\)$/ : mode === "hsl" ? /^hsl\([^,]*\)$/ : /^rgba\(.*, 1\)$/, `${value}: an edit writes the mode's own notation (${p.get()})`);
+    p.set(value); assert.equal(shown(sel), label, "set() brings the flavor and its option back");
+    p.el.remove();
+  }
+  for (const value of ["rgb(10 20 30)", "rgba(10, 20, 30, 0.5)", "hsl(200 50% 40%)", "#7c5cff", "oklch(0.6 0.2 280)"]) {
+    const [p, sel] = await open(value);
+    assert.ok(![...sel.options].some((o) => o.value === "kept"), `${value}: its mode writes it as is, so no extra option`);
+    p.el.remove();
+  }
+});
+
 test("every color() space isColor() takes is read, and kept as written until an edit", async () => {
   // xyz, xyz-d50, xyz-d65, srgb-linear and a98-rgb loaded as the kit default oklch(70% 0.1 280), and prophoto-rgb as
   // OKLCH, each overwriting the param without a word. Each here is sRGB red, in published coordinates for its space.

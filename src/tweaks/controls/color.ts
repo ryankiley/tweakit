@@ -170,6 +170,15 @@ const flavorOf = (v: string): Flavor | null => {
   if (name === "color") return /^srgb\s/i.test(m[2]) ? { name, legacy: false, alphaSlot: false } : null;
   return { name, legacy: args > 1, alphaSlot: args === 4 };
 };
+// The dropdown's name for a kept flavor its mode doesn't write on its own ("color(srgb)", "rgba()", "hsl(,)" for commas),
+// short as the mode names, since a select is as wide as its widest option; null when the mode writes it anyway (rgb() in
+// RGB, rgba(…, 1) in CSS).
+const keptLabel = (f: Flavor | null, mode: ColorMode) => {
+  if (!f) return null;
+  if (f.name === "color") return "color(srgb)";
+  const plain = mode === "css" ? { name: "rgba", legacy: true, alphaSlot: true } : { name: mode === "hsl" ? "hsl" : "rgb", legacy: false, alphaSlot: false };
+  return f.name === plain.name && f.legacy === plain.legacy && f.alphaSlot === plain.alphaSlot ? null : `${f.name}(${f.legacy ? "," : ""})`;
+};
 // serialize()'s string in the written flavor, rebuilt from its numbers. Legacy syntax has no `none`: a gray's hue writes 0.
 const flavored = (s: string, f: Flavor | null, oklch: Vec3, A: number) => {
   if (!f) return s;
@@ -205,7 +214,15 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const modeRow = el("div", "tw-color-mode-row");
   const modeSel = el("select", "tw-color-mode"); modeSel.setAttribute("aria-label", "Color mode");
   EDIT_MODES.forEach((m) => { const o = document.createElement("option"); o.value = m; o.textContent = MODE_LABELS[m]; modeSel.append(o); });
-  modeSel.value = mode;
+  // A kept flavor shows as its own option beside its mode's, selected, so picking the mode the dropdown would otherwise
+  // show is a change, and drops it: re-picking the shown option fires nothing, so rgb() couldn't come back from color(srgb).
+  const keptOpt = document.createElement("option"); keptOpt.value = "kept";
+  const showMode = () => {
+    const label = keptLabel(flavor, mode);
+    if (label) { keptOpt.textContent = label; modeSel.querySelector(`option[value="${mode}"]`)!.after(keptOpt); modeSel.value = "kept"; }
+    else { keptOpt.remove(); modeSel.value = mode; }
+  };
+  showMode();
   const gamut2 = el("span", "tw-color-gamut");
   modeRow.append(modeSel, gamut2);
   const channels = el("div", "tw-color-channels");
@@ -343,8 +360,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 
   // A mode switch is formatting-only and never emits: notifying would push a no-op change into
   // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode); setMode is the host pushing a mode in, so it fires neither.
-  const remode = (m: ColorMode) => { mode = m; raw = null; flavor = null; modeSel.value = m; renderChannels(); renderArea(); positionThumbs(); };
-  modeSel.addEventListener("change", () => { remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); }); // the dropdown only holds EDIT_MODES
+  const remode = (m: ColorMode) => { mode = m; raw = null; flavor = null; showMode(); renderChannels(); renderArea(); positionThumbs(); };
+  modeSel.addEventListener("change", () => { if (modeSel.value === "kept") return; remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); }); // the dropdown holds EDIT_MODES and the kept flavor
 
   renderChannels();
 
@@ -352,7 +369,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     el: root,
     // Blur a focused text field before re-pointing: its change handler commits typed text against
     // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as focus leaving the popover, which closes it.
-    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
+    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; showMode(); raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
     get: () => colorStr(),
     // The gradient reads the mode to choose its blend space and re-points it on a stored ramp.
     mode: () => mode,
