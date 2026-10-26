@@ -64,6 +64,20 @@ test("option controls ignore a set() value that matches no option", () => {
   p.set("l", "b"); assert.equal(p.params.l, "b");
 });
 
+test("an option control takes back a default written off its options, so reset() restores it", async () => {
+  const p = tweaks("D", { l: { type: "list", options: ["a", "b"], value: "c" }, r: { type: "radiogrid", options: ["a", "b"], value: "c" }, s: { type: "segmented", options: ["a", "b"], value: "c" } });
+  document.body.append(p.el); await p.ready;
+  try {
+    assert.deepEqual(p.params, { l: "c", r: "c", s: "c" });
+    p.setMany({ l: "b", r: "b", s: "b" }); p.reset();
+    assert.deepEqual(p.params, { l: "c", r: "c", s: "c" });
+    assert.deepEqual(p.changes(), {});
+    p.setMany({ l: "b", r: "b", s: "b" }); p.setMany({ l: "c", r: "c", s: "c" });
+    assert.deepEqual(p.params, { l: "c", r: "c", s: "c" }, "set() of the exact default is taken");
+    p.set("l", "z"); assert.equal(p.params.l, "c", "any other off-list value is still ignored");
+  } finally { p.destroy(); }
+});
+
 test("the image control ignores a non-string value and clears on null", () => {
   const p = tweaks("I", { i: { type: "image", value: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" } });
   p.set("i", new Date(0)); assert.equal(typeof p.params.i, "string");
