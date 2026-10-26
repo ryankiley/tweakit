@@ -67,31 +67,6 @@ test("a failed build keeps the shell's own attachments: a lifted panel still lea
   } finally { host.remove(); }
 }));
 
-test("a preset load queued behind a delete of the same name is refused", async () => {
-  localStorage.clear();
-  localStorage.setItem("tw:rf:presets", JSON.stringify({ a: { x: 7 } }));
-  const p = lazy.tweaks("RF", { x: [1, 0, 10, 1], r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 } }, { persist: "rf" });
-  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "in the lazy window");
-  p.deletePreset("a");
-  assert.equal(p.loadPreset("a"), false, "the delete queued ahead of it wins");
-  assert.equal(p.savePreset("a"), true);
-  assert.equal(p.loadPreset("a"), true, "a save queued after the delete brings it back");
-  await p.ready;
-  assert.equal(p.params.x, 1, "the restored save was the (default) value at that point in the queue");
-  assert.deepEqual(p.presets(), ["a"]);
-  p.destroy();
-});
-
-test("a preset saved under a number loads under its string name before ready, as it does after", async () => {
-  localStorage.clear();
-  const p = lazy.tweaks("RFN", { x: [1, 0, 10, 1], t: { type: "tabs", pages: { A: { a: 1 } } } }, { persist: "rf-n" });
-  assert.equal(p.savePreset(5), true);
-  assert.equal(p.loadPreset("5"), true);
-  await p.ready;
-  assert.deepEqual(p.presets(), ["5"]);
-  p.destroy();
-});
-
 test("a destroyed panel says nothing when its chunk later fails", async () => {
   const { mkdtemp, cp, readdir, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
@@ -139,26 +114,27 @@ test("a resize during the lazy window is applied once the panel is ready", async
   } finally { window.innerWidth = w0; p.destroy(); }
 });
 
-test("a bag value no snapshot can take doesn't break the build; snapshots carry the controls' values", async () => {
+test("a value parked on params stays out of every snapshot, so one JSON can't take breaks none", async () => {
   const warns = await warnings(async () => {
     const p = lazy.tweaks("RFT", { x: [1, 0, 10, 1], im: { type: "image" } }, { undo: true, persist: "rf-t" });
-    const loop = {}; loop.self = loop; p.params.loop = loop; // parked before ready; the undo seed, the persist timer and toJSON all snapshot it
+    const loop = {}; loop.self = loop; p.params.loop = loop; // parked before ready; the undo seed, the persist timer and toJSON all snapshot
     await p.ready;
     p.set("x", 5);
     assert.equal(p.params.x, 5, "the panel works");
-    assert.deepEqual(p.toJSON().values.x, 5, "toJSON carries the controls' values");
+    assert.deepEqual(Object.keys(p.toJSON().values), ["x", "im"], "toJSON carries the controls' values only");
     p.destroy();
   });
-  assert.equal(warns.filter((m) => m.includes("can't be serialized")).length, 1, "said once");
+  assert.deepEqual(warns, []);
 });
 
-test("a getter-only bag key in a persisted snapshot costs only itself", async () => {
+test("a stored key no control has is left alone by a restore", async () => {
   localStorage.clear(); localStorage.setItem("tw:r6-ro", JSON.stringify({ x: 4, ro: 9 }));
   const p = lazy.tweaks("R6", { x: [1, 0, 10, 1], sh: { type: "shadow" } }, { persist: "r6-ro" });
   Object.defineProperty(p.params, "ro", { get: () => 1, configurable: true, enumerable: true });
   const errs = []; const err = console.error; console.error = (...a) => errs.push(String(a[0]));
   try { await p.ready; } finally { console.error = err; }
-  assert.equal(p.params.x, 4, "the restore still landed the control's value");
-  assert.ok(errs.some((m) => m.includes('restoring "ro" failed')));
+  assert.equal(p.params.x, 4, "the restore landed the control's value");
+  assert.equal(p.params.ro, 1, "and never wrote the key no control owns");
+  assert.deepEqual(errs, []);
   p.destroy();
 });

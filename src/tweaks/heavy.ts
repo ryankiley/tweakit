@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, TYPE_ALIASES, announce, sayNow } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, announce, sayNow } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -258,14 +258,8 @@ const nearest = (s: string, names: string[]) => {
   return names.find((n) => { const k = n.toLowerCase(); let i = 0; while (i < a.length && a[i] === k[i]) i++; return [[1, 1], [0, 1], [1, 0]].some(([x, y]) => a.slice(i + x) === k.slice(i + y)); });
 };
 const unknownType = (where: string, type: string, known: string[], then: string) => {
-  const names = [...new Set([...known, ...Object.keys(TYPE_ALIASES)])].filter((t) => t !== "folder" && t !== "colorpicker").sort(), near = nearest(type, names);
+  const names = [...new Set(known)].filter((t) => t !== "folder" && t !== "colorpicker").sort(), near = nearest(type, names);
   console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${then}. Types: ${names.join(", ")}`);
-};
-// A theme key resolveTheme skipped: kind is what its value failed to be ("color", "length"), or "" for a key it doesn't know.
-const badTheme = (key: string, v: unknown, kind: string, keys: string[]) => {
-  const near = !kind && nearest(key, keys);
-  console.warn(kind ? `[tweaks] theme: ${key} ${JSON.stringify(v)} isn't a CSS ${kind}${kind === "length" ? " or a number of px" : ""} — skipped`
-    : `[tweaks] theme: "${key}" isn't a theme key${near ? ` — did you mean "${near}"?` : "."} It is skipped. Keys: ${keys.join(", ")}, or any raw --tw-* token`);
 };
 
 const warned = new Set<string>();
@@ -280,14 +274,11 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
   sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
   pointValue: (key, comps) => `"${key}": a point value that isn't a number starts at 0 (${comps})`,
   swap: (label, min, max) =>`"${label}": min ${min} is above max ${max}, so they were swapped`,
+  theme: (key) => `theme: "${key}" isn't a --tw-* token ("--tw-accent", say) — skipped`,
   ambiguousPath: (key, n) => `set("${key}") is ambiguous — ${n} controls read as that path (a key holding "." beside a folder); rename one`,
-  filter: () => "opts.filter needs the toolbar (its search button lives there) — ignored alongside toolbar:false",
-  presetFull: (nm) => `preset "${nm}" didn't fit in storage — not saved`,
-  reserved: (key) => `set("${key}") ignored — reserved key`,
   noPath: (key) => `set("${key}") — no control at that path`,
   noValue: (key, type) => `set("${key}") ignored — a ${type} holds no value to set`,
   ambiguousKey: (key, n, eg) => `set("${key}") is ambiguous — ${n} controls share that key; use a dotted path (e.g. "${eg}")`,
-  notAValue: (key, kind) => `set("${key}") ignored — a ${kind} is not a control value`,
   springDur: (key, v, shown) => `"${key}": a spring visualDuration of ${v} s is past the editor's 0.01–10 s, so it uses ${shown} s`,
   springKept: (key, k, d, m) => `"${key}": a spring of stiffness ${k}, damping ${d}, mass ${m} is past what the editor draws (0.01–10 s, bounce ±95%); the value keeps it as written, the editor shows the nearest`,
   noControl: (key, group) => (group ? `set("${key}") ignored — it's a folder/tabs group; set its children instead` : `set("${key}") ignored — no control has that key`),
@@ -295,4 +286,4 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
 const notice = (kind: string, args: unknown[]) => { const say = NOTICES[kind]; if (say) console.warn(`[tweaks] ${say(...args)}`); };
 sayNow(notice);
 
-export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring, arrowStep, sayWhenKeysStop, SPRING_DUR };
+export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring, arrowStep, sayWhenKeysStop, SPRING_DUR };

@@ -46,7 +46,7 @@
       effects: {
         bounce: { type: "motion", mode: "spring", visualDuration: 0.6, bounce: 0.5 },
       },
-    }, { theme: { width: 300 }, draggable: false });
+    }, { theme: { "--tw-width": "300px" }, draggable: false });
     document.querySelector(".card").append(panel.el);
     const apply = ({ text: { size, weight, tracking }, fill }) => {
       const s = word.style, gradient = fill.style === "gradient";

@@ -1,15 +1,15 @@
 /* tweaks() — the panel factory: builds the shell + controls from a schema and returns the live
- * API. Persistence, presets, undo, the filter, floating drag and the lazy-window queue live here. */
+ * API. Persistence, presets, undo, floating drag and the lazy-window queue live here. */
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, foldBody,
-  applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, fuzzyMatch,
+  applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus,
   getControl, notice, isObj, hasOwn, isReservedKey, valueChanged, restoreDefault,
 } from "./shared.js";
 import { metaFor, VALUELESS } from "./schema.js";
 import { ensureForMetas, scanTypes } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
-import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
+import { ICON_PRESETS, ICON_X } from "./icons.js";
 import type { Schema, HeldSchema, TweaksOptions, Panel, Params, ParamsOf, KnownTypes, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { ClipCtx, Scope } from "./clip.js";
@@ -22,8 +22,6 @@ type Target = Record<string, unknown>;
 export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement; note?: Control["note"]; range?: Control["range"] }
 /** A values snapshot — params as JSON round-trips it. */
 export type Snapshot = Record<string, any>;
-/** A folder in the filter index: its node, label and body (for the child scan). */
-interface FolderItem { el: HTMLElement; label: string; body: HTMLElement }
 
 let topFloating: HTMLElement | null = null; // the floating panel raised last (raise())
 const liveKeys = new Map<string, number>(); // persist keys of the panels alive now, for the shared-key warning
@@ -49,17 +47,25 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The lazy window: a mutating API call made before the controls exist queues here and replays in order once assemble() has built them.
   const queue: Array<() => void> = [];
   // The last preset op queued per name: a loadPreset() behind a save is accepted, one behind a delete refused.
-  const presetOps = new Map<string, "save" | "delete">();
   let failed = false; // the chunks failed: the panel can never be built
   let built = -1; // cleanups.length as assemble() enters build()
-  const later = (fn: () => void) => { if (destroyed) return; if (failed) { console.warn("[tweaks] call ignored — the panel could not be built"); return; } assembled ? fn() : queue.push(fn); }; // a refused call says so, like every other refusal here
+  const later = (fn: () => void) => { if (destroyed) return; if (failed) return; assembled ? fn() : queue.push(fn); }; // the failed build already said why
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its slot
   // The values snapshot: undefined written as null (JSON would drop the key).
-  const replacer = (_k: string, v: unknown) => v === undefined ? null : typeof v === "bigint" ? String(v) : v; // a bigint would throw out of every snapshot
-  // A bag value JSON can't take must not throw out of every snapshot: fall back to the controls' values, say so once.
-  let snapshotWarned = false;
-  const controlsSnapshot = (): Snapshot => { const out: Record<string, any> = {}; for (const e of entries) { let o = out; for (const k of e.path.slice(0, -1)) o = o[k] ||= {}; o[e.key] = e.get(); } return JSON.parse(JSON.stringify(out, replacer)); };
-  const snapshot = (): Snapshot => { try { return JSON.parse(JSON.stringify(params, replacer)); } catch (e) { if (!snapshotWarned) { snapshotWarned = true; console.warn("[tweaks] a value parked on params can't be serialized — snapshots carry the controls' values only:", e); } return controlsSnapshot(); } };
+  const replacer = (_k: string, v: unknown) => v === undefined ? null : v;
+  // params as the schema shapes it, folders and tab pages included: a value the host parks on params is its own, so
+  // snapshots, restores and undo carry only what a control holds. Null-prototype: a folder named "toString" is its own.
+  const valuesOf = (ms: Meta[], from: Target): Snapshot => {
+    const o: Snapshot = Object.create(null);
+    for (const m of ms) if (hasOwn(from, m.key)) { // skipped and valueless rows hold nothing
+      const v: unknown = from[m.key];
+      if (m.type === "folder") o[m.key] = valuesOf(m.children, v as Target);
+      else if (m.type === "tabs") { const t: Snapshot = o[m.key] = Object.create(null); for (const pg of m.pages) if (hasOwn(v as Target, pg.key)) t[pg.key] = valuesOf(pg.children, (v as Target)[pg.key] as Target); }
+      else o[m.key] = v;
+    }
+    return o;
+  };
+  const snapshot = (): Snapshot => JSON.parse(JSON.stringify(valuesOf(metas, params), replacer));
   // Storage keys — opt-in via opts.persist (a string key, or `true` to key by name).
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
@@ -206,7 +212,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The values moved off their defaults, keyed by dotted path — setMany()'s shape, for baking tuned values into source.
   const changed = (): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.path.join(".")] = e.get(); return JSON.parse(JSON.stringify(out, replacer)); };
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
-  const copyBtn = makeCopyBtn((changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }); // snapshot() falls back on a bad bag value, not throws
+  const copyBtn = makeCopyBtn((changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; });
   // A picked row's paste (pasteScope, in the lazy clip chunk) writes through the panel's own load path; ctx lends it.
   // A paste is its own undo step: what was pending commits first, the paste right after, so neither merges with a drag.
   const ctx: ClipCtx = { panel, entries, fromJSON: (st) => { undoApi?.flush(); api.fromJSON(st); undoApi?.flush(); }, announce, alive: () => !destroyed };
@@ -218,21 +224,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     presetsBtn.setAttribute("aria-haspopup", "menu"); presetsBtn.setAttribute("aria-expanded", "false");
     toolbar.append(presetsBtn);
   }
-  // The filter (opts.filter) lives behind a toolbar button, so toolbar:false would leave it unreachable.
-  const filterOn = !!opts.filter && (opts.toolbar !== false || (notice("filter"), false));
-  const searchBtn = filterOn ? toolbarBtn("", ICON_SEARCH, "Filter controls") : null;
-  const searchInput = filterOn ? el("input", "tw-search") : null;
-  if (filterOn) {
-    searchInput.type = "text"; searchInput.placeholder = "Filter…"; searchInput.spellcheck = false; searchInput.setAttribute("aria-label", "Filter controls");
-    quietFocus(searchInput);
-    toolbar.append(searchBtn);
-  }
   toolbar.append(copyBtn, resetBtn);
   header.append(titleBtn);
-  if (filterOn) header.append(searchInput);
   if (opts.toolbar !== false) header.append(toolbar); // toolbar:false → a bare panel, e.g. an embedded demo
   // The buttons act on controls that only exist once assemble() has built them: inert until then.
-  const toolbarBtns = [copyBtn, resetBtn, presetsBtn, searchBtn].filter(Boolean);
+  const toolbarBtns = [copyBtn, resetBtn, presetsBtn].filter(Boolean);
   for (const b of toolbarBtns) b.disabled = true;
   // swallowClick lives on the header, not the title: once the header holds pointer capture, the click ending a drag is dispatched there.
   let dragMoved = false, swallowClick = false;
@@ -244,7 +240,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // slid off a toolbar button also clicks here). A drag's closing click arrives defaultPrevented.
   let pressedHeader = false;
   header.addEventListener("pointerdown", (e) => { pressedHeader = e.target === header || titleBtn.contains(e.target as Node); }, true);
-  header.addEventListener("click", (e) => { if (e.target === header && pressedHeader && !e.defaultPrevented && !panel.classList.contains("is-searching")) toggleBody(); });
+  header.addEventListener("click", (e) => { if (e.target === header && pressedHeader && !e.defaultPrevented) toggleBody(); });
   const body = el("div", "tw-body");
   const controls = el("div", "tw-controls");
   body.append(controls);
@@ -258,11 +254,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // the moment tweaks() returns instead of jumping when the lazy chunks land. ──
   const draggable = opts.draggable !== false;
   const MARGIN = 8, SNAP = 28; // px: viewport inset; snap distance to park against an edge
-  // opts.floating's x / y are insets from its corner's two edges, and px / py below are kept in those terms: a
-  // right-anchored panel stays in its corner as the window resizes, and a drag flips its delta to match.
+  // opts.floating's x / y are insets from the viewport's top-left, as px / py below are.
   const place = typeof opts.floating === "object" && opts.floating ? opts.floating : null;
-  const corner = place?.corner || "top-left", fromRight = /right$/.test(corner), fromBottom = /^bottom/.test(corner); // anything else reads as top-left
-  if (fromRight || fromBottom) panel.dataset.corner = corner;
   // The vertical clamp uses the panel's full height, scrollHeight, not its capped one: clamping on the cap would ratchet
   // (every position fits, so a tall panel drags up but never back down). +1: it rounds, so a panel parked at the far edge
   // isn't capped a fraction short of its rows.
@@ -273,9 +266,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const vw = () => root()?.clientWidth || window.innerWidth, vh = () => root()?.clientHeight || window.innerHeight;
   const bounds = () => ({ maxX: Math.max(MARGIN, vw() - panel.offsetWidth - MARGIN), maxY: Math.max(MARGIN, vh() - panel.scrollHeight - 1 - gap) });
   const posKey = persistKey ? `${persistKey}:pos` : null;
-  // A pinned panel sits where opts.floating puts it; only a draggable one restores a saved spot, and only one saved from its corner.
+  // A pinned panel sits where opts.floating puts it; only a draggable one restores a saved spot.
   const stored = draggable && posKey ? readStore(posKey) : null;
-  const saved = stored && typeof stored === "object" && (stored.corner || "top-left") === corner ? stored : null;
+  const saved = stored && typeof stored === "object" ? stored : null;
   const start = saved || place || { x: 16, y: 16 };
   const inset = (v: unknown) => { const n = parseFloat(v as string); return n >= 0 ? n : 16; }; // 0 is an inset, not a missing one
   const x0 = inset(start.x), y0 = inset(start.y);
@@ -293,7 +286,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     readGap();
     const { maxX, maxY } = bounds();
     if (draggable) { px = clamp(px, MARGIN, maxX); py = clamp(py, MARGIN, maxY); return; }
-    // A pinned panel clamps from its placement each time, so a window that narrows and widens again hands its corner back.
+    // A pinned panel clamps from its placement each time, so a window that narrows and widens again hands its spot back.
     px = clamp(x0, Math.min(MARGIN, x0), maxX);
     // It keeps its insets while they leave it half the window (or its full height, if less); past that the inset and the
     // far gap shrink together, so a short window never caps it to nothing.
@@ -364,13 +357,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (m.hint) addHintMarker(node, m.hint);
     if (m.render || m.disabled != null) conditionals.push({ node, m });
   };
-  const filterItems: Array<{ el: HTMLElement; label: string; folder: FolderItem | null }> = [], filterFolders: FolderItem[] = []; // the filter index, keyed on each control's label
   const folderEls: Array<{ path: string[]; el: HTMLElement; setCollapsed: (c: boolean) => void }> = [], tabsCtrls: Array<{ path: string[]; ctrl: TabsControl; pageKeys: string[] }> = []; // UI state for toJSON/fromJSON, keyed by path
 
   // A control's own loop (the monitor, the FPS graph) hands back a `destroy`; a panel destroyed before it ever connected would run it forever.
   const adopt = (ctrl: Control) => { if (typeof ctrl.destroy === "function") cleanups.push(ctrl.destroy); };
 
-  const build = (container: HTMLElement, ms: Meta[], target: Target, basePath: string[] = [], folderItem: FolderItem | null = null) => {
+  const build = (container: HTMLElement, ms: Meta[], target: Target, basePath: string[] = []) => {
     for (const m of ms) {
       if (m.type === "tabs") {
         const sub: Target = {}; target[m.key] = sub;
@@ -387,9 +379,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         const f = createFolder(m);
         folderEls.push({ path: [...basePath, m.key], el: f.el, setCollapsed: f.setCollapsed });
         scopes.set(f.el, { kind: "folder", path: [...basePath, m.key], label: m.label });
-        const fi = filterOn ? { el: f.el, label: m.label, body: f.body } : null;
-        if (fi) filterFolders.push(fi);
-        build(f.body, m.children, sub, [...basePath, m.key], fi); registerCond(f.el, m); container.append(f.el);
+        build(f.body, m.children, sub, [...basePath, m.key]); registerCond(f.el, m); container.append(f.el);
         continue;
       }
       const valued = !VALUELESS.has(m.type);
@@ -409,55 +399,24 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         entries.push(entry); wireReset(ctrl.el, entry); scopes.set(ctrl.el, { kind: "row", entry, label: m.label });
       }
       registerCond(ctrl.el, m);
-      if (filterOn && m.type !== "separator") filterItems.push({ el: ctrl.el, label: m.label, folder: folderItem }); // every control is searchable except the separator
       container.append(ctrl.el);
     }
   };
 
-  // ── Filter (opts.filter) — the search button swaps the title for a filter input ──
-  if (filterOn) {
-    const applyFilter = (raw: string) => {
-      const q = raw.trim().toLowerCase();
-      // an un-hide re-measures: a control hidden by the filter measured 0×0 if built meanwhile
-      let revealed = false;
-      const show = (node: HTMLElement, hide: boolean) => { if (!hide && node.classList.contains("tw-filter-hidden")) revealed = true; node.classList.toggle("tw-filter-hidden", hide); };
-      if (!q) { filterItems.forEach((i) => show(i.el, false)); filterFolders.forEach((f) => show(f.el, false)); }
-      else {
-        for (const it of filterItems) {
-          const folderMatch = it.folder && fuzzyMatch(it.folder.label, q);
-          show(it.el, !(fuzzyMatch(it.label, q) || folderMatch));
-        }
-        // innermost folders first, so an outer folder sees its children's resolved state
-        for (const f of filterFolders.slice().reverse()) {
-          const hasChild = [...f.body.children].some((ch) => !ch.classList.contains("tw-filter-hidden"));
-          show(f.el, !(fuzzyMatch(f.label, q) || hasChild));
-        }
-      }
-      if (revealed) requestReflow();
-    };
-    const exitSearch = () => { panel.classList.remove("is-searching"); searchInput.value = ""; applyFilter(""); };
-    searchBtn.addEventListener("click", () => { if (searchBtn.disabled) return; if (panel.classList.toggle("is-searching")) { searchInput.focus(); searchInput.select(); } else exitSearch(); });
-    searchInput.addEventListener("input", () => applyFilter(searchInput.value));
-    searchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); exitSearch(); searchBtn.focus(); } });
-  }
-
   // ── Snapshots in: persisted sessions, presets, fromJSON, undo. Per-entry isolation: a control whose
   // set() throws on hostile stored data (a corrupt snapshot, a hand-edited preset) costs only its own value. ──
-  const owned = new Set(metas.map((m) => m.key)); // everything else on params is a bag key
   const applySnapshot = (snap: Snapshot | null, silent?: boolean) => {
     if (!snap || typeof snap !== "object") return;
     for (const e of entries) {
       const v = atPath(snap, e.path); if (v === undefined) continue;
       tryAssign(e, v);
     }
-    // Free bag keys the host parked on params ride along, so a restore brings them back too.
-    for (const k of Object.keys(snap)) if (!owned.has(k) && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) { try { params[k] = snap[k]; } catch (err) { console.error(`[tweaks] restoring "${k}" failed — value skipped:`, err); } } // a getter-only bag key costs only itself
     last = undefined; notify(silent);
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets" ──
   const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? unwrap(readStore(presetsKey), "presets") : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
   // False when storage refused the write, so the caller can say so instead of claiming a save.
-  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); const ok = writePresets(all); if (!ok) notice("presetFull", nm); return ok; };
+  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); return writePresets(all); }; // the menu announces a refusal
   const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) restore(all[nm]); }; // re-read at replay: a delete queued ahead of it wins
   const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; if (writePresets(all)) pruneImages(); };
 
@@ -484,7 +443,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const lift = () => {
       if (panel.dataset.mode === "floating") return;
       const r = panel.getBoundingClientRect();
-      px = fromRight ? vw() - r.right : r.left; py = fromBottom ? vh() - r.bottom : r.top;
+      px = r.left; py = r.top;
       if (panel.parentNode) {
         liftSlot = el("span", "tw-lift-slot");
         liftSlot.style.width = r.width + "px"; liftSlot.style.height = r.height + "px";
@@ -506,8 +465,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // specificity, not an inline value, so a host's own z-index still wins after a drag.
     const raise = () => { if (topFloating && topFloating !== panel) topFloating.classList.remove("is-raised"); panel.classList.add("is-raised"); topFloating = panel; };
     const grab = () => { moved = true; lift(); raise(); readGap(); };
-    const moveTo = (x: number, y: number, dx: number, dy: number) => { const { maxX, maxY } = bounds(); px = clamp(x + (fromRight ? -dx : dx), MARGIN, maxX); py = clamp(y + (fromBottom ? -dy : dy), MARGIN, maxY); apply(); };
-    const savePos = () => { if (posKey) writeStore(posKey, { x: px, y: py, corner }); };
+    const moveTo = (x: number, y: number, dx: number, dy: number) => { const { maxX, maxY } = bounds(); px = clamp(x + dx, MARGIN, maxX); py = clamp(y + dy, MARGIN, maxY); apply(); };
+    const savePos = () => { if (posKey) writeStore(posKey, { x: px, y: py }); };
 
     let dragId: number | null = null, sx = 0, sy = 0, ox = 0, oy = 0, snapT = 0;
     // Document listeners (capture, so the panel's own pointer-stop can't hide them) for the press's duration.
@@ -535,7 +494,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (panel.classList.contains("is-snapping")) {
         clearTimeout(snapT);
         const cur = getComputedStyle(panel);
-        px = parseFloat(cur[fromRight ? "right" : "left"]) || px; py = parseFloat(cur[fromBottom ? "bottom" : "top"]) || py;
+        px = parseFloat(cur.left) || px; py = parseFloat(cur.top) || py;
         panel.classList.remove("is-snapping"); apply(); // …and drop the snap transition, so the grab is 1:1
       }
     });
@@ -577,7 +536,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         const { maxX, maxY } = bounds();
         if (px <= MARGIN + SNAP) px = MARGIN; else if (px >= maxX - SNAP) px = maxX;
         if (py <= MARGIN + SNAP) py = MARGIN; else if (py >= maxY - SNAP) py = maxY;
-        // The ease is a class (tweaks.css), so the reduced-motion kill-switch covers it on any corner.
+        // The ease is a class (tweaks.css), so the reduced-motion kill-switch covers it.
         // One timer at a time: an earlier drop's would strip the class 340ms after it, partway through this snap.
         clearTimeout(snapT); panel.classList.add("is-snapping"); snapT = setTimeout(() => panel.classList.remove("is-snapping"), 340);
         apply();
@@ -624,25 +583,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     });
     saveBtn.addEventListener("click", doSave);
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") doSave(); });
-  }
-
-  // ── Edit lifecycle (opts.onEditStart / onEditEnd) — a drag on any in-panel control, so a host can pause expensive work ──
-  if (opts.onEditStart || opts.onEditEnd) {
-    const DRAG_SEL = ".tw-slider, .tw-num-grab, .tw-pad, .tw-wg-area, .tw-wg-hue, .tw-wg-alpha, .tw-bezier-handle, .tw-gradient-bar, .tw-gradient-stop";
-    let editing = false;
-    // The end listeners sit on document (capture) only for the edit's duration: a drag on a portaled popover surface releases there.
-    const endEdit = () => {
-      document.removeEventListener("pointerup", endEdit, true); document.removeEventListener("pointercancel", endEdit, true);
-      if (editing) { editing = false; opts.onEditEnd && opts.onEditEnd(); }
-    };
-    const editDown = (e: PointerEvent) => {
-      if (editing || !(e.target as Element).closest(DRAG_SEL)) return;
-      editing = true; opts.onEditStart && opts.onEditStart();
-      document.addEventListener("pointerup", endEdit, true); document.addEventListener("pointercancel", endEdit, true);
-    };
-    panel.addEventListener("pointerdown", editDown);
-    panel._twEditPointer = editDown; // popover() relays its portaled surfaces' pointerdowns here
-    cleanups.push(endEdit);
   }
 
   // ── Undo / redo (opts.undo) — a debounced history of snapshots, scoped to a hovered or focused panel so it doesn't hijack the page's own undo ──
@@ -700,8 +640,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const scopes = new Map<Element, Scope>(); // a row's or folder's root → its scope, filled by build()
   const scopeAt = (n: Element | null): Scope | undefined => { for (; n && n !== panel && panel.contains(n); n = n.parentElement) { const s = scopes.get(n); if (s) return s; } };
   const rowAt = (n: Element | null): Element | undefined => { for (; n && n !== panel; n = n.parentElement) if (scopes.get(n)?.kind === "row") return n; };
-  // Out of sight: filtered, hidden by its condition, on a tab page not showing, or inside a collapsed folder or panel.
-  const hidden = (el: Element) => !!(el.closest(".tw-filter-hidden, .tw-cond-hidden, .tw-tabs-page:not([data-active=true])") || el.parentElement?.closest(".is-collapsed"));
+  // Out of sight: hidden by its condition, on a tab page not showing, or inside a collapsed folder or panel.
+  const hidden = (el: Element) => !!(el.closest(".tw-cond-hidden, .tw-tabs-page:not([data-active=true])") || el.parentElement?.closest(".is-collapsed"));
   let pick: [Element, Scope] | undefined;
   const away = (e: Event) => { const t = e.target as Element; if (!panel.contains(t) && !t.closest?.(".tw-portal")) unpick(); };
   const unpick = () => { if (!pick) return; pick[0].classList.remove("is-picked"); pick = undefined; document.removeEventListener("pointerdown", away, true); if (picked?.[0] === panel) picked = null; };
@@ -793,7 +733,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     assembled = true;
     // Replay after the restore, so an explicit host set() wins over a stored value; a destroy() mid-replay drops the rest.
     for (const fn of queue.splice(0)) { if (destroyed) break; try { fn(); } catch (e) { console.error("[tweaks] a call queued before ready failed:", e); } }
-    presetOps.clear();
     for (const b of toolbarBtns) b.disabled = false; // the controls exist now
   };
 
@@ -812,7 +751,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
   // Resolve a (possibly dotted) key, apply, report whether the leaf changed; never notifies, so setMany fires one notify.
   const applySet = (key: string, v: unknown) => {
-    if (String(key).split(".").some(isReservedKey)) { notice("reserved", key); return false; } // never write through to the prototype
+    if (String(key).split(".").some(isReservedKey)) return false; // never write through to the prototype
     const parts = String(key).split(".");
     // The path exactly as changes() names it first, so a key holding a dot ("a.b", "f.a.b") is reachable; two controls
     // whose paths read the same (a top-level "a.b" beside folder a's b) are ambiguous, not a guess.
@@ -831,7 +770,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (!e) { if (vt) notice("noValue", key, vt); else notice("noControl", key, metas.some((m) => m.key === key && (m.type === "folder" || m.type === "tabs"))); return false; }
     const prev = e.target[e.key];
     // Same isolation as applySnapshot: a hostile value costs only that key.
-    if (notAValue(v)) { notice("notAValue", key, typeof v); return false; } // warns like the API's other refusals
+    if (notAValue(v)) return false;
     try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; }
     clampNote(e, key, v);
     if (!valueChanged(prev, e.target[e.key])) return false; // keeps a store-sync listener from echoing forever
@@ -865,9 +804,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; landmark(title); }, // a rename never moves saved values or presets
     setTheme(theme) { if (destroyed) return; if (themeVars) for (const k in themeVars) panel.style.removeProperty(k); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
     // Presets API (no-ops without opts.persist); before ready they queue like set() does.
-    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; if (!assembled) presetOps.set(String(nm), "save"); let ok = true; later(() => { ok = savePreset(nm); }); return ok; }, // queued before ready counts as saved; once built, whether storage took it
-    loadPreset: (nm) => { const op = presetOps.get(String(nm)); if (destroyed || failed || op === "delete" || !(op === "save" || listPresets()[nm])) return false; later(() => loadPreset(nm)); return true; }, // a queued save counts as stored, a queued delete as gone
-    deletePreset: (nm) => { if (presetsKey) { if (!assembled) presetOps.set(String(nm), "delete"); later(() => deletePreset(nm)); } },
+    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; let ok = true; later(() => { ok = savePreset(nm); }); return ok; }, // queued before ready counts as saved; once built, whether storage took it
+    loadPreset: (nm) => { if (destroyed || failed || !listPresets()[nm]) return false; later(() => loadPreset(nm)); return true; }, // whether it's stored now; a save still queued before ready isn't yet
+    deletePreset: (nm) => { if (presetsKey) later(() => deletePreset(nm)); },
     presets: () => (destroyed ? [] : Object.keys(listPresets())),
     undo: () => { if (undoApi) later(undoApi.undo); }, redo: () => { if (undoApi) later(undoApi.redo); }, // no-ops without opts.undo; queued before ready, in order
     // Teardown. Safe to call before ready resolves — assemble() sees the flag and bails.

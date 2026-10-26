@@ -9,7 +9,7 @@ type OnChange = (value: unknown) => void;
 /** The resolved `--tw-*` custom-property map a theme turns into (resolveTheme). */
 type ThemeVars = Record<string, string>;
 /** A panel root; panel.ts hangs its live theme, edit hook and ready promise on the node. */
-interface PanelEl extends HTMLElement { _twTheme?: ThemeVars | null; _twEditPointer?: (e: PointerEvent) => void; ready?: Promise<Panel> }
+interface PanelEl extends HTMLElement { _twTheme?: ThemeVars | null; ready?: Promise<Panel> }
 /** A node applyThemeVars has written to; remembers which properties, to clear them next time. */
 interface ThemedEl extends HTMLElement { _twAppliedVars?: string[] | null }
 /** A single-select radio button carrying its option's real value (dataset stringifies). */
@@ -222,60 +222,15 @@ export const placeBelow = (trigger: Element, pop: HTMLElement, { width, fallback
   pop.dataset.side = goAbove ? "above" : "below"; pop.style.setProperty("--tw-pop-h", String(h));
 };
 
-// ── Theming — the panel runs on --tw-* custom properties, so a theme is a set of those vars:
-// resolveTheme maps a friendly object to {var: value}, applyThemeVars sets them inline.
-// Null-prototype, like every table indexed with caller data: a key of "constructor" must miss.
-const THEME_ALIASES: Record<string, string> = Object.assign(Object.create(null), {
-  // color — backdrops
-  accent: "--tw-accent", onAccent: "--tw-on-accent", base: "--tw-base", dropdownBg: "--tw-dropdown-bg",
-  surface: "--tw-surface", surfaceHover: "--tw-surface-hover", surfaceActive: "--tw-surface-active",
-  border: "--tw-border", borderHover: "--tw-border-hover", selection: "--tw-selection",
-  // color — text tones
-  title: "--tw-text-root", section: "--tw-text-section", text: "--tw-text-primary", label: "--tw-text-label",
-  textMuted: "--tw-text-secondary", textFaint: "--tw-text-tertiary", focus: "--tw-text-focus",
-  success: "--tw-success", danger: "--tw-danger",
-  // elevation
-  shadow: "--tw-shadow-dropdown", shadowPanel: "--tw-shadow-panel", shadowPanelLifted: "--tw-shadow-panel-lifted",
-  // type + shape
-  font: "--tw-font-sans", fontMono: "--tw-font-mono", radius: "--tw-radius", density: "--tw-row-height", width: "--tw-width", // numeric → px
-});
-const TW_PX_ALIASES = new Set(["radius", "density", "width"]);
-// Font stacks and box-shadows: written as given. Every other friendly key holds a color.
-const TW_FREE_ALIASES = new Set(["font", "fontMono", "shadow", "shadowPanel", "shadowPanelLifted"]);
-// A length: a number with a length unit or %, a bare 0, a calc()-family or var() expression, or a CSS-wide keyword. A
-// unitless "12" is no length: --tw-radius: 12 breaks every calc() it lands in.
-const TW_LENGTH = /^([+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?(%|px|r?em|r?ex|r?ch|r?cap|r?ic|r?lh|cm|mm|q|in|pt|pc|[sld]?v([whib]|min|max)|cq([whib]|min|max))|[+-]?0*\.?0+|(calc|var|min|max|clamp|env)\(.*\)|inherit|initial|unset|revert|revert-layer)$/i;
-// Can this friendly key's var hold the value? A DOM without CSS.supports (jsdom) can't judge a color, so it passes.
-const themeOk = (k: string, s: string) => TW_PX_ALIASES.has(k) ? TW_LENGTH.test(s.trim())
-  : TW_FREE_ALIASES.has(k) || typeof CSS === "undefined" || !CSS.supports || CSS.supports("color", s);
-// On-accent text: black or white by the accent's WCAG luminance, so a bright accent stays
-// legible. Hex and rgb() are read; anything else falls back to white. sRGB is all it needs.
-const channelLin = (c: number) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
-const parseRgb = (s: string): number[] | null => {
-  s = String(s).trim();
-  let m = /^#([0-9a-f]{3})$/i.exec(s); if (m) return m[1].split("").map((c) => parseInt(c + c, 16));
-  m = /^#([0-9a-f]{6})$/i.exec(s); if (m) return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
-  m = /^rgba?\(([^)]+)\)/i.exec(s); if (m) { const n = m[1].split(/[\s,/]+/).filter(Boolean).map(parseFloat); return [n[0], n[1], n[2]]; }
-  return null;
-};
-const onAccentText = (accent: string) => {
-  const rgb = parseRgb(accent); if (!rgb || rgb.some((c) => !Number.isFinite(c))) return "#ffffff";
-  const L = 0.2126 * channelLin(rgb[0]) + 0.7152 * channelLin(rgb[1]) + 0.0722 * channelLin(rgb[2]);
-  return 1.05 / (L + 0.05) >= (L + 0.05) / 0.0571 ? "#ffffff" : "#161616"; // contrast vs white vs near-black (#161616, L≈0.0071)
-};
+// ── Theming — the panel runs on --tw-* custom properties, so a theme is a set of those vars, which applyThemeVars
+// sets inline. A key that isn't a token is skipped out loud.
 const resolveTheme = (theme: Theme | null | undefined): ThemeVars | null => {
   if (!theme || typeof theme !== "object") return null;
   const out: ThemeVars = {};
   for (const [k, v] of Object.entries(theme)) {
-    if (k.startsWith("--")) { out[k] = String(v); continue; } // raw tokens pass unchecked: the escape hatch
     if (v == null) continue; // unset, as an optional spread leaves a key
-    const name = THEME_ALIASES[k], s = TW_PX_ALIASES.has(k) && typeof v === "number" ? `${v}px` : String(v);
-    // A typo or a value its var can't hold is skipped out loud, not dropped or written as-is.
-    // The message and its near-miss search are lazy, as only a mistake needs them.
-    if (!name || !themeOk(k, s)) { import("./heavy.js").then((m) => m.badTheme(k, v, name ? (TW_PX_ALIASES.has(k) ? "length" : "color") : "", Object.keys(THEME_ALIASES)), () => {}); continue; }
-    out[name] = s;
+    if (k.startsWith("--")) out[k] = String(v); else notice("theme", k);
   }
-  if (out["--tw-accent"] && !out["--tw-on-accent"]) out["--tw-on-accent"] = onAccentText(out["--tw-accent"]);
   return Object.keys(out).length ? out : null;
 };
 // Clear the previous application first, so a partial theme reverts what it no longer names.
@@ -308,7 +263,6 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   // A closed pop stays in the DOM at opacity 0; inert keeps it out of the tab order and a11y tree.
   pop.inert = true;
   // Relay pointerdowns to the host panel's edit hook — on <body>, its own listener can't see them.
-  pop.addEventListener("pointerdown", (e) => trigger.closest<PanelEl>(".tw-panel")?._twEditPointer?.(e), true);
   stopPointerLeak(pop); // on <body>, outside the panel's own pointer-stop
   // A scroll carries the pop along at its offset from the trigger (follow) instead of
   // re-placing it; once the row has left the viewport the pop closes.
@@ -394,19 +348,6 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
 
 // Fuzzy match for the filter: `q` is a substring of `text`, or within a small edit distance
 // of a window of it ("blut" finds "blur"); the DP's zeroed first row lets a match start anywhere.
-const fuzzyMatch = (text: string, q: string) => {
-  text = text.toLowerCase();
-  if (text.includes(q)) return true;
-  if (q.length < 3) return false;
-  const m = q.length, n = text.length;
-  let prev: number[] = new Array(n + 1).fill(0);
-  for (let i = 1; i <= m; i++) {
-    const cur: number[] = [i];
-    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (q[i - 1] === text[j - 1] ? 0 : 1));
-    prev = cur;
-  }
-  return Math.min(...prev) <= (q.length < 6 ? 1 : 2);
-};
 
 const REDUCE_MOTION: { matches: boolean } = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
 // ── Motion tokens — EASE_SPRING is the JS literal of the CSS --tw-ease-spring: WAAPI and
@@ -554,9 +495,6 @@ const REGISTRY: Record<string, ControlCtor<any, any>> = {}; // heterogeneous by 
 export const registerControl = (type: string, ctor: ControlCtor<any, any>) => { REGISTRY[type] = ctor; };
 export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, C> | undefined => REGISTRY[type];
 export const controlTypes = () => Object.keys(REGISTRY);
-// The names people reach for: `bezier` is the cubicbezier control, and `toggle` or `switch` the checkbox, which draws as an
-// Off/On switch. A schema's `type` and markup's data-tw both read through this.
-export const TYPE_ALIASES: Record<string, string> = Object.assign(Object.create(null), { bezier: "cubicbezier", toggle: "checkbox", switch: "checkbox" });
 // The markup chunk's enhance(), registered when markup.ts loads (enhance.ts fetches it, or single.ts imports it).
 let MARKUP: ((root: Document | Element, kit: any) => Promise<void>) | null = null; // any: the kit's type lives in markup.ts, which imports this
 export const setMarkup = (fn: typeof MARKUP) => { MARKUP = fn; };
@@ -576,7 +514,7 @@ export {
   normalizeRange, notice, sayNow, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
-  resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
+  resolveTheme, applyThemeVars, carryScheme, carrySkin, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
   blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce, hasOwn, isReservedKey, valueChanged, restoreDefault, SPRING_KEYS,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };

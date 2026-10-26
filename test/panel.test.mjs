@@ -181,15 +181,6 @@ test("markup mode's copy keys by data-key and suffixes duplicates", async () => 
   holder.remove();
 });
 
-test("opts.filter without a toolbar is refused, not built invisibly", () => {
-  // Regression: the search button lives in the toolbar, so toolbar:false left the filter
-  // input mounted in the header with nothing able to reveal it.
-  const p = tweaks("FT", { a: [1, 0, 10, 1] }, { filter: true, toolbar: false });
-  document.body.append(p.el);
-  assert.equal(p.el.querySelector(".tw-search"), null);
-  p.destroy();
-});
-
 test("setMany applies a batch across folders and notifies once", () => {
   const p = tweaks("SM", { a: [1, 0, 10, 1], b: [1, 0, 10, 1], folder: { c: [1, 0, 10, 1] } });
   let calls = 0, lastKey;
@@ -522,14 +513,12 @@ test("a range too narrow for a grid point pins to one value", () => {
   assert.deepEqual(p.toJSON(), s);
 });
 
-test("a restore refuses a function as a control value, and a bag bigint can't break the snapshot", () => {
+test("a restore refuses a function as a control value", () => {
   const p = tweaks("Fn2", { sel: ["a", "b"] });
   const error = console.error; let logged = ""; console.error = (m) => { logged = String(m); };
   try { p.fromJSON({ values: { sel: () => 1 } }); } finally { console.error = error; }
   assert.match(logged, /restoring "sel" failed/);
   assert.equal(p.params.sel, "a");
-  p.params.big = 10n;                                   // a host-parked bag value: the persist/undo timers and toJSON used to throw
-  assert.equal(p.toJSON().values.big, "10");
 });
 
 test("a hint survives a leave and a blur queued within its grace, then a re-enter", async () => {
@@ -606,12 +595,11 @@ test("numeric values stay on their step grid: a null bound is unbounded, an off-
   assert.deepEqual(p.toJSON(), s);      // a round trip is a fixed point
 });
 
-test("set() refuses a function as a control value (JSON can't carry it, so every snapshot dropped the key)", async () => {
+test("set() refuses a function as a control value (JSON can't carry it, so every snapshot dropped the key)", () => {
   const p = tweaks("Fn", { sel: ["a", "b"], free: 1 });
-  const warned = await warnings(() => p.set("sel", () => 1));
-  assert.match(warned.at(-1), /a function is not a control value/);
+  p.set("sel", () => 1);
   assert.equal(p.params.sel, "a");
-  p.params.hook = () => 2;                      // bag keys stay free
+  p.params.hook = () => 2;                      // a value parked on params is the host's own
   assert.deepEqual(p.toJSON().values, { sel: "a", free: 1 });
 });
 
@@ -733,13 +721,12 @@ test("a radio group whose value matches no option still has a tab stop and a key
   p.destroy();
 });
 
-test("a control revealed by a render condition or a cleared filter asks for a re-measure", async () => {
-  // Regression: tabs dispatch tw-reflow when a page shows, but a control hidden by
-  // tw-cond-hidden or the filter was revealed silently — a bezier/plot/segmented built
-  // while hidden kept its zero-width measurements.
+test("a control revealed by a render condition asks for a re-measure", async () => {
+  // Tabs dispatch tw-reflow when a page shows; a control revealed by its condition must too, or a
+  // bezier/plot/segmented built while hidden keeps its zero-width measurements.
   let reflows = 0; const count = () => reflows++;
   window.addEventListener("tw-reflow", count);
-  const p = tweaks("Reveal", { show: false, b: { type: "slider", value: 1, min: 0, max: 2, render: (get) => get("show") }, c: [1, 0, 10, 1] }, { filter: true });
+  const p = tweaks("Reveal", { show: false, b: { type: "slider", value: 1, min: 0, max: 2, render: (get) => get("show") }, c: [1, 0, 10, 1] });
   document.body.append(p.el);
   const hidden = p.el.querySelectorAll(".tw-slider")[0].closest(".tw-cond-hidden");
   assert.ok(hidden, "b starts hidden");
@@ -750,15 +737,6 @@ test("a control revealed by a render condition or a cleared filter asks for a re
   assert.equal(reflows, 1, "one tw-reflow for the reveal");
   p.set("show", false); await wait(40);
   assert.equal(reflows, 1, "hiding does not reflow");
-
-  const search = p.el.querySelector(".tw-search");
-  search.value = "zzz"; search.dispatchEvent(new Event("input", { bubbles: true }));
-  assert.ok(p.el.querySelectorAll(".tw-filter-hidden").length > 0, "the filter hid something");
-  await wait(40); reflows = 0;
-  search.value = ""; search.dispatchEvent(new Event("input", { bubbles: true }));
-  await wait(40);
-  assert.equal(p.el.querySelectorAll(".tw-filter-hidden").length, 0, "the filter cleared");
-  assert.equal(reflows, 1, "one tw-reflow for the cleared filter");
   window.removeEventListener("tw-reflow", count);
   p.destroy();
 });

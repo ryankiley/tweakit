@@ -532,7 +532,7 @@ test("a markup host with an unknown data-tw type is skipped with a warning namin
     assert.equal(host.children.length, 0);
     assert.ok(msgs.some((m) => m.includes('data-tw="slidr": "slidr" isn\'t a control type — did you mean "slider"? It is skipped.')));
     const types = msgs.find((m) => m.includes("slidr")).split("Types: ")[1].split(", ");
-    for (const t of ["segmented", "toggle", "switch", "bezier", "radiogrid"]) assert.ok(types.includes(t), `the list names ${t}`);
+    for (const t of ["segmented", "checkbox", "cubicbezier", "radiogrid"]) assert.ok(types.includes(t), `the list names ${t}`);
     for (const t of ["colorpicker", "tabs"]) assert.ok(!types.includes(t), `and not ${t}, which markup can't build`);
   } finally { host.remove(); }
 });

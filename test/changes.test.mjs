@@ -195,8 +195,8 @@ test("beside a folder's header picks the folder; a press elsewhere drops it; the
   p.destroy(); q.destroy();
 });
 
-test("a pick out of sight takes nothing: filtered, hidden by its condition, folded away, or on another tab", async () => {
-  const p = await mountPanel({ show: true, x: { type: "slider", value: 1, min: 0, max: 10, render: (get) => get("show") }, f: { y: [1, 0, 10, 1] }, t: { type: "tabs", pages: { One: { z: [1, 0, 10, 1] }, Two: { w: [1, 0, 10, 1] } } } }, { filter: true });
+test("a pick out of sight takes nothing: hidden by its condition, folded away, or on another tab", async () => {
+  const p = await mountPanel({ show: true, x: { type: "slider", value: 1, min: 0, max: 10, render: (get) => get("show") }, f: { y: [1, 0, 10, 1] }, t: { type: "tabs", pages: { One: { z: [1, 0, 10, 1] }, Two: { w: [1, 0, 10, 1] } } } });
   const row = (k) => [...p.el.querySelectorAll(".tw-controls > .tw-slider-wrap")].find((r) => r.querySelector(".tw-slider-label")?.textContent === k);
   const tries = [
     ["X", () => p.set("show", false), () => p.set("show", true)],

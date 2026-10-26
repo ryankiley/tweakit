@@ -236,9 +236,9 @@ test("an unknown type warns, naming the near type and the real ones; it still bu
   let p;
   const msgs = await warnings(() => { p = tweaks("Types", { typo: { type: "slidr", value: 1 }, font: { type: "Inter", size: [12, 8, 40, 1] } }); });
   assert.deepEqual(p.params.font, { type: "Inter", size: 12 });
-  assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"?') && m.includes("Types: bezier, button")));
+  assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"?') && m.includes("Types: button, buttongroup")));
   const types = msgs.find((m) => m.includes('"typo"')).split("Types: ")[1].split(", ");
-  for (const t of ["segmented", "toggle", "switch", "bezier", "tabs"]) assert.ok(types.includes(t), `the list names ${t}`);
+  for (const t of ["segmented", "checkbox", "cubicbezier", "tabs"]) assert.ok(types.includes(t), `the list names ${t}`);
   assert.ok(!types.includes("colorpicker") && !types.includes("folder"), "and not the picker body or a folder");
   assert.ok(msgs.some((m) => m.includes('"font": "Inter" isn\'t a control type. It builds a folder')));
   p.destroy();
@@ -401,17 +401,6 @@ test("a non-finite default reads as 0 everywhere", () => {
   assert.deepEqual(hs.map(ends), [["0", "1"], ["0", "1"], ["0", "1"]]);
   for (const h of hs) press(h);
   assert.deepEqual([p.params.a, p.params.b, p.params.c], [0.01, 0.01, 0.01]);
-  p.destroy();
-});
-
-// { type: "bezier" } and { type: "toggle" } built folders, the bezier's curve mangled into a slider, where the source file is
-// bezier.ts and the checkbox draws as an Off/On toggle.
-test("bezier, toggle and switch name the cubicbezier and checkbox controls, in a schema and in markup", async () => {
-  const p = tweaks("Alias", { back: { type: "bezier", value: [0.42, 0, 0.58, 1] }, on: { type: "toggle", value: true }, flag: { type: "switch" } });
-  await p.ready;
-  assert.deepEqual(p.params, { back: [0.42, 0, 0.58, 1], on: true, flag: false });
-  const host = document.createElement("div"); host.dataset.tw = "toggle"; host.dataset.checked = "true"; document.body.append(host);
-  try { await enhance(host); assert.equal(host._tw.ctrl.get(), true); } finally { host.remove(); }
   p.destroy();
 });
 

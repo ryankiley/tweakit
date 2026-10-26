@@ -2,7 +2,7 @@
  * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a page
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
-import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes, TYPE_ALIASES, hasOwn, valueChanged, restoreDefault, SPRING_KEYS } from "./shared.js";
+import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes, hasOwn, valueChanged, restoreDefault, SPRING_KEYS } from "./shared.js";
 import type { metaFor } from "./schema.js";
 import type { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import type { createFolder, createControl } from "./controls/basic.js";
@@ -52,7 +52,7 @@ const num = (s: string | undefined) => { if (s == null || s === "") return undef
 const flag = (s: string | undefined) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
 const splitList = (s: string | undefined) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
 const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
-  const d = host.dataset, type = (d.tw && TYPE_ALIASES[d.tw]) || d.tw;
+  const d = host.dataset, type = d.tw;
   // Tabs are panel-only, so a tabs host is left untouched, as the markup page says; built, it fell through to a folder
   // whose missing get() threw out of enhance() and left every later host claimed but empty.
   if (type === "tabs") return null;
