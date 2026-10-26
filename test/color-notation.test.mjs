@@ -117,3 +117,19 @@ test("a stored or set color that can't be read keeps the default, and says so, e
     p.destroy();
   } finally { console.warn = warn; localStorage.removeItem("tw:t-junk-color"); }
 });
+
+test("every color() space isColor() takes is read, and kept as written until an edit", async () => {
+  // xyz, xyz-d50, xyz-d65, srgb-linear and a98-rgb loaded as the kit default oklch(70% 0.1 280), and prophoto-rgb as
+  // OKLCH, each overwriting the param without a word. Each here is sRGB red, in published coordinates for its space.
+  const red = { xyz: "color(xyz 0.41239 0.21264 0.01933)", d65: "color(xyz-d65 0.41239 0.21264 0.01933)", d50: "color(xyz-d50 0.4360 0.2225 0.0139)",
+    lin: "color(srgb-linear 1 0 0)", a98: "color(a98-rgb 0.8586 0 0)", pro: "color(prophoto-rgb 0.7022 0.2757 0.1036)" };
+  const p = tweaks("X", red); await p.ready; document.body.append(p.el);
+  assert.deepEqual({ ...p.params }, red);
+  const [L, C, H] = convert([1, 0, 0], "srgb", "oklch");
+  const hues = [...p.el.querySelectorAll(".tw-wg-hue")]; // each row's closed popover, in schema order
+  assert.equal(hues.length, 6);
+  hues.forEach((h) => key(h, { key: "ArrowRight" })); // one hue step each
+  const want = `oklch(${+(L * 100).toFixed(1)}% ${+C.toFixed(3)} ${+(H + 1).toFixed(1)})`;
+  for (const k of Object.keys(red)) assert.equal(p.params[k], want, `${k}: read as sRGB red, then edited in OKLCH`);
+  p.destroy();
+});

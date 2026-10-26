@@ -29,7 +29,7 @@ const CHECKER = "var(--tw-checker)"; // the alpha checker, a tweaks.css token
 // for sRGB-family colors, since its fillStyle getter echoes wide colors in their own notation.
 // Null-prototype: the space name comes from the parsed string, so `color(constructor …)` must
 // miss rather than resolve to a member of Object.prototype and reach convert().
-const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" });
+const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb", "a98-rgb": "a98-rgb", "srgb-linear": "srgb-linear", xyz: "xyz-d65", "xyz-d65": "xyz-d65", "xyz-d50": "xyz-d50" });
 const SRGB_FN_RE = /^(rgba?|hsla?|hwb)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i; // sRGB-family functions; no nested parens
 const ENGINE_FN_RE = /^(oklch|oklab|lch|lab|color)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i; // the engine's own functions
 const CSS_SPACES = /^(srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|xyz|xyz-d50|xyz-d65)$/i; // color()'s predefined spaces
@@ -145,10 +145,10 @@ function parseColor(str: string | null | undefined): Oklcha {
   return [num(k[0]), num(k[1]), num(k[2]), cm[3] != null ? clamp(num(cm[3]), 0, 1) : 1];
 }
 
-// Whether a written color is handed back as written: a color in a notation the picker edits, with every number a plain
-// one. Anything else (1e999, a named color) is normalized, as the picker reads it. Only a function's arguments are
+// Whether a written color is handed back as written: a color in a notation the picker edits, or in a color() space it
+// reads but has no mode for (xyz, a98-rgb, prophoto-rgb…), with every number a plain one. Anything else (1e999, a named color) is normalized, as the picker reads it. Only a function's arguments are
 // numbers: a hex's digits read as exponents (#1E40AF as 1e40) and `rec2020` as 2020, so those came back rewritten.
-const verbatim = (v: unknown): v is string => typeof v === "string" && isColor(v) && notationOf(v) !== null && (HEX_RE.test(v.trim()) || (v.replace(/^\s*[a-z]+\(\s*(?:[a-z][\w-]*\s)?/i, "").match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).every((n) => Math.abs(+n) <= 1000));
+const verbatim = (v: unknown): v is string => typeof v === "string" && isColor(v) && (notationOf(v) !== null || /^\s*color\(/i.test(v)) && (HEX_RE.test(v.trim()) || (v.replace(/^\s*[a-z]+\(\s*(?:[a-z][\w-]*\s)?/i, "").match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).every((n) => Math.abs(+n) <= 1000));
 // The edit mode a written color's notation maps to; null for one with no mode of its own (a named color, lab() with
 // alpha in a form the picker can't echo), which opens in OKLCH.
 const notationOf = (v: unknown): ColorMode | null => {
