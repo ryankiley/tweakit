@@ -7,9 +7,15 @@ import type { Control } from "../types.js";
 
 function createBezier(meta: Meta, onChange: OnChange): Control {
   const DEF = [0.25, 0.1, 0.25, 1];
-  const YMIN = -0.25, YMAX = 1.25, RANGE = YMAX - YMIN, PAD = 8;
+  // x must stay 0–1 for a valid cubic-bezier(); y may be anything in CSS, and −1–2 holds the overshoot curves people reach
+  // for (easeOutBack's 1.56, easeInOutBack's −0.6 and 1.6), which a −0.25–1.25 clamp flattened without a word.
+  const YMIN = -1, YMAX = 2, PAD = 8;
   // Fit on build as well as in set(), so an authored [1.5, 0, -0.2, 1] can't reach get() as an invalid cubic-bezier().
   const fit = (m: number[]) => m.map((n, i) => clamp(n, i % 2 ? YMIN : 0, i % 2 ? YMAX : 1));
+  // The drawn y range: −0.25–1.25, grown to fit the handles. A drag holds it still, so the curve doesn't slide under the
+  // pointer, and the graph fits again when the drag ends.
+  let view = [-0.25, 1.25], held = false;
+  const fitView = () => { if (!held) view = [Math.min(-0.25, v[1] - 0.1, v[3] - 0.1), Math.max(1.25, v[1] + 0.1, v[3] + 0.1)]; };
   let v: number[] = Array.isArray(meta.value) && meta.value.length === 4 ? meta.value.map(Number) : DEF.slice();
   if (v.some((n) => !Number.isFinite(n))) v = DEF.slice(); // a non-finite init would show NaN and a blank curve
   v = fit(v);
@@ -31,7 +37,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
 
   let W = 0, H = 0;
   const xPx = (x: number) => PAD + x * (W - 2 * PAD);
-  const yPx = (y: number) => (H - PAD) - ((y - YMIN) / RANGE) * (H - 2 * PAD);
+  const yPx = (y: number) => (H - PAD) - ((y - view[0]) / (view[1] - view[0])) * (H - 2 * PAD);
   const setLine = (ln: Built<SVGLineElement>, ax: number, ay: number, bx: number, by: number) => { ln.setAttribute("x1", ax); ln.setAttribute("y1", ay); ln.setAttribute("x2", bx); ln.setAttribute("y2", by); };
   // The curve and handles only; the fields update separately, so a field edit doesn't re-set itself.
   const drawGraph = () => {
@@ -39,6 +45,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
     h1.setAttribute("aria-label", `Control point 1, x ${v[0]}, y ${v[1]}`); h2.setAttribute("aria-label", `Control point 2, x ${v[2]}, y ${v[3]}`);
     // Layout px, not getBoundingClientRect: under an ancestor CSS scale the rect sat the handles off the curve.
     W = graph.offsetWidth; H = graph.offsetHeight; if (W < 2) return;
+    fitView();
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     const [x1, y1, x2, y2] = v;
     const ax = xPx(0), ay = yPx(0), bx = xPx(1), by = yPx(1), p1x = xPx(x1), p1y = yPx(y1), p2x = xPx(x2), p2y = yPx(y2);
@@ -59,14 +66,14 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
     let rect: DOMRect | null = null, gw = 0, gh = 0, scale = 1;
     dragGesture(handle, {
       // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px); preventDefault killed click-to-focus.
-      onDown: (e) => { e.preventDefault(); rect = graph.getBoundingClientRect(); gw = graph.offsetWidth || rect.width; gh = graph.offsetHeight || rect.height; scale = rect.width / gw; handle.classList.add("is-dragging"); handle.focus({ focusVisible: false }); },
+      onDown: (e) => { e.preventDefault(); rect = graph.getBoundingClientRect(); gw = graph.offsetWidth || rect.width; gh = graph.offsetHeight || rect.height; scale = rect.width / gw; handle.classList.add("is-dragging"); handle.focus({ focusVisible: false }); held = true; },
       onMove: (e) => {
         const gx = (e.clientX - rect.left) / scale, gy = (e.clientY - rect.top) / scale;
         const x = clamp((gx - PAD) / (gw - 2 * PAD), 0, 1);
-        const y = clamp(YMIN + ((gh - PAD) - gy) / (gh - 2 * PAD) * RANGE, YMIN, YMAX);
+        const y = clamp(view[0] + ((gh - PAD) - gy) / (gh - 2 * PAD) * (view[1] - view[0]), YMIN, YMAX);
         v[idx * 2] = +x.toFixed(2); v[idx * 2 + 1] = +y.toFixed(2); drawGraph(); syncFields(); onChange(v.slice());
       },
-      onEnd: () => { rect = null; handle.classList.remove("is-dragging"); },
+      onEnd: () => { rect = null; handle.classList.remove("is-dragging"); held = false; drawGraph(); },
     });
     // Keyboard: arrows nudge by 0.01 (⇧ = 0.1) on the drag's clamps and grid, Home restores the default, Escape drops focus.
     handle.addEventListener("keydown", (e) => {

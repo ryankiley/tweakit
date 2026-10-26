@@ -158,10 +158,10 @@ test("spring and cubic-bezier render a label row", () => {
 });
 
 test("cubic-bezier clamps its initial value the way set() does", () => {
-  const p = tweaks("Bz", { bz: { type: "cubicbezier", value: [1.5, 2, -0.2, -1] } });
-  assert.deepEqual(p.params.bz, [1, 1.25, 0, -0.25]); // x to [0,1], y to the editor's range
+  const p = tweaks("Bz", { bz: { type: "cubicbezier", value: [1.5, 3, -0.2, -2] } });
+  assert.deepEqual(p.params.bz, [1, 2, 0, -1]); // x to [0,1], y to the editor's range, −1 to 2
   const fields = [...p.el.querySelectorAll(".tw-bezier .tw-num")].map((i) => +i.value);
-  assert.deepEqual(fields, [1, 1.25, 0, -0.25]); // the fields agree with get()
+  assert.deepEqual(fields, [1, 2, 0, -1]); // the fields agree with get()
 });
 
 test("a point without min/max/step is continuous, not a -1/0/1 grid", () => {
