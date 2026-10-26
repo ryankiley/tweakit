@@ -29,3 +29,5 @@ export const near = (a, b, msg) => { assert.equal(a.length, b.length, msg); a.fo
 
 /** Two numbers agree within `eps`. */
 export const close = (a, b, eps = 1e-3) => Math.abs(a - b) < eps;
+// What a panel saved under `k`, out of its { v: 1, values } or { v: 1, presets } wrapper.
+export const saved = (k) => { const s = JSON.parse(localStorage.getItem(k)); return s && s.v === 1 && Object.keys(s).length === 2 ? (s.values ?? s.presets) : s; };
