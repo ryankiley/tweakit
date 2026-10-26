@@ -63,7 +63,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
   // Two live panels on one key overwrite each other's saves, the last write winning: say so. A remount after destroy() is fine.
+  // The key is held until destroy(), or until a failed build leaves the panel unable to save: a remount then is quiet too.
+  let holdsKey = !!persistKey;
   if (persistKey) { const n = liveKeys.get(persistKey) || 0; if (n) notice("sharedKey", persistKey.slice(3)); liveKeys.set(persistKey, n + 1); }
+  const releaseKey = () => { if (!holdsKey) return; holdsKey = false; const n = (liveKeys.get(persistKey!) || 1) - 1; if (n) liveKeys.set(persistKey!, n); else liveKeys.delete(persistKey!); };
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
   // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to what's
@@ -866,7 +869,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      if (persistKey) { const n = (liveKeys.get(persistKey) || 1) - 1; if (n) liveKeys.set(persistKey, n); else liveKeys.delete(persistKey); }
+      releaseKey();
       closeActivePopover(panel); // page-wide singletons: close only what's anchored here
       hideHintNow(panel);
       for (const fn of cleanups.splice(0)) { try { fn(); } catch {} }
@@ -892,7 +895,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // A failed chunk or a throwing build leaves the panel unbuildable: queued calls dropped, later calls refused,
     // ready rejects. A partway build must not leave live controls behind an inert API: release what it wired.
     const fail = (e: unknown) => {
-      failed = true; queue.length = 0;
+      failed = true; queue.length = 0; releaseKey();
       if (built >= 0) for (const fn of cleanups.splice(built)) { try { fn(); } catch {} } // only what the build wired; the shell's stay for destroy()
       for (const c of controls.children) (c as HTMLElement).dataset.twDestroyed = ""; // detached below, they'd never see the panel's own mark
       listeners.clear(); entries.length = 0; controls.replaceChildren();
