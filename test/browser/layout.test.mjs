@@ -199,9 +199,9 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 
 }
 
 // The reviewer's bleed: #app button / input / span rules restyle a light panel mounted in #app. The same panel built with
-// shadow: true matches one under a wrapper that passes down the same inherited text styles without those rules, while a
-// --twk-accent set on #app still themes it, and its list pane opens styled in its own root.
-test("a shadow panel inside a styled #app matches an unstyled one; a light panel there doesn't; #app's tokens still reach it", async () => {
+// shadow: true matches one under a wrapper that passes down the same inherited text styles without those rules, while
+// tokens set on its host theme it and its list pane, which opens styled in its own root.
+test("a shadow panel inside a styled #app matches an unstyled one; a light panel there doesn't; its host's tokens theme it", async () => {
   const { page, errors } = await open("/fixture/bleed.html");
   await page.waitForSelector("body[data-ready]");
   await page.waitForFunction(() => window.panels.shadow.el.style.visibility === ""); // its stylesheet applied
@@ -210,12 +210,13 @@ test("a shadow panel inside a styled #app matches an unstyled one; a light panel
     const panelOf = (p) => p.el.shadowRoot?.querySelector(".twk-panel") || p.el;
     const of = (p) => [...panelOf(p).querySelectorAll("button, input, span")].map((n) => props.map((k) => getComputedStyle(n).getPropertyValue(k)).join(" "));
     const { ref, light, shadow } = window.panels;
-    return { ref: of(ref), light: of(light), shadow: of(shadow), accent: getComputedStyle(panelOf(shadow)).getPropertyValue("--twk-accent").trim(), refAccent: getComputedStyle(panelOf(ref)).getPropertyValue("--twk-accent").trim() };
+    return { ref: of(ref), light: of(light), shadow: of(shadow), accent: getComputedStyle(panelOf(shadow)).getPropertyValue("--twk-accent").trim(), refAccent: getComputedStyle(panelOf(ref)).getPropertyValue("--twk-accent").trim(), radius: getComputedStyle(panelOf(shadow)).borderTopLeftRadius };
   });
   assert.ok(looks.ref.length > 10, "sanity: the panel has buttons, inputs and spans");
   assert.notDeepEqual(looks.light, looks.ref, "the light panel in #app is restyled: the bleed reproduces");
   assert.deepEqual(looks.shadow, looks.ref, "the shadow panel in #app looks like the clean one");
-  assert.equal(looks.accent, "rgb(255, 0, 0)", "#app's --twk-accent themes the shadow panel");
+  assert.equal(looks.accent, "rgb(255, 0, 0)", "the host's --twk-accent themes the shadow panel");
+  assert.equal(looks.radius, "13px", "and its --twk-radius, a token with a default (3px + the panel's 10px)");
   assert.notEqual(looks.refAccent, "rgb(255, 0, 0)");
   // Its list pane opens in the portal root on <body>, styled like the clean panel's, in #app's accent.
   const pane = async (name) => {
@@ -232,7 +233,35 @@ test("a shadow panel inside a styled #app matches an unstyled one; a light panel
   const refPane = await pane("ref"), shadowPane = await pane("shadow");
   assert.equal(shadowPane.inShadow, true, "the shadow panel's pane lives in a shadow root");
   assert.deepEqual([shadowPane.w, shadowPane.h, shadowPane.btn, shadowPane.bg], [refPane.w, refPane.h, refPane.btn, refPane.bg], "and is styled like the clean panel's");
-  assert.equal(shadowPane.accent, "rgb(255, 0, 0)", "carrying #app's accent across");
+  assert.equal(shadowPane.accent, "rgb(255, 0, 0)", "carrying the host's accent across");
   assert.deepEqual(errors, []);
 });
 
+// The :host rules are the kit's own hosts': `hidden` hides a shadow panel, and a page's web component that loads
+// tweaks.css to hold a light panel keeps its own :host display, or the browser's when it has none, `hidden` included.
+// The page's @keyframes come along with the copied rules, so a shadow panel's tab page animates in.
+test("hidden hides a shadow panel, a page's component keeps its own :host, and a shadow tab page animates", async () => {
+  const { page, errors } = await open("/fixture/bleed.html");
+  await page.waitForSelector("body[data-ready]");
+  const r = await page.evaluate(async () => {
+    const { tweaks } = await import("/tweaks/core.js");
+    const holder = (name, own) => customElements.define(name, class extends HTMLElement {
+      connectedCallback() { const root = this.attachShadow({ mode: "open" }); root.innerHTML = `${own}<link rel="stylesheet" href="/tweaks.css">`; root.append(tweaks("In", { a: 1 }).el); }
+    });
+    holder("my-tuner", "<style>:host { display: inline-flex }</style>"); holder("my-plain", "");
+    const tuner = document.createElement("my-tuner"), plain = document.createElement("my-plain");
+    const tabs = tweaks("Tabs", { t: { type: "tabs", pages: { One: { a: 1 }, Two: { b: 2 } } } }, { shadow: true });
+    const wrap = document.createElement("div"); wrap.append(tuner, plain); document.body.append(wrap, tabs.el); await tabs.ready; // out of <body>'s flex, which blockifies
+    await new Promise((f) => setTimeout(f, 300));
+    const display = (n) => getComputedStyle(n).display, shadow = window.panels.shadow.el;
+    const before = [display(tuner), display(plain), display(shadow)];
+    plain.hidden = true; shadow.hidden = true;
+    tabs.el.shadowRoot.querySelectorAll(".twk-tabs-tab")[1].click(); await new Promise((f) => setTimeout(f, 30));
+    const anim = tabs.el.shadowRoot.querySelector(".twk-tabs-page[data-active=true]").getAnimations().map((a) => a.animationName);
+    return { before, after: [display(plain), display(shadow)], anim };
+  });
+  assert.deepEqual(r.before, ["inline-flex", "inline", "block"], "the components keep their own or the browser's display; the shadow host is a block");
+  assert.deepEqual(r.after, ["none", "none"], "hidden hides the plain component and the shadow panel");
+  assert.deepEqual(r.anim, ["twk-page-in"], "the page-in keyframes came with the copied rules");
+  assert.deepEqual(errors, []);
+});

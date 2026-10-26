@@ -11,7 +11,8 @@
   #app button { padding: 20px; text-transform: uppercase; }
   #app input { height: 48px; }
   #app span { display: block; }
-  #app { --twk-accent: rgb(255, 0, 0); }
+  /* A shadow panel is themed on its host: a default token (radius) and one with none (accent). */
+  #app .twk-host { --twk-accent: rgb(255, 0, 0); --twk-radius: 3px; }
 </style>
 <div id="calm"></div>
 <div id="app"></div>

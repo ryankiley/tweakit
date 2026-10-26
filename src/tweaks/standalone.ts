@@ -56,7 +56,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     ready: null,
   };
   handle.ready = whenLoaded([meta], build, handle);
-  if (iso.dressed) handle.ready = Promise.all([handle.ready, iso.dressed]).then(() => handle);
+  if (iso.dressed) (handle.ready = Promise.all([handle.ready, iso.dressed]).then(() => handle)).catch(() => {}); // the handled fork whenLoaded keeps
   return handle;
 }
 
@@ -87,6 +87,6 @@ export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
     ready: null,
   };
   picker.ready = whenLoaded([{ type: "color" }], build, picker);
-  if (iso.dressed) picker.ready = Promise.all([picker.ready, iso.dressed]).then(() => picker);
+  if (iso.dressed) (picker.ready = Promise.all([picker.ready, iso.dressed]).then(() => picker)).catch(() => {});
   return picker;
 }

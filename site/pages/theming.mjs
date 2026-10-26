@@ -119,8 +119,8 @@ export const examples = [
       property, the ones the table leaves out too; a key that isn't a token is skipped
       with a console warning. And because the whole kit renders from these variables,
       plain page CSS works as well: set them on <code>.twk-panel</code>, scoped by any ancestor.
-      A panel built with <code>shadow: true</code> takes them from its host instead, so there
-      a token set on the host or any ancestor reaches it, and its panes too.</p>`,
+      A panel built with <code>shadow: true</code> takes them from its host instead: set them on
+      <code>.twk-host</code>, and its panes take them too.</p>`,
     code: `
       tweaks("Raw", schema, { theme: {
         "--twk-accent": "#39d353",

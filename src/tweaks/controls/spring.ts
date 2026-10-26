@@ -116,10 +116,11 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   // 0×0 while hidden), on an OS scheme flip and on a host re-theme — CSS re-themes the SVG controls, a canvas keeps a stale color.
   onLive(canvas, [[window, "resize"], [window, "twk-reflow"], [matchMedia("(prefers-color-scheme: dark)"), "change"], [window, "twk-retheme"]], draw);
   // A host flipping [data-twk-scheme] re-themes through CSS alone; the canvas needs a redraw. Let go once mounted and removed.
+  // The redraw waits a frame, for a shadow panel's own observer to mirror the pin first.
   let schemeObs: MutationObserver | null = null, wasMounted = false;
   if (typeof MutationObserver === "function") {
     schemeObs = new MutationObserver(() => {
-      if (canvas.isConnected) { wasMounted = true; draw(); }
+      if (canvas.isConnected) { wasMounted = true; requestAnimationFrame(draw); }
       else if (wasMounted) { schemeObs.disconnect(); schemeObs = null; }
     });
     schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-twk-scheme"] });

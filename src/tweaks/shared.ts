@@ -251,11 +251,12 @@ const carryScheme = (portal: Element, anchor: Element | null | undefined) => {
 const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => { applyThemeVars(portal, anchor?.closest<PanelEl>(".twk-panel")?._twTheme); carryScheme(portal, anchor); ((anchor?.getRootNode() as ShadowRoot | undefined)?.host as any)?._twSync?.(); };
 
 // ── Shadow roots: a panel built with opts.shadow lives in its host's shadow root, and its portals in a second host on
-// <body> (shadow-root.ts), where a transformed ancestor can't capture them. home(): where a portal from `n` goes, that panel's
-// portal root, or the shadow root `n` is already in (a portal's own, or a page's web component), else <body>.
+// <body> (shadow-root.ts), where a transformed ancestor can't capture them. home(): where a portal from `n` goes: that
+// panel's portal root, the kit's own root `n` is already in (a portal's, or a shadow panel's before its dressing lands),
+// else <body>, as for a light panel inside a page's own web component.
 // activeIn(): focus as `n`'s tree sees it, since document.activeElement stops at a shadow host. holds(): `t` is in `box`,
 // or is the host `box`'s tree shows as, the relatedTarget of focus crossing between a panel's root and its portals'. ──
-const home = (n: Node): Node => { const r = n.getRootNode() as ShadowRoot; return r.host ? (r.host as any)._twPortal || r : document.body; };
+const home = (n: Node): Node => { const h = (n.getRootNode() as ShadowRoot).host as any; return h ? h._twPortal || (h.matches(".twk-host, .twk-portal-host") ? h.shadowRoot : document.body) : document.body; };
 const activeIn = (n: Node) => (n.getRootNode() as Document | ShadowRoot).activeElement;
 const holds = (box: Node, t: Node | null) => !!t && (box.contains(t) || t === (box.getRootNode() as ShadowRoot).host);
 // opts.shadow (a panel, mountControl, createColorPicker): `root` goes in a shadow root on a host of its own, hidden until
@@ -263,7 +264,7 @@ const holds = (box: Node, t: Node | null) => !!t && (box.contains(t) || t === (b
 // runs late if the dressing lands after a destroy().
 const isolate = (root: HTMLElement, shadow: boolean | { href?: string } | undefined) => {
   if (!shadow) return { box: root, end: () => {} };
-  const box = el("div", "twk-host"); box.attachShadow({ mode: "open" }).append(root); root.classList.add("twk-in-shadow"); box.style.visibility = "hidden";
+  const box = el("twk-host" as "div", "twk-host"); box.attachShadow({ mode: "open" }).append(root); root.classList.add("twk-in-shadow"); box.style.visibility = "hidden";
   let stop: (() => void) | undefined, gone = false;
   const dressed = import("./shadow-root.js").then((m) => { stop = m.dress(box, root, shadow); if (gone) stop(); }, (e) => { box.style.visibility = ""; console.error("[tweaks] shadow: shadow-root.js failed to load — unstyled:", e); });
   return { box, dressed, end: () => { gone = true; stop?.(); box.remove(); } };
@@ -314,7 +315,9 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   const onFocusOut = (e: FocusEvent) => {
     if (!open) return; const t = e.relatedTarget as Node | null;
     if (!t && !document.hasFocus()) return; // the window lost focus (a file dialog, another app): the pane waits for it
-    if (t ? holds(root, t) || holds(pop, t) : pointerModality) return;
+    if (t ? root.contains(t) || pop.contains(t) : pointerModality) return;
+    // Focus crossing between a shadow panel's root and its portals' root reads as their host: look where it landed.
+    if (t && (holds(root, t) || holds(pop, t))) { setTimeout(() => { if (open && !root.contains(activeIn(root)) && !pop.contains(activeIn(pop))) close(); }, 0); return; }
     close();
     if (t && !trigger.closest(".twk-panel")?.contains(t)) setTimeout(() => { if (!open && activeIn(t) === t) trigger.focus(); }, 0);
   };

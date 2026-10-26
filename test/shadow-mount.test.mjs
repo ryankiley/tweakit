@@ -4,7 +4,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { window } from "./_setup-dom.mjs";
 import { loadSingle, wait, ptr, key, dragHeader } from "./_helpers.mjs";
-globalThis.MutationObserver = window.MutationObserver; // the kit guards on the global; the shared setup doesn't expose it
+globalThis.MutationObserver = window.MutationObserver; // the kit guards on these globals; the shared setup doesn't expose them
+globalThis.customElements = window.customElements;
 
 const { tweaks, mountControl, createColorPicker } = await loadSingle();
 const mount = async (schema, opts = {}) => { const p = tweaks("Shadow", schema, { shadow: true, ...opts }); document.body.append(p.el); await p.ready; return p; };
@@ -97,7 +98,6 @@ test("a drag lifts the host to <body>, leaving the slot, and destroy() takes the
   assert.equal(p.el.parentNode, document.body, "the host moved, with the panel still in its root");
   assert.equal(inner(p).parentNode, p.el.shadowRoot);
   assert.ok(slot.querySelector(".twk-lift-slot"), "a placeholder holds the slot");
-  assert.ok(document.querySelector(".twk-portal-host"));
   p.destroy();
   assert.ok(!p.el.isConnected && !slot.querySelector(".twk-lift-slot"), "destroy() removed the host and the placeholder");
   assert.equal(document.querySelector(".twk-portal-host"), null, "and the portal root");
@@ -113,27 +113,53 @@ test("mountControl and createColorPicker take shadow too: el is the host, and de
     assert.ok(c.el.shadowRoot.querySelector(".twk-control.twk-in-shadow [role=slider]"), "the control is in its root");
     c.set(7); assert.equal(c.get(), 7);
     assert.ok(picker.el.shadowRoot.querySelector(".twk-color-picker"), "the picker is in its root");
-    assert.equal(document.querySelectorAll(".twk-portal-host").length, 2, "each has a portal root");
   } finally { c.destroy(); picker.destroy(); }
   assert.equal(where.children.length, 0, "both hosts left");
   assert.equal(document.querySelector(".twk-portal-host"), null, "and their portal roots");
   where.remove();
 });
 
-// A page's own web component that renders a light panel in its shadow root: the pane used to land on <body>, away from
-// the component's styles, and a press on its own option read as outside (e.target is the component's host up there).
-test("a light panel inside a page's own shadow root opens its panes in that root and keeps them open on a press inside", async () => {
+// A page's own web component that renders a light panel in its shadow root: a press on the pane's own option read as
+// outside (e.target is the component's host up there). Its panes go to <body>, as before: a transformed ancestor of the
+// component would capture a pane kept in its root.
+test("a light panel inside a page's own shadow root keeps its panes on <body>, open on a press inside", async () => {
   const component = document.createElement("div"); document.body.append(component);
   const root = component.attachShadow({ mode: "open" });
   const p = tweaks("Inside", { fruit: ["Apple", "Banana"] }); root.append(p.el); await p.ready;
   try {
     p.el.querySelector(".twk-select-trigger").click(); await wait(40);
-    const dd = root.querySelector(".twk-select-dropdown");
-    assert.ok(dd?.classList.contains("is-open"), "the pane opened in the component's root");
+    const dd = document.querySelector("body > .twk-select-dropdown");
+    assert.ok(dd?.classList.contains("is-open") && !dd.classList.contains("twk-in-shadow"), "the pane opened on <body>, with its own tokens");
     dd.querySelector(".twk-select-option").dispatchEvent(ptr("pointerdown"));
-    assert.ok(dd.classList.contains("is-open"), "a press on its option kept it");
+    p.el.querySelector(".twk-select-label").dispatchEvent(ptr("pointerdown"));
+    assert.ok(dd.classList.contains("is-open"), "presses on its option and on its row kept it");
     document.body.dispatchEvent(ptr("pointerdown"));
     assert.ok(!dd.classList.contains("is-open"), "a press on the page closed it");
   } finally { p.destroy(); component.remove(); }
 });
 
+// A shadow panel's host is a <twk-host>, so it hears the page connect and disconnect it. A host the page dropped without
+// destroy() kept its portal root on <body> and a document observer; one appended after its dressing, or moved, kept
+// whatever scheme it first read; a portal root the page removed stayed gone.
+test("a shadow host lets go when the page drops it, comes back when re-added, and reads the scheme where it lands", async () => {
+  const dark = document.createElement("div"); dark.dataset.twkScheme = "dark";
+  const light = document.createElement("div"); light.dataset.twkScheme = "light";
+  document.body.append(dark, light);
+  const p = tweaks("Life", { fruit: ["Apple", "Banana"] }, { shadow: true }); await p.ready; // dressed before it's in the page
+  try {
+    assert.equal(p.el.localName, "twk-host");
+    dark.append(p.el); await wait(0);
+    assert.equal(inner(p).getAttribute("data-twk-scheme"), "dark", "read on arrival");
+    light.append(p.el); await wait(0);
+    assert.equal(inner(p).getAttribute("data-twk-scheme"), "light", "and on a move");
+    inner(p).querySelector(".twk-select-trigger").click(); await wait(40);
+    assert.ok(document.querySelector(".twk-portal-host"), "a pane put the portal root on <body>");
+    document.body.dispatchEvent(ptr("pointerdown")); await wait(220);
+    p.el.remove(); await wait(0);
+    assert.equal(document.querySelector(".twk-portal-host"), null, "dropped without destroy(), it let go of the portal root");
+    light.append(p.el); await wait(0);
+    document.querySelector(".twk-portal-host")?.remove(); // the page clears what it doesn't know
+    inner(p).querySelector(".twk-select-trigger").click(); await wait(40);
+    assert.ok(portalRoot()?.querySelector(".twk-select-dropdown.is-open")?.isConnected, "back in the page, its panes open in a portal root on <body> again");
+  } finally { p.destroy(); dark.remove(); light.remove(); }
+});

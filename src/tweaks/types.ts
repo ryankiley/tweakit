@@ -338,7 +338,7 @@ export interface TweaksOptions {
   /** Custom reset handler (e.g. restore real app defaults + rebuild). */
   onReset?: () => void;
   /** Mount the panel in a shadow root, so page CSS can't restyle it (`#app button { … }`, a `.prose` wrapper). `el` is
-   *  then its host: theme it with `--twk-*` on the host or an ancestor, or with `theme`. The styles come from the page's
+   *  then its host, a `<twk-host>`: theme it with `--twk-*` on the host itself (`.twk-host { … }`), or with `theme`. The styles come from the page's
    *  `tweakit/css` when that's loaded, else from `href` (by default `tweaks.css` beside the module). */
   shadow?: boolean | { href?: string };
 }

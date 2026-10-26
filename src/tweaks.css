@@ -4,7 +4,7 @@
  * color is one light-dark(light, dark) pair, resolved by the color-scheme of the element that
  * paints it (see "Scheme resolution" below), so a token keeps one name and one meaning in both
  * schemes and a theme override wins in both. A shadow panel (opts.shadow) and its portals carry .twk-in-shadow and skip
- * this rule: there the build copies it onto :host, where the page's rules on the host or an ancestor override it. Keep
+ * this rule: there the build copies it onto the kit's own :host, where the page's rules on that host override it. Keep
  * the selector as written; build.mjs finds the rule by it. */
 :where(.twk-panel, .twk-portal):not(.twk-in-shadow) {
   /* Surfaces — faint films over the base. Light: items a step brighter than the off-white
@@ -67,6 +67,9 @@
   /* Press: a dip in three tiers by size, so every control's edge moves about 1.5–2px. */
   --twk-press-icon: 0.88; --twk-press-chip: 0.95; --twk-press-row: 0.985;
 }
+/* A shadow panel's first styles land at once (shadow-root.ts): held still meanwhile, nothing animates from the unstyled
+ * layout. */
+:host([data-twk-settling]) *, :host([data-twk-settling]) *::before, :host([data-twk-settling]) *::after { transition: none !important; }
 .twk-panel, .twk-portal {
   font-family: var(--twk-font-sans);
   /* Buttons use `font: inherit`, so a host's global line-height would ride into every
