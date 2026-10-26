@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { window } from "./_setup-dom.mjs";
 import { indexedDB as fakeIDB, IDBKeyRange as FakeKeyRange } from "fake-indexeddb";
-import { loadSingle, tick, saved, distUrl } from "./_helpers.mjs";
+import { loadSingle, tick, saved, distUrl, warnings } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -251,9 +251,8 @@ test("undo history keeps one copy of an unchanged big value, not one per step", 
 
 // parseColor reads junk as black, so a stale or hand-edited stored color loaded as oklch(0% 0 0) instead of the schema's.
 test("a stored color that isn't one falls back to the schema's, as a stale list option does", async () => {
-  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
-  try {
-    localStorage.setItem("tw:t-badcolor", JSON.stringify({ a: "not a color", b: "rgb(nope)", c: "#zzzzzz", d: "oklch(50% 0.1 200)" }));
+  localStorage.setItem("tw:t-badcolor", JSON.stringify({ a: "not a color", b: "rgb(nope)", c: "#zzzzzz", d: "oklch(50% 0.1 200)" }));
+  const warned = await warnings(async () => {
     const p = tweaks("Bad", { a: "#ff0000", b: "#00ff00", c: "#0000ff", d: "#000000" }, { persist: "t-badcolor" });
     await p.ready;
     const before = { ...p.params };
@@ -261,9 +260,10 @@ test("a stored color that isn't one falls back to the schema's, as a stale list 
     const fresh = tweaks("Fresh", { a: "#ff0000", b: "#00ff00", c: "#0000ff" }); await fresh.ready;
     for (const k of ["a", "b", "c"]) assert.equal(before[k], fresh.params[k], `${k} keeps its schema color`);
     p.set("a", "nope nope"); assert.equal(p.params.a, before.a, "set() with junk keeps the color too");
-    assert.ok(warned.some((w) => /isn't a color/.test(w)), "and says so");
     p.destroy(); fresh.destroy();
-  } finally { console.warn = warn; localStorage.removeItem("tw:t-badcolor"); }
+  });
+  localStorage.removeItem("tw:t-badcolor");
+  assert.ok(warned.some((w) => /isn't a color/.test(w)), "and says so");
 });
 
 // set("a.b") read a folder step, so a key holding a dot could never be set or show in changes(), and with a folder a
@@ -275,15 +275,11 @@ test("set() reaches a key holding a dot by the path changes() names it; two cont
   assert.deepEqual(p.changes(), { "a.b": 8, "f.c.d": 3 });
   p.setMany(p.changes()); p.reset(); p.setMany({ "a.b": 8, "f.c.d": 3 });
   assert.deepEqual(p.changes(), { "a.b": 8, "f.c.d": 3 }, "changes() feeds setMany() back");
-  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
-  try {
-    const q = tweaks("Both", { "a.b": [5, 0, 10, 1], a: { b: [1, 0, 10, 1] } });
-    q.set("a.b", 8);
-    assert.deepEqual([q.params["a.b"], q.params.a.b], [5, 1], "neither is guessed at");
-    await new Promise((r) => setTimeout(r, 10)); 
-    assert.ok(warned.some((m) => m.includes('set("a.b") is ambiguous — 2 controls read as that path')));
-    q.destroy();
-  } finally { console.warn = warn; p.destroy(); }
+  const q = tweaks("Both", { "a.b": [5, 0, 10, 1], a: { b: [1, 0, 10, 1] } });
+  const warned = await warnings(() => q.set("a.b", 8));
+  assert.deepEqual([q.params["a.b"], q.params.a.b], [5, 1], "neither is guessed at");
+  assert.ok(warned.some((m) => m.includes('set("a.b") is ambiguous — 2 controls read as that path')));
+  q.destroy(); p.destroy();
 });
 
 // The image-saving review: each of these lost an image before.
