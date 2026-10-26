@@ -344,15 +344,20 @@ test("presets and undo called before a lazy panel is ready replay in order", asy
   q.destroy();
 });
 
-test("undo brings a free bag key back", async () => {
-  const p = tweaks("Bag", { a: [1, 0, 10, 1] }, { undo: true });
-  document.body.append(p.el);
+// set() used to write a key no control owned straight onto params, so a typo rode into toJSON() and every save.
+test("set() refuses a key no control has, with a warning, and keeps it out of params and toJSON()", () => {
+  const p = tweaks("Bag", { a: [1, 0, 10, 1] });
+  const warn = console.warn, warned = []; console.warn = (...m) => warned.push(m.join(" "));
+  let calls = 0; p.on(() => calls++);
   try {
-    p.set("free", 1); await tick(400);
-    p.set("free", 2); await tick(400);
-    p.undo();
-    assert.equal(p.params.free, 1);
-  } finally { p.destroy(); }
+    p.set("nope", 5); p.setMany({ a: 3, typo: 1 });
+    assert.equal(p.params.a, 3);
+    assert.ok(!("nope" in p.params) && !("typo" in p.params));
+    assert.deepEqual(p.toJSON().values, { a: 3 });
+    assert.equal(calls, 1, "the good key still notifies");
+    assert.ok(warned.some((m) => m.includes('set("nope") ignored — no control has that key')));
+    assert.ok(warned.some((m) => m.includes('set("typo") ignored')));
+  } finally { console.warn = warn; p.destroy(); }
 });
 
 test("collapsing folds the body over the height in view, not its whole content, and cleans up after", () => {

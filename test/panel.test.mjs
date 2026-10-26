@@ -935,14 +935,13 @@ test("the markup toolbar's copy keeps a host keyed __proto__", async () => {
   holder.remove();
 });
 
-test("a setMany() batch isolates a key whose change check throws", () => {
+test("a setMany() batch isolates a key it refuses", () => {
   const p = tweaks("RFB", { x: [1, 0, 10, 1] });
   let calls = 0; p.on(() => calls++);
-  p.params.bag = { a: 1 };
   const loop = {}; loop.self = loop;
-  const errs = []; const err = console.error; console.error = (...a) => errs.push(String(a[0]));
-  try { p.setMany({ x: 5, bag: loop }); } finally { console.error = err; }
+  const warned = []; const warn = console.warn; console.warn = (...a) => warned.push(String(a[0]));
+  try { p.setMany({ x: 5, bag: loop }); } finally { console.warn = warn; }
   assert.equal(p.params.x, 5); assert.equal(calls, 1, "the good key still notifies");
-  assert.ok(errs.some((m) => m.includes('setMany("bag")')));
+  assert.ok(warned.some((m) => m.includes('set("bag") ignored')));
   p.destroy();
 });
