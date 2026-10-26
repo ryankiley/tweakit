@@ -106,8 +106,9 @@ const overlapsText = (labelEl: HTMLElement, valueEl: HTMLElement, hx: number, hw
 // last resort), and a negative spans that much either side of zero, so it can still cross it
 // (rotate: -45 → −135 to 135).
 const defaultRange = (v: number): [number, number] => {
-  if (v >= 0) return [0, v <= 1 ? 1 : v * 3 || 100];
-  const m = v >= -1 ? 1 : v * -3;
+  const x3 = Number((Math.abs(v) * 3).toPrecision(12)); // 2.3 × 3 is 6.8999…, which the grid trimmed to 6.8
+  if (v >= 0) return [0, v <= 1 ? 1 : x3 || 100];
+  const m = v >= -1 ? 1 : x3;
   return [-m, m];
 };
 
