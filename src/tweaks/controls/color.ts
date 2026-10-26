@@ -150,7 +150,7 @@ function parseColor(str: string | null | undefined): Oklcha {
 /** The editor surface: L×C plane, hue + alpha strips, mode dropdown + gamut label, and per-mode channel inputs.
  *  No trigger or popover of its own: the color control mounts one in its popover, the gradient editor re-points one at the selected stop. */
 function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): PickerBody {
-  let [L, C, H, A] = parseColor(meta.value || "#7c5cff"); // the kit's default color
+  let [L, C, H, A] = parseColor(isColor(meta.value) ? meta.value : "#7c5cff"); // the kit's default color, for none or junk (parseColor reads junk as black)
   let mode = EDIT_MODES.includes(meta.mode) ? meta.mode : "oklch"; // the host can seed the mode
   let paintedHue = NaN, chromaCurve: Float64Array | null = null, chanFields: NumField[] = [];
   let hueRingH = NaN, hueRingBg = ""; // the hue ring depends only on H; cached
@@ -327,7 +327,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     el: root,
     // Blur a focused text field before re-pointing: its change handler commits typed text against
     // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as focus leaving the popover, which closes it.
-    set: (v: string) => { const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); sync(true); },
+    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); sync(true); },
     get: () => colorStr(),
     // The gradient reads the mode to choose its blend space and re-points it on a stored ramp.
     mode: () => mode,

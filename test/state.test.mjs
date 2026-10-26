@@ -247,3 +247,20 @@ test("undo history keeps one copy of an unchanged big value, not one per step", 
   const mb = +r.stdout.trim();
   assert.ok(mb < 16, `20 edits after a 4 MB upload grew the heap by ${mb} MB`);
 });
+
+// parseColor reads junk as black, so a stale or hand-edited stored color loaded as oklch(0% 0 0) instead of the schema's.
+test("a stored color that isn't one falls back to the schema's, as a stale list option does", async () => {
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  try {
+    localStorage.setItem("tw:t-badcolor", JSON.stringify({ a: "not a color", b: "rgb(nope)", c: "#zzzzzz", d: "oklch(50% 0.1 200)" }));
+    const p = tweaks("Bad", { a: "#ff0000", b: "#00ff00", c: "#0000ff", d: "#000000" }, { persist: "t-badcolor" });
+    await p.ready;
+    const before = { ...p.params };
+    assert.equal(before.d, "oklch(50% 0.10 200)", "a real stored color still restores");
+    const fresh = tweaks("Fresh", { a: "#ff0000", b: "#00ff00", c: "#0000ff" }); await fresh.ready;
+    for (const k of ["a", "b", "c"]) assert.equal(before[k], fresh.params[k], `${k} keeps its schema color`);
+    p.set("a", "nope nope"); assert.equal(p.params.a, before.a, "set() with junk keeps the color too");
+    assert.ok(warned.some((w) => /isn't a color/.test(w)), "and says so");
+    p.destroy(); fresh.destroy();
+  } finally { console.warn = warn; localStorage.removeItem("tw:t-badcolor"); }
+});
