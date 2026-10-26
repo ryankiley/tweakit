@@ -45,8 +45,7 @@ export const examples = [
       <code>gradient</code>, <code>image</code>, <code>button</code>, <code>buttongroup</code>,
       <code>separator</code>, <code>interval</code>, <code>spring</code>,
       <code>cubicbezier</code>, <code>motion</code>, <code>shadow</code>, <code>sides</code>, <code>point</code>, <code>plot</code>,
-      <code>monitor</code> and <code>fpsgraph</code>, plus the <code>folder</code> wrapper below. As in a schema, <code>toggle</code> and
-      <code>switch</code> name the checkbox and <code>bezier</code> the cubicbezier.
+      <code>monitor</code> and <code>fpsgraph</code>, plus the <code>folder</code> wrapper below.
       An <code>image</code> with <code>data-options</code>, a comma list of URLs, is the gallery.
       <code>tabs</code> is panel-only; a host naming it is left untouched.</p>`,
     html: `

@@ -77,9 +77,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
   // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to what's
-  // stored (a color's precision, a gray's hue) can tell old data from new. A bare object is the version before, read as it is.
-  // A schema keyed v and values saves a bare object of that shape too; then only a wrapper's values hold that v.
-  const unwrap = (s: any, k: string, inner?: string) => (s && typeof s === "object" && s.v === 1 && Object.keys(s).length === 2 && s[k] && typeof s[k] === "object" && (!inner || hasOwn(s[k], inner)) ? s[k] : s);
+  // stored (a color's precision, a gray's hue) can tell old data from new. Anything else (0.5's bare object) reads as
+  // nothing, and the panel opens on its defaults.
+  const unwrap = (s: any, k: string) => (s?.v === 1 ? s[k] : null);
   const writeValues = (snap: Snapshot) => writeStore(persistKey!, { v: 1, values: snap });
   const writePresets = (all: unknown) => writeStore(presetsKey!, { v: 1, presets: all });
   const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj); // own keys only: a control keyed toString must not read Object.prototype's
@@ -726,7 +726,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       import("./fold.js").then((m) => { fold = m.fold; }, () => {}); // a fold chunk that fails to load leaves the rows toggling
     }
     // Restore last session, notifying: on the lazy path a host may already have subscribed.
-    if (persistKey) restore(unsaved(unwrap(readStore(persistKey), "values", entries.some((e) => e.path[0] === "v") ? "v" : undefined)));
+    if (persistKey) restore(unsaved(unwrap(readStore(persistKey), "values")));
     if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm(); watchResize();
     cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); })); // one document listener per panel for its keys
