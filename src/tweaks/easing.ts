@@ -7,7 +7,7 @@
 import type { GradientEasing, GradientStop, GradientValue } from "./types.js";
 
 /** cubic-bezier control points [x1, y1, x2, y2]. */
-type Bez = [number, number, number, number];
+export type Bez = [number, number, number, number];
 
 // The CSS easing keywords as cubic-beziers. Null-prototype, so "constructor" can't read a function off Object.prototype.
 const KEYWORDS: Record<string, Bez> = Object.assign(Object.create(null), {
@@ -28,9 +28,6 @@ export function parseEasing(e: unknown): Bez | null {
   return [clamp01(n[0]), n[1], clamp01(n[2]), n[3]];
 }
 
-/** The name an easing is stored under: trimmed and lowercased when parseEasing knows it, else "linear". */
-export const easingName = (e: unknown): GradientEasing => (parseEasing(e) ? (e as string).trim().toLowerCase() as GradientEasing : "linear");
-
 /** The curve at 16 even t: [x, y] pairs, y clamped to [0,1] since it becomes a color-mix percentage. */
 export function easingSamples(b: Bez): Array<[number, number]> {
   const out: Array<[number, number]> = [];
@@ -41,32 +38,15 @@ export function easingSamples(b: Bez): Array<[number, number]> {
   return out;
 }
 
-/** The blend progress at a position, linear between samples exactly as the browser draws the
- *  stops, so a stop inserted at x takes the color the ramp really shows. Null is the identity. */
-export function easingAt(b: Bez | null, x: number): number {
-  x = clamp01(x); // outside the segment is its end; never extrapolate
-  if (!b) return x;
-  const s = easingSamples(b);
-  for (let k = 1; k < s.length; k++) {
-    if (x <= s[k][0]) { const [x0, y0] = s[k - 1], [x1, y1] = s[k]; return x1 > x0 ? y0 + (y1 - y0) * (x - x0) / (x1 - x0) : y1; }
-  }
-  return 1;
-}
-
 const pct = (n: number) => +(n * 100).toFixed(2);
-
-const warned = new Set<string>();
 
 /** The stops a value can draw, sorted. A hand-built value can hold no stops, or stops without a
  *  color string or a numeric pos, and any of those builds CSS the browser drops whole, silently;
- *  so they're set aside, with one warning per distinct fault rather than one per frame. */
+ *  so they're set aside with a warning (heavy.ts badGradient, one per distinct fault). */
 function drawable(value: unknown, fn: string): GradientStop[] {
   const all: unknown = value && typeof value === "object" ? (value as GradientValue).stops : null;
   const ok = Array.isArray(all) ? all.filter((s) => s && typeof s.color === "string" && s.color.trim() && Number.isFinite(s.pos)) : [];
-  const why = !Array.isArray(all) ? `expected { stops: [{ color, pos }] }, got ${value === null ? "null" : typeof value === "object" ? "an object without a stops array" : typeof value}`
-    : ok.length < all.length ? `skipped ${all.length - ok.length} of ${all.length} stops without a color string and a numeric pos`
-    : ok.length ? "" : "the gradient has no stops";
-  if (why && !warned.has(fn + why)) { warned.add(fn + why); console.warn(`[tweaks] ${fn}(): ${why}`); }
+  if (!ok.length || ok.length < (all as unknown[]).length) import("./heavy.js").then((m) => m.badGradient(fn, value, all, ok.length), () => {});
   return ok.sort((a, b) => a.pos - b.pos);
 }
 

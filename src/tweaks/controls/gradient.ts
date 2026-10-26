@@ -4,11 +4,28 @@ import { el, btn, clamp, popover, registerControl, icon } from "../shared.js";
 import { dragGesture, triggerRow } from "../heavy.js";
 import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./color.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
-import { gradientCss, parseEasing, easingName, easingAt } from "../easing.js";
+import { gradientCss, parseEasing, easingSamples } from "../easing.js";
+import type { Bez } from "../easing.js";
 import type { Oklcha } from "./color.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, GradientStop, GradientEasing } from "../types.js";
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+/** The name an easing is stored under: trimmed and lowercased when parseEasing knows it, else "linear". */
+const easingName = (e: unknown): GradientEasing => (parseEasing(e) ? (e as string).trim().toLowerCase() as GradientEasing : "linear");
+
+/** The blend progress at a position, linear between samples exactly as the browser draws the
+ *  stops, so a stop inserted at x takes the color the ramp really shows. Null is the identity. */
+function easingAt(b: Bez | null, x: number): number {
+  x = clamp01(x); // outside the segment is its end; never extrapolate
+  if (!b) return x;
+  const s = easingSamples(b);
+  for (let k = 1; k < s.length; k++) {
+    if (x <= s[k][0]) { const [x0, y0] = s[k - 1], [x1, y1] = s[k]; return x1 > x0 ? y0 + (y1 - y0) * (x - x0) / (x1 - x0) : y1; }
+  }
+  return 1;
+}
 
 /** A stop handle on the rail, carrying the stop it moves. */
 interface StopHandle extends HTMLButtonElement { _stop?: GradientStop }
@@ -219,3 +236,6 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
 }
 
 registerControl("gradient", createGradient);
+
+// For test/gradient-css.test.mjs, which checks them beside the easing parser.
+export { easingName, easingAt };

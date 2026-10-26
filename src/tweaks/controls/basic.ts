@@ -103,8 +103,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     const ei = clamp(Math.round(ui + C_COMMIT), 0, STEPS); // eager commit: 30% past the notch
     const tx = sDrag ? ei + C_LEAN * clamp(ui - ei, -0.5, 0.5) : ei; // lean toward the cursor, then settle on the notch
     // Reduced motion: the handle sits on its target every frame. The CSS kill-switch can't reach
-    // this, since the detent drives left/width from rAF, not a transition. Read live, guarded for a matchMedia without `matches`.
-    if (REDUCE_MOTION && REDUCE_MOTION.matches) { sx = tx; sv = 0; }
+    // this, since the detent drives left/width from rAF, not a transition. Read live.
+    if (REDUCE_MOTION.matches) { sx = tx; sv = 0; }
     else { let t = dt; const h = 1 / 240; while (t > 1e-4) { const s = Math.min(h, t); t -= s; const a = C_K * (tx - sx) - C_D * sv; sv += a * s; sx += sv * s; if (sx < 0) { sx = 0; sv = 0; } if (sx > STEPS) { sx = STEPS; sv = 0; } } }
     pull = (sx - ei) * step / ((max - min) || 1) * trackW; // spring offset from the committed notch, in px
     value = clamp(min + ei * step, min, max); render();
@@ -186,6 +186,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   track.addEventListener("keydown", (e) => {
     if (e.target !== track) return; // keys typed into the inline editor are its own
     if (downPos) return; // keys don't steer a pointer drag
+    if (e.key === "Enter") { e.preventDefault(); return openEditor(); }
     const nv = rangeStep(e, value, step, min, max, (max - min) / 10 || step * 10);
     if (nv == null) return;
     e.preventDefault();
@@ -230,7 +231,6 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     });
   };
   valueEl.addEventListener("click", () => { if (valueEl.classList.contains("is-editable")) openEditor(); });
-  track.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === track && !downPos) { e.preventDefault(); openEditor(); } });
 
   return { el: wrap, set: (v: number | string) => set(v, false), get: () => q(value) };
 }

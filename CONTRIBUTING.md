@@ -27,11 +27,12 @@ for the build (esbuild, typescript) and the tests (jsdom, fake-indexeddb, and Pl
   `icons.ts`, `lazy.ts` (the dynamic-import map), `easing.ts` (gradient easing and
   `gradientCss()`), `types.ts` (the public type surface), `controls/basic.ts` (the light
   always-loaded controls) and `controls/*.ts` (the heavy controls, dynamic-imported on
-  first use). Four more modules are lazy chunks of the code-split build, so a basic panel
+  first use). Five more modules are lazy chunks of the code-split build, so a basic panel
   never fetches them: `heavy.ts` (the numeric field, scrub and canvas helpers only the
   heavy controls use, plus the Number control), `markup.ts` (the `[data-tw]` parsers and
   the binding behind `enhance()`; `enhance.ts` is core's side of it and the on-load
-  auto-run), `clip.ts` (a picked row's paste) and `fold.ts` (the conditional row's fold).
+  auto-run), `clip.ts` (a picked row's paste), `image-store.ts` (uploaded images in IndexedDB)
+  and `fold.ts` (the conditional row's fold).
 - `src/wide-gamut.ts` — the OKLCH / wide-gamut color engine.
 - `src/tweaks.css` — panel styling, entirely on `--tw-*` custom properties.
 - `site/` — the docs/examples site and its zero-dependency generator.
@@ -90,7 +91,7 @@ until the fix lands; `TW_STRESS_UNSKIP=1` runs those seeds anyway, to check that
 - `npm test` is green (build + tsc + the jsdom suite — the build fails on `tsc` errors,
   so a green build is meaningful).
 - Keep PRs focused; the project squash-merges, so one logical change per PR reads best.
-- If you change behavior or sizes, update the [README](README.md). There's no changelog
+- If you change behavior, update the [README](README.md) and AGENTS.md. There's no changelog
   file — release notes live in each version's [GitHub Release](https://github.com/ryankiley/tweakit/releases),
   written when the release is cut.
 

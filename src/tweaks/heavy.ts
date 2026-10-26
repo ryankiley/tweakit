@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -24,6 +24,40 @@ const selectAllOnFocus = (input: HTMLInputElement) => {
     if (e.button === 0 && document.activeElement === input && input.selectionStart === 0 && input.selectionEnd === input.value.length) e.preventDefault();
   });
 };
+// Escape in an edited field restores `kept` and stops; otherwise it passes on and closes the pane. Without this,
+// closing blurred the field and committed the half-typed value.
+const escapeReverts = (input: HTMLInputElement, kept: () => string) => input.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key !== "Escape" || input.value === kept()) return;
+  e.preventDefault(); e.stopPropagation(); input.value = kept();
+});
+// Drag a pane by its edge (padding, or a gap between parts) to uncover what's beneath; it keeps that offset from its row
+// while open (st.moved), and the next open resets it. Bound by popover() on a movable pane's first open.
+const dragPane = (pop: HTMLElement, st: { open: boolean; moved: boolean }, place: () => void) => pop.addEventListener("pointerdown", (e: PointerEvent) => {
+  if (e.target !== pop || e.button !== 0 || !st.open) return;
+  e.preventDefault(); // no text selection, and focus stays where it was
+  const id = e.pointerId, sx = e.clientX, sy = e.clientY, ox = parseFloat(pop.style.left), oy = parseFloat(pop.style.top), wasMoved = st.moved;
+  let going = false;
+  try { pop.setPointerCapture(id); } catch {}
+  const move = (m: PointerEvent) => {
+    if (m.pointerId !== id) return;
+    if (!going) { if (Math.hypot(m.clientX - sx, m.clientY - sy) < 4) return; going = st.moved = true; pop.classList.add("is-moving"); }
+    pop.style.left = ox + m.clientX - sx + "px"; pop.style.top = oy + m.clientY - sy + "px"; place();
+  };
+  const end = (m: PointerEvent) => { if (m.pointerId === id) stop(); };
+  // Escape mid-move puts it back and keeps it open. Capture phase, so it beats the pane's own Escape.
+  const key = (k: KeyboardEvent) => {
+    if (k.key !== "Escape" || !going) return;
+    k.preventDefault(); k.stopPropagation();
+    pop.style.left = ox + "px"; pop.style.top = oy + "px"; st.moved = wasMoved; place(); stop();
+    try { pop.releasePointerCapture(id); } catch {}
+  };
+  const stop = () => {
+    pop.removeEventListener("pointermove", move); pop.removeEventListener("pointerup", end); pop.removeEventListener("pointercancel", end); pop.removeEventListener("lostpointercapture", end);
+    document.removeEventListener("keydown", key, true); pop.classList.remove("is-moving");
+  };
+  pop.addEventListener("pointermove", move); pop.addEventListener("pointerup", end); pop.addEventListener("pointercancel", end); pop.addEventListener("lostpointercapture", end); // lost: the node left mid-press
+  document.addEventListener("keydown", key, true);
+});
 // Press-drag on a node: onDown on pointerdown (pointer captured), onMove per move, onEnd on
 // up/cancel/lost capture or when the button releases off the node (buttons===0).
 function dragGesture(node: HTMLElement, { onDown, onMove, onEnd }: { onDown?: (e: PointerEvent) => void; onMove?: (e: PointerEvent) => void; onEnd?: (e: PointerEvent) => void } = {}) {
@@ -107,7 +141,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1;
   const bound = (b: unknown) => (b == null ? NaN : +b); // null → NaN → unbounded (a null max coerced to 0)
   let min = bound(spec.min), max = bound(spec.max);
-  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { swapNote(spec.label ?? "number", min, max); const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
+  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { notice("swap", [spec.label ?? "number", min, max]); const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
   const anchor = Number.isFinite(min) ? min : 0, decimals = stepPrecision(step); // min-anchored, like the slider
   const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor); // on-grid ends, so fit(fit(x)) === fit(x)
   const fit = (val: number) => { const n = roundToStep(val, anchor, step); return spec.soft ? n : clamp(n, lo, hi); };
@@ -221,6 +255,12 @@ const badTheme = (key: string, v: unknown, kind: string, keys: string[]) => {
     : `[tweaks] theme: "${key}" isn't a theme key${near ? ` — did you mean "${near}"?` : "."} It is skipped. Keys: ${keys.join(", ")}, or any raw --tw-* token`);
 };
 
+const warned = new Set<string>();
+const badGradient = (fn: string, value: unknown, all: unknown, n: number) => {
+  const why = !Array.isArray(all) ? `expected { stops: [{ color, pos }] }, got ${value === null ? "null" : typeof value === "object" ? "an object without a stops array" : typeof value}`
+    : n < all.length ? `skipped ${all.length - n} of ${all.length} stops without a color string and a numeric pos` : "the gradient has no stops";
+  if (!warned.has(fn + why)) { warned.add(fn + why); console.warn(`[tweaks] ${fn}(): ${why}`); }
+};
 // The words for the core's notices (shared.ts notice()): what went wrong and the way out, downloaded only when one fires.
 const NOTICES: Record<string, (...a: any[]) => string> = {
   clamp: (key, v, min, max) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min ?? "−∞"}–${max ?? "∞"}; widen min/max, or set soft: true to allow it`,
@@ -237,4 +277,4 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
 };
 const notice = (kind: string, args: unknown[]) => { const say = NOTICES[kind]; if (say) console.warn(`[tweaks] ${say(...args)}`); };
 
-export { notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };
+export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };

@@ -1,7 +1,7 @@
 /* Standalone controls — the kit's controls without the panel: mountControl() builds one control
  * into a host of your own, createColorPicker() hands out the color editor surface alone. */
-import { el, getControl, onReady, setDisabled } from "./shared.js";
-import { metaFor, valueChanged, VALUELESS } from "./schema.js";
+import { el, getControl, onReady, setDisabled, valueChanged } from "./shared.js";
+import { metaFor, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createControl } from "./controls/basic.js";
 import { addHintMarker } from "./feedback.js";

@@ -114,7 +114,7 @@ export type SchemaObject =
        *  heavier than 1.5 MB is redrawn at its size, so a phone photo can't fill storage (2560 unless set; `false` takes
        *  uploads as they are). A JPEG comes out as a JPEG at
        *  `quality`; anything else as a PNG when that is 1.5 MB or less (a screenshot, not a photo), else as a JPEG, or a WebP
-       *  when it has transparency. A GIF, an SVG, a light picture within `fit` or one the redraw wouldn't make smaller is kept as it is. */
+       *  when it has transparency. A GIF, an SVG, an animated WebP or APNG, a light picture within `fit`, or one the redraw wouldn't make smaller is kept as it is. */
       fit?: number | false;
       /** The JPEG or WebP quality of a shrunk upload, 0 to 1 (0.85 unless set). */
       quality?: number;
@@ -131,7 +131,7 @@ export type SchemaObject =
 export type SchemaValue =
   | number                                          // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative spans that either side of zero)
   | boolean                                         // → checkbox
-  | string                                          // a label, or a color string → color picker
+  | string                                          // → text input; a hex or color-function string → color picker
   | readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number] // [value, min?, max?, step?] → slider
   | readonly [readonly [number, number], number, number] | readonly [readonly [number, number], number, number, number]           // [[lo,hi], min, max, step?] → interval
   | readonly number[] | readonly (number | readonly number[])[] // either of the above, widened by a schema held in a variable
@@ -293,7 +293,6 @@ export interface SetOptions {
   silent?: boolean;
 }
 
-/** Panel options (third arg to `tweaks()`). */
 /** The corner a floating panel anchors to. */
 export type FloatingCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 /** Where a floating panel starts: `x` / `y` are its insets in px (16 by default) from the two
@@ -301,6 +300,7 @@ export type FloatingCorner = "top-left" | "top-right" | "bottom-left" | "bottom-
  *  The far edge keeps a gap of `y` when the height caps; CSS `--tw-float-gap` overrides it. */
 export interface FloatingPlacement { x?: number; y?: number; corner?: FloatingCorner }
 
+/** Panel options (third arg to `tweaks()`). */
 export interface TweaksOptions {
   /** Theme overrides (friendly names or raw `--tw-*`); `null` / omitted = default monochrome. */
   theme?: Theme | null;

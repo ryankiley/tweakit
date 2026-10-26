@@ -6,7 +6,7 @@ import type { Entry, Snapshot } from "./panel.js";
 import type { PanelState } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { announce } from "./feedback.js";
-import { isObj, isColorStr, optValue } from "./shared.js";
+import { isObj, isColorStr, optValue, hasOwn, isReservedKey } from "./shared.js";
 
 /** Where a pasted value can land: a control's path, its current value, its meta and its row (a disabled one takes nothing). */
 export interface Slot { path: string[]; get: () => unknown; m: Meta; el?: Element }
@@ -17,15 +17,14 @@ export interface ClipCtx extends Report { panel: HTMLElement; entries: Entry[]; 
 /** What a scoped ⌘C / ⌘V acts on: one row, or every row under a folder's path. */
 export type Scope = { kind: "row"; entry: Entry; label: string } | { kind: "folder"; path: string[]; label: string };
 
-const RESERVED = new Set(["__proto__", "constructor", "prototype"]);
-const atPath = (obj: unknown, path: string[]): unknown => path.reduce<any>((o, k) => (isObj(o) && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined), obj);
+const atPath = (obj: unknown, path: string[]): unknown => path.reduce<any>((o, k) => (isObj(o) && hasOwn(o, k) ? o[k] : undefined), obj);
 
 /** ⇧-copy's output is a flat map by dotted path; nested, "folder.child" lands where set() would put it. A reserved
  *  segment is dropped, so a pasted "__proto__.x" can't write onto Object.prototype. */
 const unflatten = (flat: Record<string, unknown>): Snapshot => {
   const out: Snapshot = {};
   for (const k of Object.keys(flat)) {
-    const path = k.split("."); if (path.some((s) => RESERVED.has(s))) continue;
+    const path = k.split("."); if (path.some(isReservedKey)) continue;
     let o = out; for (const s of path.slice(0, -1)) o = isObj(o[s]) ? o[s] : (o[s] = {});
     o[path[path.length - 1]] = flat[k];
   }
@@ -65,7 +64,7 @@ export function pasteScope(ctx: ClipCtx, s: Scope, text: string): number | false
   const data = JSON.parse(text);
   let hits: Array<[Entry, unknown]>;
   if (s.kind === "row") {
-    const e = s.entry, v = isObj(data) && !Array.isArray(data) && Object.keys(data).length === 1 && Object.prototype.hasOwnProperty.call(data, e.key) ? data[e.key] : data;
+    const e = s.entry, v = isObj(data) && !Array.isArray(data) && Object.keys(data).length === 1 && hasOwn(data, e.key) ? data[e.key] : data;
     hits = fits(e, v) ? [[e, v]] : [];
   } else {
     if (!isObj(data) || Array.isArray(data)) return false;

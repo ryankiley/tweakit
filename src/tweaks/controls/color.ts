@@ -1,7 +1,7 @@
 // ── Color — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, rangeStep, popover, quietFocus, escapeReverts, registerControl, announce } from "../shared.js";
-import { numField, grabSurface, boxFrac, triggerRow, selectAllOnFocus } from "../heavy.js";
+import { el, txt, clamp, rangeStep, popover, quietFocus, registerControl, announce } from "../shared.js";
+import { escapeReverts, numField, grabSurface, boxFrac, triggerRow, selectAllOnFocus } from "../heavy.js";
 import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 import type { Vec3, Space, Gamut } from "../../wide-gamut.js";
 import type { OnChange, NumField } from "../shared.js";
