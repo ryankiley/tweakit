@@ -137,3 +137,13 @@ expect<Equal<typeof hinge.params, { marker: { type: string; size: number }; pick
 // Five numbers or more are a list of them, `[]` an empty list, and reserved keys are skipped.
 const lists = tweaks("Lists", { many: [1, 2, 3, 4, 5], four: [1, 2, 3, 4], none: [], constructor: 1, prototype: 2, ok: 3 });
 expect<Equal<typeof lists.params, { many: 1 | 2 | 3 | 4 | 5; four: number; none: undefined; ok: number }>>();
+
+// A typed panel's set() and setMany() take only its own paths; a plain Schema keeps string keys.
+const paths = tweaks("Paths", { size: [1, 0, 10, 1], card: { size: [2, 0, 10, 1] } });
+paths.set("size", 2); paths.set("card.size", 3); paths.setMany({ size: 1, "card.size": 2 });
+// @ts-expect-error a key no control has
+paths.set("nope", 5);
+// @ts-expect-error nor in a batch
+paths.setMany({ nope: 5 });
+const plain: Schema = { a: 1 };
+tweaks("Plain", plain).set("anything", 1);
