@@ -1,5 +1,5 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/bounce) mode, over one settle-curve preview. Lazy. ──
-import { el, txt, onReady, onLive, clamp, createSegmented, registerControl } from "../shared.js";
+import { el, txt, onReady, onLive, clamp, createSegmented, registerControl, words } from "../shared.js";
 import { dragGesture, numField, cssVar, accentColor, springCurve, springFromTime, boxFrac, notice, SPRING_DUR } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -15,6 +15,7 @@ interface SpringTime { visualDuration: number; bounce: number }
 type SpringValue = Partial<Phys & SpringTime & { mode: SpringMode }>;
 
 function createSpring(meta: Meta, onChange: OnChange): Control {
+  const tr = words();
   // The fields' floors, non-finite to the defaults: a stiffness or mass of 0 would divide the settle curve to NaN.
   const cl = (v: unknown, lo: number, def: number) => (Number.isFinite(+v) ? Math.max(lo, +v) : def);
   const clampS = (o: { stiffness?: unknown; damping?: unknown; mass?: unknown }): Phys => ({ stiffness: cl(o.stiffness, 1, 300), damping: cl(o.damping, 0.5, 26), mass: cl(o.mass, 0.1, 1) });
@@ -74,19 +75,19 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
 
   const flds: Partial<Record<PhysKey, NumField>> = {};
   ([["stiffness", "Stiffness", 1], ["damping", "Damping", 0.5], ["mass", "Mass", 0.1]] as const).forEach(([key, lab, step]) => {
-    flds[key] = numField({ label: lab, value: phys[key], step, min: step }, (v) => { phys[key] = v; draw(); emit(); });
+    flds[key] = numField({ label: tr(key, lab), value: phys[key], step, min: step }, (v) => { phys[key] = v; draw(); emit(); });
     physFields.append(flds[key].el);
   });
   // The field shows ms; the value stays Motion's visualDuration in seconds.
-  const durFld = numField({ label: "Duration", value: time.visualDuration * 1000, step: 10, min: DUR_MIN * 1000, max: DUR_MAX * 1000, unit: "ms" }, (v) => { time.visualDuration = clampDur(v / 1000); draw(); emit(); });
-  const bounceFld = numField({ label: "Bounce", value: time.bounce * 100, step: 5, min: -100, max: 100, unit: "%" }, (v) => { time.bounce = clampBounce(v / 100); draw(); emit(); }); // shown as a percentage; the value stays Motion's −1–1
+  const durFld = numField({ label: tr("duration", "Duration"), value: time.visualDuration * 1000, step: 10, min: DUR_MIN * 1000, max: DUR_MAX * 1000, unit: "ms" }, (v) => { time.visualDuration = clampDur(v / 1000); draw(); emit(); });
+  const bounceFld = numField({ label: tr("bounce", "Bounce"), value: time.bounce * 100, step: 5, min: -100, max: 100, unit: "%" }, (v) => { time.bounce = clampBounce(v / 100); draw(); emit(); }); // shown as a percentage; the value stays Motion's −1–1
   timeFields.append(durFld.el, bounceFld.el);
 
   const showMode = () => { timeFields.style.display = mode === "time" ? "" : "none"; physFields.style.display = mode === "physics" ? "" : "none"; };
   const switchMode = (m: unknown) => { if ((m !== "time" && m !== "physics") || m === mode) return; mode = m; showMode(); draw(); emit(); };
-  const modeToggle = createSegmented([{ value: "time", label: "Time" }, { value: "physics", label: "Physics" }], mode, switchMode, "Spring mode");
+  const modeToggle = createSegmented([{ value: "time", label: tr("time", "Time") }, { value: "physics", label: tr("physics", "Physics") }], mode, switchMode, tr("springMode", "Spring mode"));
   const modeRow = el("div", "twk-row");
-  modeRow.append(txt("span", "twk-row-label", "Mode"), modeToggle.el);
+  modeRow.append(txt("span", "twk-row-label", tr("mode", "Mode")), modeToggle.el);
   // A caption, so two springs in one panel can be told apart and the filter matches shown text.
   if (meta.label) root.append(txt("div", "twk-spring-label", meta.label));
   root.append(viz, modeRow, physFields, timeFields);

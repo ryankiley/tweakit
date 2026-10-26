@@ -2,7 +2,8 @@
  * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a page
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
-import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes, hasOwn, valueChanged, restoreDefault, SPRING_KEYS } from "./shared.js";
+import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes, hasOwn, valueChanged, restoreDefault, SPRING_KEYS, using, words } from "./shared.js";
+import type { Words } from "./shared.js";
 import type { metaFor } from "./schema.js";
 import type { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import type { createFolder, createControl } from "./controls/basic.js";
@@ -84,9 +85,9 @@ const announce = (host: HTMLElement, key: string, v: unknown) => {
 };
 // querySelectorAll sees descendants only — a root that is itself a host counts too (a Document has no matches()).
 const select = <T extends Element = HTMLElement>(root: Document | Element, sel: string): T[] => [...(typeof (root as Element).matches === "function" && (root as Element).matches(sel) ? [root as T] : []), ...root.querySelectorAll<T>(sel)];
-/** Bind every unbound [data-twk] host under `root`. */
-async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> {
-  const { createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker, ensureForMetas } = kit;
+/** Bind every unbound [data-twk] host under `root`, in `strings` (enhance()'s option) over the English defaults. */
+async function enhance(root: Document | Element, kit: MarkupKit, strings?: Words): Promise<void> {
+  const { createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker, ensureForMetas } = kit, tr = words(strings);
   // Static showcase panels collapse like the real one: wrap the controls in a .twk-body, make the title the toggle.
   select(root, '.twk-panel[data-mode="inline"]:not([data-twk-panel-bound])').forEach((panel) => {
     const header = panel.querySelector(":scope > .twk-header");
@@ -114,13 +115,13 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
       };
       const reset = () => { for (const t of live()) t.reset(); };
       const toolbar = el("div", "twk-toolbar");
-      toolbar.append(makeCopyBtn(() => [values(), -1]), makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
+      toolbar.append(makeCopyBtn(() => [values(), -1], tr), makeResetBtn(reset, tr)); header.append(toolbar); // no defaults to diff against: the copy is every value
     }
   });
   // Folders first: move child hosts into the collapsible chrome.
   select(root, '[data-twk="folder"]:not([data-twk-bound])').forEach((host) => {
     host.setAttribute("data-twk-bound", "");
-    const f = createFolder({ label: host.dataset.label || "Folder" });
+    const f = createFolder({ label: host.dataset.label || tr("folder", "Folder") });
     [...host.children].forEach((c) => f.body.append(c));
     host.append(f.el);
   });
@@ -137,7 +138,7 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
     // Gated the way the panel gates notify(): a same-value emit announces nothing.
     let last: unknown;
     const emit = (v: unknown) => { if (!valueChanged(last, v)) return; last = v; announce(host, key, v); };
-    const ctrl = createControl(meta, emit);
+    const ctrl = using(strings, () => createControl(meta, emit));
     if (!ctrl) continue;
     if (!host.closest(".twk-panel, .twk-portal")) host.classList.add("twk-portal"); // a bare host gets the token scope
     host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint);

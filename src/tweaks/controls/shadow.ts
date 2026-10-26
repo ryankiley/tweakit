@@ -1,7 +1,7 @@
 // ── Shadow — a box-shadow editor with the kit's own picker mounted inline (popover() is single-open). The value carries
 // the CSS as `css`, built only from the numbers and a color the picker accepted as one color token (isColor) — a host
 // string reaching a `style` sink could splice in a url(). Lazy. ──
-import { el, txt, popover, createSegmented, registerControl, btn, icon, isObj } from "../shared.js";
+import { el, txt, popover, createSegmented, registerControl, btn, icon, isObj, words } from "../shared.js";
 import { numField, triggerRow } from "../heavy.js";
 import { createPickerBody, isColor } from "./color.js";
 import type { OnChange, NumField } from "../shared.js";
@@ -26,12 +26,13 @@ const parseShadow = (s: string): ShadowInput | null => {
 
 const CHEVRON = icon('<path d="M18 9s-4.4 6-6 6-6-6-6-6"/>', "twk-shadow-chevron", 2.5); // the kit's chevron; importing icons.ts splits a 4th chunk
 function createShadow(meta: Meta, onChange: OnChange): Control {
+  const tr = words();
   const read = (v: unknown): ShadowInput | null => (typeof v === "string" ? parseShadow(v) : isObj(v) ? v : null);
   const init = read(meta.value ?? meta) || {}; // the fields may sit on the meta itself (verbose form)
   let inset = !!init.inset;
 
   // ── Row — label, chip, summary. ──
-  const { root, trigger, right } = triggerRow("twk-shadow", meta.label ?? "Shadow"); // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-shadow", meta.label ?? tr("shadow", "Shadow")); // ??: an explicit "" label renders none
   const chip = el("span", "twk-trigger-chip twk-shadow-chip"), chipTile = el("span", "twk-shadow-chip-tile"); chip.append(chipTile);
   const valueEl = el("span", "twk-trigger-value");
   right.append(chip, valueEl);
@@ -39,18 +40,18 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   // ── Popover — a preview card, the position switch, the four lengths, the picker. ──
   const pop = el("div", "twk-color-pop twk-shadow-pop");
   const stage = el("div", "twk-shadow-stage"), card = el("div", "twk-shadow-card"); stage.append(card);
-  const insetSeg = createSegmented([{ value: "outer", label: "Outer" }, { value: "inner", label: "Inner" }], inset ? "inner" : "outer", (m: unknown) => { if ((m === "inner") !== inset) { inset = m === "inner"; update(); emit(); } }, "Shadow position");
-  const insetRow = el("div", "twk-row"); insetRow.append(txt("span", "twk-row-label", "Position"), insetSeg.el);
+  const insetSeg = createSegmented([{ value: "outer", label: tr("outer", "Outer") }, { value: "inner", label: tr("inner", "Inner") }], inset ? "inner" : "outer", (m: unknown) => { if ((m === "inner") !== inset) { inset = m === "inner"; update(); emit(); } }, tr("shadowPosition", "Shadow position"));
+  const insetRow = el("div", "twk-row"); insetRow.append(txt("span", "twk-row-label", tr("position", "Position")), insetSeg.el);
   const fields = el("div", "twk-fields twk-shadow-fields");
   // The four lengths live in their fields, read as the fields fit them: an authored 2.5 shows "3" and emits 3px, and the
   // blur's min clamps a negative one to 0.
   const field = (label: string, value: number, min?: number): NumField => { const f = numField({ label, value, step: 1, min, unit: "px" }, () => { update(); emit(); }); fields.append(f.el); return f; };
-  const fx = field("X", num(init.x, DEF.x)), fy = field("Y", num(init.y, DEF.y)), fb = field("Blur", num(init.blur, DEF.blur), 0), fs = field("Spread", num(init.spread, DEF.spread));
+  const fx = field("X", num(init.x, DEF.x)), fy = field("Y", num(init.y, DEF.y)), fb = field(tr("blur", "Blur"), num(init.blur, DEF.blur), 0), fs = field(tr("spread", "Spread"), num(init.spread, DEF.spread));
   const lengths = () => [fx, fy, fb, fs].map((f) => f.get());
   // The color row discloses the picker, so the pop opens compact.
   const colorRow = btn("twk-trigger twk-shadow-color"); colorRow.setAttribute("aria-expanded", "false");
   const cSwatch = el("span", "twk-trigger-chip twk-color-swatch"), cText = el("span", "twk-trigger-value"), cRight = el("span", "twk-trigger-right");
-  cRight.append(cSwatch, cText); cRight.insertAdjacentHTML("beforeend", CHEVRON); colorRow.append(txt("span", "twk-trigger-label", "Color"), cRight);
+  cRight.append(cSwatch, cText); cRight.insertAdjacentHTML("beforeend", CHEVRON); colorRow.append(txt("span", "twk-trigger-label", tr("color", "Color")), cRight);
   const body = createPickerBody({ value: typeof init.color === "string" && isColor(init.color) ? init.color : DEF.color, onMode: () => update() }, () => { update(); emit(); });
   body.el.hidden = true;
   colorRow.addEventListener("click", () => { const show = body.el.hidden; body.el.hidden = !show; colorRow.setAttribute("aria-expanded", String(show)); pop_.reflow(); }); // re-place for the new height; the picker lays out now

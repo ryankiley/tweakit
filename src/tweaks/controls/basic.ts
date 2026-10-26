@@ -3,7 +3,7 @@
 import {
   el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel, json,
   popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, foldBody,
-  quietFocus, activeIn, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
+  quietFocus, activeIn, words, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
 } from "../shared.js";
 import { ICON_CHEVRON, chevronIcon } from "../icons.js";
@@ -238,7 +238,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
 function createToggle(meta: Meta, onChange: OnChange): Control {
   const row = el("div", "twk-row");
   // The segmented control IS the state; this maps boolean ↔ "on"/"off" at the rim.
-  const seg = createSegmented([{ value: "off", label: "Off" }, { value: "on", label: "On" }], meta.value ? "on" : "off", (v) => onChange(v === "on"), meta.label, "on");
+  const tr = words(), seg = createSegmented([{ value: "off", label: tr("off", "Off") }, { value: "on", label: tr("on", "On") }], meta.value ? "on" : "off", (v) => onChange(v === "on"), meta.label, "on");
   row.append(txt("span", "twk-row-label", meta.label), seg.el);
   return { el: row, set: (v: unknown) => seg.set(v ? "on" : "off"), get: () => seg.get() === "on" };
 }
@@ -336,7 +336,7 @@ function createButtonGroup(meta: Meta) {
   const row = el("div", "twk-row twk-buttongroup");
   if (meta.label) row.append(txt("span", "twk-row-label", meta.label));
   const group = el("div", "twk-buttongroup-btns");
-  const list: [string, () => void][] = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label ?? "Button", b.action]) : Object.entries(meta.buttons || {}); // an entry with no label is still a button, not an empty pill
+  const list: [string, () => void][] = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label ?? words()("button", "Button"), b.action]) : Object.entries(meta.buttons || {}); // an entry with no label is still a button, not an empty pill
   for (const [lab, fn] of list) {
     const b = txt("button", "twk-buttongroup-btn", lab);
     b.addEventListener("click", () => typeof fn === "function" && fn());

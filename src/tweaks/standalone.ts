@@ -1,6 +1,6 @@
 /* Standalone controls — the kit's controls without the panel: mountControl() builds one control
  * into a host of your own, createColorPicker() hands out the color editor surface alone. */
-import { el, getControl, onReady, setDisabled, valueChanged, isolate } from "./shared.js";
+import { el, getControl, onReady, setDisabled, valueChanged, isolate, using } from "./shared.js";
 import { metaFor, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createControl } from "./controls/basic.js";
@@ -36,7 +36,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
   const emit = (v: unknown) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v, key); };
   const build = () => {
     if (destroyed) return; // destroy() before the chunk landed — nothing to mount
-    ctrl = createControl(meta, valued ? emit : () => {});
+    ctrl = using(opts.strings, () => createControl(meta, valued ? emit : () => {}));
     if (!ctrl) return; // a failed chunk degrades to an empty wrapper
     if (meta.hint) addHintMarker(ctrl.el, meta.hint);
     // Resolved once at mount: with no siblings for a predicate to read, `get` answers undefined.
@@ -69,7 +69,7 @@ export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
     if (destroyed) return;
     const make = getControl<PickerBody, PickerOptions>("colorpicker"); // registered by the color module beside its control
     if (!make) return;
-    body = make({ value: opts.value, mode: opts.mode }, emit);
+    body = using(opts.strings, () => make({ value: opts.value, mode: opts.mode }, emit));
     last = body.get();
     root.append(body.el);
     if (parkedMode) body.setMode(parkedMode);

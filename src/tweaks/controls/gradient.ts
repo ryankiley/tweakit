@@ -1,6 +1,6 @@
 // ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the color
 // module (reuses its picker body, parseColor, and oklchStr).
-import { el, btn, clamp, popover, registerControl, icon } from "../shared.js";
+import { el, btn, clamp, popover, registerControl, icon, words } from "../shared.js";
 import { dragGesture, triggerRow, arrowStep } from "../heavy.js";
 import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./color.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
@@ -43,7 +43,7 @@ const field = (value: any, key: string): string | null => (value && !Array.isArr
 const parseInterp = (value: any) => field(value, "interpolation");
 const parseEase = (value: any) => field(value, "easing");
 // The easing menu; a stored cubic-bezier() not among them shows as a "Custom" option while it's the value.
-const EASINGS: Array<[GradientEasing, string]> = [["linear", "Linear"], ["ease", "Ease"], ["ease-in", "Ease in"], ["ease-out", "Ease out"], ["ease-in-out", "Ease in-out"]];
+const EASINGS: Array<[GradientEasing, string, string]> = [["linear", "easeLinear", "Linear"], ["ease", "ease", "Ease"], ["ease-in", "easeIn", "Ease in"], ["ease-out", "easeOut", "Ease out"], ["ease-in-out", "easeInOut", "Ease in-out"]]; // value, strings key, word
 function normalizeStops(value: any): GradientStop[] {
   const DEF: GradientStop[] = [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }];
   const arr = Array.isArray(value) ? value : (value && Array.isArray(value.stops) ? value.stops : null);
@@ -60,6 +60,7 @@ function normalizeStops(value: any): GradientStop[] {
   return out.length >= 2 ? out : DEF;
 }
 function createGradient(meta: Meta, onChange: OnChange): Control {
+  const tr = words();
   meta.value ??= meta.stops; // the verbose form's `stops` aliases `value`
   // The blend and easing read off `value: {…}` first, else the verbose form's top level, where a pasted value's fields land.
   const interp0 = parseInterp(meta.value) ?? parseInterp(meta), ease0 = parseEase(meta.value) ?? parseEase(meta);
@@ -68,7 +69,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   let easing = easingName(ease0); // unrecognized reads as linear
 
   // ── Trigger row — the strip is the readout; the stop count rides along for the accessibility tree. ──
-  const { root, trigger, right } = triggerRow("twk-gradient", meta.label ?? "Gradient"); // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-gradient", meta.label ?? tr("gradient", "Gradient")); // ??: an explicit "" label renders none
   const preview = el("span", "twk-trigger-chip twk-gradient-preview"); preview.setAttribute("role", "img");
   right.append(preview);
 
@@ -79,7 +80,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const grad = el("div", "twk-gradient-grad");
   const rail = el("div", "twk-gradient-rail");
   bar.append(grad, rail);
-  const addBtn = btn("twk-gradient-add", ICON_PLUS); addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a color stop after the selected one");
+  const addBtn = btn("twk-gradient-add", ICON_PLUS); addBtn.title = tr("addStop", "Add a stop after the selected one"); addBtn.setAttribute("aria-label", tr("addStopAria", "Add a color stop after the selected one"));
   barRow.append(bar, addBtn);
 
   const sorted = () => [...stops].sort((a, b) => a.pos - b.pos);
@@ -89,7 +90,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const value = () => ({ stops: sorted().map((s) => ({ color: s.color, pos: +s.pos.toFixed(4) })), interpolation: interp(), easing });
   // Both draw gradientCss(value()), so the editor can't show a ramp a host templating through it won't get.
   const paint = () => { const css = gradientCss(value()); grad.style.background = css; preview.style.background = `${css}, ${CHECKER}`; };
-  const reflectCount = () => { preview.setAttribute("aria-label", `${stops.length} stop${stops.length === 1 ? "" : "s"}`); };
+  const reflectCount = () => { preview.setAttribute("aria-label", tr("stops", (v) => `${v.n} stop${v.n === 1 ? "" : "s"}`, { n: stops.length })); };
   const emit = () => onChange(value());
 
   const handleFor = (s: GradientStop) => [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s); // the rail holds only stop handles
@@ -100,12 +101,12 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     paint(); emit();
   });
   // Easing sits beside the mode: both are "how the ramp blends".
-  const easeSel = el("select", "twk-color-mode twk-gradient-ease"); easeSel.setAttribute("aria-label", "Easing between stops"); easeSel.title = "How the ramp blends between stops";
-  for (const [v, label] of EASINGS) { const o = document.createElement("option"); o.value = v; o.textContent = label; easeSel.append(o); }
+  const easeSel = el("select", "twk-color-mode twk-gradient-ease"); easeSel.setAttribute("aria-label", tr("stopEasing", "Easing between stops")); easeSel.title = tr("stopEasingHint", "How the ramp blends between stops");
+  for (const [v, k, label] of EASINGS) { const o = document.createElement("option"); o.value = v; o.textContent = tr(k, label); easeSel.append(o); }
   const reflectEase = () => {
     let custom = easeSel.querySelector<HTMLOptionElement>("option[data-custom]");
     if (EASINGS.some(([v]) => v === easing)) custom?.remove();
-    else { if (!custom) { custom = document.createElement("option"); custom.dataset.custom = ""; custom.textContent = "Custom"; easeSel.append(custom); } custom.value = easing; }
+    else { if (!custom) { custom = document.createElement("option"); custom.dataset.custom = ""; custom.textContent = tr("custom", "Custom"); easeSel.append(custom); } custom.value = easing; }
     easeSel.value = easing;
   };
   easeSel.addEventListener("change", () => { easing = easeSel.value as GradientEasing; reflectEase(); paint(); emit(); }); // reflect: picking a keyword retires the Custom option
@@ -115,7 +116,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   root.append(pop);
 
   // A stop's accessible name carries its position and selection, the state the ring shows sighted users.
-  const labelStop = (h: StopHandle) => h.setAttribute("aria-label", `Color stop at ${Math.round(h._stop.pos * 100)}%${h._stop === selStop ? ", selected" : ""}`);
+  const labelStop = (h: StopHandle) => h.setAttribute("aria-label", tr(h._stop === selStop ? "stopAtSelected" : "stopAt", h._stop === selStop ? "Color stop at {pos}%, selected" : "Color stop at {pos}%", { pos: Math.round(h._stop.pos * 100) }));
   const reflectSel = () => { for (const h of rail.children as HTMLCollectionOf<StopHandle>) { h.dataset.sel = String(h._stop === selStop); labelStop(h); } };
   // A drag or an arrow moving a stop: its spot on the rail, its name, the ramp and the value follow.
   const moveStop = (h: StopHandle, pos: number) => { h._stop.pos = clamp(pos, 0, 1); h.style.left = h._stop.pos * 100 + "%"; labelStop(h); paint(); emit(); };

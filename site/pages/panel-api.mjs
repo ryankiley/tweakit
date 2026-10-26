@@ -394,8 +394,25 @@ export const examples = [
         <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>
         <tr><td><code>undo</code></td><td>debounced undo/redo history</td></tr>
         <tr><td><code>onReset</code></td><td>replace the default reset behavior</td></tr>
+        <tr><td><code>strings</code></td><td>the words it shows and says, by key, over the English defaults; see below</td></tr>
         <tr><td><code>shadow</code></td><td><code>true</code> builds the panel in a shadow root, out of reach of page CSS such as <code>#app button { … }</code>; see below</td></tr>
       </table>`,
+  },
+  {
+    id: "strings",
+    title: "Its words",
+    prose: `<p>Every word a panel shows or says (its buttons and tooltips, its sub-editors' labels,
+      what a screen reader hears after a copy or a paste) has a key in <code>strings</code>, with
+      its English default in the <code>Strings</code> type. Pass the ones to change: to translate
+      the panel, or to rename the chrome. A key with a <code>{placeholder}</code> takes a string
+      using it, or a function given the values, for plurals. <code>mountControl</code>,
+      <code>createColorPicker</code> and <code>enhance(root, { strings })</code> take it too.</p>`,
+    code: `
+      tweaks("Réglages", schema, { strings: {
+        presets: "Préréglages", reset: "Réinitialiser",
+        presetSaved: "Préréglage {name} enregistré",
+        pasted: (v) => (v.n === 1 ? "1 valeur collée" : \`\${v.n} valeurs collées\`),
+      } });`,
   },
   {
     id: "shadow",

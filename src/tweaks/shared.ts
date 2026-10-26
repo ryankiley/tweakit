@@ -1,6 +1,6 @@
 /* Tweaks — shared building blocks: DOM + math helpers, theming, the popover shell and
  * the control registry. core.js and the lazy controls/*.js import what they each use. */
-import type { Control, Option, Panel, Theme } from "./types.js";
+import type { Control, Option, Panel, Theme, Strings } from "./types.js";
 import type { Meta } from "./schema.js";
 
 // ── Internal types ──
@@ -522,9 +522,23 @@ export const registerControl = (type: string, ctor: ControlCtor<any, any>) => { 
 export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, C> | undefined => REGISTRY[type];
 export const controlTypes = () => Object.keys(REGISTRY);
 // The markup chunk's enhance(), registered when markup.ts loads (enhance.ts fetches it, or single.ts imports it).
-let MARKUP: ((root: Document | Element, kit: any) => Promise<void>) | null = null; // any: the kit's type lives in markup.ts, which imports this
+let MARKUP: ((root: Document | Element, kit: any, strings?: Words) => Promise<void>) | null = null; // any: the kit's type lives in markup.ts, which imports this
 export const setMarkup = (fn: typeof MARKUP) => { MARKUP = fn; };
-export const getMarkup = <K>() => MARKUP as ((root: Document | Element, kit: K) => Promise<void>) | null;
+export const getMarkup = <K>() => MARKUP as ((root: Document | Element, kit: K, strings?: Words) => Promise<void>) | null;
+
+// ── Words: opts.strings over the English defaults, for the chrome and every control (types.ts Strings). A panel builds
+// under its strings (using()), and each control takes the set in force as it's made (words()), so a pane, note or
+// announcement it makes later speaks the same. The words function fills a key's {placeholders}, or calls a language's
+// own function with them, for plurals that need more than one form. ──
+type Word = string | ((v: any) => string);
+type Words = Strings;
+let inForce: Words = {};
+const using = <T>(s: Words | null | undefined, fn: () => T): T => { const was = inForce; inForce = s || was; try { return fn(); } finally { inForce = was; } };
+const words = (s: Words | null | undefined = inForce) => (k: string, d: Word, v?: Record<string, unknown>): string => {
+  const w = (s as Record<string, Word | undefined> | null | undefined)?.[k] ?? d;
+  return typeof w === "function" ? w(v) : v ? w.replace(/\{(\w+)\}/g, (m, n) => (n in v ? String(v[n]) : m)) : w;
+};
+type Tr = ReturnType<typeof words>;
 
 // What a click or a run of keys did, in words, for a screen reader: one visually hidden status region for the page,
 // where the toast used to speak. It's cleared and written a beat later, so the same words twice are read twice.
@@ -541,9 +555,9 @@ export {
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, home, activeIn, holds, portalTo, isolate, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
-  blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce, hasOwn, isReservedKey, valueChanged, restoreDefault, SPRING_KEYS,
+  using, words, blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce, hasOwn, isReservedKey, valueChanged, restoreDefault, SPRING_KEYS,
 };
-export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };
+export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor, Words, Tr };
 // Re-exported for the chunking: core and the gradient control both import easing.ts, and a
 // module only those two reach would become a chunk of its own (test/chunks.test.mjs holds it
 // to three). Core exports from easing.ts directly so the .d.ts prune skips shared.ts internals.

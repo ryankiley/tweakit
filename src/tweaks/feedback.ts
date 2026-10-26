@@ -1,7 +1,8 @@
 /* Panel feedback chrome — the toolbar button factories (copy / reset and their one-shot
  * animations), the hint tooltip and the clipboard helper. The screen-reader announcer they
  * speak through lives in shared.ts, where the lazy controls reach it too. */
-import { el, btn, carrySkin, placeBelow, announce, portalTo } from "./shared.js";
+import { el, btn, carrySkin, placeBelow, announce, portalTo, words } from "./shared.js";
+import type { Tr } from "./shared.js";
 import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 
 /** A toolbar button with its one-shot animation state: timer, spin settle hook, last click time. */
@@ -12,19 +13,19 @@ const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => { c
 /** Copy: puts `text(changedOnly)` on the clipboard and confirms with the check swap, and to a screen reader in words.
  *  `text` returns the payload and a count (-1 for the full snapshot; 0 copies nothing).
  *  Both handlers bail while `disabled`: a synthetic dispatchEvent(click) reaches a disabled button. */
-const makeCopyBtn = (text: (changedOnly: boolean) => [string, number]) => {
-  const b = toolbarBtn("twk-toolbar-btn--swap", `<span class="twk-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values (⇧: changed only)");
+const makeCopyBtn = (text: (changedOnly: boolean) => [string, number], tr: Tr = words()) => {
+  const b = toolbarBtn("twk-toolbar-btn--swap", `<span class="twk-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, tr("copy", "Copy values (⇧: changed only)"));
   b.addEventListener("click", async (e) => {
     if (b.disabled) return;
     const [t, n] = text(e.shiftKey);
-    if (!n) return announce("Nothing has changed");
-    if (!(await copyText(t))) return announce("Copy failed");
-    flashCopied(b); announce(n > 0 ? `${n} changed value${n === 1 ? "" : "s"} copied` : "Values copied");
+    if (!n) return announce(tr("nothingChanged", "Nothing has changed"));
+    if (!(await copyText(t))) return announce(tr("copyFailed", "Copy failed"));
+    flashCopied(b); announce(n > 0 ? tr("copiedChanged", (v) => `${v.n} changed value${v.n === 1 ? "" : "s"} copied`, { n }) : tr("copied", "Values copied"));
   });
   return b;
 };
 /** Reset: runs `onReset` behind the icon's one-shot spin. */
-const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("twk-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
+const makeResetBtn = (onReset: () => void, tr: Tr = words()) => { const b = toolbarBtn("twk-toolbar-btn--reset", ICON_RESET, tr("reset", "Reset")); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
 const flashCopied = (btn: ToolbarBtn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
 /** Reset spin — an accumulated rotation on --twk-spin driven by the transform transition, so a
  *  second click mid-spin retargets smoothly instead of snapping back. Once settled the counter

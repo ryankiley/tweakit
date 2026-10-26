@@ -2,7 +2,7 @@
 // linked; unlinked, the row opens in place and four fields sit in a line under it, in CSS order, each under its glyph.
 // The value is the four numbers in CSS order plus the shorthand `css`, built only from the numbers and the unit —
 // never a host string. Lazy. ──
-import { el, txt, btn, icon, registerControl, stepPrecision } from "../shared.js";
+import { el, txt, btn, icon, registerControl, stepPrecision, words } from "../shared.js";
 import { numField, decimalStep } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -38,6 +38,7 @@ const saidUnit = (v: unknown, name: string, sides: string[]) => {
 
 function createSides(meta: Meta, onChange: OnChange): Control {
   const corners = !!meta.corners, names = corners ? ["Top-left", "Top-right", "Bottom-right", "Bottom-left"] : ["Top", "Right", "Bottom", "Left"];
+  const tr = words(), shown = names.map((n) => tr(n.toLowerCase().replace(/-(\w)/, (_, c) => c.toUpperCase()), n)); // topLeft …; `names` stays the glyph's data-at
   const name = meta.label || meta.key, init = meta.value ?? meta;
   const unit = (typeof meta.unit === "string" && meta.unit.trim()) || saidUnit(init, name, names) || "px"; // an explicit unit wins over the string's
   let v = read(init, [0, 0, 0, 0]);
@@ -53,15 +54,15 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   const all = numField({ label: meta.label, value: v[0], row: true, ...spec }, (n) => { v = [n, n, n, n]; update(); emit(); });
   // One toggle, moved to whichever block is showing; last in both, so it sits on the same pixels either way. It says what
   // a click opens — each corner or side on its own — and is pressed while they are.
-  const split = corners ? "Independent corners" : "Independent sides";
+  const split = corners ? tr("splitCorners", "Independent corners") : tr("splitSides", "Independent sides");
   const link = btn("twk-sides-link", ICON_SPLIT); link.setAttribute("aria-label", split); link.title = split; link.addEventListener("click", () => toggle());
   // The head has the row's geometry, so opening moves nothing: the readout takes the field's place, with the unit once.
   const multi = el("div", "twk-sides-multi"), head = el("div", "twk-sides-head"), sum = el("span", "twk-sides-sum"), nums = document.createTextNode("");
   sum.append(nums, txt("span", "twk-sides-unit", unit)); head.append(txt("span", "twk-row-label", meta.label), sum);
   const fields = el("div", "twk-fields");
-  const flds: NumField[] = names.map((n, i) => numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }));
+  const flds: NumField[] = shown.map((n, i) => numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }));
   // The input and the tooltip carry the full name; on screen each field wears its glyph, one drawing turned per place.
-  flds.forEach((f, i) => { const lab = f.el.querySelector<HTMLElement>(".twk-field-label")!; lab.title = names[i]; lab.classList.add("twk-sides-glyph"); lab.dataset.at = names[i].toLowerCase(); lab.innerHTML = corners ? ICON_CORNER : ICON_EDGE; fields.append(f.el); });
+  flds.forEach((f, i) => { const lab = f.el.querySelector<HTMLElement>(".twk-field-label")!; lab.title = shown[i]; lab.classList.add("twk-sides-glyph"); lab.dataset.at = names[i].toLowerCase(); lab.innerHTML = corners ? ICON_CORNER : ICON_EDGE; fields.append(f.el); });
   multi.append(head, fields); root.append(all.el, multi);
   // As the fields fitted them.
   v = flds.map((f) => f.get());

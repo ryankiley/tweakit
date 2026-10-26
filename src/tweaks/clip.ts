@@ -6,12 +6,13 @@ import type { Entry, Snapshot } from "./panel.js";
 import type { PanelState } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { announce } from "./feedback.js";
-import { isObj, isColorStr, optValue, hasOwn, isReservedKey } from "./shared.js";
+import { isObj, isColorStr, optValue, hasOwn, isReservedKey, words } from "./shared.js";
+import type { Tr } from "./shared.js";
 
 /** Where a pasted value can land: a control's path, its current value, its meta and its row (a disabled one takes nothing). */
 export interface Slot { path: string[]; get: () => unknown; m: Meta; el?: Element }
 /** How a paste reports: the words a screen reader hears, and whether its panel is still there. */
-export interface Report { announce: typeof announce; alive: () => boolean }
+export interface Report { announce: typeof announce; alive: () => boolean; tr?: Tr }
 /** What a panel lends the paste. */
 export interface ClipCtx extends Report { panel: HTMLElement; entries: Entry[]; fromJSON: (state: PanelState) => void }
 /** What a scoped ⌘C / ⌘V acts on: one row, or every row under a folder's path. */
@@ -85,7 +86,8 @@ export function pasteInto(text: string | null, apply: (text: string) => number |
   if (!r.alive()) return;
   let n: number | false = false;
   if (text !== null) try { n = apply(text); } catch {}
-  r.announce(!n ? (text === null ? "Couldn't read the clipboard" : "Nothing to paste") : `${n} value${n === 1 ? "" : "s"} pasted`);
+  const tr = r.tr || words();
+  r.announce(!n ? (text === null ? tr("clipboardUnread", "Couldn't read the clipboard") : tr("nothingToPaste", "Nothing to paste")) : tr("pasted", (v) => `${v.n} value${v.n === 1 ? "" : "s"} pasted`, { n }));
   if (band) { // a quick second paste on the same row restarts the flash: the first one's timer mustn't cut it short
     const c = n ? "is-pasted" : "is-refused"; band.classList.remove("is-pasted", "is-refused"); band.classList.add(c);
     clearTimeout(flashes.get(band)); flashes.set(band, setTimeout(() => band.classList.remove(c), 450));

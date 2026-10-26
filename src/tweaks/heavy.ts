@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, portalTo, activeIn, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, announce, sayNow } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, portalTo, activeIn, words, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, announce, sayNow } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -166,7 +166,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
   const root = el("div", spec.row ? "twk-row" : "twk-field");
   const wrap = el("div", "twk-num-wrap");
-  const grab = el("span", "twk-num-grab", ICON_GRIP); grab.setAttribute("aria-hidden", "true"); grab.title = "Drag to adjust";
+  const grab = el("span", "twk-num-grab", ICON_GRIP); grab.setAttribute("aria-hidden", "true"); grab.title = words()("dragToAdjust", "Drag to adjust");
   const inp = el("input", "twk-num"); inp.type = "text"; inp.inputMode = "decimal"; inp.setAttribute("aria-label", spec.unit ? `${spec.label} (${spec.unit})` : spec.label); inp.value = value.toFixed(decimals);
   quietFocus(inp); // click-to-edit stays ringless; Tab rings
   wrap.append(grab, inp); if (spec.unit) wrap.append(txt("span", "twk-num-unit", spec.unit)); root.append(txt("span", spec.row ? "twk-row-label" : "twk-field-label", spec.label), wrap);
