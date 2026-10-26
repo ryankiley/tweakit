@@ -104,14 +104,6 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals
   if (!(step > 0) || step > max - min) step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
   return { min, max, step };
 };
-// The coarsest power of ten a number sits on (0.5 → 0.1, 3.14159 → 0.00001, 1230 → 10), read at 12 significant digits so
-// 0.1 + 0.2 counts as 0.3; Infinity for 0 or a non-number, which constrains nothing. A step no coarser keeps it exactly.
-const decimalStep = (v: unknown) => {
-  const n = Number(Math.abs(+(v as number)).toPrecision(12)); if (!n || !Number.isFinite(n)) return Infinity;
-  const d = stepPrecision(n); if (d) return Number(`1e-${d}`);
-  let k = 0; while (k < 15 && n % 10 ** (k + 1) === 0) k++;
-  return 10 ** k;
-};
 // One keyboard model for every 1-D range surface: arrows step (⇧ = ×10), Home/End snap to
 // the ends, PageUp/Down jump by `page`. Null when the key isn't the range's to handle.
 const rangeStep = (e: KeyboardEvent, cur: number, step: number, lo: number, hi: number, page: number | null = null) => {
@@ -585,7 +577,7 @@ const announce = (msg: string) => {
 
 export {
   titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
-  normalizeRange, swapNote, decimalStep, rangeStep, overlapsText,
+  normalizeRange, swapNote, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,

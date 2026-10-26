@@ -1,7 +1,7 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
  * or verbose `{ type }`), and a [data-tw] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
-import { titleCase, isObj, isColorStr, decimalStep, optValue, getControl, controlTypes, TYPE_ALIASES } from "./shared.js";
+import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, TYPE_ALIASES } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
@@ -83,7 +83,7 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) =
   // Absent min/max derive in the control from the value the range must contain, like the bare-number shorthand:
   // `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`.
   slider: (v) => ({ value: v.value ?? v.min ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit), format: fnOf(v.format), parse: fnOf(v.parse) }),
-  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? Math.min(1, decimalStep(v.value), decimalStep(v.min)), soft: v.soft, unit: unitOf(v.unit) }), // 1, or finer when the default or min has decimals
+  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit) }), // no step: the number control (heavy.ts) fits one to the default
   checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
