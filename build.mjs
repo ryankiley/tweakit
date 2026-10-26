@@ -4,8 +4,8 @@
  *   dist/tweaks.css   minified panel CSS
  *   dist/types/       .d.ts declarations
  *   dist/*.html       the docs site, from site/
- * TW_SPLIT is an esbuild define that picks the code path in core.ts. `--sourcemap` adds a linked .map beside each
- * script, for readable stack traces in the tests; a plain build, the one that publishes, has none. */
+ * TW_SPLIT is an esbuild define that picks the code path in core.ts. Every script ships a linked .map, sources included,
+ * so a stack trace from a user's app names the kit's source lines; it adds to the npm download, not to an app's bundle. */
 import { mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { execFile } from "node:child_process";
@@ -22,7 +22,7 @@ await rm(p("dist"), { recursive: true, force: true });
 await mkdir(p("dist"), { recursive: true });
 
 const esbuild = await import("esbuild");
-const sourcemap = process.argv.includes("--sourcemap") ? "linked" : false;
+const sourcemap = "linked"; // a .map beside each script, sources included, in the package too: a user's stack trace names src/ lines
 
 // 1) code-split chunks → dist/tweaks/; the metafile finds the shared chunk for the size report
 const splitBuild = await esbuild.build({
