@@ -11,7 +11,7 @@ import type { MarkupKit } from "./markup.js";
 declare const TW_SPLIT: boolean;
 const kit: MarkupKit = { metaFor, ensureForMetas, LAZY_IMPORT, createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker };
 
-/** Bind every unbound [data-tw] host under `root` (the document by default). */
+/** Bind every unbound [data-twk] host under `root` (the document by default). */
 export function enhance(root: Document | Element = document): Promise<void> {
   const run = getMarkup<MarkupKit>();
   if (run || !TW_SPLIT) return run ? run(root, kit) : Promise.resolve(); // the single-file build registered it on load: synchronous, as ever

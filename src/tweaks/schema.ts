@@ -1,5 +1,5 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
- * or verbose `{ type }`), and a [data-tw] dataset through markup.ts, parses into the same control meta. A lazy
+ * or verbose `{ type }`), and a [data-twk] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
 import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, hasOwn, isReservedKey, SPRING_KEYS, notice } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";

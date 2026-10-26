@@ -49,19 +49,19 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   if (!v && meta.value != null && (typeof meta.value !== "object" || Array.isArray(meta.value))) console.warn(`[tweaks] sides "${name}": can't read ${JSON.stringify(meta.value)?.slice(0, 60)}, so it starts at 0; it takes one to four numbers or plain lengths, like "8px 16px"`);
   v = v || [0, 0, 0, 0];
   let linked = v.every((x) => x === v[0]);
-  const root = el("div", "tw-sides");
+  const root = el("div", "twk-sides");
   const all = numField({ label: meta.label, value: v[0], row: true, ...spec }, (n) => { v = [n, n, n, n]; update(); emit(); });
   // One toggle, moved to whichever block is showing; last in both, so it sits on the same pixels either way. It says what
   // a click opens — each corner or side on its own — and is pressed while they are.
   const split = corners ? "Independent corners" : "Independent sides";
-  const link = btn("tw-sides-link", ICON_SPLIT); link.setAttribute("aria-label", split); link.title = split; link.addEventListener("click", () => toggle());
+  const link = btn("twk-sides-link", ICON_SPLIT); link.setAttribute("aria-label", split); link.title = split; link.addEventListener("click", () => toggle());
   // The head has the row's geometry, so opening moves nothing: the readout takes the field's place, with the unit once.
-  const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum"), nums = document.createTextNode("");
-  sum.append(nums, txt("span", "tw-sides-unit", unit)); head.append(txt("span", "tw-row-label", meta.label), sum);
-  const fields = el("div", "tw-fields");
+  const multi = el("div", "twk-sides-multi"), head = el("div", "twk-sides-head"), sum = el("span", "twk-sides-sum"), nums = document.createTextNode("");
+  sum.append(nums, txt("span", "twk-sides-unit", unit)); head.append(txt("span", "twk-row-label", meta.label), sum);
+  const fields = el("div", "twk-fields");
   const flds: NumField[] = names.map((n, i) => numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }));
   // The input and the tooltip carry the full name; on screen each field wears its glyph, one drawing turned per place.
-  flds.forEach((f, i) => { const lab = f.el.querySelector<HTMLElement>(".tw-field-label")!; lab.title = names[i]; lab.classList.add("tw-sides-glyph"); lab.dataset.at = names[i].toLowerCase(); lab.innerHTML = corners ? ICON_CORNER : ICON_EDGE; fields.append(f.el); });
+  flds.forEach((f, i) => { const lab = f.el.querySelector<HTMLElement>(".twk-field-label")!; lab.title = names[i]; lab.classList.add("twk-sides-glyph"); lab.dataset.at = names[i].toLowerCase(); lab.innerHTML = corners ? ICON_CORNER : ICON_EDGE; fields.append(f.el); });
   multi.append(head, fields); root.append(all.el, multi);
   // As the fields fitted them.
   v = flds.map((f) => f.get());

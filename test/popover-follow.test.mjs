@@ -12,10 +12,10 @@ const rect = (top, left = 50, w = 200, h = 32) => ({ top, left, width: w, height
 
 test("a scroll carries the popover with its row; the row leaving the viewport closes it", async () => {
   const p = tweaks("F", { tint: "#ff0000" }); document.body.append(p.el); await p.ready;
-  const root = p.el.querySelector(".tw-color"), trigger = root.querySelector(".tw-trigger");
+  const root = p.el.querySelector(".twk-color"), trigger = root.querySelector(".twk-trigger");
   let r = rect(100); trigger.getBoundingClientRect = () => r;
   trigger.click(); await wait(60);
-  const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "open");
+  const pop = document.body.querySelector(".twk-color-pop.is-open"); assert.ok(pop, "open");
   assert.equal(pop.style.top, "138px", "placed under the row: bottom 132 + gap 6"); assert.equal(pop.style.left, "50px");
   r = rect(60); window.dispatchEvent(new window.Event("scroll")); // the page scrolled 40px
   assert.equal(pop.style.top, "98px", "moved with the row by exactly the scroll");
@@ -33,7 +33,7 @@ test("a scroll carries the popover with its row; the row leaving the viewport cl
 
 test("a row scrolled out of a floating panel closes its pop, though it's still in the viewport", async () => {
   const p = tweaks("FS", { tint: "#0000ff" }, { floating: { x: 16, y: 16 } }); document.body.append(p.el); await p.ready;
-  const root = p.el.querySelector(".tw-color"), trigger = root.querySelector(".tw-trigger");
+  const root = p.el.querySelector(".twk-color"), trigger = root.querySelector(".twk-trigger");
   p.el.getBoundingClientRect = () => rect(60, 16, 236, 300); // the scrolling panel shows 60..360
   let r = rect(100); trigger.getBoundingClientRect = () => r;
   trigger.click(); await wait(60);
@@ -46,10 +46,10 @@ test("a row scrolled out of a floating panel closes its pop, though it's still i
 
 test("an inner scroller's scroll (capture) is heard too, and a hidden row closes", async () => {
   const p = tweaks("F", { tint: "#00ff00" }); const box = document.createElement("div"); box.append(p.el); document.body.append(box); await p.ready;
-  const root = p.el.querySelector(".tw-color"), trigger = root.querySelector(".tw-trigger");
+  const root = p.el.querySelector(".twk-color"), trigger = root.querySelector(".twk-trigger");
   let r = rect(300); trigger.getBoundingClientRect = () => r;
   trigger.click(); await wait(60);
-  const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "open");
+  const pop = document.body.querySelector(".twk-color-pop.is-open"); assert.ok(pop, "open");
   r = rect(250); box.dispatchEvent(new window.Event("scroll")); // a scroll event that doesn't bubble, from an element: capture on window sees it
   assert.equal(pop.style.top, "288px");
   r = rect(0, 0, 0, 0); box.dispatchEvent(new window.Event("scroll")); // the row went display:none (a tab switch, a collapsed folder)
@@ -59,11 +59,11 @@ test("an inner scroller's scroll (capture) is heard too, and a hidden row closes
 
 test("a list records the side it opened on and its height, so its entrance grows out of the trigger", async () => {
   const p = tweaks("S", { pick: ["a", "b", "c"] }); document.body.append(p.el); await p.ready;
-  const trigger = p.el.querySelector(".tw-select-trigger");
+  const trigger = p.el.querySelector(".twk-select-trigger");
   let r = rect(100); trigger.getBoundingClientRect = () => r;
   trigger.click(); await wait(60);
-  const pop = document.body.querySelector(".tw-select-dropdown.is-open"); assert.ok(pop, "open");
-  assert.equal(pop.dataset.side, "below"); assert.equal(pop.style.getPropertyValue("--tw-pop-h"), "200", "jsdom has no layout, so the list's fallback height");
+  const pop = document.body.querySelector(".twk-select-dropdown.is-open"); assert.ok(pop, "open");
+  assert.equal(pop.dataset.side, "below"); assert.equal(pop.style.getPropertyValue("--twk-pop-h"), "200", "jsdom has no layout, so the list's fallback height");
   assert.equal(pop.style.transition, "", "the transition-free placement handed the transition back");
   trigger.click(); await wait(230);
   r = rect(700); trigger.click(); await wait(60); // 200 + 12 doesn't fit under 732 in a 768 viewport
@@ -73,9 +73,9 @@ test("a list records the side it opened on and its height, so its entrance grows
 
 test("a popover reopened as it fades out stays where it is and turns around; only its last close removes it", async () => {
   const p = tweaks("R", { pick: ["a", "b"] }); document.body.append(p.el); await p.ready;
-  const trigger = p.el.querySelector(".tw-select-trigger"); trigger.getBoundingClientRect = () => rect(100);
+  const trigger = p.el.querySelector(".twk-select-trigger"); trigger.getBoundingClientRect = () => rect(100);
   trigger.click(); await wait(60);
-  const pop = document.body.querySelector(".tw-select-dropdown.is-open"); assert.ok(pop, "open");
+  const pop = document.body.querySelector(".twk-select-dropdown.is-open"); assert.ok(pop, "open");
   trigger.click(); await wait(60); // closing, 60ms into the fade
   const append = document.body.appendChild; let moved = 0;
   document.body.appendChild = function (n) { if (n === pop) moved++; return append.call(this, n); };
@@ -89,10 +89,10 @@ test("a popover reopened as it fades out stays where it is and turns around; onl
 
 test("an editor's pane takes its trigger's width, as the list's does, and the same gap below it", async () => {
   const p = tweaks("M", { tint: "#7C5CFF", pick: ["a", "b"] }); document.body.append(p.el); await p.ready;
-  for (const sel of [".tw-color .tw-trigger", ".tw-select-trigger"]) {
+  for (const sel of [".twk-color .twk-trigger", ".twk-select-trigger"]) {
     const trigger = p.el.querySelector(sel); trigger.getBoundingClientRect = () => rect(100, 50, 300);
     trigger.click(); await wait(60);
-    const pop = document.body.querySelector(".tw-portal.is-open");
+    const pop = document.body.querySelector(".twk-portal.is-open");
     assert.equal(pop.style.width, "300px", `${sel}: matched`); assert.equal(pop.style.top, "138px", `${sel}: 6px under the 132 bottom`);
     trigger.click(); await wait(230);
   }
@@ -101,9 +101,9 @@ test("an editor's pane takes its trigger's width, as the list's does, and the sa
 
 test("a pane held at its floor by a nested folder's narrower row keeps the row's right edge and grows left", async () => {
   const p = tweaks("N", { tint: "#7C5CFF" }); document.body.append(p.el); await p.ready;
-  const trigger = p.el.querySelector(".tw-color .tw-trigger");
+  const trigger = p.el.querySelector(".twk-color .twk-trigger");
   trigger.getBoundingClientRect = () => rect(100, 50, 236); trigger.click(); await wait(60);
-  const pop = document.body.querySelector(".tw-color-pop.is-open"); trigger.click(); await wait(230);
+  const pop = document.body.querySelector(".twk-color-pop.is-open"); trigger.click(); await wait(230);
   Object.defineProperty(pop, "offsetWidth", { get: () => Math.max(236, parseFloat(pop.style.width) || 0), configurable: true }); // jsdom has no min-width
   trigger.getBoundingClientRect = () => rect(100, 70, 216); // two folders in: 20px of indent
   trigger.click(); await wait(60);
@@ -119,9 +119,9 @@ test("Escape in a field with a typed edit puts it back and stops; the next close
   let host = 0; const onHost = (e) => { if (e.key === "Escape") host++; }; window.addEventListener("keydown", onHost);
   const esc = (t) => t.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   try {
-    const trigger = p.el.querySelector(".tw-shadow .tw-trigger"); trigger.getBoundingClientRect = () => rect(100);
+    const trigger = p.el.querySelector(".twk-shadow .twk-trigger"); trigger.getBoundingClientRect = () => rect(100);
     trigger.click(); await wait(60);
-    const pop = document.body.querySelector(".tw-color-pop.is-open"), field = pop.querySelector("input");
+    const pop = document.body.querySelector(".twk-color-pop.is-open"), field = pop.querySelector("input");
     const kept = field.value; field.focus(); field.value = "40"; field.dispatchEvent(new window.Event("input", { bubbles: true }));
     esc(field);
     assert.equal(field.value, kept, "the typed edit is put back"); assert.ok(pop.classList.contains("is-open"), "and the pane stays");
@@ -133,16 +133,16 @@ test("Escape in a field with a typed edit puts it back and stops; the next close
 
 test("a pane drags by its edge and keeps that offset while open; a press on its parts doesn't move it; reopening puts it back", async () => {
   const p = tweaks("D", { tint: "#7C5CFF" }); document.body.append(p.el); await p.ready;
-  const trigger = p.el.querySelector(".tw-color .tw-trigger"); let r = rect(100); trigger.getBoundingClientRect = () => r;
+  const trigger = p.el.querySelector(".twk-color .twk-trigger"); let r = rect(100); trigger.getBoundingClientRect = () => r;
   try {
     trigger.click(); await wait(60);
-    const pop = document.body.querySelector(".tw-color-pop.is-open"); pop.setPointerCapture = () => {};
+    const pop = document.body.querySelector(".twk-color-pop.is-open"); pop.setPointerCapture = () => {};
     const at = () => [pop.style.left, pop.style.top];
     assert.deepEqual(at(), ["50px", "138px"]);
     const drag = (target, dx, dy) => { target.dispatchEvent(ptr("pointerdown", { clientX: 60, clientY: 140 })); pop.dispatchEvent(ptr("pointermove", { clientX: 60 + dx, clientY: 140 + dy })); pop.dispatchEvent(ptr("pointerup", { clientX: 60 + dx, clientY: 140 + dy, buttons: 0 })); };
     drag(pop, 200, 100);
     assert.deepEqual(at(), ["250px", "238px"], "moved by the drag");
-    drag(pop.querySelector(".tw-color-body"), 50, 50);
+    drag(pop.querySelector(".twk-color-body"), 50, 50);
     assert.deepEqual(at(), ["250px", "238px"], "a press on the picker's parts never moves it");
     drag(pop, 2, 1);
     assert.deepEqual(at(), ["250px", "238px"], "under 4px is a press, not a move");
@@ -161,7 +161,7 @@ test("a pane drags by its edge and keeps that offset while open; a press on its 
 test("Escape hands focus back to the row as the pane was opened: quietly after a click, ringed after a key", async () => {
   const p = tweaks("F", { pick: ["a", "b"] }); document.body.append(p.el); await p.ready;
   try {
-    const trigger = p.el.querySelector(".tw-select-trigger"); trigger.getBoundingClientRect = () => rect(100);
+    const trigger = p.el.querySelector(".twk-select-trigger"); trigger.getBoundingClientRect = () => rect(100);
     const calls = []; const focus = trigger.focus.bind(trigger); trigger.focus = (o) => { calls.push(o); focus(o); };
     const esc = () => document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     trigger.dispatchEvent(ptr("pointerdown", {})); trigger.click(); await wait(60); esc();
@@ -175,9 +175,9 @@ test("Escape hands focus back to the row as the pane was opened: quietly after a
 test("a list's dropdown doesn't move: it's a menu that closes on a pick", async () => {
   const p = tweaks("L", { pick: ["a", "b"] }); document.body.append(p.el); await p.ready;
   try {
-    const trigger = p.el.querySelector(".tw-select-trigger"); trigger.getBoundingClientRect = () => rect(100);
+    const trigger = p.el.querySelector(".twk-select-trigger"); trigger.getBoundingClientRect = () => rect(100);
     trigger.click(); await wait(60);
-    const dd = document.body.querySelector(".tw-select-dropdown.is-open"); dd.setPointerCapture = () => {};
+    const dd = document.body.querySelector(".twk-select-dropdown.is-open"); dd.setPointerCapture = () => {};
     const at = [dd.style.left, dd.style.top];
     dd.dispatchEvent(ptr("pointerdown", { clientX: 52, clientY: 140 })); dd.dispatchEvent(ptr("pointermove", { clientX: 252, clientY: 240 })); dd.dispatchEvent(ptr("pointerup", { clientX: 252, clientY: 240, buttons: 0 }));
     assert.deepEqual([dd.style.left, dd.style.top], at);
@@ -188,9 +188,9 @@ test("a pane that changes size while open is placed again: it stays on its row",
   const observed = []; globalThis.ResizeObserver = window.ResizeObserver = class { constructor(cb) { this.cb = cb; observed.push(this); } observe() {} disconnect() { this.off = true; } };
   const p = tweaks("Z", { tint: "#7C5CFF" }); document.body.append(p.el); await p.ready;
   try {
-    const trigger = p.el.querySelector(".tw-color .tw-trigger"); trigger.getBoundingClientRect = () => rect(700); // near the bottom of a 768 window: it opens above
+    const trigger = p.el.querySelector(".twk-color .twk-trigger"); trigger.getBoundingClientRect = () => rect(700); // near the bottom of a 768 window: it opens above
     trigger.click(); await wait(60);
-    const pop = document.body.querySelector(".tw-color-pop.is-open"), ro = observed.at(-1);
+    const pop = document.body.querySelector(".twk-color-pop.is-open"), ro = observed.at(-1);
     let h = 340; Object.defineProperty(pop, "offsetHeight", { get: () => h, configurable: true });
     ro.cb(); assert.equal(pop.style.top, `${700 - 340 - 6}px`, "above its row");
     h = 290; ro.cb(); assert.equal(pop.style.top, `${700 - 290 - 6}px`, "shrunk, it stays 6px above its row instead of leaving a gap");

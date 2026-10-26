@@ -20,12 +20,12 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   // Missing tuple entries fall back to the bounds: value:[5] gives [5, max], not [5, NaN].
   put(Number.isFinite(t0) ? t0 : min, Number.isFinite(t1) ? t1 : max);
 
-  const wrap = el("div", "tw-slider-wrap");
-  const track = el("div", "tw-slider tw-interval");
-  const fill = el("div", "tw-slider-fill");
-  const hLo = el("div", "tw-slider-handle"), hHi = el("div", "tw-slider-handle");
-  const labelEl = txt("span", "tw-slider-label", label);
-  const valueEl = el("span", "tw-slider-value");
+  const wrap = el("div", "twk-slider-wrap");
+  const track = el("div", "twk-slider twk-interval");
+  const fill = el("div", "twk-slider-fill");
+  const hLo = el("div", "twk-slider-handle"), hHi = el("div", "twk-slider-handle");
+  const labelEl = txt("span", "twk-slider-label", label);
+  const valueEl = el("span", "twk-slider-value");
   track.append(fill, hLo, hHi, labelEl, valueEl);
   wrap.append(track);
 
@@ -81,7 +81,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   wireHoverClass(track, render); // re-run the dodge with the real track width on hover
   // Recompute once layout and fonts settle (a web-font swap shifts the widths the dodge measures) and on track-width change.
   onReady(render);
-  onLive(track, [[window, "resize"], [window, "tw-reflow"]], render); // tw-reflow: a tab page revealing this re-measures it
+  onLive(track, [[window, "resize"], [window, "twk-reflow"]], render); // twk-reflow: a tab page revealing this re-measures it
 
   // Home/End snap a handle to its neighbor-or-limit, so the two can't cross.
   const page = (max - min) / 10 || step * 10; // PageUp/Down: a tenth of the range, as the slider jumps

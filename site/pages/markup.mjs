@@ -1,14 +1,14 @@
-/* Markup: enhance() and [data-tw] hosts. The examples here are pure HTML: the
+/* Markup: enhance() and [data-twk] hosts. The examples here are pure HTML: the
  * markup shown IS the markup injected; the page imports tweakit/auto, which enhances it on load. */
 
 export const meta = {
   slug: "markup",
   title: "Markup",
-  description: "Markup-driven panels: enhance() upgrades [data-tw] HTML into live controls, no JavaScript required.",
+  description: "Markup-driven panels: enhance() upgrades [data-twk] HTML into live controls, no JavaScript required.",
 };
 
 export const intro = `
-<p>The second way in: write <code>[data-tw]</code> markup and <code>enhance()</code>
+<p>The second way in: write <code>[data-twk]</code> markup and <code>enhance()</code>
 upgrades each host into a live control in place. Importing <code>tweakit</code> binds
 nothing by itself. Import <code>tweakit/auto</code> instead, the same API, and it runs
 <code>enhance(document)</code> once the page has parsed; this page does, so the first three
@@ -19,19 +19,19 @@ export const examples = [
   {
     id: "static-panel",
     title: "A static panel shell",
-    prose: `<p>A <code>.tw-panel</code> shell with <code>[data-tw]</code> hosts inside
+    prose: `<p>A <code>.twk-panel</code> shell with <code>[data-twk]</code> hosts inside
       becomes the real thing: collapsible header, copy + reset toolbar operating over
       its controls, the works. Each control writes its live value back onto its host's
       <code>data-value</code> attribute. A <code>data-key</code> names the control in
       the toolbar's copied JSON (and stands in for a missing <code>data-label</code>);
       without one, the label is the key.</p>`,
     html: `
-      <div class="tw-panel" data-mode="inline" style="max-width: 300px">
-        <div class="tw-header"><span class="tw-title">Static</span></div>
-        <div class="tw-controls">
-          <div data-tw="slider" data-label="Blur" data-value="12" data-min="0" data-max="40" data-unit="px"></div>
-          <div data-tw="checkbox" data-label="Visible" data-checked="true"></div>
-          <div data-tw="list" data-label="Blend" data-options="normal, multiply, screen" data-value="normal"></div>
+      <div class="twk-panel" data-mode="inline" style="max-width: 300px">
+        <div class="twk-header"><span class="twk-title">Static</span></div>
+        <div class="twk-controls">
+          <div data-twk="slider" data-label="Blur" data-value="12" data-min="0" data-max="40" data-unit="px"></div>
+          <div data-twk="checkbox" data-label="Visible" data-checked="true"></div>
+          <div data-twk="list" data-label="Blend" data-options="normal, multiply, screen" data-value="normal"></div>
         </div>
       </div>`,
   },
@@ -50,28 +50,28 @@ export const examples = [
       An <code>image</code> with <code>data-options</code>, a comma list of URLs, is the gallery.
       <code>tabs</code> is panel-only; a host naming it is left untouched.</p>`,
     html: `
-      <div class="tw-panel" data-mode="inline" style="max-width: 300px">
-        <div class="tw-header"><span class="tw-title">Heavy</span></div>
-        <div class="tw-controls">
-          <div data-tw="color" data-label="Tint" data-value="#7C5CFF"></div>
-          <div data-tw="spring" data-label="Motion" data-stiffness="220" data-damping="18" data-mass="1"></div>
-          <div data-tw="point" data-label="Offset" data-components="X,Y" data-value="0,0" data-min="-50" data-max="50" data-pad="true"></div>
-          <div data-tw="interval" data-label="Band" data-value="30,70" data-min="0" data-max="100" data-step="1"></div>
+      <div class="twk-panel" data-mode="inline" style="max-width: 300px">
+        <div class="twk-header"><span class="twk-title">Heavy</span></div>
+        <div class="twk-controls">
+          <div data-twk="color" data-label="Tint" data-value="#7C5CFF"></div>
+          <div data-twk="spring" data-label="Motion" data-stiffness="220" data-damping="18" data-mass="1"></div>
+          <div data-twk="point" data-label="Offset" data-components="X,Y" data-value="0,0" data-min="-50" data-max="50" data-pad="true"></div>
+          <div data-twk="interval" data-label="Band" data-value="30,70" data-min="0" data-max="100" data-step="1"></div>
         </div>
       </div>`,
   },
   {
     id: "bare-hosts",
     title: "Bare hosts, anywhere",
-    prose: `<p>Hosts don't need a panel shell: a <code>[data-tw]</code> div in any
+    prose: `<p>Hosts don't need a panel shell: a <code>[data-twk]</code> div in any
       layout enhances in place (a <code>data-hint</code> rides along as the ⓘ tooltip).
-      A <code>data-tw="folder"</code> wraps its children in a collapsible group.</p>`,
+      A <code>data-twk="folder"</code> wraps its children in a collapsible group.</p>`,
     html: `
       <div style="max-width: 300px">
-        <div data-tw="folder" data-label="Inline anywhere">
-          <div data-tw="slider" data-label="Speed" data-value="1.5" data-min="0" data-max="3" data-step="0.1"
+        <div data-twk="folder" data-label="Inline anywhere">
+          <div data-twk="slider" data-label="Speed" data-value="1.5" data-min="0" data-max="3" data-step="0.1"
                data-hint="Just a div in the page"></div>
-          <div data-tw="radiogrid" data-label="Size" data-options="S, M, L, XL" data-cols="2" data-value="M"></div>
+          <div data-twk="radiogrid" data-label="Size" data-options="S, M, L, XL" data-cols="2" data-value="M"></div>
         </div>
       </div>`,
   },
@@ -79,7 +79,7 @@ export const examples = [
     id: "change-event",
     title: "Listening for changes",
     prose: `<p>Every edit on a host writes its <code>data-value</code> and dispatches a
-      bubbling <code>tw:change</code> event with <code>{ key, value }</code> in
+      bubbling <code>twk:change</code> event with <code>{ key, value }</code> in
       <code>detail</code> (<code>key</code> is the host's <code>data-key</code>, or its
       label), so one listener on an ancestor hears every control under it. The host also
       keeps its handle at <code>host._tw.ctrl</code>: <code>get()</code> reads the value
@@ -87,10 +87,10 @@ export const examples = [
       + event). Drag the slider, then hit the button.</p>`,
     target: `
       <div class="mk-change">
-        <div class="tw-panel" data-mode="inline" style="max-width: 300px">
-          <div class="tw-header"><span class="tw-title">Observed</span></div>
-          <div class="tw-controls">
-            <div data-tw="slider" data-key="blur" data-value="12" data-min="0" data-max="40" data-step="1"></div>
+        <div class="twk-panel" data-mode="inline" style="max-width: 300px">
+          <div class="twk-header"><span class="twk-title">Observed</span></div>
+          <div class="twk-controls">
+            <div data-twk="slider" data-key="blur" data-value="12" data-min="0" data-max="40" data-step="1"></div>
           </div>
         </div>
         <button class="demo-btn mk-set" type="button">host._tw.ctrl.set(random)</button>
@@ -103,11 +103,11 @@ export const examples = [
     noCaption: true,
     run: ({ enhance, target }) => {
       const log = target.querySelector(".mk-log");
-      target.addEventListener("tw:change", (e) => {
+      target.addEventListener("twk:change", (e) => {
         log.textContent = e.detail.key + " → " + JSON.stringify(e.detail.value) + "  (data-value=" + e.target.dataset.value + ")";
       });
       enhance(target).then(() => {
-        const host = target.querySelector("[data-tw]");
+        const host = target.querySelector("[data-twk]");
         target.querySelector(".mk-set").addEventListener("click", () => host._tw.ctrl.set(Math.round(Math.random() * 40)));
       });
     },
@@ -117,11 +117,11 @@ export const examples = [
     prose: `<p><code>tweakit/auto</code> covers the document as it parsed. Without it,
       call <code>enhance()</code>, which binds the whole document by default. For markup you
       inject later (a modal, a CMS block, a partial render), call it on the new root, which
-      counts too when it is itself a <code>[data-tw]</code> host. Hosts that are already live
+      counts too when it is itself a <code>[data-twk]</code> host. Hosts that are already live
       are skipped, so re-running is safe. With the single-file build and no bundler, the same
       call goes in your module script: <code>import { enhance } from "./tweaks.js"; enhance();</code></p>`,
     code: `
-      import "tweakit/auto";   // binds the page's [data-tw] hosts once it has parsed
+      import "tweakit/auto";   // binds the page's [data-twk] hosts once it has parsed
 
       // or, from tweakit or tweakit/single:
       import { enhance } from "tweakit";

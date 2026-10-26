@@ -306,7 +306,7 @@ const nest = (path, value) => path.reduceRight((acc, k) => defineKey({}, k, acc)
 const describeEl = (el) => `<${el.tagName.toLowerCase()}${el.type ? ` type=${el.type}` : ""}${el.className ? ` class="${el.className}"` : ""}>`;
 const KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Enter", "Escape", " ", "PageUp", "PageDown", "Tab"];
 const FOCUSABLE = "[tabindex], button, input, select, textarea, a[href]";
-const CLICKABLE = "button, [role=button], [tabindex], .tw-folder-header, .tw-select, .tw-slider-value, .tw-tabs-bar > *";
+const CLICKABLE = "button, [role=button], [tabindex], .twk-folder-header, .twk-select, .twk-slider-value, .twk-tabs-bar > *";
 
 function makeOps(r, ctx) {
   const presetNames = ["p1", "p2", "", "__proto__", "constructor", "a b", "x".repeat(300), 5, null];
@@ -358,7 +358,7 @@ function makeOps(r, ctx) {
       if (r.chance(0.5)) target.dispatchEvent(new window.KeyboardEvent("keyup", { bubbles: true, cancelable: true, ...init }));
     },
     click: (p) => {
-      const els = [...p.el.querySelectorAll(CLICKABLE), ...document.querySelectorAll(".tw-portal button, .tw-portal [tabindex]")].filter((e) => !e.disabled);
+      const els = [...p.el.querySelectorAll(CLICKABLE), ...document.querySelectorAll(".twk-portal button, .twk-portal [tabindex]")].filter((e) => !e.disabled);
       if (!els.length) return;
       const el = r.pick(els);
       ctx.last = ["click", describeEl(el)];
@@ -456,15 +456,15 @@ async function runSeed(seed) {
     p.destroy();                      // idempotent
     p.set("anything", 1); p.setMany({ a: 1 }); p.reset(); p.fromJSON({ values: {} }); p.undo(); p.redo(); // inert, not throwing
     assert.deepEqual(p.toJSON(), { values: {}, ui: {} }, "toJSON() after destroy is the empty state");
-    assert.equal(document.querySelector(".tw-panel"), null, "no panel root left in the document");
+    assert.equal(document.querySelector(".twk-panel"), null, "no panel root left in the document");
     assert.equal(liveIntervals.size, 0, "a poll interval outlived destroy()");
     for (let i = 0; i < 6 && rafQueue.size; i++) runFrame(); // drain one-shot frames; a loop keeps re-arming
     assert.equal(rafQueue.size, 0, "a rAF loop outlived destroy()");
     // Popovers fade out before their node leaves the DOM (200ms); the hint tip is a page-wide
     // singleton that stays mounted (closed) by design — only an open one is a leak.
-    if (document.querySelector(".tw-portal:not(.tw-tip)")) await tick(220);
-    assert.equal(document.querySelector(".tw-portal:not(.tw-tip)"), null, "a portaled surface outlived destroy()");
-    assert.equal(document.querySelector(".tw-tip.is-open"), null, "the hint tip stayed open past destroy()");
+    if (document.querySelector(".twk-portal:not(.twk-tip)")) await tick(220);
+    assert.equal(document.querySelector(".twk-portal:not(.twk-tip)"), null, "a portaled surface outlived destroy()");
+    assert.equal(document.querySelector(".twk-tip.is-open"), null, "the hint tip stayed open past destroy()");
     if (asyncErrors.length) { const [[src, e]] = asyncErrors.splice(0); throw new Error(`destroy: ${src} threw: ${e && e.stack || e}`, { cause: e }); }
   } catch (e) {
     // Re-raise as a plain Error carrying the reproduction context (the reporter prints an
@@ -480,7 +480,7 @@ async function runSeed(seed) {
     clearTimeout(watchdog);
     console.warn = realWarn; console.error = realError;
     if (p) { try { p.destroy(); } catch {} }
-    for (const el of document.querySelectorAll(".tw-panel, .tw-portal")) el.remove();
+    for (const el of document.querySelectorAll(".twk-panel, .twk-portal")) el.remove();
     asyncErrors.length = 0;
     localStorage.clear();
   }

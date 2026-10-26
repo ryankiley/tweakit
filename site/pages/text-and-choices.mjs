@@ -120,7 +120,7 @@ export const examples = [
       const apply = (p) => {
         card.style.background = fills[p.fill];
         card.style.color = p.fill === "neutral-10" ? "#222" : "#fff";
-        card.textContent = panel.el.querySelector(".tw-select-value").textContent;
+        card.textContent = panel.el.querySelector(".twk-select-value").textContent;
       };
       panel.on(apply);
       apply(panel.params);

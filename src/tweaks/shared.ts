@@ -6,7 +6,7 @@ import type { Meta } from "./schema.js";
 // ── Internal types ──
 /** A control's change callback. */
 type OnChange = (value: unknown) => void;
-/** The resolved `--tw-*` custom-property map a theme turns into (resolveTheme). */
+/** The resolved `--twk-*` custom-property map a theme turns into (resolveTheme). */
 type ThemeVars = Record<string, string>;
 /** A panel root; panel.ts hangs its live theme, edit hook and ready promise on the node. */
 interface PanelEl extends HTMLElement { _twTheme?: ThemeVars | null; ready?: Promise<Panel> }
@@ -176,14 +176,14 @@ const onLive = (owner: Element, targets: Array<[EventTarget, string]>, fn: (e?: 
   // A host appends right after building, before any event can arrive: note that mount next
   // frame, so an unmount with no event in between still releases on the first event after.
   if (!mounted) requestAnimationFrame(() => { if (owner.isConnected) mounted = true; });
-  const h = (e: Event) => { if (!owner.isConnected) { if (mounted || owner.closest("[data-tw-destroyed]")) off(); return; } mounted = true; fn(e); }; // destroy() marks the owner; release even if never mounted
+  const h = (e: Event) => { if (!owner.isConnected) { if (mounted || owner.closest("[data-twk-destroyed]")) off(); return; } mounted = true; fn(e); }; // destroy() marks the owner; release even if never mounted
   const off = () => targets.forEach(([t, ev]) => t.removeEventListener(ev, h));
   targets.forEach(([t, ev]) => t.addEventListener(ev, h));
   return off;
 };
 // Ask every measured surface to re-measure next frame after a display:none → shown flip.
 // Namespaced, not a real "resize": host pages listen to that.
-const requestReflow = () => requestAnimationFrame(() => window.dispatchEvent(new Event("tw-reflow")));
+const requestReflow = () => requestAnimationFrame(() => window.dispatchEvent(new Event("twk-reflow")));
 // Toggle .is-hover while the pointer is over a node; onEnter runs on entry.
 const wireHoverClass = (el: HTMLElement, onEnter: () => void) => {
   el.addEventListener("pointerenter", () => { el.classList.add("is-hover"); onEnter(); });
@@ -198,8 +198,8 @@ if (typeof document !== "undefined") {
   document.addEventListener("keydown", () => { pointerModality = false; }, true);
 }
 const quietFocus = (input: HTMLElement) => {
-  input.addEventListener("focus", () => input.classList.toggle("tw-focus-quiet", pointerModality));
-  input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
+  input.addEventListener("focus", () => input.classList.toggle("twk-focus-quiet", pointerModality));
+  input.addEventListener("blur", () => input.classList.remove("twk-focus-quiet"));
 };
 /** Place a portaled popover under its trigger, flipping above when it won't fit, clamped into
  *  the viewport. width:"match" sizes it to the trigger; align:"end" lines up the right edges. */
@@ -219,10 +219,10 @@ export const placeBelow = (trigger: Element, pop: HTMLElement, { width, fallback
   const top = goAbove ? r.top - h - gap : r.bottom + gap;
   pop.style.top = clamp(top, gap, window.innerHeight - h - gap) + "px"; // clamp Y into the viewport
   // For the CSS entrance: the side it opened on, and its height.
-  pop.dataset.side = goAbove ? "above" : "below"; pop.style.setProperty("--tw-pop-h", String(h));
+  pop.dataset.side = goAbove ? "above" : "below"; pop.style.setProperty("--twk-pop-h", String(h));
 };
 
-// ── Theming — the panel runs on --tw-* custom properties, so a theme is a set of those vars, which applyThemeVars
+// ── Theming — the panel runs on --twk-* custom properties, so a theme is a set of those vars, which applyThemeVars
 // sets inline. A key that isn't a token is skipped out loud.
 const resolveTheme = (theme: Theme | null | undefined): ThemeVars | null => {
   if (!theme || typeof theme !== "object") return null;
@@ -243,11 +243,11 @@ const applyThemeVars = (node: ThemedEl | null | undefined, vars: ThemeVars | nul
 // Carry a forced scheme onto a node portaled to <body>, where the cascade can't reach. Copy
 // the WINNING scheme, not the nearest pin: pins resolve flat (light outranks dark; tweaks.css).
 const carryScheme = (portal: Element, anchor: Element | null | undefined) => {
-  const s = anchor?.closest('[data-tw-scheme="light"]') ? "light" : anchor?.closest('[data-tw-scheme="dark"]') ? "dark" : null;
-  if (s) portal.setAttribute("data-tw-scheme", s); else portal.removeAttribute("data-tw-scheme");
+  const s = anchor?.closest('[data-twk-scheme="light"]') ? "light" : anchor?.closest('[data-twk-scheme="dark"]') ? "dark" : null;
+  if (s) portal.setAttribute("data-twk-scheme", s); else portal.removeAttribute("data-twk-scheme");
 };
 // …and the anchor panel's live theme (read at carry time — setTheme() swaps the object).
-const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => { applyThemeVars(portal, anchor?.closest<PanelEl>(".tw-panel")?._twTheme); carryScheme(portal, anchor); };
+const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => { applyThemeVars(portal, anchor?.closest<PanelEl>(".twk-panel")?._twTheme); carryScheme(portal, anchor); };
 
 // ── Popover — the portal-to-<body> shell behind every transient surface. Opens under its
 // trigger at its width (unless opts.width), carries the host theme, closes on outside-press / Esc / scroll-out. Globally
@@ -259,7 +259,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   let open = false, schemeObs: MutationObserver | null = null, removeTimer: ReturnType<typeof setTimeout> | undefined, byPointer = false, sizeObs: ResizeObserver | null = null;
   // Focus goes back to the row as the pane was opened: quietly after a click, even when an Escape closes it.
   const refocus = () => trigger.focus({ focusVisible: !byPointer });
-  pop.classList.add("tw-portal"); // portal-wide CSS rules key off this
+  pop.classList.add("twk-portal"); // portal-wide CSS rules key off this
   // A closed pop stays in the DOM at opacity 0; inert keeps it out of the tab order and a11y tree.
   pop.inert = true;
   // Relay pointerdowns to the host panel's edit hook — on <body>, its own listener can't see them.
@@ -279,7 +279,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   const follow = () => {
     if (!open) return; if (!root.isConnected) return close();
     const r = trigger.getBoundingClientRect();
-    const sr = trigger.closest(".tw-panel")?.getBoundingClientRect(); // a floating panel scrolls, and clips its rows (an inline one holds them all)
+    const sr = trigger.closest(".twk-panel")?.getBoundingClientRect(); // a floating panel scrolls, and clips its rows (an inline one holds them all)
     if (!(r.width || r.height) || r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth || (sr?.height && (r.bottom < sr.top || r.top > sr.bottom))) return close(); // hidden, or scrolled out
     pop.style.left = r.left + dx + "px"; pop.style.top = r.top + dy + "px";
   };
@@ -294,7 +294,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (!t && !document.hasFocus()) return; // the window lost focus (a file dialog, another app): the pane waits for it
     if (t ? root.contains(t) || pop.contains(t) : pointerModality) return;
     close();
-    if (t && !trigger.closest(".tw-panel")?.contains(t)) setTimeout(() => { if (!open && document.activeElement === t) trigger.focus(); }, 0);
+    if (t && !trigger.closest(".twk-panel")?.contains(t)) setTimeout(() => { if (!open && document.activeElement === t) trigger.focus(); }, 0);
   };
   root.addEventListener("focusout", onFocusOut); pop.addEventListener("focusout", onFocusOut);
   const firstFocusable = () => pop.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])');
@@ -311,8 +311,8 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     pop.inert = false; if (!fading) document.body.appendChild(pop);
     if (!dragBound && opts.movable !== false) { dragBound = true; import("./heavy.js").then((m) => m.dragPane(pop, st, place), () => {}); }
     carrySkin(pop, root);
-    window.addEventListener("tw-retheme", recarry); // setTheme() while open
-    if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] }); } // host scheme flip while open
+    window.addEventListener("twk-retheme", recarry); // setTheme() while open
+    if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-twk-scheme"] }); } // host scheme flip while open
     // Place with transitions off: the recorded side and height set the closed state the entrance starts from.
     if (fading) place(); else { pop.style.transition = "none"; place(); void pop.offsetWidth; pop.style.transition = ""; }
     // A pane that changes size while open (a mode switch, a disclosed picker) stays on its row and inside the window.
@@ -339,7 +339,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     open = st.open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); pop.inert = true; trigger.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", reflow);
-    window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; } sizeObs?.disconnect(); sizeObs = null;
+    window.removeEventListener("twk-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; } sizeObs?.disconnect(); sizeObs = null;
     removeTimer = setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
   };
   trigger.addEventListener("click", () => { if (trigger.disabled) return; open ? close() : openPop(); }); // a disabled trigger stays inert to a synthetic click
@@ -350,8 +350,8 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
 // of a window of it ("blut" finds "blur"); the DP's zeroed first row lets a match start anywhere.
 
 const REDUCE_MOTION: { matches: boolean } = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
-// ── Motion tokens — EASE_SPRING is the JS literal of the CSS --tw-ease-spring: WAAPI and
-// nodes outside a .tw-panel can't read the custom property. ──
+// ── Motion tokens — EASE_SPRING is the JS literal of the CSS --twk-ease-spring: WAAPI and
+// nodes outside a .twk-panel can't read the custom property. ──
 const EASE_SPRING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const EASE_GLIDE = "cubic-bezier(0.34, 1.2, 0.64, 1)"; // press glide with a light overshoot
 // Liquid pill stretch (segmented + tabs): a one-shot scaleX overshoot, origin pinned to the
@@ -388,7 +388,7 @@ const rubberRelease = (track: HTMLElement) => {
 // Disable a row: `inert` goes on the children, not the row — an inert element hit-tests like
 // pointer-events:none, so an inert row would never show its not-allowed cursor.
 const setDisabled = (node: HTMLElement, d: boolean) => {
-  node.classList.toggle("is-disabled", d); for (const c of node.children) if (!c.classList.contains("tw-portal")) (c as HTMLElement).inert = d; // a closed popover child keeps its own inert
+  node.classList.toggle("is-disabled", d); for (const c of node.children) if (!c.classList.contains("twk-portal")) (c as HTMLElement).inert = d; // a closed popover child keeps its own inert
   if (d) closeActivePopover(node); // an open pane is portaled out of reach of inert: a control disabled mid-edit closes it
 };
 // Collapse a section: the fold class, aria-expanded, and `inert` on the body so hidden controls leave the tab order.
@@ -400,9 +400,9 @@ const foldBody = (root: Element, toggle: Element, body: Folding, c: boolean, don
   if (REDUCE_MOTION.matches || typeof body.animate !== "function") { setCollapsed(root, toggle, body, c); if (done) setTimeout(done, 370); return; }
   // Everything read before the class flips, so a collapse forces no layout after it.
   const r = body.getBoundingClientRect(), from = r.height; // mid-fold, the height it's drawn at
-  const panel = root.closest<HTMLElement>(".tw-panel"), cs = panel && getComputedStyle(panel), maxH = cs ? parseFloat(cs.maxHeight) : NaN; // border-box, so the cap includes the padding
+  const panel = root.closest<HTMLElement>(".twk-panel"), cs = panel && getComputedStyle(panel), maxH = cs ? parseFloat(cs.maxHeight) : NaN; // border-box, so the cap includes the padding
   const capBottom = cs && panel.dataset.mode === "floating" && maxH >= 0 ? panel.getBoundingClientRect().top + maxH - parseFloat(cs.paddingBottom) - parseFloat(cs.borderBottomWidth) : Infinity;
-  const room = Math.max(0, Math.min(window.innerHeight, capBottom) - r.top), easing = getComputedStyle(body).getPropertyValue("--tw-ease-fold").trim();
+  const room = Math.max(0, Math.min(window.innerHeight, capBottom) - r.top), easing = getComputedStyle(body).getPropertyValue("--twk-ease-fold").trim();
   body._twFold?.cancel(); body._twFold = null;
   body.style.transition = "none"; body.style.gridTemplateRows = "";
   setCollapsed(root, toggle, body, c);
@@ -446,12 +446,12 @@ const navIndex = (key: string, i: number, n: number, cols = 0) => {
 // `onIs`: the boolean toggle, a two-segment row that is one switch to a screen reader (role="switch", aria-checked, one tab
 // stop, Space or Enter flips it) rather than "radio button, On, 2 of 2"; its Off/On segments stay as the pointer's targets.
 function createSegmented(options: Option[], value: unknown, onChange: OnChange, ariaLabel?: string, onIs?: unknown) {
-  const sw = onIs !== undefined, seg = el("div", "tw-seg"); seg.setAttribute("role", sw ? "switch" : "radiogroup");
+  const sw = onIs !== undefined, seg = el("div", "twk-seg"); seg.setAttribute("role", sw ? "switch" : "radiogroup");
   if (ariaLabel) seg.setAttribute("aria-label", ariaLabel);
   if (sw) seg.tabIndex = 0;
-  const pill = el("div", "tw-seg-pill");
+  const pill = el("div", "twk-seg-pill");
   seg.append(pill);
-  const btns = options.map((o) => { const b = radioButton("tw-seg-btn", o, (v) => set(v)); if (sw) { b.setAttribute("aria-hidden", "true"); b.addEventListener("focus", () => seg.focus()); } seg.append(b); return b; }); // lazy `set` — it's declared below; a clicked segment hands focus to the switch, never parks it hidden
+  const btns = options.map((o) => { const b = radioButton("twk-seg-btn", o, (v) => set(v)); if (sw) { b.setAttribute("aria-hidden", "true"); b.addEventListener("focus", () => seg.focus()); } seg.append(b); return b; }); // lazy `set` — it's declared below; a clicked segment hands focus to the switch, never parks it hidden
   const measure = (animate?: boolean) => measurePill(seg, pill, animate);
   const reflect = () => { setRadioActive(btns, value); if (sw) { seg.setAttribute("aria-checked", String(value === onIs)); btns.forEach((b) => (b.tabIndex = -1)); } measure(true); };
   const set = (v: unknown, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears; a value matching no segment is ignored
@@ -465,7 +465,7 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
   reflect();
   onReady(() => { measure(); seg.classList.add("is-ready"); }); // once laid out, again when fonts land
   // A tab page revealing this control re-measures the pill, built at 0×0 while display:none.
-  onLive(seg, [[window, "tw-reflow"]], () => measure());
+  onLive(seg, [[window, "twk-reflow"]], () => measure());
   return { el: seg, set: (v: unknown) => set(v, false), get: () => value };
 }
 
@@ -504,7 +504,7 @@ export const getMarkup = <K>() => MARKUP as ((root: Document | Element, kit: K) 
 // where the toast used to speak. It's cleared and written a beat later, so the same words twice are read twice.
 let srEl: HTMLDivElement | null = null, srT = 0;
 const announce = (msg: string) => {
-  if (!srEl) { srEl = el("div", "tw-sr"); srEl.setAttribute("role", "status"); }
+  if (!srEl) { srEl = el("div", "twk-sr"); srEl.setAttribute("role", "status"); }
   if (!srEl.isConnected) document.body.appendChild(srEl); // re-home after a host replaced <body>'s content
   srEl.textContent = ""; clearTimeout(srT); srT = setTimeout(() => { srEl!.textContent = msg; }, 100);
 };

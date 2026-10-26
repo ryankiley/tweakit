@@ -8,12 +8,12 @@ import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 interface ToolbarBtn extends HTMLButtonElement { _t?: number; _spinSettle?: () => void; _spinT?: number }
 
 /** An icon toolbar button with matching title and aria-label. */
-const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => { const b = btn("tw-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
+const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => { const b = btn("twk-toolbar-btn" + (cls ? " " + cls : ""), icon); b.title = label; b.setAttribute("aria-label", label); return b; };
 /** Copy: puts `text(changedOnly)` on the clipboard and confirms with the check swap, and to a screen reader in words.
  *  `text` returns the payload and a count (-1 for the full snapshot; 0 copies nothing).
  *  Both handlers bail while `disabled`: a synthetic dispatchEvent(click) reaches a disabled button. */
 const makeCopyBtn = (text: (changedOnly: boolean) => [string, number]) => {
-  const b = toolbarBtn("tw-toolbar-btn--swap", `<span class="tw-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values (⇧: changed only)");
+  const b = toolbarBtn("twk-toolbar-btn--swap", `<span class="twk-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`, "Copy values (⇧: changed only)");
   b.addEventListener("click", async (e) => {
     if (b.disabled) return;
     const [t, n] = text(e.shiftKey);
@@ -24,9 +24,9 @@ const makeCopyBtn = (text: (changedOnly: boolean) => [string, number]) => {
   return b;
 };
 /** Reset: runs `onReset` behind the icon's one-shot spin. */
-const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("tw-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
+const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("twk-toolbar-btn--reset", ICON_RESET, "Reset"); b.addEventListener("click", () => { if (b.disabled) return; spinReset(b); onReset(); }); return b; };
 const flashCopied = (btn: ToolbarBtn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
-/** Reset spin — an accumulated rotation on --tw-spin driven by the transform transition, so a
+/** Reset spin — an accumulated rotation on --twk-spin driven by the transform transition, so a
  *  second click mid-spin retargets smoothly instead of snapping back. Once settled the counter
  *  renormalizes to 0 with the transition suppressed (−n·360° is the same angle). "Settled" is the
  *  transform's own transitionend, not a timer: the hover wind-up shares the transform and restarts
@@ -38,7 +38,7 @@ const spinReset = (btn: ToolbarBtn) => {
     btn._spinSettle = () => {
       clearTimeout(btn._t);
       btn.classList.remove("is-spinning");
-      svg.style.transition = "none"; svg.style.setProperty("--tw-spin", "0deg");
+      svg.style.transition = "none"; svg.style.setProperty("--twk-spin", "0deg");
       // getBoundingClientRect, not offsetWidth: on an SVG element offsetWidth is undefined, so the
       // reflow idiom flushed nothing and the −n·360° → 0 change animated as a visible unwind.
       void svg.getBoundingClientRect();
@@ -49,7 +49,7 @@ const spinReset = (btn: ToolbarBtn) => {
     });
   }
   btn._spinT = performance.now();
-  svg.style.setProperty("--tw-spin", `${(parseFloat(svg.style.getPropertyValue("--tw-spin")) || 0) - 360}deg`);
+  svg.style.setProperty("--twk-spin", `${(parseFloat(svg.style.getPropertyValue("--twk-spin")) || 0) - 360}deg`);
   btn.classList.add("is-spinning");
   clearTimeout(btn._t);
   const fallback = () => { if (svg.getAnimations && svg.getAnimations().length) btn._t = setTimeout(fallback, 250); else btn._spinSettle(); };
@@ -62,7 +62,7 @@ const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropag
 /** Hide the tip now; with `owner` (panel.destroy()), only a tip anchored inside it — the node is shared. */
 const hideHintNow = (owner?: Element) => { if (owner && hintAnchor && !owner.contains(hintAnchor)) return; clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
 function showHint(anchor: Element, text: string) {
-  if (!hintTip) { hintTip = el("div", "tw-tip tw-portal"); hintTip.setAttribute("role", "tooltip"); }
+  if (!hintTip) { hintTip = el("div", "twk-tip twk-portal"); hintTip.setAttribute("role", "tooltip"); }
   if (!hintTip.isConnected) document.body.appendChild(hintTip); // re-home after a host replaced <body>'s content
   clearTimeout(hintTimer);
   hintTip.textContent = text;
@@ -79,15 +79,15 @@ function showHint(anchor: Element, text: string) {
 function hideHint() { if (hintTip) { clearTimeout(hintTimer); hintTimer = setTimeout(hideHintNow, 80); } } // a short grace, so crossing marker → tip doesn't flicker
 /** Every control's label element — the one list behind the hint marker's home and the per-control
  *  reset target (panel.ts wireReset), so the two can't drift. */
-const LABEL_SEL = ".tw-slider-label, .tw-row-label, .tw-select-label, .tw-trigger-label, .tw-radiogrid-label, .tw-field-label, .tw-folder-title, .tw-fps-label, .tw-plot-label, .tw-spring-label, .tw-bezier-label";
+const LABEL_SEL = ".twk-slider-label, .twk-row-label, .twk-select-label, .twk-trigger-label, .twk-radiogrid-label, .twk-field-label, .twk-folder-title, .twk-fps-label, .twk-plot-label, .twk-spring-label, .twk-bezier-label";
 /** A control's `hint` becomes a ⓘ marker beside its label that reveals the tooltip on hover/focus. */
 function addHintMarker(node: Element, hint: string) {
   const label = node.querySelector(LABEL_SEL) || node;
-  if (label === node && node.classList.contains("tw-separator")) return; // a divider has no label to carry a marker
+  if (label === node && node.classList.contains("twk-separator")) return; // a divider has no label to carry a marker
   // Inside a <button> (select trigger, folder header), which can't contain interactive content, the
   // ⓘ is a decorative span and the hint rides the host button's aria-description for screen readers.
   const hostBtn = label.closest("button");
-  const mark = hostBtn ? el("span", "tw-hint", ICON_INFO) : btn("tw-hint", ICON_INFO);
+  const mark = hostBtn ? el("span", "twk-hint", ICON_INFO) : btn("twk-hint", ICON_INFO);
   const show = () => showHint(mark, hint);
   if (hostBtn) {
     mark.setAttribute("aria-hidden", "true");

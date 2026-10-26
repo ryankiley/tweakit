@@ -22,7 +22,7 @@ const CANVAS_CS: CanvasRenderingContext2DSettings & ImageDataSettings = WIDE_CAN
 const ENGINE_GAMUT: Gamut = WIDE_CANVAS ? "p3" : "srgb"; // working gamut for the rasterized pixels
 const sampleCurve = (curve: Float64Array, t: number) => { const last = curve.length - 1, pos = Math.max(0, Math.min(last, t * last)), i = Math.floor(pos), f = pos - i; return curve[i] * (1 - f) + curve[Math.min(i + 1, last)] * f; };
 const gamutCurve = (hue: number, gamut: Gamut) => { const probe = oklchGamutProbe(hue, gamut), c = new Float64Array(128); for (let i = 0; i < 128; i++) c[i] = chromaCeil(probe, i / 127); return c; };
-const CHECKER = "var(--tw-checker)"; // the alpha checker, a tweaks.css token
+const CHECKER = "var(--twk-checker)"; // the alpha checker, a tweaks.css token
 
 // Parsing: any CSS color (hex / oklch / oklab / lab / lch / color() / rgb / hsl / named) → [L, C, H, alpha].
 // The CSS Color 4 functions are parsed by regex + the engine; the canvas fallback is only safe
@@ -203,16 +203,16 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   let hueRingH = NaN, hueRingBg = ""; // the hue ring depends only on H; cached
   const colorStr = () => raw ?? flavored(serialize([L, C, H], mode, A), flavor, [L, C, H], A);
 
-  const root = el("div", "tw-color-body");
-  const area = el("div", "tw-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "tw-wg-canvas"; const areaThumb = el("div", "tw-wg-thumb"); area.append(areaCanvas, areaThumb);
-  const hueBar = el("div", "tw-wg-hue"); const hueCanvas = document.createElement("canvas"); hueCanvas.className = "tw-wg-hue-canvas"; const hueThumb = el("div", "tw-wg-hue-thumb"); hueBar.append(hueCanvas, hueThumb);
-  const alphaBar = el("div", "tw-wg-alpha"); const alphaGrad = el("div", "tw-wg-alpha-grad"); const alphaThumb = el("div", "tw-wg-hue-thumb"); alphaBar.append(alphaGrad, alphaThumb);
+  const root = el("div", "twk-color-body");
+  const area = el("div", "twk-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "twk-wg-canvas"; const areaThumb = el("div", "twk-wg-thumb"); area.append(areaCanvas, areaThumb);
+  const hueBar = el("div", "twk-wg-hue"); const hueCanvas = document.createElement("canvas"); hueCanvas.className = "twk-wg-hue-canvas"; const hueThumb = el("div", "twk-wg-hue-thumb"); hueBar.append(hueCanvas, hueThumb);
+  const alphaBar = el("div", "twk-wg-alpha"); const alphaGrad = el("div", "twk-wg-alpha-grad"); const alphaThumb = el("div", "twk-wg-hue-thumb"); alphaBar.append(alphaGrad, alphaThumb);
   // The rasters are decoration; the plane and strips carry the names and live values.
   areaCanvas.setAttribute("aria-hidden", "true"); hueCanvas.setAttribute("aria-hidden", "true");
   // Keyboard-operable plane: a focusable group (no ARIA role fits a 2D value; the readout rides on aria-description).
   area.tabIndex = 0; area.setAttribute("role", "group"); area.setAttribute("aria-label", "Color plane: chroma across, lightness up");
-  const modeRow = el("div", "tw-color-mode-row");
-  const modeSel = el("select", "tw-color-mode"); modeSel.setAttribute("aria-label", "Color mode");
+  const modeRow = el("div", "twk-color-mode-row");
+  const modeSel = el("select", "twk-color-mode"); modeSel.setAttribute("aria-label", "Color mode");
   EDIT_MODES.forEach((m) => { const o = document.createElement("option"); o.value = m; o.textContent = MODE_LABELS[m]; modeSel.append(o); });
   // A kept flavor shows as its own option beside its mode's, selected, so picking the mode the dropdown would otherwise
   // show is a change, and drops it: re-picking the shown option fires nothing, so rgb() couldn't come back from color(srgb).
@@ -223,9 +223,9 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     else { keptOpt.remove(); modeSel.value = mode; }
   };
   showMode();
-  const gamut2 = el("span", "tw-color-gamut");
+  const gamut2 = el("span", "twk-color-gamut");
   modeRow.append(modeSel, gamut2);
-  const channels = el("div", "tw-color-channels");
+  const channels = el("div", "twk-color-channels");
   root.append(area, hueBar, alphaBar, modeRow, channels);
 
   const actx = areaCanvas.getContext("2d", CANVAS_CS);
@@ -290,14 +290,14 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     // Filled rings: a grabbed thumb scales past its track, so each ring carries its own
     // color instead of revealing the dropdown bg in the slivers above and below the strip.
     areaThumb.style.background = `oklch(${L} ${C} ${H})`;
-    alphaThumb.style.background = `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), var(--tw-dropdown-bg)`;
+    alphaThumb.style.background = `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), var(--twk-dropdown-bg)`;
     if (H !== hueRingH) { hueRingBg = vividHue(H); hueRingH = H; }
     hueThumb.style.background = hueRingBg;
   };
   const hexText = () => serialize([L, C, H], "hex", A);
   const refresh = () => {
     gamut2.textContent = gamutLabel([L, C, H], mode);
-    if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".tw-color-chan-input"); if (hx && document.activeElement !== hx) hx.value = hexText(); }
+    if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".twk-color-chan-input"); if (hx && document.activeElement !== hx) hx.value = hexText(); }
     else { const vals = channelValues([L, C, H], mode); chanFields.forEach((f, i) => { if (!f.el.contains(document.activeElement)) f.set(vals[i]); }); }
   };
   const reflow = () => { renderHue(); renderArea(); positionThumbs(); }; // mounted at real size → rasterize + place the thumbs
@@ -309,18 +309,18 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const renderChannels = () => {
     channels.replaceChildren(); chanFields = [];
     if (mode === "hex") {
-      channels.classList.add("tw-color-channels--hex");
-      const wrap = el("div", "tw-color-chan");
-      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp); selectAllOnFocus(inp); // select all: you replace a color, not a digit
+      channels.classList.add("twk-color-channels--hex");
+      const wrap = el("div", "twk-color-chan");
+      const inp = el("input", "twk-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp); selectAllOnFocus(inp); // select all: you replace a color, not a digit
       inp.addEventListener("change", () => { const v = inp.value.trim(); if (HEX_RE.test(v)) { [L, C, H, A] = parseColor(v); commit(true); } });
       // refresh() skips a focused field; catch up on blur (change fires first, so a typed edit is in).
       inp.addEventListener("blur", refresh);
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
       escapeReverts(inp, hexText);
-      wrap.append(txt("span", "tw-color-chan-label", "HEX"), inp); channels.append(wrap);
+      wrap.append(txt("span", "twk-color-chan-label", "HEX"), inp); channels.append(wrap);
     } else {
       // The same field as Point/Spring, so the grab handle works for color values too.
-      channels.classList.remove("tw-color-channels--hex");
+      channels.classList.remove("twk-color-channels--hex");
       const vals = channelValues([L, C, H], mode);
       MODE_CHANNELS[mode].forEach((ch, i) => {
         const f = numField({ label: ch.k, value: vals[i], min: ch.min, max: ch.max, step: ch.step }, (v) => { [L, C, H] = withChannel([L, C, H], mode, i, clamp(v, ch.min, ch.max)); commit(true); });
@@ -383,12 +383,12 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 
 // ── Color control — a trigger row (label + swatch + value readout) that opens a picker body in a popover. ──
 function createColor(meta: Meta, onChange: OnChange): Control {
-  const { root, trigger, right } = triggerRow("tw-color", meta.label ?? "Color"); // ??: an explicit "" label renders none
-  const swatch = el("span", "tw-trigger-chip tw-color-swatch");
-  const valueEl = el("span", "tw-trigger-value");
+  const { root, trigger, right } = triggerRow("twk-color", meta.label ?? "Color"); // ??: an explicit "" label renders none
+  const swatch = el("span", "twk-trigger-chip twk-color-swatch");
+  const valueEl = el("span", "twk-trigger-value");
   right.append(swatch, valueEl);
 
-  const pop = el("div", "tw-color-pop");
+  const pop = el("div", "twk-color-pop");
   const paintTrigger = () => { swatch.style.background = body.swatchCss(); valueEl.textContent = body.valueText(); };
   const body = createPickerBody({ value: meta.value, mode: meta.mode as ColorMode, onMode: () => paintTrigger() }, (c) => { paintTrigger(); onChange(c); });
   pop.append(body.el);

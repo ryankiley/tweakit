@@ -11,16 +11,16 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   const comps = meta.components; // [{ key, label, value, step, min, max }]
 
   // ── Trigger row — label + value + a mini pad preview. ──
-  const { root, trigger, right } = triggerRow("tw-point", meta.label ?? "Point"); // ??: an explicit "" label renders none
-  const valueEl = el("span", "tw-trigger-value");
-  const preview = el("div", "tw-trigger-chip tw-point-preview");
-  const previewDot = el("div", "tw-point-preview-dot");
+  const { root, trigger, right } = triggerRow("twk-point", meta.label ?? "Point"); // ??: an explicit "" label renders none
+  const valueEl = el("span", "twk-trigger-value");
+  const preview = el("div", "twk-trigger-chip twk-point-preview");
+  const previewDot = el("div", "twk-point-preview-dot");
   preview.append(previewDot);
   right.append(preview, valueEl); // chip first, as every chip row
 
   // ── Popover — the 2D pad over the component fields. ──
-  const pop = el("div", "tw-color-pop tw-point-pop");
-  const body = el("div", "tw-point-body");
+  const pop = el("div", "twk-color-pop twk-point-pop");
+  const body = el("div", "twk-point-body");
   pop.append(body);
 
   const hasPad = meta.pad !== false && comps.length >= 2;
@@ -42,18 +42,18 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
 
   let padHost: HTMLDivElement | null = null, padThumb: HTMLDivElement | null = null, padLine: Built<SVGLineElement> | null = null;
   if (hasPad) {
-    padHost = el("div", "tw-pad");
-    padThumb = el("div", "tw-pad-thumb");
+    padHost = el("div", "twk-pad");
+    padThumb = el("div", "twk-pad-thumb");
     // A tether from the origin to the thumb, so the point reads as a vector; the pad is square so the angle is true.
-    const padSvg = svgEl("svg", "tw-pad-line"); padSvg.setAttribute("viewBox", "0 0 100 100"); padSvg.setAttribute("preserveAspectRatio", "none");
+    const padSvg = svgEl("svg", "twk-pad-line"); padSvg.setAttribute("viewBox", "0 0 100 100"); padSvg.setAttribute("preserveAspectRatio", "none");
     padLine = svgEl("line"); padSvg.append(padLine);
     // The origin is fixed for the control's life: set x1/y1 once.
     const oy0 = frac(0, minY, maxY); padLine.setAttribute("x1", frac(0, minX, maxX) * 100); padLine.setAttribute("y1", (meta.invertY ? oy0 : 1 - oy0) * 100);
-    padHost.append(el("div", "tw-pad-axis tw-pad-axis-x"), el("div", "tw-pad-axis tw-pad-axis-y"), padSvg, padThumb);
+    padHost.append(el("div", "twk-pad-axis twk-pad-axis-x"), el("div", "twk-pad-axis twk-pad-axis-y"), padSvg, padThumb);
     body.append(padHost);
   }
 
-  const fields = el("div", "tw-fields");
+  const fields = el("div", "twk-fields");
   body.append(fields);
   const sync = () => { positionPad(); paintValue(); };
   const emit = () => onChange(read());

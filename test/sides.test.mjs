@@ -42,8 +42,8 @@ test("a string keeps its unit when its sides agree; an explicit unit wins; mixed
   assert.equal(v.d.css, "1px", "an explicit unit wins over the string's");
   assert.equal(v.e.css, "8px 0");
   assert.equal(v.f.css, "0 2rem", "0px is 0 in any unit, so it doesn't disagree");
-  const a = p.el.querySelectorAll(".tw-sides")[0];
-  assert.equal(a.querySelector(".tw-sides-sum").textContent, "1 2 1 2rem"); assert.equal(a.querySelector(".tw-sides-multi .tw-num").getAttribute("aria-label"), "Top (rem)", "the fields edit in the string's unit");
+  const a = p.el.querySelectorAll(".twk-sides")[0];
+  assert.equal(a.querySelector(".twk-sides-sum").textContent, "1 2 1 2rem"); assert.equal(a.querySelector(".twk-sides-multi .twk-num").getAttribute("aria-label"), "Top (rem)", "the fields edit in the string's unit");
   p.set("a", "4px"); assert.equal(p.params.a.css, "4rem", "set() reads numbers in the control's unit, as before");
   p.destroy();
   const mixed = await warnings(async () => { p = await mount({ m: { type: "sides", value: "1rem 2em 3% 4" } }); });
@@ -64,41 +64,41 @@ test("a default it can't read warns and starts at 0", async () => {
 
 test("linked by default when the four agree; the toggle opens the fields; linking takes the first side", async () => {
   const p = await mount({ pad: { type: "sides", value: 8 } });
-  const root = p.el.querySelector(".tw-sides"), row = root.querySelector(":scope > .tw-row"), link = row.querySelector(".tw-sides-link");
+  const root = p.el.querySelector(".twk-sides"), row = root.querySelector(":scope > .twk-row"), link = row.querySelector(".twk-sides-link");
   assert.ok(root.classList.contains("is-linked")); assert.equal(link.getAttribute("aria-pressed"), "false", "pressed means the four are open");
   assert.deepEqual([link.getAttribute("aria-label"), link.title], ["Independent sides", "Independent sides"]);
-  assert.equal(row.querySelector(".tw-num").value, "8"); assert.match(row.querySelector(".tw-num").getAttribute("aria-label"), /^pad/i);
+  assert.equal(row.querySelector(".twk-num").value, "8"); assert.match(row.querySelector(".twk-num").getAttribute("aria-label"), /^pad/i);
   assert.equal(row.lastElementChild, link, "the link is the row's last child, after the field");
   link.click();
   assert.ok(!root.classList.contains("is-linked"), "unlinked: the four fields show");
-  const flds = [...root.querySelectorAll(".tw-sides-multi .tw-num")]; assert.equal(flds.length, 4); assert.deepEqual(flds.map((f) => f.value), ["8", "8", "8", "8"]);
-  assert.deepEqual([...root.querySelectorAll(".tw-field-label")].map((l) => [l.textContent, l.title, l.dataset.at, !!l.querySelector("svg[aria-hidden]")]), [["", "Top", "top", true], ["", "Right", "right", true], ["", "Bottom", "bottom", true], ["", "Left", "left", true]], "a glyph on screen, the full name as the tooltip");
+  const flds = [...root.querySelectorAll(".twk-sides-multi .twk-num")]; assert.equal(flds.length, 4); assert.deepEqual(flds.map((f) => f.value), ["8", "8", "8", "8"]);
+  assert.deepEqual([...root.querySelectorAll(".twk-field-label")].map((l) => [l.textContent, l.title, l.dataset.at, !!l.querySelector("svg[aria-hidden]")]), [["", "Top", "top", true], ["", "Right", "right", true], ["", "Bottom", "bottom", true], ["", "Left", "left", true]], "a glyph on screen, the full name as the tooltip");
   assert.deepEqual(flds.map((i) => i.getAttribute("aria-label")), ["Top (px)", "Right (px)", "Bottom (px)", "Left (px)"]);
-  assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 8 8 8px", "the readout carries the unit once");
-  assert.equal(root.querySelector(".tw-sides-head").lastElementChild, root.querySelector(".tw-sides-multi .tw-sides-link"), "the toggle is last in the head, as it is last in the row");
+  assert.equal(root.querySelector(".twk-sides-sum").textContent, "8 8 8 8px", "the readout carries the unit once");
+  assert.equal(root.querySelector(".twk-sides-head").lastElementChild, root.querySelector(".twk-sides-multi .twk-sides-link"), "the toggle is last in the head, as it is last in the row");
   assert.equal(link.getAttribute("aria-pressed"), "true");
-  assert.equal(document.activeElement, root.querySelector(".tw-sides-multi .tw-sides-link"), "focus moves to the link in the block that is now showing");
+  assert.equal(document.activeElement, root.querySelector(".twk-sides-multi .twk-sides-link"), "focus moves to the link in the block that is now showing");
   flds[1].value = "20"; flds[1].dispatchEvent(new window.Event("change", { bubbles: true }));
-  assert.deepEqual(four(p.params.pad), [8, 20, 8, 8]); assert.equal(p.params.pad.css, "8px 20px 8px 8px"); assert.equal(root.querySelector(".tw-sides-sum").textContent, "8 20 8 8px");
-  root.querySelector(".tw-sides-multi .tw-sides-link").click();
+  assert.deepEqual(four(p.params.pad), [8, 20, 8, 8]); assert.equal(p.params.pad.css, "8px 20px 8px 8px"); assert.equal(root.querySelector(".twk-sides-sum").textContent, "8 20 8 8px");
+  root.querySelector(".twk-sides-multi .twk-sides-link").click();
   assert.ok(root.classList.contains("is-linked")); assert.deepEqual(four(p.params.pad), [8, 8, 8, 8], "linking takes the first side");
   const tabular = [...distCss().matchAll(/([^{}]+)\{[^}]*font-variant-numeric:\s*tabular-nums[^}]*\}/g)].map((m) => m[1]);
-  assert.ok(tabular.some((sel) => sel.includes(".tw-sides-sum")), "the readout joins the kit's tabular-figure rule");
+  assert.ok(tabular.some((sel) => sel.includes(".twk-sides-sum")), "the readout joins the kit's tabular-figure rule");
   p.destroy();
 });
 
 test("set() in any form re-judges the link; corners wear corner glyphs, clockwise like the shorthand; min/max fit the value; hostile input is ignored", async () => {
   const p = await mount({ r: { type: "sides", value: 16, corners: true, min: 0, max: 48 } });
-  const root = p.el.querySelector(".tw-sides");
-  assert.equal(root.querySelector(".tw-sides-link").getAttribute("aria-label"), "Independent corners");
-  const labels = [...root.querySelectorAll(".tw-field-label")];
+  const root = p.el.querySelector(".twk-sides");
+  assert.equal(root.querySelector(".twk-sides-link").getAttribute("aria-label"), "Independent corners");
+  const labels = [...root.querySelectorAll(".twk-field-label")];
   assert.deepEqual(labels.map((l) => l.dataset.at), ["top-left", "top-right", "bottom-right", "bottom-left"], "the line reads clockwise, the order the shorthand is written in");
   assert.ok(labels.every((l) => l.textContent === "" && l.querySelector("svg[aria-hidden]")), "each label is a glyph");
   assert.deepEqual(labels.map((l) => l.title), ["Top-left", "Top-right", "Bottom-right", "Bottom-left"], "named by its tooltip");
-  assert.deepEqual([...root.querySelectorAll(".tw-sides-multi .tw-num")].map((i) => i.getAttribute("aria-label")), ["Top-left (px)", "Top-right (px)", "Bottom-right (px)", "Bottom-left (px)"]);
+  assert.deepEqual([...root.querySelectorAll(".twk-sides-multi .twk-num")].map((i) => i.getAttribute("aria-label")), ["Top-left (px)", "Top-right (px)", "Bottom-right (px)", "Bottom-left (px)"]);
   p.set("r", [1, 2, 3, 4]); assert.ok(!root.classList.contains("is-linked"), "unequal sides unlink"); assert.deepEqual(four(p.params.r), [1, 2, 3, 4]);
-  assert.deepEqual([...root.querySelectorAll(".tw-sides-multi .tw-num")].map((i) => i.value), ["1", "2", "3", "4"], "the fields, the readout and the shorthand share one order");
-  assert.equal(root.querySelector(".tw-sides-sum").textContent, "1 2 3 4px"); assert.equal(p.params.r.css, "1px 2px 3px 4px");
+  assert.deepEqual([...root.querySelectorAll(".twk-sides-multi .twk-num")].map((i) => i.value), ["1", "2", "3", "4"], "the fields, the readout and the shorthand share one order");
+  assert.equal(root.querySelector(".twk-sides-sum").textContent, "1 2 3 4px"); assert.equal(p.params.r.css, "1px 2px 3px 4px");
   p.set("r", "24px"); assert.ok(root.classList.contains("is-linked")); assert.equal(p.params.r.css, "24px");
   p.set("r", { left: 99 }); assert.deepEqual(four(p.params.r), [24, 24, 24, 48], "an object moves one side; max fits it");
   p.set("r", -5); assert.equal(p.params.r.css, "0", "min fits it");
@@ -111,14 +111,14 @@ test("set() in any form re-judges the link; corners wear corner glyphs, clockwis
 
 test("markup: data-value as a shorthand, or the sides as attributes", async () => {
   const holder = document.createElement("div"); document.body.append(holder);
-  holder.innerHTML = `<div data-tw="sides" data-label="Pad" data-value="8px 16px"></div><div data-tw="sides" data-label="Round" data-corners="true" data-top="4" data-right="8" data-unit="rem"></div><div data-tw="sides" data-label="Gap" data-value="1rem 2rem"></div><div data-tw="sides" data-label="None"></div>`;
+  holder.innerHTML = `<div data-twk="sides" data-label="Pad" data-value="8px 16px"></div><div data-twk="sides" data-label="Round" data-corners="true" data-top="4" data-right="8" data-unit="rem"></div><div data-twk="sides" data-label="Gap" data-value="1rem 2rem"></div><div data-twk="sides" data-label="None"></div>`;
   const msgs = await warnings(() => enhance(holder));
-  const [a, b, c, d] = [...holder.querySelectorAll('[data-tw="sides"]')].map((h) => h._tw.ctrl.get());
+  const [a, b, c, d] = [...holder.querySelectorAll('[data-twk="sides"]')].map((h) => h._tw.ctrl.get());
   assert.deepEqual([four(a), a.css], [[8, 16, 8, 16], "8px 16px"]);
   assert.deepEqual([four(b), b.css], [[4, 8, 0, 0], "4rem 8rem 0 0"]);
   assert.equal(c.css, "1rem 2rem", "data-value's unit, as a schema string's");
   assert.deepEqual([d.css, msgs], ["0", []], "a host with no sides at all starts at 0, quietly");
-  assert.deepEqual([...holder.querySelectorAll(".tw-field-label")].map((l) => l.dataset.at).slice(0, 8), ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-right", "bottom-left"]);
+  assert.deepEqual([...holder.querySelectorAll(".twk-field-label")].map((l) => l.dataset.at).slice(0, 8), ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-right", "bottom-left"]);
   holder.remove();
 });
 
@@ -128,14 +128,14 @@ test("no step: 1, or fine enough for each side's decimals, so a fractional defau
   const v = p.params;
   assert.deepEqual([four(v.a), v.a.css], [[0.5, 1.25, 0.5, 1.25], "0.5rem 1.25rem"]);
   assert.deepEqual([v.b.css, v.c.css, v.d.css], ["1.5em", "0.5rem", "0.125rem"]);
-  const linked = p.el.querySelectorAll(".tw-sides")[1].querySelector(".tw-row .tw-num");
+  const linked = p.el.querySelectorAll(".twk-sides")[1].querySelector(".twk-row .twk-num");
   linked.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
   assert.equal(p.params.b.css, "1.6em", "an arrow moves by the inferred step");
   assert.deepEqual([v.e.css, v.f.css], ["8px", "1rem"], "whole sides step by 1, and an explicit step still wins");
   p.destroy();
   const holder = document.createElement("div"); document.body.append(holder);
-  holder.innerHTML = '<div data-tw="sides" data-value="0.5rem 1rem"></div>';
+  holder.innerHTML = '<div data-twk="sides" data-value="0.5rem 1rem"></div>';
   await enhance(holder);
-  assert.equal(holder.querySelector('[data-tw="sides"]')._tw.ctrl.get().css, "0.5rem 1rem");
+  assert.equal(holder.querySelector('[data-twk="sides"]')._tw.ctrl.get().css, "0.5rem 1rem");
   holder.remove();
 });

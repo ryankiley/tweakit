@@ -1,5 +1,5 @@
 /* The control tables must stay aligned: TYPED_META (verbose schema forms),
- * DATA_VALUE ([data-tw] markup forms), the constructor registry (core controls),
+ * DATA_VALUE ([data-twk] markup forms), the constructor registry (core controls),
  * and LAZY_IMPORT (the code-split chunk map). Adding a control touches several of
  * these — this test is the cross-check that catches a missed one, by deriving a
  * meta from a minimal fixture of every declared type and asserting the meta's

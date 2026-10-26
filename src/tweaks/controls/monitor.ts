@@ -21,8 +21,8 @@ const strokeSeries = (ctx: CanvasRenderingContext2D, node: Element, w: number, h
 
 // Manual, not onLive: these blades idle through the built-but-not-mounted window, which onLive would read as gone.
 const watchReflow = (fn: () => void) => {
-  for (const t of ["resize", "tw-reflow"]) window.addEventListener(t, fn);
-  return () => { for (const t of ["resize", "tw-reflow"]) window.removeEventListener(t, fn); };
+  for (const t of ["resize", "twk-reflow"]) window.addEventListener(t, fn);
+  return () => { for (const t of ["resize", "twk-reflow"]) window.removeEventListener(t, fn); };
 };
 
 // ── Monitor — a number as a sparkline or a readout, a string as a buffer of the last few values; read on an interval
@@ -34,9 +34,9 @@ function createMonitor(meta: Meta, perFrame = false) {
   const isNum = typeof probe === "number";
   const graph = meta.view === "graph" || (isNum && meta.graph !== false && meta.view !== "text" && meta.rows == null);
 
-  const wrap = el("div", "tw-fps tw-monitor");
-  const val = txt("span", "tw-fps-val", "—");
-  wrap.append(txt("span", "tw-fps-label", meta.label ?? "Monitor"), val);
+  const wrap = el("div", "twk-fps twk-monitor");
+  const val = txt("span", "twk-fps-val", "—");
+  wrap.append(txt("span", "twk-fps-label", meta.label ?? "Monitor"), val);
 
   let timer = 0, raf = 0, unwatch = () => {}, wasConnected = false;
   // toFixed throws past 100; a missing value reads as a dash.
@@ -61,7 +61,7 @@ function createMonitor(meta: Meta, perFrame = false) {
     val.remove();
     // A negative or NaN rows spun the trim loop forever.
     const rows = Math.max(1, Math.floor(+meta.rows) || 1);
-    const buf = el("pre", "tw-monitor-buffer"); buf.style.setProperty("--tw-monitor-rows", rows);
+    const buf = el("pre", "twk-monitor-buffer"); buf.style.setProperty("--twk-monitor-rows", rows);
     wrap.append(buf);
     const lines: string[] = [];
     poll((v) => { lines.push(fmt(v)); while (lines.length > rows) lines.shift(); buf.textContent = lines.join("\n"); });
@@ -70,7 +70,7 @@ function createMonitor(meta: Meta, perFrame = false) {
   const readout = (v: unknown) => { val.textContent = fmt(v); };
   if (!graph) { poll(readout); return blade(wrap, stop); }
 
-  const canvas = document.createElement("canvas"); canvas.className = "tw-fps-canvas";
+  const canvas = document.createElement("canvas"); canvas.className = "twk-fps-canvas";
   wrap.append(canvas);
   const ctx = canvas.getContext("2d");
   // No 2D context (a headless DOM, a blocked canvas) degrades to the text readout.

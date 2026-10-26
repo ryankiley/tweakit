@@ -197,19 +197,19 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     last = undefined; notify();
   };
 
-  const panel: PanelEl = el("div", "tw-panel"); panel.dataset.mode = "inline";
+  const panel: PanelEl = el("div", "twk-panel"); panel.dataset.mode = "inline";
   // A landmark, so a screen reader can jump to the panel and hear which one; an unnamed region is no landmark, so a blank name falls back.
   const landmark = (n: string) => panel.setAttribute("aria-label", n.trim() || "Tweaks");
   panel.setAttribute("role", "region"); landmark(name);
   // Stop pointer events leaking past the panel to a stage listening on window.
   stopPointerLeak(panel);
-  const header = el("div", "tw-header");
+  const header = el("div", "twk-header");
   // The title is the collapse toggle; the toolbar beside it never collapses.
-  const titleBtn = btn("tw-header-toggle");
+  const titleBtn = btn("twk-header-toggle");
   titleBtn.setAttribute("aria-expanded", "true");
   let title = name; // setName() moves it; the storage key keeps the built name
-  const titleEl = txt("span", "tw-title", title); titleBtn.append(titleEl);
-  const toolbar = el("div", "tw-toolbar");
+  const titleEl = txt("span", "twk-title", title); titleBtn.append(titleEl);
+  const toolbar = el("div", "twk-toolbar");
   // The values moved off their defaults, keyed by dotted path — setMany()'s shape, for baking tuned values into source.
   const changed = (): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.path.join(".")] = e.get(); return JSON.parse(JSON.stringify(out, replacer)); };
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
@@ -242,8 +242,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let pressedHeader = false;
   header.addEventListener("pointerdown", (e) => { pressedHeader = e.target === header || titleBtn.contains(e.target as Node); }, true);
   header.addEventListener("click", (e) => { if (e.target === header && pressedHeader && !e.defaultPrevented) toggleBody(); });
-  const body = el("div", "tw-body");
-  const controls = el("div", "tw-controls");
+  const body = el("div", "twk-body");
+  const controls = el("div", "twk-controls");
   body.append(controls);
   panel.append(header, body);
 
@@ -276,13 +276,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let px = x0, py = y0;
   // The gap a capped panel keeps from the far edge: while it sits at its opts.floating placement, the inset that gave the
   // near one (16 for `true`), so a panel placed 16px down stops 16px short of the bottom. Once dragged or restored, it has
-  // left that placement: the margin, as the drag clamp keeps. --tw-float-gap overrides either (tweaks.css registers it
+  // left that placement: the margin, as the drag clamp keeps. --twk-float-gap overrides either (tweaks.css registers it
   // as a <length>, so a rem or vh value computes to px here).
   let moved = !!saved, gap = MARGIN;
-  const readGap = () => { const v = parseFloat(getComputedStyle(panel).getPropertyValue("--tw-float-gap")); gap = v >= 0 ? v : opts.floating && !moved ? inset(place?.y) : MARGIN; };
+  const readGap = () => { const v = parseFloat(getComputedStyle(panel).getPropertyValue("--twk-float-gap")); gap = v >= 0 ? v : opts.floating && !moved ? inset(place?.y) : MARGIN; };
   // A fixed box ignores page scroll, so a floating panel caps at the viewport past its near edge and scrolls (tweaks.css).
   // Custom properties, not left / top / max-height: the stylesheet maps them, so host CSS can still override each one.
-  const apply = () => { const s = panel.style; s.setProperty("--tw-float-x", px + "px"); s.setProperty("--tw-float-y", py + "px"); s.setProperty("--tw-float-max-h", `calc(100dvh - ${py + gap}px)`); };
+  const apply = () => { const s = panel.style; s.setProperty("--twk-float-x", px + "px"); s.setProperty("--twk-float-y", py + "px"); s.setProperty("--twk-float-max-h", `calc(100dvh - ${py + gap}px)`); };
   const clampPos = () => {
     readGap();
     const { maxX, maxY } = bounds();
@@ -304,18 +304,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Per-control reset. The target is LABEL_SEL — the hint marker's list, so the two can't drift — or the root.
   const resetEntry = (e: Entry) => { assignDefault(e); last = e.path.join("."); notify(); };
   const wireReset = (root: HTMLElement, entry: Entry) => {
-    const t = root.querySelector<HTMLElement>(".tw-slider-value")
+    const t = root.querySelector<HTMLElement>(".twk-slider-value")
       || root.querySelector<HTMLElement>(LABEL_SEL)
       || root;
-    t.classList.add("tw-resettable"); t.title = "Double-click or hold to reset";
+    t.classList.add("twk-resettable"); t.title = "Double-click or hold to reset";
     // Coarse pointers get a press-and-hold reset: the desktop double-click fights double-tap-zoom on touch.
     let holdT = 0, hx = 0, hy = 0, held = false;
-    const cancelHold = () => { if (holdT) { clearTimeout(holdT); holdT = 0; t.classList.remove("tw-reset-holding"); } };
+    const cancelHold = () => { if (holdT) { clearTimeout(holdT); holdT = 0; t.classList.remove("twk-reset-holding"); } };
     t.addEventListener("pointerdown", (e) => {
       e.stopPropagation(); held = false; // a press on the readout mustn't jump the slider
       if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
-      hx = e.clientX; hy = e.clientY; t.classList.add("tw-reset-holding");
-      holdT = setTimeout(() => { holdT = 0; t.classList.remove("tw-reset-holding", "is-editable"); held = true; resetEntry(entry); }, 500);
+      hx = e.clientX; hy = e.clientY; t.classList.add("twk-reset-holding");
+      holdT = setTimeout(() => { holdT = 0; t.classList.remove("twk-reset-holding", "is-editable"); held = true; resetEntry(entry); }, 500);
     });
     t.addEventListener("pointermove", (e) => { if (holdT && Math.abs(e.clientX - hx) + Math.abs(e.clientY - hy) > 8) cancelHold(); });
     t.addEventListener("pointerup", cancelHold);
@@ -328,9 +328,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       e.preventDefault(); e.stopPropagation(); resetEntry(entry);
     });
     // Click #1 can swap the readout for the inline input, so the dblclick lands there; delegated on the root.
-    if (t.classList.contains("tw-slider-value")) root.addEventListener("dblclick", (e) => {
+    if (t.classList.contains("twk-slider-value")) root.addEventListener("dblclick", (e) => {
       const inp = e.target as HTMLElement;
-      if (!inp.classList?.contains("tw-slider-input")) return;
+      if (!inp.classList?.contains("twk-slider-input")) return;
       e.preventDefault(); e.stopPropagation();
       inp.blur(); // commits + closes the editor; a no-op change, so no notify
       resetEntry(entry);
@@ -339,7 +339,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     root.addEventListener("keydown", (e) => {
       if (!e.altKey || e.metaKey || e.ctrlKey || (e.key !== "Backspace" && e.key !== "Delete")) return;
       e.preventDefault(); e.stopPropagation();
-      if ((e.target as HTMLElement).classList?.contains("tw-slider-input")) (e.target as HTMLElement).blur(); // an open inline editor commits + closes first
+      if ((e.target as HTMLElement).classList?.contains("twk-slider-input")) (e.target as HTMLElement).blur(); // an open inline editor commits + closes first
       resetEntry(entry);
     });
   };
@@ -351,7 +351,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const foldRow = (node: HTMLElement & { _hid?: boolean }, hide: boolean) => {
     if (!node._hid === !hide) return false;
     node._hid = hide;
-    if (fold) fold(node, hide); else node.classList.toggle("tw-cond-hidden", hide);
+    if (fold) fold(node, hide); else node.classList.toggle("twk-cond-hidden", hide);
     return !hide;
   };
   const registerCond = (node: HTMLElement, m: Meta) => {
@@ -432,7 +432,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const applyUI = (ui: PanelState["ui"]) => {
     if (!ui || typeof ui !== "object") return;
     if (ui.folders) for (const fe of folderEls) { const c = ui.folders[pathKey(fe.path)]; if (typeof c === "boolean") fe.setCollapsed(c); }
-    if (ui.tabs) for (const tc of tabsCtrls) { const i = tc.pageKeys.indexOf(ui.tabs[pathKey(tc.path)]); if (i >= 0 && i !== tc.ctrl.active()) tc.ctrl.activate(i); } // a re-activate would fire a spurious tw-reflow
+    if (ui.tabs) for (const tc of tabsCtrls) { const i = tc.pageKeys.indexOf(ui.tabs[pathKey(tc.path)]); if (i >= 0 && i !== tc.ctrl.active()) tc.ctrl.activate(i); } // a re-activate would fire a spurious twk-reflow
   };
 
   // ── Repositioning — drag the header to move the panel ──
@@ -446,21 +446,21 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       const r = panel.getBoundingClientRect();
       px = r.left; py = r.top;
       if (panel.parentNode) {
-        liftSlot = el("span", "tw-lift-slot");
+        liftSlot = el("span", "twk-lift-slot");
         liftSlot.style.width = r.width + "px"; liftSlot.style.height = r.height + "px";
         liftSlot.setAttribute("aria-hidden", "true");
         panel.before(liftSlot);
       }
       // Portal to <body>: a transformed/filter/contain ancestor would become the fixed panel's containing block. The scheme scope doesn't ride along — carry it.
       // So does the rest of the slot's context: the text properties the kit leaves to inheritance (a host's font-size,
-      // letter-spacing, color, direction, lang) and every --tw-* token, inherited or matched through an ancestor selector
-      // (`.my-sidebar .tw-panel { --tw-radius: 4px }`, as the theming page shows). Read with the panel's own theme off, so
+      // letter-spacing, color, direction, lang) and every --twk-* token, inherited or matched through an ancestor selector
+      // (`.my-sidebar .twk-panel { --twk-radius: 4px }`, as the theming page shows). Read with the panel's own theme off, so
       // opts.theme / setTheme() still layer on top and setTheme(null) falls back to the host's values; only what the move
       // changes is written, inline. A host rule reaching inside through an ancestor (`#app button { … }`) still stops
       // matching: only a shadow root could keep that.
       applyThemeVars(panel, null);
       const cs = getComputedStyle(panel), lang = panel.closest("[lang]")?.getAttribute("lang"), was: Record<string, string> = {};
-      for (const k of ["font-family", "font-size", "font-weight", "font-style", "font-stretch", "font-variant", "font-feature-settings", "font-variation-settings", "font-kerning", "line-height", "letter-spacing", "word-spacing", "text-transform", "text-align", "color", "direction", ...Array.from(cs).filter((k) => k.startsWith("--tw-"))]) was[k] = cs.getPropertyValue(k);
+      for (const k of ["font-family", "font-size", "font-weight", "font-style", "font-stretch", "font-variant", "font-feature-settings", "font-variation-settings", "font-kerning", "line-height", "letter-spacing", "word-spacing", "text-transform", "text-align", "color", "direction", ...Array.from(cs).filter((k) => k.startsWith("--twk-"))]) was[k] = cs.getPropertyValue(k);
       carryScheme(panel, panel);
       document.body.appendChild(panel);
       for (const k in was) if (cs.getPropertyValue(k) !== was[k]) panel.style.setProperty(k, carried[k] = was[k]);
@@ -474,7 +474,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         cleanups.push(() => obs.disconnect());
       }
     };
-    // Two floating panels share one stylesheet z-index; the last touched gets a higher one. A class at plain .tw-panel
+    // Two floating panels share one stylesheet z-index; the last touched gets a higher one. A class at plain .twk-panel
     // specificity, not an inline value, so a host's own z-index still wins after a drag.
     const raise = () => { if (topFloating && topFloating !== panel) topFloating.classList.remove("is-raised"); panel.classList.add("is-raised"); topFloating = panel; };
     const grab = () => { moved = true; lift(); raise(); readGap(); };
@@ -500,7 +500,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       swallowClick = true; document.addEventListener("pointerup", () => setTimeout(() => { swallowClick = false; }, 0), { capture: true, once: true });
     };
     if (draggable) header.addEventListener("pointerdown", (e) => { // draggable:false keeps lift/clamp, never the press
-      if (e.button !== 0 || dragId !== null || (e.target as Element).closest(".tw-toolbar, input, textarea, select")) return;
+      if (e.button !== 0 || dragId !== null || (e.target as Element).closest(".twk-toolbar, input, textarea, select")) return;
       dragId = e.pointerId; sx = e.clientX; sy = e.clientY; dragMoved = false;
       listen(true);
       // Regrab mid–edge-snap: pick the panel up where it visually is, not the parked target.
@@ -568,22 +568,22 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
 
   if (presetsBtn) {
-    const menu = el("div", "tw-presets-menu");
-    const saveRow = el("div", "tw-presets-save");
-    const input = el("input", "tw-presets-input"); input.type = "text"; input.placeholder = "Preset name…"; input.spellcheck = false; input.setAttribute("aria-label", "New preset name"); quietFocus(input);
-    const saveBtn = txt("button", "tw-presets-savebtn", "Save");
+    const menu = el("div", "twk-presets-menu");
+    const saveRow = el("div", "twk-presets-save");
+    const input = el("input", "twk-presets-input"); input.type = "text"; input.placeholder = "Preset name…"; input.spellcheck = false; input.setAttribute("aria-label", "New preset name"); quietFocus(input);
+    const saveBtn = txt("button", "twk-presets-savebtn", "Save");
     saveRow.append(input, saveBtn);
-    const list = el("div", "tw-presets-list");
+    const list = el("div", "twk-presets-list");
     menu.append(saveRow, list);
     const renderList = () => {
       const all = listPresets(), names = Object.keys(all);
       list.replaceChildren();
-      if (!names.length) return list.append(txt("div", "tw-presets-empty", "No presets yet"));
+      if (!names.length) return list.append(txt("div", "twk-presets-empty", "No presets yet"));
       for (const nm of names) {
-        const row = el("div", "tw-presets-row");
-        const load = txt("button", "tw-presets-load", nm);
+        const row = el("div", "twk-presets-row");
+        const load = txt("button", "twk-presets-load", nm);
         load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); announce(`Loaded preset ${nm}`); });
-        const del = btn("tw-presets-del", ICON_X); del.setAttribute("aria-label", `Delete preset ${nm}`);
+        const del = btn("twk-presets-del", ICON_X); del.setAttribute("aria-label", `Delete preset ${nm}`);
         del.addEventListener("click", (e) => { e.stopPropagation(); deletePreset(nm); renderList(); });
         row.append(load, del); list.append(row);
       }
@@ -654,9 +654,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const scopeAt = (n: Element | null): Scope | undefined => { for (; n && n !== panel && panel.contains(n); n = n.parentElement) { const s = scopes.get(n); if (s) return s; } };
   const rowAt = (n: Element | null): Element | undefined => { for (; n && n !== panel; n = n.parentElement) if (scopes.get(n)?.kind === "row") return n; };
   // Out of sight: hidden by its condition, on a tab page not showing, or inside a collapsed folder or panel.
-  const hidden = (el: Element) => !!(el.closest(".tw-cond-hidden, .tw-tabs-page:not([data-active=true])") || el.parentElement?.closest(".is-collapsed"));
+  const hidden = (el: Element) => !!(el.closest(".twk-cond-hidden, .twk-tabs-page:not([data-active=true])") || el.parentElement?.closest(".is-collapsed"));
   let pick: [Element, Scope] | undefined;
-  const away = (e: Event) => { const t = e.target as Element; if (!panel.contains(t) && !t.closest?.(".tw-portal")) unpick(); };
+  const away = (e: Event) => { const t = e.target as Element; if (!panel.contains(t) && !t.closest?.(".twk-portal")) unpick(); };
   const unpick = () => { if (!pick) return; pick[0].classList.remove("is-picked"); pick = undefined; document.removeEventListener("pointerdown", away, true); if (picked?.[0] === panel) picked = null; };
   const choose = (el: Element, s: Scope) => {
     if (picked && picked[0] !== panel) picked[1](); // one pick on the page
@@ -664,7 +664,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     document.addEventListener("pointerdown", away, true); // only while something is picked
     // Focus moves to what was picked (a folder's header, a row's control), so its keys work and a screen reader names
     // it; a press shows no ring. A text field isn't focused, or ⌘V would paste into it as text, and any selection goes.
-    const f = [...el.querySelectorAll<HTMLElement>('button:not(:disabled):not([tabindex="-1"]), [tabindex="0"]')].find((n) => !n.closest(".tw-hint, .tw-portal, [inert]")); // its tab stop, not a hint or a closed pop's
+    const f = [...el.querySelectorAll<HTMLElement>('button:not(:disabled):not([tabindex="-1"]), [tabindex="0"]')].find((n) => !n.closest(".twk-hint, .twk-portal, [inert]")); // its tab stop, not a hint or a closed pop's
     if (f) f.focus({ preventScroll: true, focusVisible: false } as FocusOptions); else (document.activeElement as HTMLElement | null)?.blur?.();
     document.getSelection?.()?.removeAllRanges();
   };
@@ -673,7 +673,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const t = e.target as Element;
     // On a control, or a header: working the picked row keeps the pick, anything else drops it. A touch never picks:
     // a phone has no ⌘C, and a scroll that starts in the padding shouldn't pick what it passes.
-    if (rowAt(t) || t.closest(".tw-header, .tw-folder-header, button, input, textarea, select")) { if (!pick?.[0].contains(t)) unpick(); return; }
+    if (rowAt(t) || t.closest(".twk-header, .twk-folder-header, button, input, textarea, select")) { if (!pick?.[0].contains(t)) unpick(); return; }
     if (e.button !== 0 || e.pointerType === "touch") return unpick();
     // Beside a row: the row (or folder header) level with the press, by its own box, so nothing overlapping the panel
     // can stand in the way. The last match is the deepest: a folder's rows come after it.
@@ -702,7 +702,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const band = pick?.[0], back = document.activeElement as HTMLElement | null, ring = !!back?.matches(":focus-visible");
     // The browser's copy or paste can land some milliseconds after this keydown (an app's menu passes it on), so focus
     // steps back only when it lands, or after a second with none; it's caught page-wide, wherever focus is by then.
-    if (!catchEl) { catchEl = el("textarea", "tw-sr"); catchEl.tabIndex = -1; catchEl.setAttribute("aria-hidden", "true"); for (const t of ["copy", "paste"]) document.addEventListener(t, (e) => onCatch?.(e as ClipboardEvent), true); }
+    if (!catchEl) { catchEl = el("textarea", "twk-sr"); catchEl.tabIndex = -1; catchEl.setAttribute("aria-hidden", "true"); for (const t of ["copy", "paste"]) document.addEventListener(t, (e) => onCatch?.(e as ClipboardEvent), true); }
     const ta = catchEl, done = () => { onCatch = null; if (document.activeElement === ta) { ta.blur(); back?.focus?.({ preventScroll: true, focusVisible: ring } as FocusOptions); } };
     const h = onCatch = (ev) => {
       if (ev.target !== ta && inEditable(ev.target as Element)) return; // a field focused meanwhile keeps its own paste
@@ -816,7 +816,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Live theming clears the prior theme first, so setTheme(null) reverts to the default look.
     setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; landmark(title); }, // a rename never moves saved values or presets
     // A lifted panel's carried context sits under the theme: a key the old theme set and the new one drops falls back to it.
-    setTheme(theme) { if (destroyed) return; applyThemeVars(panel, null); for (const k in carried) panel.style.setProperty(k, carried[k]); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
+    setTheme(theme) { if (destroyed) return; applyThemeVars(panel, null); for (const k in carried) panel.style.setProperty(k, carried[k]); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("twk-retheme")); },
     // Presets API (no-ops without opts.persist); before ready they queue like set() does.
     savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; let ok = true; later(() => { ok = savePreset(nm); }); return ok; }, // queued before ready counts as saved; once built, whether storage took it
     loadPreset: (nm) => { if (destroyed || failed || !listPresets()[nm]) return false; later(() => loadPreset(nm)); return true; }, // whether it's stored now; a save still queued before ready isn't yet
@@ -834,7 +834,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       listeners.clear();
       if (liftSlot) { liftSlot.remove(); liftSlot = null; }
       if (topFloating === panel) topFloating = null;
-      panel.dataset.twDestroyed = ""; // onLive listeners release on their next event by this mark
+      panel.dataset.twkDestroyed = ""; // onLive listeners release on their next event by this mark
       panel.remove();
     },
   } as Panel; // `ready` is filled in just below
@@ -855,7 +855,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const fail = (e: unknown) => {
       failed = true; queue.length = 0; releaseKey();
       if (built >= 0) for (const fn of cleanups.splice(built)) { try { fn(); } catch {} } // only what the build wired; the shell's stay for destroy()
-      for (const c of controls.children) (c as HTMLElement).dataset.twDestroyed = ""; // detached below, they'd never see the panel's own mark
+      for (const c of controls.children) (c as HTMLElement).dataset.twkDestroyed = ""; // detached below, they'd never see the panel's own mark
       listeners.clear(); entries.length = 0; controls.replaceChildren();
       if (!destroyed) console.warn(`[tweaks] "${name}": the panel could not be built — ${built >= 0 ? "the build threw" : "its lazy controls failed to load"}; the API is inert`); // the chunk's own error is logged in lazy.ts
       throw e;

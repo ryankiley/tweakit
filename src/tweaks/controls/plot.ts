@@ -151,19 +151,19 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   let expr = meta.expr != null ? String(meta.expr) : fn ? "" : "sin(x)"; // a sine to start from
   let compiled = fn || parseExpr(expr); // a string is the reason it doesn't parse
 
-  const root = el("div", "tw-plot");
-  if (meta.label) root.append(txt("div", "tw-plot-label", meta.label));
-  const graph = el("div", "tw-plot-graph");
-  const svg = svgEl("svg", "tw-plot-svg"); svg.setAttribute("preserveAspectRatio", "none");
-  const axisX = svgEl("line", "tw-plot-axis"), axisY = svgEl("line", "tw-plot-axis"), curve = svgEl("path", "tw-plot-curve");
+  const root = el("div", "twk-plot");
+  if (meta.label) root.append(txt("div", "twk-plot-label", meta.label));
+  const graph = el("div", "twk-plot-graph");
+  const svg = svgEl("svg", "twk-plot-svg"); svg.setAttribute("preserveAspectRatio", "none");
+  const axisX = svgEl("line", "twk-plot-axis"), axisY = svgEl("line", "twk-plot-axis"), curve = svgEl("path", "twk-plot-curve");
   svg.append(axisX, axisY, curve); graph.append(svg); root.append(graph);
 
   let input: HTMLInputElement | null = null;
   if (editable) {
-    const field = el("div", "tw-plot-field");
-    input = el("input", "tw-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
+    const field = el("div", "twk-plot-field");
+    input = el("input", "twk-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
     input.autocapitalize = "off"; quietFocus(input); /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`); input.setAttribute("aria-invalid", "false");
-    field.append(txt("span", "tw-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML
+    field.append(txt("span", "twk-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML
   }
 
   const PAD = 6;
@@ -207,7 +207,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   });
 
   onReady(draw);
-  onLive(root, [[window, "resize"], [window, "tw-reflow"]], draw); // tw-reflow: a tab page revealing this re-measures it
+  onLive(root, [[window, "resize"], [window, "twk-reflow"]], draw); // twk-reflow: a tab page revealing this re-measures it
 
   return {
     el: root,

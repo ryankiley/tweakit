@@ -119,7 +119,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 
 Options, the third argument: `theme` (token overrides), `persist` (a localStorage key, or `true` to key by name; turns presets on; two live panels on one key overwrite each other, and the second warns), `presets: false`, `floating: true` or `{ x, y }`, `draggable: false` to pin, `toolbar: false`, `undo: true` and `onReset`.
 
-Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from the top-left. A click anywhere on the header outside its toolbar folds the panel; Escape mid-drag puts it back. Its placement is plain `.tw-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
+Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from the top-left. A click anywhere on the header outside its toolbar folds the panel; Escape mid-drag puts it back. Its placement is plain `.twk-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
 
 An open editor pane or the presets menu drags by its edge and keeps that spot until it closes. In a pane's field, Escape restores an unsaved edit and a second Escape closes the pane. Escapes the panel handles stop at the document.
 
@@ -139,7 +139,7 @@ Tweakit never writes to source files. The person pastes that JSON to you; then:
 
 ## Markup instead of a schema
 
-`enhance(root = document)` upgrades the `[data-tw]` elements under it in place: `<div data-tw="slider" data-label="Blur" data-value="12" data-min="0" data-max="40"></div>`, in a `.tw-panel` shell for the header and toolbar or bare anywhere, a control's options as `data-*` attributes. Importing the kit binds nothing; `import "tweakit/auto"`, the same API, runs `enhance()` once the page has parsed. Each host dispatches a bubbling `tw:change` event with `{ key, value }`. Details: https://ryankiley.github.io/tweakit/markup.md
+`enhance(root = document)` upgrades the `[data-twk]` elements under it in place: `<div data-twk="slider" data-label="Blur" data-value="12" data-min="0" data-max="40"></div>`, in a `.twk-panel` shell for the header and toolbar or bare anywhere, a control's options as `data-*` attributes. Importing the kit binds nothing; `import "tweakit/auto"`, the same API, runs `enhance()` once the page has parsed. Each host dispatches a bubbling `twk:change` event with `{ key, value }`. Details: https://ryankiley.github.io/tweakit/markup.md
 
 ## One control without a panel
 
@@ -147,7 +147,7 @@ Tweakit never writes to source files. The person pastes that JSON to you; then:
 
 ## Theming
 
-The panel is dark by default and follows the system scheme; `data-tw-scheme="light"` or `"dark"` on any ancestor pins it. `theme` takes `--tw-*` tokens (`"--tw-accent"`, `"--tw-base"`, `"--tw-radius"`, `"--tw-width"` and more) as CSS values; any other key is skipped with a console warning. Details: https://ryankiley.github.io/tweakit/theming.md
+The panel is dark by default and follows the system scheme; `data-twk-scheme="light"` or `"dark"` on any ancestor pins it. `theme` takes `--twk-*` tokens (`"--twk-accent"`, `"--twk-base"`, `"--twk-radius"`, `"--twk-width"` and more) as CSS values; any other key is skipped with a console warning. Details: https://ryankiley.github.io/tweakit/theming.md
 
 ## What tweakit does not do
 

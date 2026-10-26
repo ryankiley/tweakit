@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-tw-scheme="light">
+<html lang="en" data-twk-scheme="light">
 <head>
   <meta charset="utf-8" />
   <title>Tweakit social card</title>
@@ -20,7 +20,7 @@
        it is padded out over the ascenders and the pad canceled with margins */
     .word { margin: -0.25em 0; padding-block: 0.25em; line-height: 1; text-box: trim-both cap alphabetic;
             -webkit-background-clip: text; background-clip: text; }
-    .card .tw-panel { position: relative; zoom: 1.3; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 30px 70px rgba(0, 0, 0, 0.22); }
+    .card .twk-panel { position: relative; zoom: 1.3; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 30px 70px rgba(0, 0, 0, 0.22); }
   </style>
 </head>
 <body>
@@ -46,7 +46,7 @@
       effects: {
         bounce: { type: "motion", mode: "spring", visualDuration: 0.6, bounce: 0.5 },
       },
-    }, { theme: { "--tw-width": "300px" }, draggable: false });
+    }, { theme: { "--twk-width": "300px" }, draggable: false });
     document.querySelector(".card").append(panel.el);
     const apply = ({ text: { size, weight, tracking }, fill }) => {
       const s = word.style, gradient = fill.style === "gradient";

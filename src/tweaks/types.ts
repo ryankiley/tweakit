@@ -269,35 +269,35 @@ export type KnownType<V> = CheckValue<V>;
 
 /** A theme — token overrides applied over the default monochrome look. Every key is
  *  optional, so a partial theme only moves what it names; unset tokens keep their default.
- *  Keys are the `--tw-*` custom properties themselves. Apply at build via
+ *  Keys are the `--twk-*` custom properties themselves. Apply at build via
  *  `tweaks(name, schema, { theme })`, or live via `panel.setTheme(theme)`. The kit's whole
  *  appearance runs on these custom properties — this is the public theming surface. */
 export interface Theme {
   /** Brand accent — slider fills, focus rings, active highlights (default: neutral, no accent). */
-  "--tw-accent"?: string;
+  "--twk-accent"?: string;
   /** Text drawn on the accent (active segment / radio label); the primary text tone unless set, so set it with a light accent. */
-  "--tw-on-accent"?: string;
+  "--twk-on-accent"?: string;
   /** Panel background, reused for recessed wells. */
-  "--tw-base"?: string;
+  "--twk-base"?: string;
   /** Popover / dropdown background. */
-  "--tw-dropdown-bg"?: string;
+  "--twk-dropdown-bg"?: string;
   /** Control surface and its hover / active steps. */
-  "--tw-surface"?: string; "--tw-surface-hover"?: string; "--tw-surface-active"?: string;
+  "--twk-surface"?: string; "--twk-surface-hover"?: string; "--twk-surface-active"?: string;
   /** Hairline border and its hover step. */
-  "--tw-border"?: string; "--tw-border-hover"?: string;
+  "--twk-border"?: string; "--twk-border-hover"?: string;
   /** Text-selection highlight wash. */
-  "--tw-selection"?: string;
+  "--twk-selection"?: string;
   /** Text tones — panel title, section heading, primary value text, control label, and the muted / faint / focus tones. */
-  "--tw-text-root"?: string; "--tw-text-section"?: string; "--tw-text-primary"?: string; "--tw-text-label"?: string;
-  "--tw-text-secondary"?: string; "--tw-text-tertiary"?: string; "--tw-text-focus"?: string;
+  "--twk-text-root"?: string; "--twk-text-section"?: string; "--twk-text-primary"?: string; "--twk-text-label"?: string;
+  "--twk-text-secondary"?: string; "--twk-text-tertiary"?: string; "--twk-text-focus"?: string;
   /** Copy-confirmation accent, and the invalid-state accent (the plot's bad-expression cue). */
-  "--tw-success"?: string; "--tw-danger"?: string;
+  "--twk-success"?: string; "--twk-danger"?: string;
   /** Popover shadow, the panel's container elevation, and its lifted (floating / dragging) variant. */
-  "--tw-shadow-dropdown"?: string; "--tw-shadow-panel"?: string; "--tw-shadow-panel-lifted"?: string;
+  "--twk-shadow-dropdown"?: string; "--twk-shadow-panel"?: string; "--twk-shadow-panel-lifted"?: string;
   /** Font stack, and the monospace stack (the plot's expression field). */
-  "--tw-font-sans"?: string; "--tw-font-mono"?: string;
+  "--twk-font-sans"?: string; "--twk-font-mono"?: string;
   /** Control corner radius, row height and the panel's width (256px by default), as CSS lengths. */
-  "--tw-radius"?: string; "--tw-row-height"?: string; "--tw-width"?: string;
+  "--twk-radius"?: string; "--twk-row-height"?: string; "--twk-width"?: string;
   /** Any other token. */
   [token: `--${string}`]: string | undefined;
 }
@@ -312,12 +312,12 @@ export interface SetOptions {
 
 /** Where a floating panel starts: `x` / `y` are its insets in px (16 by default) from the
  *  viewport's top-left. The far edge keeps a gap of `y` when the height caps; CSS
- *  `--tw-float-gap` overrides it. */
+ *  `--twk-float-gap` overrides it. */
 export interface FloatingPlacement { x?: number; y?: number }
 
 /** Panel options (third arg to `tweaks()`). */
 export interface TweaksOptions {
-  /** Theme overrides as `--tw-*` tokens; `null` / omitted = default monochrome. */
+  /** Theme overrides as `--twk-*` tokens; `null` / omitted = default monochrome. */
   theme?: Theme | null;
   /** Persist values to localStorage + enable presets — a key, or `true` to key by name. Uploaded images go to
    *  IndexedDB under the same key, and come back by `ready`. */
@@ -464,7 +464,7 @@ export interface MountOptions {
 
 /** The handle `mountControl()` returns. */
 export interface MountedControl {
-  /** The wrapper (`.tw-control`) the control lives in, already appended to the host and
+  /** The wrapper (`.twk-control`) the control lives in, already appended to the host and
    *  stable from creation — it carries the kit's tokens, so the control renders outside a
    *  panel. On the code-split build a lazily-loaded control fills it in once `ready` resolves. */
   el: HTMLElement;
@@ -497,7 +497,7 @@ export interface ColorPickerOptions {
 /** The handle `createColorPicker()` returns. Bring your own trigger: append `el` to a popover
  *  or a panel of your own; the kit owns the editor surface and the gamut math. */
 export interface ColorPicker {
-  /** The picker's root (`.tw-color-picker`), stable from creation; it carries the kit's tokens,
+  /** The picker's root (`.twk-color-picker`), stable from creation; it carries the kit's tokens,
    *  so the picker renders anywhere. On the code-split build the editor fills it in once the
    *  color chunk has loaded. */
   el: HTMLElement;
@@ -518,11 +518,11 @@ export interface ColorPicker {
   ready: Promise<ColorPicker>;
 }
 
-/** `detail` of the `tw:change` event a `[data-tw]` host dispatches (bubbling) whenever its
+/** `detail` of the `twk:change` event a `[data-twk]` host dispatches (bubbling) whenever its
  *  control changes — `key` is the host's `data-key` (or its label), `value` the new value,
  *  also written to the host's `data-value`. */
 export interface TwChangeDetail { key: string; value: unknown; }
 
 declare global {
-  interface HTMLElementEventMap { "tw:change": CustomEvent<TwChangeDetail>; }
+  interface HTMLElementEventMap { "twk:change": CustomEvent<TwChangeDetail>; }
 }

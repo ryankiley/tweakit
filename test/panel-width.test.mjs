@@ -6,7 +6,7 @@ import { distCss } from "./_helpers.mjs";
 
 const css = distCss();
 
-test("the default width is the --tw-width token, 256px", () => {
-  assert.match(css, /--tw-width:\s*256px/);
-  assert.match(css, /\.tw-panel\{[^}]*width:\s*var\(--tw-width\)/);
+test("the default width is the --twk-width token, 256px", () => {
+  assert.match(css, /--twk-width:\s*256px/);
+  assert.match(css, /\.twk-panel\{[^}]*width:\s*var\(--twk-width\)/);
 });

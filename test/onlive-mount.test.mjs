@@ -34,7 +34,7 @@ test("an event before the mount is still skipped, not fatal", async () => {
   window.dispatchEvent(new window.Event("resize")); // never mounted yet: ignored
   document.body.append(p.el);
   await frame();
-  const track = p.el.querySelector(".tw-slider");
+  const track = p.el.querySelector(".twk-slider");
   window.dispatchEvent(new window.Event("resize"));
   assert.ok(track.isConnected, "the panel is live and the listener still bound");
   p.destroy();

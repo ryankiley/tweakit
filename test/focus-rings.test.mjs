@@ -38,7 +38,7 @@ test("every focusable element in a panel with every control has a :focus-visible
     pages: { type: "tabs", pages: { One: { a: 1 }, Two: { b: 2 } } }, folder: { inner: 1 },
   }, { persist: true, undo: true });
   document.body.append(p.el); await p.ready;
-  const nodes = [...p.el.querySelectorAll(FOCUSABLE), ...document.body.querySelectorAll(".tw-portal " + FOCUSABLE.split(", ").join(", .tw-portal "))]
+  const nodes = [...p.el.querySelectorAll(FOCUSABLE), ...document.body.querySelectorAll(".twk-portal " + FOCUSABLE.split(", ").join(", .twk-portal "))]
     .filter((el) => el.getAttribute("aria-hidden") !== "true" && el.type !== "file" && el.type !== "hidden");
   assert.ok(nodes.length > 40, `found ${nodes.length} focusable elements`);
   const bare = nodes.filter((el) => !selectors.some((s) => covers(s, el)));

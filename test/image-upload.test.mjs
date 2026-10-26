@@ -161,7 +161,7 @@ const upload = (b, type, schema = { type: "image" }) => new Promise((resolve, re
   const late = setTimeout(() => reject(new Error("the upload never landed")), 5000);
   p.on((v, key) => { if (key === "pic") { clearTimeout(late); resolve(v.pic); } });
   e.dataTransfer = { files: [new window.File([b], "x", { type })] };
-  p.el.querySelector(".tw-image .tw-trigger").dispatchEvent(e);
+  p.el.querySelector(".twk-image .twk-trigger").dispatchEvent(e);
 });
 const b64 = (b) => Buffer.from(b).toString("base64");
 // Each stub is [object, key, value], put back afterwards.

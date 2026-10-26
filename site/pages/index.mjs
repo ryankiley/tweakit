@@ -62,7 +62,7 @@ export const examples = [
        * full-width row under both. While it is open the top spacer is pinned at its closed size
        * (--row-top, set by the page's script) and the pane's slot gives up its first-screen
        * height, so the schema opens right under its toggle and nothing above it moves. */
-      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) minmax(256px, auto); /* the panel's default --tw-width, or a theme's wider one */
+      #ex-specimen { display: grid; grid-template-columns: minmax(0, 1fr) minmax(256px, auto); /* the panel's default --twk-width, or a theme's wider one */
                      grid-template-rows: var(--row-top, minmax(0, 1fr)) auto auto minmax(0, 1fr) auto; /* zero floor on the spacers, or they pad themselves from the pane */
                      column-gap: clamp(40px, 6vw, 80px); margin: 0; }
       #ex-specimen .ex-live { display: contents; }
@@ -195,7 +195,7 @@ export const examples = [
       let fullHeight = 0;
       const center = () => {
         if (mount.closest(".is-open")) return;                     // the schema is open and the slot shorter for now: stay put
-        const inSlot = panel.el.parentElement === mount, open = panel.el.querySelector(".tw-header-toggle")?.getAttribute("aria-expanded") !== "false";
+        const inSlot = panel.el.parentElement === mount, open = panel.el.querySelector(".twk-header-toggle")?.getAttribute("aria-expanded") !== "false";
         if (inSlot && open) fullHeight = Math.max(fullHeight, panel.el.offsetHeight);
         mount.style.paddingTop = "0px";
         mount.style.paddingTop = `${Math.max(0, (mount.clientHeight - fullHeight) / 2)}px`;

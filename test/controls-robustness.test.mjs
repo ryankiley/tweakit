@@ -13,7 +13,7 @@ test("a monitor with no get and no value reads as a dash, not 'undefined'", asyn
   document.body.append(p.el);
   try {
     await tick(80);
-    assert.equal(p.el.querySelector(".tw-fps-val").textContent, "—");
+    assert.equal(p.el.querySelector(".twk-fps-val").textContent, "—");
   } finally { p.destroy(); }
 });
 
@@ -26,7 +26,7 @@ test("decimals past toFixed's limit don't throw on every tick", async () => {
   try {
     await tick(80);
     assert.deepEqual(errors, []);
-    assert.equal(p.el.querySelector(".tw-fps-val").textContent, "1.5" + "0".repeat(19));
+    assert.equal(p.el.querySelector(".twk-fps-val").textContent, "1.5" + "0".repeat(19));
   } finally { window.removeEventListener("error", onError); p.destroy(); }
 });
 
@@ -36,7 +36,7 @@ test("an Infinity sample shows in the readout and leaves the graph's range alone
   document.body.append(p.el);
   try {
     await tick(130);
-    const text = p.el.querySelector(".tw-fps-val").textContent;
+    const text = p.el.querySelector(".twk-fps-val").textContent;
     assert.ok(text === "2" || text === "Infinity", `readout was ${text}`);
   } finally { p.destroy(); }
 });
@@ -46,7 +46,7 @@ test("a plot expression that doesn't parse flags aria-invalid on its input", asy
   document.body.append(p.el);
   try {
     await p.ready;
-    const input = p.el.querySelector(".tw-plot-input");
+    const input = p.el.querySelector(".twk-plot-input");
     assert.equal(input.getAttribute("aria-invalid"), "false");
     p.set("f", "sin(");
     assert.equal(input.getAttribute("aria-invalid"), "true");
@@ -91,14 +91,14 @@ const quiet = async (fn) => { const errors = []; const orig = console.error; con
 test("a malformed verbose control is skipped with a console error, not rendered as a folder", async () => {
   const [p, errors] = await quiet(() => tweaks("M", { pt: { type: "point", components: null }, t: { type: "tabs", pages: null }, e: { type: "tabs", pages: {} }, ok: 1 }));
   assert.deepEqual(Object.keys(p.params), ["ok"]);
-  assert.equal(p.el.querySelector(".tw-folder, .tw-tabs"), null);
+  assert.equal(p.el.querySelector(".twk-folder, .twk-tabs"), null);
   assert.equal(errors.length, 3);
   assert.match(errors[0], /malformed "point"/);
 });
 
 test("a tab titled '' still shows a tab; a point component without a key gets one", () => {
   const p = tweaks("K", { t: { type: "tabs", pages: { "": { a: 1 }, "  ": { b: 1 } } }, pt: { type: "point", components: [{ label: "X" }, {}, { label: "" }, { key: "x" }] } });
-  assert.deepEqual([...p.el.querySelectorAll(".tw-tabs-tab")].map((t) => t.textContent), ["Tab", "Tab"]);
+  assert.deepEqual([...p.el.querySelectorAll(".twk-tabs-tab")].map((t) => t.textContent), ["Tab", "Tab"]);
   assert.deepEqual(p.params.pt, { x: 0, c1: 0, c2: 0, "x-2": 0 }, "an empty label falls to the index; a label-derived key dedupes against an explicit one");
 });
 
@@ -106,7 +106,7 @@ test("a folder with a child named `type` is still a folder; only a present-but-u
   const [p, errors] = await quiet(() => tweaks("F", { marker: { type: "point", size: 3 }, grid: { type: "list", rows: 2 }, bad: { type: "point", components: null } }));
   assert.deepEqual(p.params.marker, { type: "point", size: 3 });
   assert.deepEqual(p.params.grid, { type: "list", rows: 2 });
-  assert.equal(p.el.querySelectorAll(".tw-folder").length, 2);
+  assert.equal(p.el.querySelectorAll(".twk-folder").length, 2);
   assert.ok(!("bad" in p.params));
   assert.equal(errors.length, 1);
 });
@@ -114,8 +114,8 @@ test("a folder with a child named `type` is still a folder; only a present-but-u
 test("a circular object still renders rather than dropping the control", () => {
   const c = { a: 1 }; c.self = c;
   const p = tweaks("C", { t: { type: "text", value: c }, l: { type: "list", options: [c, "a"] } });
-  assert.equal(p.el.querySelector(".tw-text").value, "[object Object]");
-  assert.equal(p.el.querySelector(".tw-select-value").textContent, "[object Object]");
+  assert.equal(p.el.querySelector(".twk-text").value, "[object Object]");
+  assert.equal(p.el.querySelector(".twk-select-value").textContent, "[object Object]");
   assert.ok("t" in p.params && "l" in p.params);
 });
 
@@ -130,11 +130,11 @@ test("odd values show as JSON, never 'undefined' or '[object Object]'", async ()
   const p = tweaks("J", { l: [["1", "9"], "a"], t: { type: "text", value: { a: 1 } }, m: { type: "monitor", get: () => ({ a: 1 }), view: "text", interval: 30 }, g: { type: "buttongroup", buttons: [{ action() {} }] } });
   document.body.append(p.el);
   try {
-    assert.equal(p.el.querySelector(".tw-select-value").textContent, '["1","9"]');
-    assert.equal(p.el.querySelector(".tw-text").value, '{"a":1}');
-    assert.equal(p.el.querySelector(".tw-buttongroup-btn").textContent, "Button");
+    assert.equal(p.el.querySelector(".twk-select-value").textContent, '["1","9"]');
+    assert.equal(p.el.querySelector(".twk-text").value, '{"a":1}');
+    assert.equal(p.el.querySelector(".twk-buttongroup-btn").textContent, "Button");
     await tick(80);
-    assert.equal(p.el.querySelector(".tw-fps-val").textContent, '{"a":1}');
+    assert.equal(p.el.querySelector(".twk-fps-val").textContent, '{"a":1}');
   } finally { p.destroy(); }
 });
 
@@ -148,23 +148,23 @@ test("a hint and the reset target sit beside a spring's or bezier's own caption,
   });
   document.body.append(p.el); await p.ready;
   try {
-    for (const [cls, caption] of [["tw-spring", "tw-spring-label"], ["tw-bezier", "tw-bezier-label"]]) {
+    for (const [cls, caption] of [["twk-spring", "twk-spring-label"], ["twk-bezier", "twk-bezier-label"]]) {
       const root = p.el.querySelector("." + cls);
-      assert.ok(root.querySelector(".tw-hint").parentElement.classList.contains(caption), `${cls}: the ⓘ sits in the caption`);
-      assert.ok(root.querySelector("." + caption).classList.contains("tw-resettable"), `${cls}: the caption is the reset target`);
-      assert.ok(!root.querySelector(".tw-row-label, .tw-field-label").classList.contains("tw-resettable"), `${cls}: the inner label is not`);
+      assert.ok(root.querySelector(".twk-hint").parentElement.classList.contains(caption), `${cls}: the ⓘ sits in the caption`);
+      assert.ok(root.querySelector("." + caption).classList.contains("twk-resettable"), `${cls}: the caption is the reset target`);
+      assert.ok(!root.querySelector(".twk-row-label, .twk-field-label").classList.contains("twk-resettable"), `${cls}: the inner label is not`);
     }
   } finally { p.destroy(); } // a failing assertion must not leave the spring's observer and listeners behind
 });
 
 test("a hint on a separator adds no marker to the divider", () => {
   const p = tweaks("H", { s: { type: "separator", hint: "x" } });
-  assert.equal(p.el.querySelector(".tw-separator .tw-hint"), null);
+  assert.equal(p.el.querySelector(".twk-separator .twk-hint"), null);
 });
 
 test("a markup bound that isn't a number counts as absent", async () => {
   const { enhance } = await loadSingle();
-  const host = document.createElement("div"); host.dataset.tw = "interval"; host.dataset.value = "8,2"; host.dataset.min = "abc";
+  const host = document.createElement("div"); host.dataset.twk = "interval"; host.dataset.value = "8,2"; host.dataset.min = "abc";
   document.body.append(host);
   try {
     await enhance(host);
@@ -180,20 +180,20 @@ test("a default gradient blends in oklch, the space new stops are interpolated i
 
 test("a step the range can't count in falls back to a sane grid", () => {
   const p = tweaks("T", { s: [5, 0, 10, 1e-120], iv: [[2, 8], 0, 10, 5e-324] });
-  assert.ok(p.el.querySelector(".tw-slider-value").textContent.length < 25, "no hundred-digit readout");
+  assert.ok(p.el.querySelector(".twk-slider-value").textContent.length < 25, "no hundred-digit readout");
   assert.deepEqual(p.params.iv, [2, 8]);
-  for (const h of p.el.querySelectorAll(".tw-interval .tw-slider-handle")) assert.doesNotMatch(h.style.left, /NaN/);
+  for (const h of p.el.querySelectorAll(".twk-interval .twk-slider-handle")) assert.doesNotMatch(h.style.left, /NaN/);
 });
 
 test("an image with options is a gallery: tiles pick, Clear clears, an off-list value shows as a last tile", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/b.png", label: "Bee" }, 7, "", null], value: "/b.png" } });
-  const root = p.el.querySelector(".tw-image-gallery"); assert.ok(root, "the gallery form");
-  const tiles = () => [...root.querySelectorAll(".tw-image-tile")];
+  const root = p.el.querySelector(".twk-image-gallery"); assert.ok(root, "the gallery form");
+  const tiles = () => [...root.querySelectorAll(".twk-image-tile")];
   assert.equal(tiles().length, 2, "a non-string and an empty option are skipped");
   assert.deepEqual(tiles().map((t) => t.getAttribute("aria-label")), ["a", "Bee"], "a label, else the URL's file stem");
   assert.deepEqual(tiles().map((t) => t.getAttribute("aria-checked")), ["false", "true"]);
-  const remove = root.querySelector(".tw-image-clear");
-  const folded = () => remove.closest(".tw-image-clear-slot").inert; // Clear folds away rather than hiding
+  const remove = root.querySelector(".twk-image-clear");
+  const folded = () => remove.closest(".twk-image-clear-slot").inert; // Clear folds away rather than hiding
   assert.equal(folded(), false);
   tiles()[0].click(); assert.equal(p.params.pic, "/a.png");
   remove.click(); assert.equal(p.params.pic, ""); assert.equal(folded(), true, "nothing to remove, Clear folds away");
@@ -211,36 +211,36 @@ test("an image with options is a gallery: tiles pick, Clear clears, an off-list 
 test("a gallery is a row naming the chosen image that opens a pane of tiles", async () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/b.png", label: "Bee" }], value: "/b.png" } });
   document.body.append(p.el);
-  const trigger = p.el.querySelector(".tw-image .tw-trigger"), name = trigger.querySelector(".tw-trigger-value");
+  const trigger = p.el.querySelector(".twk-image .twk-trigger"), name = trigger.querySelector(".twk-trigger-value");
   assert.equal(name.textContent, "Bee", "the row names the chosen option");
   assert.equal(trigger.getAttribute("aria-expanded"), "false");
   trigger.click(); await tick(30);
   assert.equal(trigger.getAttribute("aria-expanded"), "true");
-  const pop = document.querySelector(".tw-image-pop"); assert.ok(pop.querySelector(".tw-image-grid"), "the tiles are in the pane");
-  pop.querySelectorAll(".tw-image-tile")[0].click(); assert.equal(name.textContent, "a", "else the URL's file stem");
+  const pop = document.querySelector(".twk-image-pop"); assert.ok(pop.querySelector(".twk-image-grid"), "the tiles are in the pane");
+  pop.querySelectorAll(".twk-image-tile")[0].click(); assert.equal(name.textContent, "a", "else the URL's file stem");
   p.set("pic", ""); assert.equal(name.textContent, "None");
   p.destroy();
 });
 
 test("the gallery pane: no repeated label, Clear in the foot, and an off-list value named for what it is", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "/a.png", upload: false } });
-  const pop = p.el.querySelector(".tw-image-pop"), name = p.el.querySelector(".tw-image .tw-trigger-value");
-  assert.equal(pop.querySelector(".tw-image-label"), null, "the row names the control; the pane doesn't repeat it");
-  assert.ok(pop.querySelector(".tw-image-foot .tw-image-clear"), "Clear sits under the tiles");
+  const pop = p.el.querySelector(".twk-image-pop"), name = p.el.querySelector(".twk-image .twk-trigger-value");
+  assert.equal(pop.querySelector(".twk-image-label"), null, "the row names the control; the pane doesn't repeat it");
+  assert.ok(pop.querySelector(".twk-image-foot .twk-image-clear"), "Clear sits under the tiles");
   p.set("pic", "https://x.com/"); assert.equal(name.textContent, "Custom image", "a host URL with no file stem");
   p.set("pic", "data:image/gif;base64,R0lGODlhAQABAAAAACw="); assert.equal(name.textContent, "Uploaded image");
   p.set("pic", "blob:https://x.com/1b4e28ba-2fa1-11d2-883f-0016d3cca427"); assert.equal(name.textContent, "Uploaded image", "a blob URL's stem is a UUID");
-  p.set("pic", ""); assert.equal(pop.querySelector(".tw-image-foot").dataset.open, "false", "no upload and nothing to clear: the foot folds");
-  assert.ok(pop.querySelector(".tw-image-foot").inert);
+  p.set("pic", ""); assert.equal(pop.querySelector(".twk-image-foot").dataset.open, "false", "no upload and nothing to clear: the foot folds");
+  assert.ok(pop.querySelector(".twk-image-foot").inert);
   p.destroy();
 });
 
 test("a file refused on the closed gallery row says why in the row", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], value: "/a.png" } });
   document.body.append(p.el);
-  const trigger = p.el.querySelector(".tw-image .tw-trigger");
+  const trigger = p.el.querySelector(".twk-image .twk-trigger");
   dropOn(trigger, new window.File(["hi"], "x.txt", { type: "text/plain" }));
-  assert.equal(trigger.querySelector(".tw-image-note").textContent, "Not an image");
+  assert.equal(trigger.querySelector(".twk-image-note").textContent, "Not an image");
   assert.equal(p.params.pic, "/a.png");
   p.destroy();
 });
@@ -248,7 +248,7 @@ test("a file refused on the closed gallery row says why in the row", () => {
 test("disabling a gallery mid-edit closes its pane", async () => {
   const p = tweaks("I", { on: true, pic: { type: "image", options: ["/a.png", "/b.png"], value: "/a.png", disabled: (g) => !g("on") } });
   document.body.append(p.el);
-  const trigger = p.el.querySelector(".tw-image .tw-trigger");
+  const trigger = p.el.querySelector(".twk-image .twk-trigger");
   trigger.click(); await tick(30); assert.equal(trigger.getAttribute("aria-expanded"), "true");
   p.set("on", false); await tick(30);
   assert.equal(trigger.getAttribute("aria-expanded"), "false", "the pane closes with its control");
@@ -258,7 +258,7 @@ test("disabling a gallery mid-edit closes its pane", async () => {
 test("arrowing off the custom tile moves focus before the tile leaves", async () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" } });
   document.body.append(p.el);
-  const custom = p.el.querySelector(".tw-image-custom"); custom.focus();
+  const custom = p.el.querySelector(".twk-image-custom"); custom.focus();
   key(custom, { key: "ArrowLeft" });
   assert.equal(p.params.pic, "/b.png");
   assert.equal(document.activeElement?.dataset.value, "/b.png", "focus is on the picked tile, not <body>");
@@ -268,9 +268,9 @@ test("arrowing off the custom tile moves focus before the tile leaves", async ()
 test("the gallery's tiles are one radio group: arrows move and pick, Delete clears", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png", "/c.png"], value: "/a.png" } });
   document.body.append(p.el);
-  const tiles = [...p.el.querySelectorAll(".tw-image-tile")];
+  const tiles = [...p.el.querySelectorAll(".twk-image-tile")];
   assert.deepEqual(tiles.map((t) => t.tabIndex), [0, -1, -1], "the chosen tile is the tab stop");
-  assert.equal(p.el.querySelector(".tw-image-grid").style.getPropertyValue("--tw-img-cols"), "3");
+  assert.equal(p.el.querySelector(".twk-image-grid").style.getPropertyValue("--twk-img-cols"), "3");
   tiles[0].focus(); key(tiles[0], { key: "ArrowRight" });
   assert.equal(p.params.pic, "/b.png"); assert.equal(document.activeElement, tiles[1]);
   key(tiles[1], { key: "End" }); assert.equal(p.params.pic, "/c.png");
@@ -281,7 +281,7 @@ test("the gallery's tiles are one radio group: arrows move and pick, Delete clea
 
 test("an upload over maxSize, or not an image, is refused with a note; a fitting one lands as a data URL", async () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], maxSize: 2048 } });
-  const upload = p.el.querySelector(".tw-image-upload"), note = p.el.querySelector(".tw-image-note");
+  const upload = p.el.querySelector(".twk-image-upload"), note = p.el.querySelector(".twk-image-note");
   const drop = (file) => dropOn(upload, file);
   drop(new window.File(["x".repeat(3000)], "big.png", { type: "image/png" }));
   assert.equal(note.textContent, "3 KB, max 2 KB"); assert.equal(p.params.pic, "");
@@ -290,25 +290,25 @@ test("an upload over maxSize, or not an image, is refused with a note; a fitting
   drop(new window.File(["GIF89a"], "ok.gif", { type: "image/gif" }));
   await tick(30);
   assert.match(p.params.pic, /^data:image\/gif;base64,/);
-  assert.equal(p.el.querySelector(".tw-image-custom").getAttribute("aria-checked"), "true", "the upload is the selected last tile");
+  assert.equal(p.el.querySelector(".twk-image-custom").getAttribute("aria-checked"), "true", "the upload is the selected last tile");
 });
 
 test("upload: false leaves a gallery of tiles alone, with no button and no file input", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], upload: false } });
-  assert.equal(p.el.querySelector(".tw-image-upload"), null);
-  assert.equal(p.el.querySelector(".tw-image-input"), null);
-  assert.equal(p.el.querySelectorAll(".tw-image-tile").length, 2);
-  assert.ok(p.el.querySelector(".tw-image-clear-slot").inert, "no value, Clear folded away");
+  assert.equal(p.el.querySelector(".twk-image-upload"), null);
+  assert.equal(p.el.querySelector(".twk-image-input"), null);
+  assert.equal(p.el.querySelectorAll(".twk-image-tile").length, 2);
+  assert.ok(p.el.querySelector(".twk-image-clear-slot").inert, "no value, Clear folded away");
   assert.equal(p.params.pic, "", "no value until a tile is picked");
 });
 
 test("clear: false leaves Clear out and Delete keeps the value; cols reaches 6", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png", "/c.png", "/d.png", "/e.png", "/f.png"], value: "/b.png", upload: false, clear: false, cols: 6 } });
-  assert.equal(p.el.querySelector(".tw-image-clear"), null, "no Clear button");
-  const tile = p.el.querySelector('.tw-image-tile[data-active="true"]');
+  assert.equal(p.el.querySelector(".twk-image-clear"), null, "no Clear button");
+  const tile = p.el.querySelector('.twk-image-tile[data-active="true"]');
   tile.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
   assert.equal(p.params.pic, "/b.png", "Delete doesn't empty a required choice");
-  assert.equal(p.el.querySelector(".tw-image-grid").style.getPropertyValue("--tw-img-cols"), "6");
+  assert.equal(p.el.querySelector(".twk-image-grid").style.getPropertyValue("--twk-img-cols"), "6");
   p.destroy();
 });
 
@@ -318,7 +318,7 @@ globalThis.FileReader ??= window.FileReader; // the kit reads files through the 
 
 test("a disabled gallery takes no dropped file", async () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], disabled: true } });
-  dropOn(p.el.querySelector(".tw-image-gallery"), new window.File(["GIF89a"], "x.gif", { type: "image/gif" }));
+  dropOn(p.el.querySelector(".twk-image-gallery"), new window.File(["GIF89a"], "x.gif", { type: "image/gif" }));
   await tick(30);
   assert.equal(p.params.pic, "");
 });
@@ -327,7 +327,7 @@ test("Alt+Delete on a tile is the panel's reset, not a clear: the host never see
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "/a.png" } });
   document.body.append(p.el);
   const seen = []; p.on((v) => seen.push(v.pic));
-  const tiles = p.el.querySelectorAll(".tw-image-tile");
+  const tiles = p.el.querySelectorAll(".twk-image-tile");
   tiles[1].click(); key(tiles[1], { key: "Delete", altKey: true });
   assert.ok(!seen.includes(""), `host saw ${JSON.stringify(seen)}`);
   p.destroy();
@@ -336,35 +336,35 @@ test("Alt+Delete on a tile is the panel's reset, not a clear: the host never see
 test("when the focused custom tile leaves, focus moves to the chosen tile, not to the body", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"], value: "/x.png" } });
   document.body.append(p.el);
-  const custom = p.el.querySelector(".tw-image-custom"); custom.focus();
+  const custom = p.el.querySelector(".twk-image-custom"); custom.focus();
   assert.equal(custom.getAttribute("aria-label"), "x", "a host-set URL is named by its file, not as an upload");
   p.set("pic", "/y.png");
   assert.equal(document.activeElement, custom, "still the custom tile: a re-render doesn't move (and blur) it");
   p.set("pic", "/b.png");
-  assert.equal(document.activeElement, p.el.querySelectorAll(".tw-image-tile")[1]);
+  assert.equal(document.activeElement, p.el.querySelectorAll(".twk-image-tile")[1]);
   p.destroy();
 });
 
 test("a repeated option URL is one tile", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", { value: "/a.png", label: "Again" }, "/b.png"], value: "/a.png" } });
-  const tiles = [...p.el.querySelectorAll(".tw-image-tile")];
+  const tiles = [...p.el.querySelectorAll(".twk-image-tile")];
   assert.equal(tiles.length, 2);
   assert.deepEqual(tiles.map((t) => t.getAttribute("aria-checked")), ["true", "false"]);
 });
 
 test("a file read that lands after a tile was picked doesn't overwrite the pick", async () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"] } });
-  dropOn(p.el.querySelector(".tw-image-upload"), new window.File(["GIF89a"], "x.gif", { type: "image/gif" }));
-  p.el.querySelectorAll(".tw-image-tile")[1].click();
+  dropOn(p.el.querySelector(".twk-image-upload"), new window.File(["GIF89a"], "x.gif", { type: "image/gif" }));
+  p.el.querySelectorAll(".twk-image-tile")[1].click();
   await tick(30);
   assert.equal(p.params.pic, "/b.png");
 });
 
 test("a refusal under 1 KB reads in bytes, and is spoken from a status region outside the button", () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], maxSize: 300 } });
-  dropOn(p.el.querySelector(".tw-image-upload"), new window.File(["x".repeat(400)], "big.png", { type: "image/png" }));
-  assert.equal(p.el.querySelector(".tw-image-note").textContent, "400 B, max 300 B");
-  const live = p.el.querySelector(".tw-image-live[role=status]");
+  dropOn(p.el.querySelector(".twk-image-upload"), new window.File(["x".repeat(400)], "big.png", { type: "image/png" }));
+  assert.equal(p.el.querySelector(".twk-image-note").textContent, "400 B, max 300 B");
+  const live = p.el.querySelector(".twk-image-live[role=status]");
   assert.ok(live && !live.closest("button"), "a button's children are presentational, so the region sits beside it");
   assert.equal(live.textContent, "400 B, max 300 B");
 });
@@ -391,7 +391,7 @@ const MiB = 1 << 20;
 test("an upload past fit is drawn down to it as a JPEG before it lands: one change, the shrunk URL", async () => {
   await withPicture({ w: 3000, h: 6000 }, async (calls) => {
     const p = tweaks("I", { pic: { type: "image" } }), seen = []; p.on((v) => seen.push(v.pic));
-    dropOn(p.el.querySelector(".tw-trigger"), photo("phone.jpg", "image/jpeg"));
+    dropOn(p.el.querySelector(".twk-trigger"), photo("phone.jpg", "image/jpeg"));
     await tick(30);
     assert.deepEqual(calls.drawn, [[1280, 2560]], "the long side drawn to 2560");
     assert.deepEqual(calls.encoded, [["image/jpeg", 0.85, 1280, 2560]], "a JPEG stays a JPEG, with no PNG tried");
@@ -411,7 +411,7 @@ test("anything but a JPEG is a PNG within 1.5 MB; past that a JPEG, or a WebP wi
   for (const [pic, size, type, tried, msg] of cases) {
     await withPicture({ w: 4000, h: 3000, ...pic }, async (calls) => {
       const p = tweaks("I", { pic: { type: "image" } });
-      dropOn(p.el.querySelector(".tw-trigger"), photo("art.png", "image/png", size));
+      dropOn(p.el.querySelector(".twk-trigger"), photo("art.png", "image/png", size));
       await tick(60);
       assert.deepEqual(calls.encoded.map((e) => e[0]), tried, msg);
       assert.match(p.params.pic, new RegExp(`^data:${type};base64,U1NT`), msg);
@@ -423,7 +423,7 @@ test("anything but a JPEG is a PNG within 1.5 MB; past that a JPEG, or a WebP wi
 test("a picture within fit, a GIF and an SVG are taken as they are, and fit: false keeps every upload whole", async () => {
   await withPicture({ w: 2560, h: 1440 }, async (calls) => {
     const p = tweaks("I", { pic: { type: "image" } });
-    dropOn(p.el.querySelector(".tw-trigger"), photo("small.png", "image/png"));
+    dropOn(p.el.querySelector(".twk-trigger"), photo("small.png", "image/png"));
     await tick(30);
     assert.equal(calls.decoded, 1); assert.equal(calls.drawn.length, 0, "a picture at fit is never redrawn");
     assert.match(p.params.pic, /^data:image\/png;base64,eHh4/, "the file as it was read");
@@ -431,7 +431,7 @@ test("a picture within fit, a GIF and an SVG are taken as they are, and fit: fal
   });
   await withPicture({ w: 5000, h: 5000 }, async (calls) => {
     const p = tweaks("I", { pic: { type: "image" }, raw: { type: "image", fit: false } });
-    const [pic, raw] = p.el.querySelectorAll(".tw-trigger");
+    const [pic, raw] = p.el.querySelectorAll(".twk-trigger");
     dropOn(pic, photo("loop.gif", "image/gif")); await tick(30);
     assert.match(p.params.pic, /^data:image\/gif;/, "a GIF would lose its animation");
     dropOn(pic, photo("logo.svg", "image/svg+xml")); await tick(30);
@@ -446,7 +446,7 @@ test("a picture within fit, a GIF and an SVG are taken as they are, and fit: fal
 test("fit and quality set the size and the quality, a non-number fit is the default, and a redraw no smaller than the file is dropped", async () => {
   await withPicture({ w: 6000, h: 3000 }, async (calls) => {
     const p = tweaks("I", { pic: { type: "image", fit: 800, quality: 0.6 }, yes: { type: "image", fit: true, quality: "high" } });
-    const [pic, yes] = p.el.querySelectorAll(".tw-trigger");
+    const [pic, yes] = p.el.querySelectorAll(".twk-trigger");
     dropOn(pic, photo("wide.jpg", "image/jpeg")); await tick(30);
     dropOn(yes, photo("wide.jpg", "image/jpeg")); await tick(30);
     assert.deepEqual(calls.encoded, [["image/jpeg", 0.6, 800, 400], ["image/jpeg", 0.85, 2560, 1280]], "fit: true isn't one pixel");
@@ -459,10 +459,10 @@ test("fit and quality set the size and the quality, a non-number fit is the defa
 test("a heavy upload within fit is redrawn at its size; a light one is taken as it is", async () => {
   await withPicture({ w: 2400, h: 1600, bytes: { "image/png": 2 * MiB, "image/jpeg": 100 } }, async (calls) => {
     const p = tweaks("I", { pic: { type: "image" } });
-    dropOn(p.el.querySelector(".tw-trigger"), photo("heavy.png", "image/png", 2 * MiB)); await tick(60);
+    dropOn(p.el.querySelector(".twk-trigger"), photo("heavy.png", "image/png", 2 * MiB)); await tick(60);
     assert.deepEqual(calls.drawn, [[2400, 1600]], "drawn at its own size");
     assert.match(p.params.pic, /^data:image\/jpeg;base64,U1NT/, "a heavy PNG photo is a JPEG");
-    dropOn(p.el.querySelector(".tw-trigger"), photo("light.png", "image/png", 1.5 * MiB)); await tick(60);
+    dropOn(p.el.querySelector(".twk-trigger"), photo("light.png", "image/png", 1.5 * MiB)); await tick(60);
     assert.equal(calls.drawn.length, 1, "1.5 MB or less within fit: never redrawn");
     p.destroy();
   });
@@ -471,8 +471,8 @@ test("a heavy upload within fit is redrawn at its size; a light one is taken as 
 test("a pick, a set() or a second upload while a shrink is pending wins over it", async () => {
   await withPicture({ w: 4000, h: 3000 }, async () => {
     const p = tweaks("I", { pic: { type: "image", options: ["/a.png", "/b.png"] } }), seen = []; p.on((v) => seen.push(v.pic));
-    const upload = p.el.querySelector(".tw-image-upload");
-    dropOn(upload, photo("big.jpg", "image/jpeg")); p.el.querySelectorAll(".tw-image-tile")[1].click();
+    const upload = p.el.querySelector(".twk-image-upload");
+    dropOn(upload, photo("big.jpg", "image/jpeg")); p.el.querySelectorAll(".twk-image-tile")[1].click();
     await tick(30);
     assert.equal(p.params.pic, "/b.png"); assert.deepEqual(seen, ["/b.png"], "the late shrink fires nothing");
     dropOn(upload, photo("big.jpg", "image/jpeg")); p.set("pic", "/a.png");
@@ -489,7 +489,7 @@ test("a file that can't be decoded falls back to the file as it is", async () =>
   await withPicture({ w: 4000, h: 3000 }, async () => {
     globalThis.Image = class { decode() { return Promise.reject(new Error("EncodingError")); } };
     const p = tweaks("I", { pic: { type: "image" } });
-    dropOn(p.el.querySelector(".tw-trigger"), photo("odd.heic", "image/heic")); await tick(30);
+    dropOn(p.el.querySelector(".twk-trigger"), photo("odd.heic", "image/heic")); await tick(30);
     assert.match(p.params.pic, /^data:image\/heic;base64,/);
     p.destroy();
   });
@@ -498,54 +498,54 @@ test("a file that can't be decoded falls back to the file as it is", async () =>
 test("the stylesheet rings a focused gallery tile with an outline", () => {
   // jsdom honors [hidden] over display: flex, so this is checked in the built CSS, not on the element.
   const css = distCss();
-  assert.match(css, /\.tw-image-tile:focus-visible\{outline:2px solid/);
+  assert.match(css, /\.twk-image-tile:focus-visible\{outline:2px solid/);
 });
 
 test("markup builds a gallery from data-options, with data-upload and data-cols", async () => {
   const { enhance } = await loadSingle();
   const host = document.createElement("div");
-  Object.assign(host.dataset, { tw: "image", label: "Cover", options: "/a.png, /b.png, /c.png", value: "/b.png", upload: "false", cols: "3" });
+  Object.assign(host.dataset, { twk: "image", label: "Cover", options: "/a.png, /b.png, /c.png", value: "/b.png", upload: "false", cols: "3" });
   document.body.append(host);
   try {
     await enhance(host);
-    assert.equal(host.querySelectorAll(".tw-image-tile").length, 3);
-    assert.equal(host.querySelector(".tw-image-upload"), null);
-    assert.equal(host.querySelector(".tw-image-grid").style.getPropertyValue("--tw-img-cols"), "3");
+    assert.equal(host.querySelectorAll(".twk-image-tile").length, 3);
+    assert.equal(host.querySelector(".twk-image-upload"), null);
+    assert.equal(host.querySelector(".twk-image-grid").style.getPropertyValue("--twk-img-cols"), "3");
     assert.equal(host._tw.ctrl.get(), "/b.png");
   } finally { host.remove(); }
 });
 
-// data-tw="slidr" rendered nothing and logged nothing.
-test("a markup host with an unknown data-tw type is skipped with a warning naming the near type", async () => {
+// data-twk="slidr" rendered nothing and logged nothing.
+test("a markup host with an unknown data-twk type is skipped with a warning naming the near type", async () => {
   const { enhance } = await loadSingle();
-  const host = document.createElement("div"); host.dataset.tw = "slidr";
+  const host = document.createElement("div"); host.dataset.twk = "slidr";
   document.body.append(host);
   const msgs = await warnings(() => enhance(host));
   try {
     assert.equal(host.children.length, 0);
-    assert.ok(msgs.some((m) => m.includes('data-tw="slidr": "slidr" isn\'t a control type — did you mean "slider"? It is skipped.')));
+    assert.ok(msgs.some((m) => m.includes('data-twk="slidr": "slidr" isn\'t a control type — did you mean "slider"? It is skipped.')));
     const types = msgs.find((m) => m.includes("slidr")).split("Types: ")[1].split(", ");
     for (const t of ["segmented", "checkbox", "cubicbezier", "radiogrid"]) assert.ok(types.includes(t), `the list names ${t}`);
     for (const t of ["colorpicker", "tabs"]) assert.ok(!types.includes(t), `and not ${t}, which markup can't build`);
   } finally { host.remove(); }
-  const toggle = document.createElement("div"); toggle.dataset.tw = "toggle"; document.body.append(toggle);
+  const toggle = document.createElement("div"); toggle.dataset.twk = "toggle"; document.body.append(toggle);
   try { assert.ok((await warnings(() => enhance(toggle))).some((m) => m.includes('"toggle" isn\'t a control type — did you mean "checkbox"?')), "another library's name finds ours"); }
   finally { toggle.remove(); }
 });
 
-// data-tw="segmented" was warned "isn't a control type", though a schema takes it; data-tw="tabs" fell through to a folder
+// data-twk="segmented" was warned "isn't a control type", though a schema takes it; data-twk="tabs" fell through to a folder
 // whose missing get() threw out of enhance(), leaving every later host claimed but never built.
 test("markup builds segmented as a schema does, leaves a tabs host untouched, and one bad host doesn't stop the rest", async () => {
   const { enhance } = await loadSingle();
   const holder = document.createElement("div"); document.body.append(holder);
-  holder.innerHTML = '<div data-tw="tabs" data-key="t"></div><div data-tw="segmented" data-key="s" data-options="sRGB,display-p3" data-value="display-p3"></div><div data-tw="slider" data-key="after" data-value="5"></div>';
+  holder.innerHTML = '<div data-twk="tabs" data-key="t"></div><div data-twk="segmented" data-key="s" data-options="sRGB,display-p3" data-value="display-p3"></div><div data-twk="slider" data-key="after" data-value="5"></div>';
   const warn = console.warn, error = console.error, msgs = []; console.warn = console.error = (...a) => msgs.push(a.join(" "));
   try {
     await enhance(holder); await tick(20);
-    const [tabs, seg, after] = holder.querySelectorAll("[data-tw]");
-    assert.deepEqual([tabs.children.length, tabs.hasAttribute("data-tw-bound"), tabs._tw], [0, false, undefined], "tabs is panel-only: left untouched");
+    const [tabs, seg, after] = holder.querySelectorAll("[data-twk]");
+    assert.deepEqual([tabs.children.length, tabs.hasAttribute("data-twk-bound"), tabs._tw], [0, false, undefined], "tabs is panel-only: left untouched");
     assert.equal(seg._tw.ctrl.get(), "display-p3");
-    assert.deepEqual([...seg.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["sRGB", "display-p3"]);
+    assert.deepEqual([...seg.querySelectorAll(".twk-radiogrid-btn")].map((b) => b.textContent), ["sRGB", "display-p3"]);
     assert.equal(after._tw.ctrl.get(), 5, "the host after it still binds");
     assert.deepEqual(msgs, [], "quietly");
   } finally { console.warn = warn; console.error = error; holder.remove(); }
@@ -562,11 +562,11 @@ test("the markup page names every control type markup binds, and every one it na
   const types = [...table.matchAll(/^\| `([a-z0-9-]+)` \|/gm)].map((m) => m[1]).filter((t) => t !== "type" && t !== "tabs");
   for (const t of types) assert.ok(named.includes(t), `the markup page doesn't name "${t}"`);
   const holder = document.createElement("div"); document.body.append(holder);
-  holder.innerHTML = named.map((t) => `<div data-tw="${t}" data-key="k" data-options="a,b" data-buttons="A" data-interval="30"></div>`).join("");
+  holder.innerHTML = named.map((t) => `<div data-twk="${t}" data-key="k" data-options="a,b" data-buttons="A" data-interval="30"></div>`).join("");
   const warn = console.warn; console.warn = () => {};
   try {
     await enhance(holder); await tick(80); // past the monitor's first tick, so it stops once the holder leaves
-    for (const h of holder.querySelectorAll("[data-tw]")) assert.ok(h._tw || h.children.length, `data-tw="${h.dataset.tw}" didn't bind`);
+    for (const h of holder.querySelectorAll("[data-twk]")) assert.ok(h._tw || h.children.length, `data-twk="${h.dataset.twk}" didn't bind`);
   } finally { console.warn = warn; holder.remove(); await tick(80); }
 });
 

@@ -74,7 +74,7 @@ test("the hover walker reads nesting, not just presence", () => {
 test("src/tweaks.css: the control stack and its children can shrink below their content", async () => {
   const css = (await read("src/tweaks.css")).replace(/\/\*[\s\S]*?\*\//g, "");
   const rule = (selector) => { const m = css.match(new RegExp(`(^|[\\n}])\\s*${selector.replace(/[.*+?^${}()|[\]\\>]/g, "\\$&")}\\s*\\{([^}]*)\\}`)); return m ? m[2] : ""; };
-  for (const sel of [".tw-body > .tw-controls", ".tw-controls > *", ".tw-folder-body > .tw-controls", ".tw-tabs-bar", ".tw-select-value"]) {
+  for (const sel of [".twk-body > .twk-controls", ".twk-controls > *", ".twk-folder-body > .twk-controls", ".twk-tabs-bar", ".twk-select-value"]) {
     assert.match(rule(sel), /min-width:\s*0\b/, `${sel} needs min-width: 0`);
   }
 });

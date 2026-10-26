@@ -14,7 +14,7 @@ test("a silent set, setMany or fromJSON skips on() but still runs conditionals, 
   const p = tweaks("Silent", { live: true, time: { type: "slider", value: 450, min: 300, max: 1725, step: 15, render: (get) => !get("live") }, zoom: [100, 25, 300, 1] }, { persist: true, undo: true });
   let calls = 0; p.on(() => { calls++; });
   p.set("live", false, { silent: true });
-  assert.ok(!p.el.querySelector(".tw-slider-wrap").classList.contains("tw-cond-hidden"), "the conditional still follows");
+  assert.ok(!p.el.querySelector(".twk-slider-wrap").classList.contains("twk-cond-hidden"), "the conditional still follows");
   p.setMany({ time: 600 }, { silent: true });
   p.fromJSON({ values: { zoom: 90 } }, { silent: true });
   assert.equal(calls, 0, "no echo");
@@ -79,9 +79,9 @@ test("a preset storage refuses is announced from the menu as not saved, and keep
   try {
     await quiet(async () => {
       p.el.querySelector('[aria-label="Presets"]').click(); await wait(30);
-      const input = document.querySelector(".tw-presets-input"); input.value = "C";
-      document.querySelector(".tw-presets-savebtn").click(); await wait(150);
-      assert.equal(document.querySelector(".tw-sr[role=status]").textContent, "Preset C not saved: storage is full");
+      const input = document.querySelector(".twk-presets-input"); input.value = "C";
+      document.querySelector(".twk-presets-savebtn").click(); await wait(150);
+      assert.equal(document.querySelector(".twk-sr[role=status]").textContent, "Preset C not saved: storage is full");
       assert.equal(input.value, "C", "the name stays, to try again");
     });
   } finally { proto.setItem = setItem; }
@@ -94,7 +94,7 @@ test("without IndexedDB an upload saves inline when it fits, as 0.5 did, and is 
   const big = "data:image/gif;base64," + "A".repeat(2048);
   const p = tweaks("NoDB", { x: [1, 0, 10, 1], im: { type: "image" }, url: { type: "image" } }, { persist: "t-nodb" });
   await p.ready;
-  const [note] = p.el.querySelectorAll(".tw-image-note");
+  const [note] = p.el.querySelectorAll(".twk-image-note");
   p.setMany({ x: 6, im: big, url: "/b.png" }); await wait(250);
   assert.deepEqual(stored("tw:t-nodb"), { x: 6, im: big, url: "/b.png" }, "the upload saves inline");
   assert.equal(note.textContent, "");
@@ -109,7 +109,7 @@ test("without IndexedDB an upload saves inline when it fits, as 0.5 did, and is 
   try {
     q.set("x", 8); await wait(250);
     assert.deepEqual(stored("tw:t-nodb"), { x: 8, url: "/b.png" }, "storage refused it: the image is left out, the rest saves");
-    assert.equal(q.el.querySelector(".tw-image-note").textContent, "Not saved");
+    assert.equal(q.el.querySelector(".twk-image-note").textContent, "Not saved");
   } finally { window.Storage.prototype.setItem = setItem; q.destroy(); localStorage.clear(); }
 });
 
@@ -134,28 +134,28 @@ test("a second live panel on the same persist key warns; one after destroy() doe
 // host's accent and font size, under <body> the kit's own. Inline values win, as they would in a browser.
 test("the first drag's lift carries what the slot's context gave the panel, and the panel's theme stays on top", () => {
   const real = globalThis.getComputedStyle, host = document.createElement("div"); document.body.append(host);
-  const slot = { "--tw-accent": "tomato", "font-size": "19px" }, bodyCtx = { "--tw-accent": "", "font-size": "13px" };
+  const slot = { "--twk-accent": "tomato", "font-size": "19px" }, bodyCtx = { "--twk-accent": "", "font-size": "13px" };
   globalThis.getComputedStyle = (node, ...rest) => {
-    if (!node.classList?.contains("tw-panel")) return real(node, ...rest);
+    if (!node.classList?.contains("twk-panel")) return real(node, ...rest);
     const ctx = () => (host.contains(node) ? slot : bodyCtx);
-    return Object.assign(["--tw-accent"], { getPropertyValue: (k) => node.style.getPropertyValue(k) || (ctx()[k] ?? "") });
+    return Object.assign(["--twk-accent"], { getPropertyValue: (k) => node.style.getPropertyValue(k) || (ctx()[k] ?? "") });
   };
   try {
-    const p = tweaks("Carry", { a: [1, 0, 10, 1] }, { theme: { "--tw-radius": "4px" } });
+    const p = tweaks("Carry", { a: [1, 0, 10, 1] }, { theme: { "--twk-radius": "4px" } });
     host.append(p.el);
-    const title = p.el.querySelector(".tw-header-toggle"); title.focus();
+    const title = p.el.querySelector(".twk-header-toggle"); title.focus();
     key(title, { key: "ArrowRight", altKey: true }); // the keyboard's drag lifts as a pointer drag does
     assert.equal(p.el.parentElement, document.body, "lifted under <body>");
-    assert.equal(p.el.style.getPropertyValue("--tw-accent"), "tomato", "the host's token rode along, inline");
+    assert.equal(p.el.style.getPropertyValue("--twk-accent"), "tomato", "the host's token rode along, inline");
     assert.equal(p.el.style.getPropertyValue("font-size"), "19px", "and its font size");
-    assert.equal(p.el.style.getPropertyValue("--tw-radius"), "4px", "the panel's own theme is still applied");
-    p.setTheme({ "--tw-accent": "#00ff00" });
-    assert.equal(p.el.style.getPropertyValue("--tw-accent"), "#00ff00", "a later setTheme() wins over the carried token");
-    assert.equal(p.el.style.getPropertyValue("--tw-radius"), "", "and drops what the old theme set");
+    assert.equal(p.el.style.getPropertyValue("--twk-radius"), "4px", "the panel's own theme is still applied");
+    p.setTheme({ "--twk-accent": "#00ff00" });
+    assert.equal(p.el.style.getPropertyValue("--twk-accent"), "#00ff00", "a later setTheme() wins over the carried token");
+    assert.equal(p.el.style.getPropertyValue("--twk-radius"), "", "and drops what the old theme set");
     p.setTheme(null);
-    assert.equal(p.el.style.getPropertyValue("--tw-accent"), "tomato", "a key the theme drops falls back to the host's value");
-    assert.equal(p.el.style.getPropertyValue("--tw-on-accent"), "", "with no derived on-accent left behind");
+    assert.equal(p.el.style.getPropertyValue("--twk-accent"), "tomato", "a key the theme drops falls back to the host's value");
+    assert.equal(p.el.style.getPropertyValue("--twk-on-accent"), "", "with no derived on-accent left behind");
     p.destroy();
-    assert.ok(!p.el.isConnected && !host.querySelector(".tw-lift-slot"), "destroy() removes the panel and its placeholder");
+    assert.ok(!p.el.isConnected && !host.querySelector(".twk-lift-slot"), "destroy() removes the panel and its placeholder");
   } finally { globalThis.getComputedStyle = real; host.remove(); }
 });
