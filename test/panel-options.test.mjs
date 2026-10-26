@@ -46,7 +46,7 @@ test("presets: false keeps persistence without the Presets menu", () => {
 
 test("persist: false keeps a control out of what is saved and what is restored", () => {
   localStorage.clear();
-  localStorage.setItem("tw:Session", JSON.stringify({ media: true, name: "Ana", look: { media2: true } }));
+  localStorage.setItem("tw:Session", JSON.stringify({ v: 1, values: { media: true, name: "Ana", look: { media2: true } } }));
   const off = { type: "checkbox", value: false, persist: false };
   const p = tweaks("Session", { media: off, name: "Maya", look: { media2: off }, fx: { glow: { on: off } } }, { persist: true }); // fx: a folder the stored session predates
   assert.deepEqual([p.params.media, p.params.look.media2, p.params.name], [false, false, "Ana"], "stored values for it don't come back; the rest do");
@@ -58,7 +58,7 @@ test("persist: false keeps a control out of what is saved and what is restored",
 });
 
 test("a stored value that can't drop a persist: false key doesn't break the build", () => {
-  localStorage.setItem("tw:Odd", JSON.stringify({ F: [true] })); // a hand-edited store: the folder saved as an array, whose length can't be deleted
+  localStorage.setItem("tw:Odd", JSON.stringify({ v: 1, values: { F: [true] } })); // a hand-edited store: the folder saved as an array, whose length can't be deleted
   let p; assert.doesNotThrow(() => { p = tweaks("Odd", { F: { length: { type: "checkbox", value: false, persist: false } } }, { persist: true }); });
   p.destroy(); localStorage.clear();
 });

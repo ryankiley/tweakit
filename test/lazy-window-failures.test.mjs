@@ -88,7 +88,7 @@ test("a destroyed panel says nothing when its chunk later fails", async () => {
 
 // A color value: a chunk nothing above has loaded.
 test("a listener that destroys the panel on the persisted restore leaves no listener behind", async () => {
-  localStorage.clear(); localStorage.setItem("tw:rf-d", JSON.stringify({ x: 4 }));
+  localStorage.clear(); localStorage.setItem("tw:rf-d", JSON.stringify({ v: 1, values: { x: 4 } }));
   const counts = { add: 0, remove: 0 };
   const add = document.addEventListener.bind(document), remove = document.removeEventListener.bind(document);
   document.addEventListener = (t, fn, o) => { if (t === "keydown") counts.add++; return add(t, fn, o); };
@@ -128,7 +128,7 @@ test("a value parked on params stays out of every snapshot, so one JSON can't ta
 });
 
 test("a stored key no control has is left alone by a restore", async () => {
-  localStorage.clear(); localStorage.setItem("tw:r6-ro", JSON.stringify({ x: 4, ro: 9 }));
+  localStorage.clear(); localStorage.setItem("tw:r6-ro", JSON.stringify({ v: 1, values: { x: 4, ro: 9 } }));
   const p = lazy.tweaks("R6", { x: [1, 0, 10, 1], sh: { type: "shadow" } }, { persist: "r6-ro" });
   Object.defineProperty(p.params, "ro", { get: () => 1, configurable: true, enumerable: true });
   const errs = []; const err = console.error; console.error = (...a) => errs.push(String(a[0]));
