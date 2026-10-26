@@ -19,7 +19,7 @@ test("a color reads back exactly as it was written, in any notation the picker e
 test("an edit writes the color's own notation, a digit finer than the readout", async () => {
   const hex = createColorPicker({ value: "#7c5cff", onChange: () => {} }); document.body.append(hex.el); await hex.ready;
   key(hex.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" }); // a hue-strip step, the smallest edit from the keyboard
-  assert.match(hex.get(), /^#[0-9a-f]{6}$/, `hex stays hex (${hex.get()})`);
+  assert.match(hex.get(), /^#[0-9A-F]{6}$/, `hex stays hex, upper-case (${hex.get()})`);
   const picker = createColorPicker({ value: "oklch(62% 0.0047 165)", onChange: () => {} }); document.body.append(picker.el); await picker.ready;
   const plane = picker.el.querySelector(".tw-wg-hue"); key(plane, { key: "ArrowRight" });
   assert.match(picker.get(), /^oklch\(62% 0\.005 166\)$/, `a faint tint keeps its chroma (${picker.get()})`);

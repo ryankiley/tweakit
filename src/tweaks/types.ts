@@ -445,7 +445,7 @@ export interface MountedControl {
 }
 
 /** The notations the color picker edits in (its mode dropdown). The emitted value follows
- *  the mode: `hex` gives `#rrggbb`, the wide-gamut modes give a CSS color like `oklch(…)`. */
+ *  the mode: `hex` gives `#RRGGBB`, the wide-gamut modes give a CSS color like `oklch(…)`. */
 export type ColorMode = "hex" | "srgb" | "css" | "hsl" | "hwb" | "oklch" | "oklab" | "lch" | "lab" | "p3" | "rec2020";
 
 /** Options for `createColorPicker(opts?)` — the picker body alone, no trigger row. */
