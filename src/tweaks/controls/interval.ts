@@ -13,7 +13,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   // An absent bound derives from the values, each end widening it: [20, 80] spans 0–240, not 20–80 (which pinned both handles).
   const [a, b] = [defaultRange(lo0), defaultRange(hi0)];
   const given = (n: unknown) => n != null && n !== "" && Number.isFinite(+n!);
-  let { min, max, step } = normalizeRange(given(meta.min) ? meta.min : Math.min(a[0], b[0]), given(meta.max) ? meta.max : Math.max(a[1], b[1]), meta.step, lo0, hi0);
+  let { min, max, step } = normalizeRange(given(meta.min) ? meta.min : Math.min(a[0], b[0]), given(meta.max) ? meta.max : Math.max(a[1], b[1]), meta.step, lo0, hi0, lo0, hi0);
   [min, max] = gridEnds(min, max, step); // the slider's rule: no value past an off-grid bound
   const decimals = stepPrecision(step);
   const q = (v: number) => roundToStep(v, min, step);
