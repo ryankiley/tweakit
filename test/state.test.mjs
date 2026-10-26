@@ -264,3 +264,22 @@ test("a stored color that isn't one falls back to the schema's, as a stale list 
     p.destroy(); fresh.destroy();
   } finally { console.warn = warn; localStorage.removeItem("tw:t-badcolor"); }
 });
+
+// set("a.b") read a folder step, so a key holding a dot could never be set or show in changes(), and with a folder a
+// beside it, set("a.b") changed that folder's b instead.
+test("set() reaches a key holding a dot by the path changes() names it; two controls on one path warn", () => {
+  const p = tweaks("Dot", { "a.b": [5, 0, 10, 1], f: { "c.d": [1, 0, 10, 1] } });
+  p.set("a.b", 8); p.set("f.c.d", 3);
+  assert.equal(p.params["a.b"], 8); assert.equal(p.params.f["c.d"], 3);
+  assert.deepEqual(p.changes(), { "a.b": 8, "f.c.d": 3 });
+  p.setMany(p.changes()); p.reset(); p.setMany({ "a.b": 8, "f.c.d": 3 });
+  assert.deepEqual(p.changes(), { "a.b": 8, "f.c.d": 3 }, "changes() feeds setMany() back");
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  try {
+    const q = tweaks("Both", { "a.b": [5, 0, 10, 1], a: { b: [1, 0, 10, 1] } });
+    q.set("a.b", 8);
+    assert.deepEqual([q.params["a.b"], q.params.a.b], [5, 1], "neither is guessed at");
+    assert.ok(warned.some((m) => m.includes('set("a.b") is ambiguous — 2 controls read as that path')));
+    q.destroy();
+  } finally { console.warn = warn; p.destroy(); }
+});

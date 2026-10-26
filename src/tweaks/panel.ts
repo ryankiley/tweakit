@@ -779,8 +779,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const applySet = (key: string, v: unknown) => {
     if (String(key).split(".").some(isReservedKey)) { console.warn(`[tweaks] set("${key}") ignored — reserved key`); return false; } // never write through to the prototype
     const parts = String(key).split(".");
-    let e: Entry | undefined;
-    if (parts.length > 1) {
+    // The path exactly as changes() names it first, so a key holding a dot ("a.b", "f.a.b") is reachable; two controls
+    // whose paths read the same (a top-level "a.b" beside folder a's b) are ambiguous, not a guess.
+    const exact = entries.filter((x) => x.path.join(".") === key);
+    if (exact.length > 1) { console.warn(`[tweaks] set("${key}") is ambiguous — ${exact.length} controls read as that path (a key holding "." beside a folder); rename one`); return false; }
+    let e: Entry | undefined = exact[0];
+    if (e) { /* found by its path */ }
+    else if (parts.length > 1) {
       // Dotted path — walk the folder/tabs subtrees to the owning target.
       let t: any = params; // any: the bag's subtrees hold whatever the host parked
       for (let i = 0; i < parts.length - 1 && t; i++) { t = t[parts[i]]; if (!subTrees.has(t)) t = null; }
