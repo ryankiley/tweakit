@@ -88,3 +88,23 @@ test("a preset storage refuses is announced from the menu as not saved, and keep
   } finally { proto.setItem = setItem; console.warn = warn; }
   p.destroy(); localStorage.clear();
 });
+
+// jsdom has no IndexedDB, as some locked-down browsers don't: there an upload can't be saved, and the rest still is.
+test("without IndexedDB an upload is left out of the save, its row says so once, and the other values save", async () => {
+  localStorage.clear();
+  const big = "data:image/gif;base64," + "A".repeat(2048), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  try {
+    const p = tweaks("NoDB", { x: [1, 0, 10, 1], im: { type: "image" }, url: { type: "image" } }, { persist: "t-nodb" });
+    await p.ready;
+    const [note] = p.el.querySelectorAll(".tw-image-note");
+    p.setMany({ x: 6, im: big, url: "/b.png" }); await wait(250);
+    assert.deepEqual(stored("tw:t-nodb"), { x: 6, url: "/b.png" }, "a URL saves as it is; the upload is left out");
+    assert.equal(note.textContent, "Not saved");
+    assert.equal(warned.length, 1);
+    p.set("x", 7); await wait(250);
+    assert.equal(stored("tw:t-nodb").x, 7);
+    assert.equal(warned.length, 1, "told once, not on every save");
+    p.destroy();
+  } finally { console.warn = warn; localStorage.clear(); }
+});

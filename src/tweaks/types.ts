@@ -252,7 +252,8 @@ export interface FloatingPlacement { x?: number; y?: number; corner?: FloatingCo
 export interface TweaksOptions {
   /** Theme overrides (friendly names or raw `--tw-*`); `null` / omitted = default monochrome. */
   theme?: Theme | null;
-  /** Persist values to localStorage + enable presets — a key, or `true` to key by name. */
+  /** Persist values to localStorage + enable presets — a key, or `true` to key by name. Uploaded images go to
+   *  IndexedDB under the same key, and come back by `ready`. */
   persist?: string | boolean;
   /** With `persist`, `false` keeps saving values but leaves the Presets menu out of the
    *  toolbar (the presets API still works). On by default. */
