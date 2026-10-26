@@ -10,7 +10,7 @@ hand.
 npm install
 npm run build      # → dist/ (split chunks, single file, CSS, .d.ts, docs site)
 npm test           # build, then the suite (Node's runner + jsdom)
-npm run test:browser  # layout in Playwright's Chromium, against the build (npx playwright install chromium once)
+npm run test:browser  # build, then layout in Playwright's Chromium (npx playwright install chromium once)
 npm run serve      # build + serve the docs site on :4330
 ```
 

@@ -120,7 +120,7 @@ test("destroy() releases a monitor's poll even on a panel that never mounted", a
 
 test("a hostile color string is skipped, not thrown, and the rest of a restore still lands", () => {
   // Regression, two halves: `color(constructor …)` resolved its space off Object.prototype
-  // — truthy, so it slipped past the unknown-space guard and reached the conversion maths
+  // — truthy, so it slipped past the unknown-space guard and reached the conversion math
   // as a non-space, throwing a TypeError out of set(); and applySnapshot ran its entries
   // unguarded, so that one throw abandoned every later value AND the notify with it.
   const p = tweaks("CX", { a: [1, 0, 10, 1], c: { type: "color", value: "#ff0000" }, z: [1, 0, 10, 1] });
