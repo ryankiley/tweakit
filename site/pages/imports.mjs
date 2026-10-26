@@ -28,7 +28,8 @@ export const examples = [
       element, params and methods are live at once. On the split build, a panel whose
       schema needs lazy modules builds all of its controls when <code>panel.ready</code>
       resolves (until then the shell is an empty frame); on the single-file build,
-      <code>ready</code> resolves immediately. This page runs the split build; the stamp
+      <code>ready</code> resolves immediately. On either build, a panel that persists an image
+      control also waits for its stored images, so they're back by <code>ready</code>. This page runs the split build; the stamp
       shows how long the lazy path took (the docs preload the chunks, so this is the
       import, not a network round trip).</p>`,
     target: `<code class="im-stamp">…</code>`,

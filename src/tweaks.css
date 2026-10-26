@@ -354,7 +354,7 @@
 .tw-seg.is-ready .tw-seg-pill { transition: left 0.24s var(--tw-ease-out), width 0.24s var(--tw-ease-out); }
 .tw-seg-btn {
   position: relative; z-index: 1; flex: 0 0 auto; min-width: 40px; padding: 6px 8px; text-align: center;
-  font: inherit; font-size: 12px; font-weight: 500;
+  font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; /* 14px, not normal: the same height whatever the font */
   background: transparent; border: none; cursor: pointer;
   color: var(--tw-text-label); transition: color 0.15s, transform 0.24s var(--tw-ease-pop);
 }

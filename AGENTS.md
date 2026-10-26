@@ -27,7 +27,7 @@ import { tweaks } from "tweakit/single";   // single-file build: every control i
 import "tweakit/css";                      // the stylesheet, needed by either build
 ```
 
-Without a bundler, copy `dist/tweaks.js` and `dist/tweaks.css` out of the package; the script is an ES module, so load it with `<script type="module">`. Both builds share one API. On the code-split build a panel whose schema needs a lazy control (color, gradient, shadow, motion, point and others) fills in when `panel.ready` resolves; the single-file build resolves it at once.
+Without a bundler, copy `dist/tweaks.js` and `dist/tweaks.css` out of the package; the script is an ES module, so load it with `<script type="module">`. Both builds share one API. On the code-split build a panel whose schema needs a lazy control (color, gradient, shadow, motion, point and others) fills in when `panel.ready` resolves; the single-file build resolves it at once, except that a panel persisting an image control waits for its stored images on either build.
 
 ## A first panel
 
