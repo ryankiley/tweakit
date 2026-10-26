@@ -365,6 +365,7 @@ test("a boolean toggle is one switch: role, aria-checked, one tab stop, Space an
   assert.ok([...sw.querySelectorAll("button")].every((b) => b.tabIndex === -1 && b.getAttribute("aria-hidden") === "true"), "its segments are the pointer's, not tab stops");
   key(sw, { key: " " }); assert.equal(p.params.on, false); assert.equal(sw.getAttribute("aria-checked"), "false");
   key(sw, { key: "Enter" }); assert.equal(p.params.on, true);
+  sw.querySelector("button").focus(); assert.equal(document.activeElement, sw, "a segment that takes focus hands it to the switch");
   sw.querySelector("button").click(); assert.equal(p.params.on, false, "a click on Off still sets it");
   assert.ok([...sw.querySelectorAll("button")].every((b) => b.tabIndex === -1), "and leaves no tab stop behind");
   p.destroy();

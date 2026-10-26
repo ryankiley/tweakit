@@ -532,7 +532,7 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
   if (sw) seg.tabIndex = 0;
   const pill = el("div", "tw-seg-pill");
   seg.append(pill);
-  const btns = options.map((o) => { const b = radioButton("tw-seg-btn", o, (v) => set(v)); if (sw) b.setAttribute("aria-hidden", "true"); seg.append(b); return b; }); // lazy `set` — it's declared below
+  const btns = options.map((o) => { const b = radioButton("tw-seg-btn", o, (v) => set(v)); if (sw) { b.setAttribute("aria-hidden", "true"); b.addEventListener("focus", () => seg.focus()); } seg.append(b); return b; }); // lazy `set` — it's declared below; a clicked segment hands focus to the switch, never parks it hidden
   const measure = (animate?: boolean) => measurePill(seg, pill, animate);
   const reflect = () => { setRadioActive(btns, value); if (sw) { seg.setAttribute("aria-checked", String(value === onIs)); btns.forEach((b) => (b.tabIndex = -1)); } measure(true); };
   const set = (v: unknown, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears; a value matching no segment is ignored
