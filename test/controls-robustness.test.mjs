@@ -49,6 +49,11 @@ test("a plot expression that doesn't parse flags aria-invalid on its input", asy
     assert.equal(input.getAttribute("aria-invalid"), "false");
     p.set("f", "sin(");
     assert.equal(input.getAttribute("aria-invalid"), "true");
+    p.set("f", "sin x^2");
+    assert.equal(input.title, "write sin(…)"); // the reason, naming the fix
+    p.set("f", "sin x");
+    assert.equal(input.getAttribute("aria-invalid"), "false");
+    assert.equal(input.title, "");
   } finally { p.destroy(); }
 });
 
