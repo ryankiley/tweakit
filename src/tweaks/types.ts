@@ -127,7 +127,7 @@ export type SchemaObject =
 
 /** A schema value — a shorthand, a verbose `{ type }` object, or a nested folder. */
 export type SchemaValue =
-  | number                                          // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative mirrors that below zero)
+  | number                                          // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative spans that either side of zero)
   | boolean                                         // → checkbox
   | string                                          // a label, or a color string → color picker
   | readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number] // [value, min?, max?, step?] → slider

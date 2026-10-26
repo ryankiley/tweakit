@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout fixture</title>
+<link rel="stylesheet" href="/tweaks.css">
+<style>body { margin: 24px; display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; font: 13px system-ui, sans-serif; }</style>
+<script type="module">
+  // Panels the layout tests measure: one of each one-line control, then content built to push a row wide.
+  import { tweaks } from "/tweaks/core.js";
+  const rows = tweaks("Rows", {
+    slider: [5, 0, 10, 1], number: { type: "number", value: 3 }, check: true, list: ["a", "b"], color: "#7c5cff",
+    text: "Hi", seg: { type: "segmented", options: ["a", "b", "c"] }, image: { type: "image" },
+    ramp: { type: "gradient", stops: [["#000", 0], ["#fff", 1]] }, drop: { type: "shadow" }, pad: { type: "sides", value: 8 },
+    ease: { type: "motion" }, at: { type: "point", components: [{ key: "x" }, { key: "y" }] }, go: { action: () => {} },
+  });
+  const long = "an option whose label runs far wider than any panel could hold";
+  const wide = tweaks("Wide", {
+    pick: [long, "b"], tall: { type: "tabs", pages: Object.fromEntries(["Layout and spacing", "Typography scale", "Color and contrast", "Motion"].map((t) => [t, { v: [1, 0, 2, 0.1] }])) },
+    group: { type: "buttongroup", buttons: Object.fromEntries("ABCDEFGH".split("").map((k) => [`Button ${k}`, () => {}])) },
+    aVeryLongKeyNameThatWouldMakeALabelOverflow: [1, 0, 2, 0.1], note: long + " " + long,
+  });
+  const float = tweaks("Float", { x: [1, 0, 2, 0.1] }, { floating: { x: 40, y: 400 } });
+  document.body.append(rows.el, wide.el, float.el);
+  Promise.all([rows.ready, wide.ready, float.ready]).then(() => { document.body.dataset.ready = ""; });
+</script>

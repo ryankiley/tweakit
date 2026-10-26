@@ -10,11 +10,12 @@ hand.
 npm install
 npm run build      # → dist/ (split chunks, single file, CSS, .d.ts, docs site)
 npm test           # build, then the suite (Node's runner + jsdom)
+npm run test:browser  # layout in Playwright's Chromium, against the build (npx playwright install chromium once)
 npm run serve      # build + serve the docs site on :4330
 ```
 
-Node 22 (what CI runs; the build itself works on 20+, but the jsdom test suite needs 22.22, 24.15 or newer). There are no runtime dependencies and only three dev ones (esbuild, jsdom,
-typescript).
+Node 22 (what CI runs; the build itself works on 20+, but the jsdom test suite needs 22.22, 24.15 or newer). There are no runtime dependencies; the dev ones are only
+for the build (esbuild, typescript) and the tests (jsdom, and Playwright for the browser checks).
 
 ## Where things live
 
@@ -34,7 +35,7 @@ typescript).
 - `src/wide-gamut.ts` — the OKLCH / wide-gamut color engine.
 - `src/tweaks.css` — panel styling, entirely on `--tw-*` custom properties.
 - `site/` — the docs/examples site and its zero-dependency generator.
-- `test/` — the `npm test` suite.
+- `test/` — the `npm test` suite; `test/browser/` the layout checks jsdom can't make (row heights, label insets, overflow, drag).
 
 ## Conventions worth knowing
 

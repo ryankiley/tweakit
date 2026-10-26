@@ -57,7 +57,7 @@ panel.ready.then(() => apply(panel.params));
 
 | You write | Control | `params` value |
 | --- | --- | --- |
-| `24` | slider; range 0 to 1 for a value up to 1, else 0 to 3 times the value; a negative value mirrors that below 0 | number |
+| `24` | slider; range 0 to 1 for a value up to 1, else 0 to 3 times the value; a negative value spans that either side of 0 (`-45` gives −135 to 135) | number |
 | `[1.2, 0, 3, 0.1]` | slider with min, max, step; `[v]`, `[v, min]` and `[v, min, max]` fill in the rest; up to four numbers are always this tuple, never a list | number |
 | `[[20, 80], 0, 100]` | interval, two handles | `[lo, hi]` |
 | `true` | checkbox | boolean |
@@ -69,7 +69,7 @@ panel.ready.then(() => apply(panel.params));
 | `{ x: 0, y: 10 }` | folder of controls | nested object |
 | `{ type: "…", … }` | that control, verbatim (next table) | per control |
 
-A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10. Keys become labels, title-cased; `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
+A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default would fall between steps (`37` steps by 1, not 10). Keys become labels, title-cased; `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
 
 In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and value types but widens list options to `string`; write it `as const` to keep them.
 
