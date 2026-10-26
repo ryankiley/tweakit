@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { crc32 } from "node:zlib";
 import "./_setup-dom.mjs";
 import { bundle } from "./_bundle.mjs";
-import { loadSingle, tick } from "./_helpers.mjs";
+import { loadSingle } from "./_helpers.mjs";
 
 const { animated, strip } = await bundle("src/tweaks/controls/image.ts");
 const { tweaks } = await loadSingle();
@@ -155,13 +155,14 @@ test("a file with nothing to cut, or one that doesn't parse, comes back as it is
 });
 
 // The control, through the plain row. jsdom's FileReader reads only jsdom's Blobs, so the kit's new Blob is jsdom's here.
-const upload = async (b, type, schema = { type: "image" }) => {
+// It resolves on the upload's one commit, not after a fixed wait: on a loaded CI runner the read outlasted 30 ms.
+const upload = (b, type, schema = { type: "image" }) => new Promise((resolve, reject) => {
   const p = tweaks("I", { pic: schema }), e = new Event("drop", { bubbles: true, cancelable: true });
+  const late = setTimeout(() => reject(new Error("the upload never landed")), 5000);
+  p.on((v, key) => { if (key === "pic") { clearTimeout(late); resolve(v.pic); } });
   e.dataTransfer = { files: [new window.File([b], "x", { type })] };
   p.el.querySelector(".tw-image .tw-trigger").dispatchEvent(e);
-  await tick(30);
-  return p.params.pic;
-};
+});
 const b64 = (b) => Buffer.from(b).toString("base64");
 // Each stub is [object, key, value], put back afterwards.
 const stubbed = async (stubs, fn) => {
