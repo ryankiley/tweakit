@@ -30,6 +30,43 @@ test("every input form, and the CSS shorthand the four collapse to", async () =>
   q.destroy();
 });
 
+// Collect the warnings fn raises.
+const warnings = async (fn) => {
+  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
+  try { await fn(); return msgs; } finally { console.warn = warn; }
+};
+
+test("a string keeps its unit when its sides agree; an explicit unit wins; mixed units warn and read as px", async () => {
+  let p;
+  const quiet = await warnings(async () => { p = await mount({ a: { type: "sides", value: "1rem 2rem" }, b: { type: "sides", value: "0 3em" }, c: { type: "sides", value: "1rem 2" }, d: { type: "sides", value: "1rem", unit: "px" }, e: { type: "sides", value: "8PX 0" }, f: { type: "sides", value: "0px 2rem" } }); });
+  assert.deepEqual(quiet, [], "one unit, however it's spelled, is no mistake");
+  const v = p.params;
+  assert.deepEqual([four(v.a), v.a.css], [[1, 2, 1, 2], "1rem 2rem"], "a 2rem padding stays 2rem");
+  assert.equal(v.b.css, "0 3em", "a bare 0 doesn't vote");
+  assert.equal(v.c.css, "1rem 2rem", "a unitless side takes the string's unit");
+  assert.equal(v.d.css, "1px", "an explicit unit wins over the string's");
+  assert.equal(v.e.css, "8px 0");
+  assert.equal(v.f.css, "0 2rem", "0px is 0 in any unit, so it doesn't disagree");
+  const a = p.el.querySelectorAll(".tw-sides")[0];
+  assert.equal(a.querySelector(".tw-sides-sum").textContent, "1 2 1 2rem"); assert.equal(a.querySelector(".tw-sides-multi .tw-num").getAttribute("aria-label"), "Top (rem)", "the fields edit in the string's unit");
+  p.set("a", "4px"); assert.equal(p.params.a.css, "4rem", "set() reads numbers in the control's unit, as before");
+  p.destroy();
+  const mixed = await warnings(async () => { p = await mount({ m: { type: "sides", value: "1rem 2em 3% 4" } }); });
+  assert.deepEqual([four(p.params.m), p.params.m.css], [[1, 2, 3, 4], "1px 2px 3px 4px"], "the numbers keep, in one unit");
+  assert.equal(mixed.length, 1); assert.match(mixed[0], /"M".*top rem, right em, bottom %\).*read as px/);
+  p.destroy();
+});
+
+test("a default it can't read warns and starts at 0", async () => {
+  let p;
+  const msgs = await warnings(async () => { p = await mount({ a: { type: "sides", value: [1, 2, 3, 4, 5] }, b: { type: "sides", value: "calc(1px + 2px)" }, c: { type: "sides", value: "var(--pad)" }, d: { type: "sides", value: "wide" }, e: { type: "sides" } }); });
+  assert.deepEqual(["a", "b", "c", "d", "e"].map((k) => p.params[k].css), ["0", "0", "0", "0", "0"]);
+  assert.equal(msgs.length, 4, "one each; no value is no mistake");
+  [/"A": can't read \[1,2,3,4,5\]/, /"B": can't read "calc\(1px \+ 2px\)"/, /"C": can't read "var\(--pad\)"/, /"D": can't read "wide"/].forEach((re, i) => assert.match(msgs[i], re));
+  assert.ok(msgs.every((m) => m.includes("starts at 0")), "each says what it did");
+  p.destroy();
+});
+
 test("linked by default when the four agree; the toggle opens the fields; linking takes the first side", async () => {
   const p = await mount({ pad: { type: "sides", value: 8 } });
   const root = p.el.querySelector(".tw-sides"), row = root.querySelector(":scope > .tw-row"), link = row.querySelector(".tw-sides-link");
@@ -79,11 +116,13 @@ test("set() in any form re-judges the link; corners wear corner glyphs, clockwis
 
 test("markup: data-value as a shorthand, or the sides as attributes", async () => {
   const holder = document.createElement("div"); document.body.append(holder);
-  holder.innerHTML = `<div data-tw="sides" data-label="Pad" data-value="8px 16px"></div><div data-tw="sides" data-label="Round" data-corners="true" data-top="4" data-right="8" data-unit="rem"></div>`;
-  await enhance(holder);
-  const [a, b] = [...holder.querySelectorAll('[data-tw="sides"]')].map((h) => h._tw.ctrl.get());
+  holder.innerHTML = `<div data-tw="sides" data-label="Pad" data-value="8px 16px"></div><div data-tw="sides" data-label="Round" data-corners="true" data-top="4" data-right="8" data-unit="rem"></div><div data-tw="sides" data-label="Gap" data-value="1rem 2rem"></div><div data-tw="sides" data-label="None"></div>`;
+  const msgs = await warnings(() => enhance(holder));
+  const [a, b, c, d] = [...holder.querySelectorAll('[data-tw="sides"]')].map((h) => h._tw.ctrl.get());
   assert.deepEqual([four(a), a.css], [[8, 16, 8, 16], "8px 16px"]);
   assert.deepEqual([four(b), b.css], [[4, 8, 0, 0], "4rem 8rem 0 0"]);
-  assert.deepEqual([...holder.querySelectorAll(".tw-field-label")].map((l) => l.dataset.at), ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-right", "bottom-left"]);
+  assert.equal(c.css, "1rem 2rem", "data-value's unit, as a schema string's");
+  assert.deepEqual([d.css, msgs], ["0", []], "a host with no sides at all starts at 0, quietly");
+  assert.deepEqual([...holder.querySelectorAll(".tw-field-label")].map((l) => l.dataset.at).slice(0, 8), ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-right", "bottom-left"]);
   holder.remove();
 });

@@ -15,19 +15,39 @@ const LEN_RE = /^(-?\d*\.?\d+)([a-z%]*)$/i;
 const num = (v: unknown) => (v != null && v !== "" && Number.isFinite(+v) ? +v : null);
 const fmt = (n: number) => String(+n.toFixed(2));
 const expand = (n: number[]) => (n.length === 1 ? [n[0], n[0], n[0], n[0]] : n.length === 2 ? [n[0], n[1], n[0], n[1]] : n.length === 3 ? [n[0], n[1], n[2], n[1]] : n.slice(0, 4));
+// A shorthand string as one to four [number, unit] pairs, or null for anything else: calc(), var(), five lengths, junk.
+const lengths = (s: string) => { const m = s.trim().split(/\s+/).map((t) => LEN_RE.exec(t)); return m.length <= 4 && m.every(Boolean) ? (m as RegExpExecArray[]).map((x) => [+x[1], x[2].toLowerCase()] as const) : null; };
 // Any form to four numbers, or null; an object fills in from `cur`, so `{ top: 4 }` moves one side.
 const read = (v: unknown, cur: number[]): number[] | null => {
   if (typeof v === "number") return Number.isFinite(v) ? [v, v, v, v] : null;
-  if (typeof v === "string") { const n = v.trim().split(/\s+/).map((t) => { const m = LEN_RE.exec(t); return m ? +m[1] : NaN; }); return n.length >= 1 && n.length <= 4 && n.every(Number.isFinite) ? expand(n) : null; }
+  if (typeof v === "string") { const n = lengths(v); return n ? expand(n.map((x) => x[0])) : null; }
   if (Array.isArray(v)) { const n = v.map(num); return n.length >= 1 && n.length <= 4 && n.every((x) => x !== null) ? expand(n as number[]) : null; }
   if (v && typeof v === "object") { const o = v as Record<string, unknown>, out = cur.slice(); let any = false; (["top", "right", "bottom", "left"] as const).forEach((k, i) => { const x = num(o[k]); if (x !== null) { out[i] = x; any = true; } }); return any ? out : null; }
   return null;
 };
 
+// The unit a shorthand string says, when its sides agree: "1rem 2rem" is rem, and so is "0 1rem 2". A zero doesn't vote,
+// as 0 is 0 in any unit. Mixed units can't be kept, since the control edits four numbers in one unit, so they warn and
+// read as px, as every string did before; "" when the string names no unit.
+const saidUnit = (v: unknown, name: string, sides: string[]) => {
+  const n = typeof v === "string" && lengths(v); if (!n) return "";
+  const said = expand(n.map((_, i) => i)).map((i, s) => [sides[s].toLowerCase(), n[i][0] ? n[i][1] : ""]).filter(([, u]) => u);
+  if (new Set(said.map(([, u]) => u)).size < 2) return said.length ? said[0][1] : "";
+  console.warn(`[tweaks] sides "${name}": "${v}" mixes units (${said.map((s) => s.join(" ")).join(", ")}) and the control edits one, so all four read as px; write one unit, or set unit`);
+  return "";
+};
+
 function createSides(meta: Meta, onChange: OnChange): Control {
-  const unit = typeof meta.unit === "string" && meta.unit.trim() ? meta.unit.trim() : "px", corners = !!meta.corners;
+  const corners = !!meta.corners, names = corners ? ["Top-left", "Top-right", "Bottom-right", "Bottom-left"] : ["Top", "Right", "Bottom", "Left"];
+  const name = meta.label || meta.key, init = meta.value ?? meta;
+  const unit = (typeof meta.unit === "string" && meta.unit.trim()) || saidUnit(init, name, names) || "px"; // an explicit unit wins over the string's
   const spec = { step: meta.step ?? 1, min: meta.min ?? (corners ? 0 : undefined), max: meta.max, unit }; // a radius can't go negative; a margin can
-  let v = read(meta.value ?? meta, [0, 0, 0, 0]) || [0, 0, 0, 0], linked = v.every((x) => x === v[0]);
+  let v = read(init, [0, 0, 0, 0]);
+  // A default it can't read still starts at 0, but says so: a padding that quietly lost its value looks like the page's bug.
+  // An object naming no side stays quiet, as markup hands its whole dataset over when there's no data-value.
+  if (!v && meta.value != null && (typeof meta.value !== "object" || Array.isArray(meta.value))) console.warn(`[tweaks] sides "${name}": can't read ${JSON.stringify(meta.value)?.slice(0, 60)}, so it starts at 0; it takes one to four numbers or plain lengths, like "8px 16px"`);
+  v = v || [0, 0, 0, 0];
+  let linked = v.every((x) => x === v[0]);
   const root = el("div", "tw-sides");
   const all = numField({ label: meta.label, value: v[0], row: true, ...spec }, (n) => { v = [n, n, n, n]; update(); emit(); });
   // One toggle, moved to whichever block is showing; last in both, so it sits on the same pixels either way. It says what
@@ -38,7 +58,6 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   const multi = el("div", "tw-sides-multi"), head = el("div", "tw-sides-head"), sum = el("span", "tw-sides-sum"), nums = document.createTextNode("");
   sum.append(nums, txt("span", "tw-sides-unit", unit)); head.append(txt("span", "tw-row-label", meta.label), sum);
   const fields = el("div", "tw-fields");
-  const names = corners ? ["Top-left", "Top-right", "Bottom-right", "Bottom-left"] : ["Top", "Right", "Bottom", "Left"];
   const flds: NumField[] = names.map((n, i) => numField({ label: n, value: v[i], ...spec }, (x) => { v[i] = x; update(); emit(); }));
   // The input and the tooltip carry the full name; on screen each field wears its glyph, one drawing turned per place.
   flds.forEach((f, i) => { const lab = f.el.querySelector<HTMLElement>(".tw-field-label")!; lab.title = names[i]; lab.classList.add("tw-sides-glyph"); lab.dataset.at = names[i].toLowerCase(); lab.innerHTML = corners ? ICON_CORNER : ICON_EDGE; fields.append(f.el); });

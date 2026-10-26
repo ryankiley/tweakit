@@ -15,7 +15,8 @@ export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" |
 
 /** What a sides control accepts: one number for all four; `[vertical, horizontal]`,
  *  `[top, horizontal, bottom]` or `[top, right, bottom, left]` (CSS order); a CSS shorthand
- *  string like `"8px 16px"` (the numbers are read in the control's unit); or any subset of
+ *  string like `"1rem 2rem"` (its unit becomes the control's when `unit` isn't given; mixed
+ *  units warn and read as px); or any subset of
  *  the four as an object. With `corners: true` the four are the corners from top-left round,
  *  the same CSS order, under the same keys, and they floor at 0 unless `min` says otherwise. */
 export type SidesInput = number | readonly number[] | string | { top?: number; right?: number; bottom?: number; left?: number };
