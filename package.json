@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "build": "node build.mjs",
-    "test": "node build.mjs --sourcemap && node --enable-source-maps --test \"test/*.test.mjs\"",
+    "test": "node build.mjs && node --enable-source-maps --test \"test/*.test.mjs\"",
     "prepublishOnly": "npm test",
     "prepack": "node build.mjs",
     "serve": "node build.mjs && python3 -m http.server 4330 --directory dist",
@@ -60,6 +60,7 @@
     "/AGENTS.md",
     "dist/tweaks",
     "dist/tweaks.js",
+    "dist/tweaks.js.map",
     "dist/tweaks.css",
     "dist/tweaks.css.d.ts",
     "dist/types",

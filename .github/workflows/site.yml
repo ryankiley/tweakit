@@ -28,7 +28,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node build.mjs --sourcemap # maps, so a failing test's trace names source lines
+      - run: node build.mjs # with maps, so a failing test's trace names source lines
       - run: node --enable-source-maps --test "test/*.test.mjs" # against the dist just built; the quoted glob skips the _helpers
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         if: ${{ github.event_name != 'pull_request' }} # the artifact only feeds the deploy job, which a PR run never reaches
