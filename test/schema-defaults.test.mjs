@@ -408,3 +408,20 @@ test("a point takes its components from value: { x, y }, and a value beside comp
   assert.deepEqual(p.params.marker, { type: "point", size: 3 }, "with neither, still a folder holding a child named type");
   p.destroy();
 });
+
+// null and true read as 0 and 1, "abc" dropped its component without a word, and a JSON "__proto__" became a component.
+test("a point's value components are numbers: a numeric string parses, junk starts at 0 with one notice, reserved keys are skipped", async () => {
+  const warns = [], orig = console.warn; console.warn = (...a) => warns.push(a.join(" "));
+  try {
+    const p = tweaks("PtV", { a: { type: "point", value: { x: null, y: true } }, b: { type: "point", value: { x: "3", y: "abc" } }, c: { type: "point", value: JSON.parse('{"x":1,"__proto__":5,"constructor":2}') }, d: { type: "point", components: [{ key: "x" }, { key: "__proto__" }], value: { x: " " } } });
+    await p.ready; await new Promise((r) => setTimeout(r, 20)); // the message comes from a lazy chunk
+    assert.deepEqual(p.params.a, { x: 0, y: 0 });
+    assert.deepEqual(p.params.b, { x: 3, y: 0 });
+    assert.deepEqual(Object.keys(p.params.c), ["x"]); assert.equal(p.params.c.x, 1);
+    assert.deepEqual(Object.keys(p.params.d), ["x"]); assert.equal(p.params.d.x, 0);
+    assert.equal(warns.length, 3, warns.join("\n"));
+    assert.match(warns[0], /"a".*isn't a number.*\(x, y\)/);
+    assert.match(warns[1], /"b".*\(y\)/);
+    p.destroy();
+  } finally { console.warn = orig; }
+});

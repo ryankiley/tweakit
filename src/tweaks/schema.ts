@@ -1,7 +1,7 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
  * or verbose `{ type }`), and a [data-tw] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
-import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, TYPE_ALIASES, hasOwn, isReservedKey, SPRING_KEYS } from "./shared.js";
+import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, TYPE_ALIASES, hasOwn, isReservedKey, SPRING_KEYS, notice } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
@@ -67,7 +67,7 @@ const fnOf = (f: unknown) => (typeof f === "function" ? (f as any) : undefined);
 const unitOf = (u: unknown) => (typeof u === "string" && u.trim() ? u.trim().slice(0, 12) : undefined);
 // Typed against the public SchemaObject union, so tsc flags a control type added to types.ts
 // but missing here. "button" has no handler: the `{ action }` shorthand covers its verbose form.
-const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) => MetaFields>> = {
+const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, key: string) => MetaFields>> = {
   // Absent min/max derive in the control from the value the range must contain, like the bare-number shorthand:
   // `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`.
   slider: (v) => ({ value: v.value ?? v.min ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit), format: fnOf(v.format), parse: fnOf(v.parse) }),
@@ -101,20 +101,27 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) =
     if (value.mode !== "easing" && value.mode !== "spring") value.mode = springy ? "spring" : "easing";
     return { value };
   },
-  point: (v) => {
+  point: (v, _depth, at) => {
     // `value: { x: 0, y: 0 }`, the shape the control hands back, names the components itself; a value beside components sets
-    // their defaults. Without either, it's a folder with a child named `type`, as before.
-    const named = isObj(v.value) && !Array.isArray(v.value) ? Object.entries(v.value).filter(([, n]) => Number.isFinite(+(n as number))) : [];
-    if ((!Array.isArray(v.components) || !v.components.length) && named.length) v = { ...v, components: named.map(([key, n]) => ({ key, value: +(n as number) })) };
+    // their defaults. Without either, it's a folder with a child named `type`, as before. A value's component is a finite
+    // number or a numeric string; anything else (null, true, "abc") starts at 0 with one notice. A reserved key is skipped.
+    const bad: string[] = [];
+    const num = (k: string, n: unknown) => { const x = typeof n === "number" ? n : typeof n === "string" && n.trim() ? +n : NaN; if (Number.isFinite(x)) return x; bad.push(k); return 0; };
+    const named = isObj(v.value) && !Array.isArray(v.value) ? Object.keys(v.value).filter((k) => !isReservedKey(k)) : [];
+    if ((!Array.isArray(v.components) || !v.components.length) && named.length) v = { ...v, components: named.map((key) => ({ key })) };
     if (!Array.isArray(v.components) || !v.components.length) return false;
     // A keyless component takes its label (lower-cased) or index; keys dedupe so two can't share one param.
     const used = new Set<string>();
-    const components = v.components.map((c: any, k: number) => {
-      const base = String(c.key ?? ((c.label ? String(c.label).toLowerCase() : "") || `c${k}`));
+    const components = v.components.flatMap((c: any, k: number) => {
+      const label = c.label ? String(c.label).toLowerCase() : "";
+      const base = String(c.key ?? ((isReservedKey(label) ? "" : label) || `c${k}`));
+      if (isReservedKey(base)) return [];
       let key = base, n = 2; while (used.has(key)) key = `${base}-${n++}`; used.add(key);
-      const own = isObj(v.value) && hasOwn(v.value, key) && Number.isFinite(+v.value[key]) ? +v.value[key] : undefined;
-      return { ...c, key, ...(own !== undefined && { value: own }) };
+      const own = isObj(v.value) && hasOwn(v.value, key) ? num(key, v.value[key]) : undefined;
+      return [{ ...c, key, ...(own !== undefined && { value: own }) }];
     });
+    if (bad.length) notice("pointValue", at, bad.join(", "));
+    if (!components.length) return false;
     return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) }; // the default component map, for reset()
   },
   buttongroup: (v) => ({ buttons: v.buttons }),
@@ -142,7 +149,7 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     // A handler that throws or returns nothing for a malformed shape skips that control, not
     // the whole panel. The label is resolved here, once, so every verbose form honors `{ label }`.
     let fields: MetaFields;
-    try { fields = TYPED_META[value.type as keyof typeof TYPED_META]!(value, depth); } // a guard can't narrow a property of an `any`
+    try { fields = TYPED_META[value.type as keyof typeof TYPED_META]!(value, depth, key); } // a guard can't narrow a property of an `any`
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
     if (fields) return meta(String(value.type), fields, ownLabel(value, label)); // a String object would miss m.type === "tabs" downstream
     // Nothing back with the hinge field present is malformed. Absent, this is a plain folder
