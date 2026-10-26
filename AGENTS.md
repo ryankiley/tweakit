@@ -82,9 +82,9 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `slider` | `value, min, max, step, unit, soft, format, parse` | number |
 | `number` | `value, min, max, step, unit, soft` | number |
 | `interval` | `value: [lo, hi], min, max, step` | `[lo, hi]` |
-| `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`), `unit, step, min, max, corners`; the four floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
+| `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`, whose unit is used when `unit` isn't given), `unit, step, min, max, corners`; the four floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
 | `point` | `components: [{ key, label, value, min, max, step }], pad, invertY` | an object keyed by component, such as `{ x, y }` |
-| `checkbox` | `value` | boolean |
+| `checkbox` | `value`; `type: "toggle"` or `"switch"` names it too | boolean |
 | `text` | `value, rows, placeholder` | string |
 | `list` | `options, value` | string |
 | `segmented` | `options, value, cols` | string |
@@ -92,10 +92,10 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `color` | `value` | color string in the picker's notation: `oklch(60% 0.23 286)` by default, whatever you wrote; `#rrggbb` once the user picks hex |
 | `gradient` | `stops: [[color, position], …]` | `{ stops: [{ color, pos }], interpolation, easing }`, which goes back in whole as `value`; `gradientCss(value, angle)` makes the CSS |
 | `shadow` | `x, y, blur, spread, color, inset`, or `value` as a `box-shadow` string | `{ x, y, blur, spread, color, inset, css }`; `css` is ready for `box-shadow` |
-| `image` | `value`; `options` (URLs or `{ value, label }`) makes a row that opens a gallery pane, with `cols` (1 to 6), `maxSize, upload`, and `clear: false` to keep a value chosen; an upload past `fit` px (2560) on its long side, or over 1.5 MB, is redrawn, as a PNG up to 1.5 MB, else JPEG at `quality` (0.85), or WebP for transparency; `fit: false` keeps it whole | the chosen URL, the upload's data URL, or `""` |
+| `image` | `value`; `options` (URLs or `{ value, label }`) makes a row that opens a gallery pane, with `cols` (1 to 6), `maxSize, upload`, and `clear: false` to keep a value chosen; an upload past `fit` px (2560) on its long side, or over 1.5 MB, is redrawn, in Display P3 where the browser can, as a PNG up to 1.5 MB, else JPEG at `quality` (0.85), or WebP for transparency; an animated GIF, WebP or PNG is never redrawn, and a JPEG or PNG kept as it is loses its Exif and XMP (GPS); `fit: false` never redraws | the chosen URL, the upload's data URL, or `""` |
 | `motion` | `mode: "easing"` with `curve` and `duration` (ms), or `mode: "spring"` with `stiffness, damping, mass` or `visualDuration, bounce` | `{ mode, …, duration, easing }`; `easing` is a `cubic-bezier(…)` or sampled `linear(…)` string for a CSS transition; a spring's `duration` is its settle time |
 | `spring` | `mode: "time"` or `"physics"`, `visualDuration, bounce, stiffness, damping, mass` | `{ stiffness, damping, mass }`, plus the time pair when tuned by feel |
-| `cubicbezier` | `value: [x1, y1, x2, y2]` | `[x1, y1, x2, y2]` |
+| `cubicbezier` | `value: [x1, y1, x2, y2]`; `type: "bezier"` names it too | `[x1, y1, x2, y2]` |
 | `plot` | `expr` or `fn`, `xMin, xMax, yMin, yMax, samples, editable` | the expression string, `""` when drawn from `fn` |
 | `monitor` | `get: () => number` (or a string), or `value`, `graph, view, min, max, interval, rows, decimals` | none; it watches |
 | `fpsgraph` | none | none; a frame-rate graph |
@@ -109,7 +109,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 `tweaks(name, schema, options?)` returns synchronously.
 
 - `panel.el`: append it. `panel.params`: live values, nested like the schema, updated in place. It holds values only.
-- `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the bare leaf (`blur`, not `shadow.blur`), so read nested values off `params` rather than switching on the key.
+- `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the control's dotted path, as `set()` and `changes()` name it (`size` at the top, `card.size` in a folder), or `undefined` when many changed at once (a restore, `reset()`, `fromJSON`, `setMany`).
 - `panel.ready`: resolves once lazy controls have built.
 - `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; a key no control has is refused with a console warning, and a number past a hard range clamps, with a console warning once a key; `{ silent: true }` skips your listeners.
 - `panel.changes()`: the values that differ from their defaults, keyed by dotted path. `panel.reset()` restores the defaults.

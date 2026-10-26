@@ -332,3 +332,14 @@ test("a non-finite default reads as 0 everywhere", () => {
   assert.deepEqual([p.params.a, p.params.b, p.params.c], [0.01, 0.01, 0.01]);
   p.destroy();
 });
+
+// { type: "bezier" } and { type: "toggle" } built folders, the bezier's curve mangled into a slider, where the source file is
+// bezier.ts and the checkbox draws as an Off/On toggle.
+test("bezier, toggle and switch name the cubicbezier and checkbox controls, in a schema and in markup", async () => {
+  const p = tweaks("Alias", { back: { type: "bezier", value: [0.42, 0, 0.58, 1] }, on: { type: "toggle", value: true }, flag: { type: "switch" } });
+  await p.ready;
+  assert.deepEqual(p.params, { back: [0.42, 0, 0.58, 1], on: true, flag: false });
+  const host = document.createElement("div"); host.dataset.tw = "toggle"; host.dataset.checked = "true"; document.body.append(host);
+  try { await enhance(host); assert.equal(host._tw.ctrl.get(), true); } finally { host.remove(); }
+  p.destroy();
+});

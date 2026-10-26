@@ -15,7 +15,8 @@ export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" |
 
 /** What a sides control accepts: one number for all four; `[vertical, horizontal]`,
  *  `[top, horizontal, bottom]` or `[top, right, bottom, left]` (CSS order); a CSS shorthand
- *  string like `"8px 16px"` (the numbers are read in the control's unit); or any subset of
+ *  string like `"1rem 2rem"` (its unit becomes the control's when `unit` isn't given; mixed
+ *  units warn and read as px); or any subset of
  *  the four as an object. With `corners: true` the four are the corners from top-left round,
  *  the same CSS order, under the same keys, and they floor at 0 unless `min` says otherwise. */
 export type SidesInput = number | readonly number[] | string | { top?: number; right?: number; bottom?: number; left?: number };
@@ -84,14 +85,14 @@ export type SchemaObject =
        *  returns anything but a finite number) leaves the value where it was. */
       parse?: (text: string) => number }
   | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
-  | { type: "checkbox"; value?: boolean }
+  | { type: "checkbox" | "toggle" | "switch"; value?: boolean }
   | { type: "list"; options: readonly Option[]; value?: string }
   | { type: "radiogrid" | "segmented"; options: readonly Option[]; value?: string; cols?: number }
   | { type: "color"; value?: string }
   | { type: "text"; value?: string; rows?: number; placeholder?: string }
   | { type: "interval"; value?: readonly [number, number]; min?: number; max?: number; step?: number }
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
-  | { type: "cubicbezier"; value?: readonly [number, number, number, number] }
+  | { type: "cubicbezier" | "bezier"; value?: readonly [number, number, number, number] }
   | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
   | { type: "sides"; value?: SidesInput; corners?: boolean; unit?: string; step?: number; min?: number; max?: number; top?: number; right?: number; bottom?: number; left?: number }
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
@@ -180,11 +181,11 @@ type Hinge = { list: "options"; radiogrid: "options"; segmented: "options"; poin
 // A hinge field there but unusable skips the control at runtime, so it puts nothing on params.
 type TypedValue<V> =
   V extends { readonly type: "slider" | "number" } ? number
-  : V extends { readonly type: "checkbox" } ? boolean
+  : V extends { readonly type: "checkbox" | "toggle" | "switch" } ? boolean
   : V extends { readonly type: "list" | "radiogrid" | "segmented" } ? (V extends { readonly options: readonly (infer O)[] } ? OptionValue<O> : never)
   : V extends { readonly type: "color" | "text" | "image" | "plot" } ? string
   : V extends { readonly type: "interval" } ? [number, number]
-  : V extends { readonly type: "cubicbezier" } ? [number, number, number, number]
+  : V extends { readonly type: "cubicbezier" | "bezier" } ? [number, number, number, number]
   : V extends { readonly type: "spring" } ? SpringValue
   : V extends { readonly type: "motion" } ? MotionValue
   : V extends { readonly type: "shadow" } ? ShadowValue
@@ -344,7 +345,8 @@ export interface Panel<P = Params> {
   /** Resolves once any lazily-loaded controls have hydrated and, for a panel that persists an image control, its
    *  stored images have loaded (resolves immediately when there's neither). */
   ready: Promise<Panel<P>>;
-  /** Subscribe to changes; `last` is the changed key, the bare leaf (`blur`, not `shadow.blur`). */
+  /** Subscribe to changes; `last` is the changed control's dotted path (`size`, `card.size`), as `set()` and `changes()`
+   *  name it, or undefined when many changed at once (a restore, `reset()`, `fromJSON`, `setMany`). */
   on(fn: (params: P, last?: string) => void): () => void;
   /** Set a control's value programmatically. Nested controls take a dotted path
    *  ("folder.child", "tabs.page.child"); a bare key also reaches a nested control

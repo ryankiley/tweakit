@@ -38,7 +38,7 @@ export function tweaks<const S extends Schema>(name: string, schema: S, opts?: T
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
   const metas = Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean);
   const params: Params = {};
-  let last: string | undefined; // the key the latest change touched, the bare leaf: on()'s second argument
+  let last: string | undefined; // the dotted path the latest change touched (`card.size`), as set() and changes() name it: on()'s second argument
   const entries: Entry[] = []; // flattened across folders, for reset + persist
   const subTrees = new Set<Target>(); // set() refuses to overwrite one: it orphans every child
   const listeners = new Set<(p: Params, last?: string) => void>();
@@ -291,7 +291,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   }
 
   // Per-control reset. The target is LABEL_SEL — the hint marker's list, so the two can't drift — or the root.
-  const resetEntry = (e: Entry) => { assignDefault(e); last = e.key; notify(); };
+  const resetEntry = (e: Entry) => { assignDefault(e); last = e.path.join("."); notify(); };
   const wireReset = (root: HTMLElement, entry: Entry) => {
     const t = root.querySelector<HTMLElement>(".tw-slider-value")
       || root.querySelector<HTMLElement>(LABEL_SEL)
@@ -376,7 +376,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         continue;
       }
       const valued = !VALUELESS.has(m.type);
-      const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; last = m.key; notify(); } : () => {}); // same-value emits (a re-entrant echo) don't notify
+      const dotted = [...basePath, m.key].join("."); // a bare leaf couldn't tell size from card.size
+      const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; last = dotted; notify(); } : () => {}); // same-value emits (a re-entrant echo) don't notify
       if (!ctrl) continue;
       adopt(ctrl);
       if (valued) {
@@ -815,7 +816,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; }
     clampNote(e, key, v);
     if (!valueChanged(prev, e.target[e.key])) return false; // keeps a store-sync listener from echoing forever
-    last = e.key; // on((p, last)) sees programmatic sets like control edits
+    last = e.path.join("."); // on((p, last)) sees programmatic sets like control edits
     return true;
   };
 
@@ -828,7 +829,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     setMany(values, o) {
       if (values == null || typeof values !== "object") return;
       const batch = Object.entries(values), silent = o?.silent; // read now, so a later mutation can't reach the replay
-      later(() => { let changed = false; for (const [k, v] of batch) { try { if (applySet(k, v)) changed = true; } catch (e) { console.error(`[tweaks] setMany("${k}") failed — key skipped:`, e); } } if (changed) notify(silent); }); // per-key isolation: a bad bag value costs only its key
+      later(() => { let changed = 0; for (const [k, v] of batch) { try { if (applySet(k, v)) changed++; } catch (e) { console.error(`[tweaks] setMany("${k}") failed — key skipped:`, e); } } if (changed > 1) last = undefined; if (changed) notify(silent); }); // per-key isolation: a bad value costs only its key; one changed key is named, many aren't
     },
     reset() { if (assembled && !destroyed) spinReset(resetBtn); later(resetAll); },
     // Whole-panel state — values + UI as a JSON-safe object (the standard toJSON hook). Before ready there

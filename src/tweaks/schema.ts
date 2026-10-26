@@ -1,7 +1,7 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
  * or verbose `{ type }`), and a [data-tw] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
-import { titleCase, isObj, isColorStr, decimalStep, optValue, getControl, controlTypes } from "./shared.js";
+import { titleCase, isObj, isColorStr, decimalStep, optValue, getControl, controlTypes, TYPE_ALIASES } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
@@ -144,6 +144,7 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   if (depth > 64) return null; // a pathological depth is skipped, not a RangeError
   const label = titleCase(key);
   const meta = (type: string, fields: Partial<Meta>, lab = label): Meta => ({ type, key, label: lab, ...fields });
+  if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && TYPE_ALIASES[value.type]) value = { ...value, type: TYPE_ALIASES[value.type] };
   if (isObj(value) && !Array.isArray(value) && hasOwn(TYPED_META, value.type)) { // own key only: "toString" must miss
     // A handler that throws or returns nothing for a malformed shape skips that control, not
     // the whole panel. The label is resolved here, once, so every verbose form honors `{ label }`.

@@ -566,6 +566,9 @@ const REGISTRY: Record<string, ControlCtor<any, any>> = {}; // heterogeneous by 
 export const registerControl = (type: string, ctor: ControlCtor<any, any>) => { REGISTRY[type] = ctor; };
 export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, C> | undefined => REGISTRY[type];
 export const controlTypes = () => Object.keys(REGISTRY);
+// The names people reach for: `bezier` is the cubicbezier control, and `toggle` or `switch` the checkbox, which draws as an
+// Off/On switch. A schema's `type` and markup's data-tw both read through this.
+export const TYPE_ALIASES: Record<string, string> = Object.assign(Object.create(null), { bezier: "cubicbezier", toggle: "checkbox", switch: "checkbox" });
 // The markup chunk's enhance(), registered when markup.ts loads (enhance.ts fetches it, or single.ts imports it).
 let MARKUP: ((root: Document | Element, kit: any) => Promise<void>) | null = null; // any: the kit's type lives in markup.ts, which imports this
 export const setMarkup = (fn: typeof MARKUP) => { MARKUP = fn; };
