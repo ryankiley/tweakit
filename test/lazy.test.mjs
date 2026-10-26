@@ -77,3 +77,21 @@ test("ready resolves with the api on the warmed-up synchronous path too", async 
   assert.equal(api, p);
   assert.deepEqual(p.params.r, [2, 8]);
 });
+
+const pointer = (type, target, x, y, extra = {}) => target.dispatchEvent(Object.assign(new window.Event(type, { bubbles: true }), { pointerId: 1, button: 0, buttons: 1, clientX: x, clientY: y, isPrimary: true, ...extra }));
+
+test("a header drag lifts the panel before the lazy chunks have landed", async () => {
+  // The shell's own wiring doesn't wait for the lazy chunks: it used to be wired inside the deferred assemble(), so until
+  // the first chunk landed a header drag did nothing. shadow is a lazy type no test above loads.
+  const p = tweaks("Early", { x: [1, 0, 10, 1], s: { type: "shadow" } });
+  document.body.append(p.el);
+  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "in the lazy window");
+  const header = p.el.querySelector(".tw-header");
+  pointer("pointerdown", header, 10, 10);
+  pointer("pointermove", header, 40, 30);
+  pointer("pointerup", header, 40, 30, { buttons: 0 });
+  assert.equal(p.el.dataset.mode, "floating", "the drag lifted the panel into the floating layer");
+  await p.ready;
+  assert.equal(p.el.dataset.mode, "floating", "and ready didn't undo it");
+  p.destroy();
+});

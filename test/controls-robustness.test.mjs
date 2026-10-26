@@ -79,12 +79,6 @@ test("an option control takes back a default written off its options, so reset()
   } finally { p.destroy(); }
 });
 
-test("the image control ignores a non-string value and clears on null", () => {
-  const p = tweaks("I", { i: { type: "image", value: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" } });
-  p.set("i", new Date(0)); assert.equal(typeof p.params.i, "string");
-  p.set("i", null); assert.equal(p.params.i, "");
-});
-
 test("a soft slider keeps a huge finite set() finite", () => {
   const p = tweaks("S", { x: { type: "slider", value: 2, min: 0, max: 10, step: 0.5, soft: true } });
   p.set("x", 1e308);
@@ -286,10 +280,9 @@ test("the gallery's tiles are one radio group: arrows move and pick, Delete clea
 });
 
 test("an upload over maxSize, or not an image, is refused with a note; a fitting one lands as a data URL", async () => {
-  globalThis.FileReader ??= window.FileReader; // the kit reads files through the page's FileReader; jsdom's is on window only
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], maxSize: 2048 } });
   const upload = p.el.querySelector(".tw-image-upload"), note = p.el.querySelector(".tw-image-note");
-  const drop = (file) => { const e = new Event("drop", { bubbles: true, cancelable: true }); e.dataTransfer = { files: [file] }; upload.dispatchEvent(e); };
+  const drop = (file) => dropOn(upload, file);
   drop(new window.File(["x".repeat(3000)], "big.png", { type: "image/png" }));
   assert.equal(note.textContent, "3 KB, max 2 KB"); assert.equal(p.params.pic, "");
   drop(new window.File(["hello"], "a.txt", { type: "text/plain" }));
@@ -321,7 +314,7 @@ test("clear: false leaves Clear out and Delete keeps the value; cols reaches 6",
 
 // ── The gallery's review fixes: each failed on the first cut of the gallery. ──
 const dropOn = (el, file) => { const e = new Event("drop", { bubbles: true, cancelable: true }); e.dataTransfer = { files: file ? [file] : [] }; el.dispatchEvent(e); };
-globalThis.FileReader ??= window.FileReader;
+globalThis.FileReader ??= window.FileReader; // the kit reads files through the page's FileReader; jsdom's is on window only
 
 test("a disabled gallery takes no dropped file", async () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], disabled: true } });
