@@ -2,7 +2,7 @@
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
 import { el, txt, clamp, rangeStep, popover, quietFocus, escapeReverts, registerControl } from "../shared.js";
 import { numField, grabSurface, boxFrac, arrowStep, sayWhenKeysStop, triggerRow, selectAllOnFocus } from "../heavy.js";
-import { oklchGamutProbe, chromaCeil, hexByte, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
+import { oklchGamutProbe, chromaCeil, toGamut, hexByte, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 import type { Vec3, Space, Gamut } from "../../wide-gamut.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -158,6 +158,24 @@ const notationOf = (v: unknown): ColorMode | null => {
   if (fn[1] === "color") return fn[2] === "display-p3" ? "p3" : fn[2] === "rec2020" ? "rec2020" : fn[2] === "srgb" ? "srgb" : null;
   return (["hsl", "hwb", "oklch", "oklab", "lch", "lab"] as const).find((m) => m === fn[1] || fn[1] === "hsla" && m === "hsl") ?? null;
 };
+// What a written color's notation says beyond its mode, kept through an edit until another mode is picked: the name
+// (rgba, hsla), legacy commas and an alpha slot, color(srgb …) for rgb(). An edit wrote color(srgb 1 0 0) as rgb().
+type Flavor = { name: string; legacy: boolean; alphaSlot: boolean };
+const flavorOf = (v: string): Flavor | null => {
+  const m = /^\s*(rgba?|hsla?|color)\(\s*([^)]*)\)\s*$/i.exec(v);
+  if (!m) return null;
+  const name = m[1].toLowerCase(), args = m[2].split(",").length;
+  if (name === "color") return /^srgb\s/i.test(m[2]) ? { name, legacy: false, alphaSlot: false } : null;
+  return { name, legacy: args > 1, alphaSlot: args === 4 };
+};
+// serialize()'s string in the written flavor, rebuilt from its numbers. Legacy syntax has no `none`: a gray's hue writes 0.
+const flavored = (s: string, f: Flavor | null, oklch: Vec3, A: number) => {
+  if (!f) return s;
+  const alpha = A < 0.999 ? String(+A.toFixed(3)) : f.alphaSlot ? "1" : "";
+  if (f.name === "color") return `color(srgb ${toGamut(oklch, "srgb").map((x) => +clamp(num(x), 0, 1).toFixed(3) + 0).join(" ")}${alpha && ` / ${alpha}`})`; // p3's precision
+  const ch = (/\((.*)\)$/.exec(s)?.[1] ?? "").split(/\s*[,/]\s*|\s+/).slice(0, 3);
+  return f.legacy ? `${f.name}(${ch.map((t) => (t === "none" ? "0" : t)).join(", ")}${alpha && `, ${alpha}`})` : `${f.name}(${ch.join(" ")}${alpha && ` / ${alpha}`})`;
+};
 
 // ── Picker body ──
 /** The editor surface: L×C plane, hue + alpha strips, mode dropdown + gamut label, and per-mode channel inputs.
@@ -169,9 +187,10 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const seeded = EDIT_MODES.includes(meta.mode); // a host's mode (the gradient's blend space) holds; only an unseeded picker follows a color's notation
   let mode = seeded ? meta.mode : notationOf(meta.value) ?? "oklch";
   let raw: string | null = verbatim(meta.value) ? meta.value.trim() : null;
+  let flavor = !seeded && isColor(meta.value) ? flavorOf(String(meta.value)) : null; // until another mode is picked
   let paintedHue = NaN, chromaCurve: Float64Array | null = null, chanFields: NumField[] = [];
   let hueRingH = NaN, hueRingBg = ""; // the hue ring depends only on H; cached
-  const colorStr = () => raw ?? serialize([L, C, H], mode, A);
+  const colorStr = () => raw ?? flavored(serialize([L, C, H], mode, A), flavor, [L, C, H], A);
 
   const root = el("div", "tw-color-body");
   const area = el("div", "tw-wg-area"); const areaCanvas = document.createElement("canvas"); areaCanvas.className = "tw-wg-canvas"; const areaThumb = el("div", "tw-wg-thumb"); area.append(areaCanvas, areaThumb);
@@ -322,7 +341,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 
   // A mode switch is formatting-only and never emits: notifying would push a no-op change into
   // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode); setMode is the host pushing a mode in, so it fires neither.
-  const remode = (m: ColorMode) => { mode = m; raw = null; modeSel.value = m; renderChannels(); renderArea(); positionThumbs(); };
+  const remode = (m: ColorMode) => { mode = m; raw = null; flavor = null; modeSel.value = m; renderChannels(); renderArea(); positionThumbs(); };
   modeSel.addEventListener("change", () => { remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); }); // the dropdown only holds EDIT_MODES
 
   renderChannels();
@@ -331,7 +350,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     el: root,
     // Blur a focused text field before re-pointing: its change handler commits typed text against
     // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as focus leaving the popover, which closes it.
-    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
+    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
     get: () => colorStr(),
     // The gradient reads the mode to choose its blend space and re-points it on a stored ramp.
     mode: () => mode,

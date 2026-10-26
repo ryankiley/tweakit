@@ -54,6 +54,33 @@ test("HSL's black and white have no hue, whatever float noise makes of S", async
   assert.match(serialize([0, 0.1, 256], "lch", 1), /^lch\(0% [1-9][\d.]* \d[\d.]*\)$/);
 });
 
+test("an edit keeps the written flavor of its notation: color(srgb), legacy commas, the rgba and hsla names", async () => {
+  // color(srgb 1 0 0) came back rgb(255 0 0) after one hue nudge, and hsla(200, 50%, 40%, 0.5) as hsl(… / 0.5).
+  const nudged = async (value, then) => {
+    const p = createColorPicker({ value, onChange: () => {} }); document.body.append(p.el); await p.ready;
+    if (then) then(p);
+    key(p.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" }); const out = p.get(); p.el.remove(); return out;
+  };
+  assert.match(await nudged("color(srgb 1 0 0)"), /^color\(srgb 1 0\.\d+ 0\)$/);
+  assert.match(await nudged("color(srgb 0.2 0.4 0.6 / 0.5)"), /^color\(srgb [\d.]+ [\d.]+ [\d.]+ \/ 0\.5\)$/);
+  assert.match(await nudged("hsla(200, 50%, 40%, 0.5)"), /^hsla\([\d.]+, [\d.]+%, [\d.]+%, 0\.5\)$/);
+  assert.match(await nudged("hsl(200, 50%, 40%)"), /^hsl\([\d.]+, [\d.]+%, [\d.]+%\)$/);
+  assert.match(await nudged("rgba(10, 20, 30, 0.5)"), /^rgba\([\d.]+, [\d.]+, [\d.]+, 0\.5\)$/);
+  assert.match(await nudged("rgb(10, 20, 30)"), /^rgb\([\d.]+, [\d.]+, [\d.]+\)$/, "no alpha slot it didn't have");
+  assert.match(await nudged("rgba(10 20 30 / 0.5)"), /^rgba\([\d.]+ [\d.]+ [\d.]+ \/ 0\.5\)$/);
+  assert.equal(await nudged("hsl(0, 0%, 50%)"), "hsl(0, 0%, 50%)", "legacy syntax can't carry none, so a gray's hue writes 0");
+  // Picking a mode from the dropdown is picking its notation: the flavor goes with it.
+  const pick = (m) => (p) => { const sel = p.el.querySelector(".tw-color-mode"); sel.value = m; sel.dispatchEvent(new window.Event("change")); };
+  assert.match(await nudged("hsla(200, 50%, 40%, 0.5)", pick("oklch")), /^oklch\(.* \/ 0\.5\)$/);
+  assert.match(await nudged("color(srgb 1 0 0)", (p) => { pick("hsl")(p); pick("srgb")(p); }), /^rgb\(\d/);
+  // set() takes the new string's flavor, and a seeded mode (a gradient's blend space) never takes one.
+  assert.match(await nudged("#7c5cff", (p) => p.set("rgba(10, 20, 30, 0.5)")), /^rgba\([\d.]+, [\d.]+, [\d.]+, 0\.5\)$/);
+  const seeded = createColorPicker({ value: "hsla(200, 50%, 40%, 0.5)", mode: "hsl", onChange: () => {} }); document.body.append(seeded.el); await seeded.ready;
+  key(seeded.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" });
+  assert.match(seeded.get(), /^hsl\([\d.]+ [\d.]+% [\d.]+% \/ 0\.5\)$/);
+  seeded.el.remove();
+});
+
 test("a hostile number isn't handed back as written: it reads as the picker normalizes it", async () => {
   const p = tweaks("H", { c: "#ff0000" }); await p.ready;
   p.set("c", "oklab(0.5 1e999 -1e999)");
