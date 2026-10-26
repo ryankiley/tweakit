@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -107,7 +107,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1;
   const bound = (b: unknown) => (b == null ? NaN : +b); // null → NaN → unbounded (a null max coerced to 0)
   let min = bound(spec.min), max = bound(spec.max);
-  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
+  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { swapNote(spec.label ?? "number", min, max); const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
   const anchor = Number.isFinite(min) ? min : 0, decimals = stepPrecision(step); // min-anchored, like the slider
   const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor); // on-grid ends, so fit(fit(x)) === fit(x)
   const fit = (val: number) => { const n = roundToStep(val, anchor, step); return spec.soft ? n : clamp(n, lo, hi); };
