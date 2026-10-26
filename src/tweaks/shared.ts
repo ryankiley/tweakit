@@ -219,6 +219,13 @@ const THEME_ALIASES: Record<string, string> = Object.assign(Object.create(null),
   font: "--tw-font-sans", fontMono: "--tw-font-mono", radius: "--tw-radius", density: "--tw-row-height", width: "--tw-width", // numeric → px
 });
 const TW_PX_ALIASES = new Set(["radius", "density", "width"]);
+// Font stacks and box-shadows: written as given. Every other friendly key holds a color.
+const TW_FREE_ALIASES = new Set(["font", "fontMono", "shadow", "shadowPanel", "shadowPanelLifted"]);
+// A length: a number with an optional unit, or a function such as calc() or var().
+const TW_LENGTH = /^(-?(\d+\.?\d*|\.\d+)([a-z]+|%)?|[a-z-]+\(.*\))$/i;
+// Can this friendly key's var hold the value? A DOM without CSS.supports (jsdom) can't judge a color, so it passes.
+const themeOk = (k: string, s: string) => TW_PX_ALIASES.has(k) ? TW_LENGTH.test(s.trim())
+  : TW_FREE_ALIASES.has(k) || typeof CSS === "undefined" || !CSS.supports || CSS.supports("color", s);
 // On-accent text: black or white by the accent's WCAG luminance, so a bright accent stays
 // legible. Hex and rgb() are read; anything else falls back to white. sRGB is all it needs.
 const channelLin = (c: number) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
@@ -238,9 +245,13 @@ const resolveTheme = (theme: Theme | null | undefined): ThemeVars | null => {
   if (!theme || typeof theme !== "object") return null;
   const out: ThemeVars = {};
   for (const [k, v] of Object.entries(theme)) {
-    if (k.startsWith("--")) { out[k] = String(v); continue; }
-    const name = THEME_ALIASES[k]; if (!name) continue;
-    out[name] = TW_PX_ALIASES.has(k) && typeof v === "number" ? `${v}px` : String(v);
+    if (k.startsWith("--")) { out[k] = String(v); continue; } // raw tokens pass unchecked: the escape hatch
+    if (v == null) continue; // unset, as an optional spread leaves a key
+    const name = THEME_ALIASES[k], s = TW_PX_ALIASES.has(k) && typeof v === "number" ? `${v}px` : String(v);
+    // A typo or a value its var can't hold is skipped out loud, not dropped or written as-is.
+    // The message and its near-miss search are lazy, as only a mistake needs them.
+    if (!name || !themeOk(k, s)) { import("./heavy.js").then((m) => m.badTheme(k, v, name ? (TW_PX_ALIASES.has(k) ? "length" : "color") : "", Object.keys(THEME_ALIASES)), () => {}); continue; }
+    out[name] = s;
   }
   if (out["--tw-accent"] && !out["--tw-on-accent"]) out["--tw-on-accent"] = onAccentText(out["--tw-accent"]);
   return Object.keys(out).length ? out : null;

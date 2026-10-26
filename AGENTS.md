@@ -147,7 +147,7 @@ The core module also upgrades `[data-tw]` elements in place: `<div data-tw="slid
 
 ## Theming
 
-The panel is dark by default and follows the system scheme; `data-tw-scheme="light"` or `"dark"` on any ancestor pins it. `theme` takes friendly keys (`accent`, `base`, `surface`, `border`, `text`, `radius`, `density`, `width`, `font` and more) or raw `--tw-*` tokens. Details: https://ryankiley.github.io/tweakit/theming.md
+The panel is dark by default and follows the system scheme; `data-tw-scheme="light"` or `"dark"` on any ancestor pins it. `theme` takes friendly keys (`accent`, `base`, `surface`, `border`, `text`, `radius`, `density`, `width`, `font` and more) or raw `--tw-*` tokens; an unknown friendly key, or a color or length key whose value isn't one, is skipped with a console warning, while raw tokens pass unchecked. Details: https://ryankiley.github.io/tweakit/theming.md
 
 ## What tweakit does not do
 
