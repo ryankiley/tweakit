@@ -134,7 +134,7 @@ The panel's toolbar copy button puts JSON on the clipboard. A click copies the f
 Tweakit never writes to source files. The person pastes that JSON to you; then:
 
 1. Find the `tweaks(name, …)` call whose schema holds those keys. The panel's title is its name.
-2. For each key, change the default in the schema: the first element of a slider tuple, the bare value, or `value:` in a `{ type }` form. A key like `shadow.blur` is `blur` inside the `shadow` folder. A control whose value is an object (shadow, sides, gradient, motion, spring, point) comes back whole under its own key: copy its fields onto the `{ type }` form and drop the derived ones (`css`, `easing`, a spring's `duration`).
+2. For each key, change the default in the schema: the first element of a slider tuple, the bare value, or `value:` in a `{ type }` form. A key like `shadow.blur` is `blur` inside the `shadow` folder. A control whose value is an object (shadow, sides, gradient, motion, spring, point) comes back whole under its own key: copy its fields onto the `{ type }` form, less the derived `css`, a motion's `easing` and spring `duration`.
 3. Leave the panel code in place and run the build.
 
 ## Markup instead of a schema

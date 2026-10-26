@@ -98,7 +98,7 @@ export type SchemaObject =
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
   | { type: "point"; components: ReadonlyArray<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; value?: { readonly [key: string]: number }; pad?: boolean; invertY?: boolean }
   | { type: "point"; value: { readonly [key: string]: number }; components?: undefined; pad?: boolean; invertY?: boolean } // the value names its components
-  | { type: "gradient"; value?: GradientValue | ReadonlyArray<GradientStop | readonly [string, number]>; stops?: ReadonlyArray<GradientStop | readonly [string, number]> }
+  | { type: "gradient"; value?: GradientValue | ReadonlyArray<GradientStop | readonly [string, number]>; stops?: ReadonlyArray<GradientStop | readonly [string, number]>; interpolation?: GradientInterpolation; easing?: GradientEasing }
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
   | { type: "fpsgraph" }
   | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }
