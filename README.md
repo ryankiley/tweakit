@@ -15,6 +15,9 @@ length (padding, margin or radii) on one row, monitors, a 2D point pad, and more
 npm install tweakit
 ```
 
+tweakit is an ES module only. In a CommonJS project, set `"type": "module"` in package.json, or load it
+with `await import("tweakit")`; TypeScript under `moduleResolution: node16` needs the same.
+
 ## Use
 
 ```js
