@@ -30,6 +30,21 @@ test("a length key holding no length warns and is skipped; numbers and CSS lengt
   p.destroy();
 });
 
+test("a unitless or unit-garbled string is no length; 0, calc() and the CSS-wide keywords are", async () => {
+  const p = tweaks("T", { a: 1 });
+  let msgs = await warnings(() => p.setTheme({ radius: "12", density: "12banana" }));
+  assert.equal(msgs.length, 2);
+  assert.match(msgs.join("\n"), /radius "12" isn't a CSS length/);
+  assert.match(msgs.join("\n"), /density "12banana" isn't a CSS length/);
+  assert.equal(p.el.style.getPropertyValue("--tw-radius"), "");
+  msgs = await warnings(() => p.setTheme({ radius: "0", density: "calc(1rem + 4px)", width: "inherit" }));
+  assert.deepEqual(msgs, []);
+  assert.equal(p.el.style.getPropertyValue("--tw-radius"), "0");
+  assert.equal(p.el.style.getPropertyValue("--tw-width"), "inherit");
+  for (const w of ["initial", "unset", "clamp(200px, 30vw, 360px)", "18.5em", "40%"]) assert.deepEqual(await warnings(() => p.setTheme({ width: w })), [], w);
+  p.destroy();
+});
+
 test("a color key holding no color warns and is skipped where CSS.supports can judge it", async () => {
   // jsdom has no CSS.supports, so stand one in that knows hex only.
   globalThis.CSS = { supports: (prop, v) => prop === "color" && /^#[0-9a-f]{3,8}$/i.test(v) };
