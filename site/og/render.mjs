@@ -1,4 +1,4 @@
-// Shoots site/og/card.html to site/static/og.png at 2x with Playwright's Chromium, once the card
+// Shoots site/og/card.html to site/static/og.png at 1x (1200×630, what link previews draw) with Playwright's Chromium, once the card
 // says it's ready. Run after a build (the card loads dist/), then commit the PNG; the site build
 // copies static/ into the docs. On a Mac, so the word is set in SF Pro.
 import { createServer } from "node:http";
@@ -24,7 +24,7 @@ await new Promise((r) => server.once("listening", r));
 
 const browser = await chromium.launch();
 try {
-  const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 2 });
+  const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
   const errors = []; page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(`http://127.0.0.1:${server.address().port}/site/og/card.html`);
   await page.waitForSelector("body[data-ready]", { state: "attached", timeout: 10_000 });
