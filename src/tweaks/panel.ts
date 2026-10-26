@@ -88,7 +88,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // stays saved as it was until its row is written. ──
   let imgs: ReturnType<typeof import("./image-store.js")["bind"]> | null = null, savedImages: Map<string, string> | null = null; // both null without IndexedDB
   let imagesReady = false; // the store has answered, or failed to load
-  const waiting = new Map<Entry, [string, unknown]>(); // a row's stored ref, and the value it held while the store loaded
+  const waiting = new Map<Entry, [string, unknown]>(); // a row's stored ref, and the value it held while the store loaded or the image was fetched
   const isRef = (v: unknown): v is string => typeof v === "string" && v.startsWith("tw-image:"); // image-store.ts's ref, readable before that chunk loads
   const isDataUrl = (v: unknown): v is string => typeof v === "string" && v.startsWith("data:");
   const imageEntries = () => entries.filter((e) => e.m.type === "image");
@@ -127,9 +127,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const pending: [Entry, string][] = [];
     applySnapshot(fromRefs(snap, pending), silent);
     for (const [e, ref] of pending) {
-      if (!imagesReady || !imgs) { waiting.set(e, [ref, e.get()]); continue; } // no store: the ref stays saved until the row is written
-      const held = e.get();
-      imgs.fetch(ref).then((url) => { if (url && late(e, held, url)) { last = undefined; notify(); } });
+      const w: [string, unknown] = [ref, e.get()]; waiting.set(e, w); // a write meanwhile settles it, even back to the value held
+      if (!imagesReady || !imgs) continue; // no store: the ref stays saved until the row is written
+      imgs.fetch(ref).then((url) => { if (waiting.get(e) !== w) return; waiting.delete(e); if (url && late(e, w[1], url)) { last = undefined; notify(); } });
     }
   };
   // The store answered: each waiting row the host and the person left alone takes its image, in one notify.
@@ -393,7 +393,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       }
       const valued = !VALUELESS.has(m.type);
       const dotted = [...basePath, m.key].join("."); // a bare leaf couldn't tell size from card.size
-      const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; target[m.key] = v; last = dotted; notify(); } : () => {}); // same-value emits (a re-entrant echo) don't notify
+      let entry: Entry | undefined; // a change made in the panel settles a row waiting for its stored image, as assign does
+      const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; if (entry) waiting.delete(entry); target[m.key] = v; last = dotted; notify(); } : () => {}); // same-value emits (a re-entrant echo) don't notify
       if (!ctrl) continue;
       adopt(ctrl);
       if (valued) {
@@ -402,7 +403,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // A value a host parked on params before assemble ran wins over the schema default.
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el, note: ctrl.note, range: ctrl.range };
+        entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el, note: ctrl.note, range: ctrl.range };
         entries.push(entry); wireReset(ctrl.el, entry); scopes.set(ctrl.el, { kind: "row", entry, label: m.label });
       }
       registerCond(ctrl.el, m);
