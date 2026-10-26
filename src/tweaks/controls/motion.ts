@@ -1,7 +1,7 @@
 // ── Motion — a transition's timing: an easing curve with a duration, or a spring, in one popover over one value. The
 // value carries the CSS it resolves to — `duration` in ms and an `easing` string, cubic-bezier() or a sampled linear(). Lazy. ──
 import { el, txt, clamp, isObj, createSegmented, getControl, popover, registerControl, REDUCE_MOTION } from "../shared.js";
-import { numField, triggerRow, svgEl, springCurve, timeFromSpring } from "../heavy.js";
+import { numField, triggerRow, svgEl, springCurve, springRun, timeFromSpring } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, MotionValue, MotionInput } from "../types.js";
@@ -62,10 +62,9 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
 
   const value = (): MotionValue => {
     if (mode === "easing") return { mode, curve: curve.slice() as Curve, duration: dur, easing: `cubic-bezier(${curve.join(", ")})` };
-    // Uncapped, to within e⁻⁷ of settled (the drawn curve stops at 2.2 s): a transition has to end at rest. More stops
-    // for a longer or bouncier run, so the sampling doesn't alias.
-    const s = spring.get() as SpringOut, span = 7 / Math.max(s.damping / (2 * s.mass), 0.5), n = clamp(Math.round(span * 40), 48, 240);
-    return { mode, ...s, duration: Math.round(span * 1000), easing: `linear(${springCurve(s.stiffness, s.damping, s.mass, n, span).map((p) => +p.toFixed(3)).join(", ")})` };
+    // The run lasts until the spring is at rest (the drawn curve stops at 2.2 s): springRun.
+    const s = spring.get() as SpringOut;
+    return { mode, ...s, ...springRun(s.stiffness, s.damping, s.mass) };
   };
   const emit = () => onChange(value());
 

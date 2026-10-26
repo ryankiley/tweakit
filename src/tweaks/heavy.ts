@@ -165,19 +165,34 @@ const timeFromSpring = (k: number, d: number, m = 1) => {
   return { visualDuration: (CRIT * overdampedScale(z)) / Math.sqrt(k / m), bounce: z > 1 ? 1 / z - 1 : 1 - z };
 };
 const springSpan = (k: number, d: number, m: number) => { const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)); return Math.min(2.2, 9 / Math.max(z * w0, 0.5)); };
-// Closed-form step response of a damped harmonic oscillator (under/critical/over), N samples over the span.
-function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, d, m)) {
+// Closed-form step response of a damped harmonic oscillator (under/critical/over): position at time t.
+const springAt = (k: number, d: number, m: number) => {
   const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m));
-  const out: number[] = [];
-  for (let i = 0; i < N; i++) {
-    const t = (i / (N - 1)) * T; let x: number;
-    if (z < 1 - 1e-4) { const wd = w0 * Math.sqrt(1 - z * z); x = 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t)); }
-    else if (z <= 1 + 1e-4) { x = 1 - Math.exp(-w0 * t) * (1 + w0 * t); }
-    else { const s = Math.sqrt(z * z - 1), a = w0 * (z + s), b = w0 * (z - s); x = 1 - (a * Math.exp(-b * t) - b * Math.exp(-a * t)) / (a - b); }
-    out.push(x);
-  }
+  if (z < 1 - 1e-4) { const wd = w0 * Math.sqrt(1 - z * z); return (t: number) => 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t)); }
+  if (z <= 1 + 1e-4) return (t: number) => 1 - Math.exp(-w0 * t) * (1 + w0 * t);
+  const s = Math.sqrt(z * z - 1), a = w0 * (z + s), b = w0 * (z - s);
+  return (t: number) => 1 - (a * Math.exp(-b * t) - b * Math.exp(-a * t)) / (a - b);
+};
+// N samples over the span, for drawing.
+function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, d, m)) {
+  const x = springAt(k, d, m), out: number[] = [];
+  for (let i = 0; i < N; i++) out.push(x((i / (N - 1)) * T));
   return out;
 }
+// The run as a CSS transition: how long, and a linear() easing. It lasts until within e⁻⁷ of rest, by the slowest mode
+// (an overdamped spring's slow root, not ζω₀), capped at 10 s, where the last stop is 1 so it ends at rest. Stops were
+// spaced by duration alone, so a bouncy spring got three a wobble and missed its peaks by a third; now there are at least
+// 24 a wobble plus one on every peak and trough, each at its own percentage, so the overshoots land where they are.
+const springRun = (k: number, d: number, m: number) => {
+  const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)), x = springAt(k, d, m);
+  const rate = z > 1 ? w0 * (z - Math.sqrt(z * z - 1)) : z * w0, span = Math.min(7 / Math.max(rate, 1e-3), 10);
+  const wd = z < 1 ? w0 * Math.sqrt(1 - z * z) : 0, n = Math.min(Math.max(48, Math.ceil(wd ? (24 * span * wd) / (2 * Math.PI) : span * 40)), 800);
+  const ts = Array.from({ length: n }, (_, i) => (i / (n - 1)) * span);
+  if (wd) for (let t = Math.PI / wd; t < span; t += Math.PI / wd) ts.push(t); // every extremum of the underdamped response
+  ts.sort((a, b) => a - b);
+  const stops = ts.filter((t, i) => i === 0 || t - ts[i - 1] > 1e-6).map((t, i, a) => `${i === a.length - 1 ? 1 : +x(t).toFixed(3)} ${+((t / span) * 100).toFixed(2)}%`);
+  return { duration: Math.round(span * 1000), easing: `linear(${stops.join(", ")})` };
+};
 
 // The name a typo is a single edit from (a letter added, dropped or changed). It and the notices below are lazy, as
 // only a mistake needs them. unknownType: a schema or markup `type` no control answers to.
@@ -196,4 +211,4 @@ const badTheme = (key: string, v: unknown, kind: string, keys: string[]) => {
     : `[tweaks] theme: "${key}" isn't a theme key${near ? ` — did you mean "${near}"?` : "."} It is skipped. Keys: ${keys.join(", ")}, or any raw --tw-* token`);
 };
 
-export { unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springFromTime, timeFromSpring };
+export { unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };
