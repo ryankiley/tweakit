@@ -85,14 +85,14 @@ export type SchemaObject =
        *  returns anything but a finite number) leaves the value where it was. */
       parse?: (text: string) => number }
   | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
-  | { type: "checkbox"; value?: boolean }
+  | { type: "checkbox" | "toggle" | "switch"; value?: boolean }
   | { type: "list"; options: readonly Option[]; value?: string }
   | { type: "radiogrid" | "segmented"; options: readonly Option[]; value?: string; cols?: number }
   | { type: "color"; value?: string }
   | { type: "text"; value?: string; rows?: number; placeholder?: string }
   | { type: "interval"; value?: readonly [number, number]; min?: number; max?: number; step?: number }
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
-  | { type: "cubicbezier"; value?: readonly [number, number, number, number] }
+  | { type: "cubicbezier" | "bezier"; value?: readonly [number, number, number, number] }
   | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
   | { type: "sides"; value?: SidesInput; corners?: boolean; unit?: string; step?: number; min?: number; max?: number; top?: number; right?: number; bottom?: number; left?: number }
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
@@ -181,11 +181,11 @@ type Hinge = { list: "options"; radiogrid: "options"; segmented: "options"; poin
 // A hinge field there but unusable skips the control at runtime, so it puts nothing on params.
 type TypedValue<V> =
   V extends { readonly type: "slider" | "number" } ? number
-  : V extends { readonly type: "checkbox" } ? boolean
+  : V extends { readonly type: "checkbox" | "toggle" | "switch" } ? boolean
   : V extends { readonly type: "list" | "radiogrid" | "segmented" } ? (V extends { readonly options: readonly (infer O)[] } ? OptionValue<O> : never)
   : V extends { readonly type: "color" | "text" | "image" | "plot" } ? string
   : V extends { readonly type: "interval" } ? [number, number]
-  : V extends { readonly type: "cubicbezier" } ? [number, number, number, number]
+  : V extends { readonly type: "cubicbezier" | "bezier" } ? [number, number, number, number]
   : V extends { readonly type: "spring" } ? SpringValue
   : V extends { readonly type: "motion" } ? MotionValue
   : V extends { readonly type: "shadow" } ? ShadowValue
