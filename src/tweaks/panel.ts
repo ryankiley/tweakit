@@ -70,42 +70,72 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // A control with `persist: false` stays out of what is saved and out of what is restored.
   const unsaved = (snap: Snapshot | null) => { for (const e of entries) if (!e.persist) drop(snap, e); return snap; };
   // ── Images in IndexedDB (image-store.ts): what storage holds for an uploaded image is its ref, and `savedImages` maps this
-  // panel's refs to their data URLs, loaded before the build so a restore or a preset resolves them synchronously. ──
+  // panel's refs to their data URLs. The build doesn't wait for them: every other value restores as it builds, and a stored
+  // image waits in `waiting` until the store answers, then fills in (restoreImages), by `ready`. ──
   let imgs: typeof import("./image-store.js") | null = null, savedImages: Map<string, string> | null = null; // null without IndexedDB
+  let imagesReady = false; // the store has answered, or failed to load
+  const waiting = new Map<Entry, [string, unknown]>(); // a row's stored ref, and the value it held while the store loaded
+  const isRef = (v: unknown): v is string => typeof v === "string" && v.startsWith("tw-image:"); // image-store.ts's ref, readable before that chunk loads
   const imageEntries = () => entries.filter((e) => e.m.type === "image");
-  // A snapshot as storage takes it: each data URL swapped for its ref, the record written once. Without IndexedDB the image is
-  // left out, and its row says so once per value.
-  const unsavable = new Map<Entry, unknown>();
+  // A snapshot as storage takes it: each data URL swapped for its ref, the record written once. Without IndexedDB, or when
+  // the write fails, the image is left out, and its row says so once per value.
+  const unsavable = new Map<Entry, unknown>(), failedRefs = new Set<string>();
   let unsavableWarned = false;
   // Each row's last data URL and its ref, so a save that didn't touch the image doesn't hash megabytes again.
   const hashed = new Map<Entry, [string, string]>();
   const refOf = (e: Entry, v: string) => { const c = hashed.get(e); if (c?.[0] === v) return c[1]; const r = imgs!.refFor(v); hashed.set(e, [v, r]); return r; };
+  const unsavableHere = (snap: Snapshot, e: Entry, v: unknown) => { drop(snap, e); if (unsavable.get(e) === v) return; unsavable.set(e, v); e.note?.("Not saved"); };
   const toRefs = (snap: Snapshot) => {
     for (const e of imageEntries()) {
-      const o: any = atPath(snap, e.path.slice(0, -1)), v = o?.[e.key];
+      const o: any = atPath(snap, e.path.slice(0, -1)), v = o?.[e.key], w = waiting.get(e);
+      if (w && o && hasOwn(o, e.key) && !valueChanged(w[1], v)) { o[e.key] = w[0]; continue; } // still loading: keep the stored ref
       if (typeof v !== "string" || !v.startsWith("data:")) continue; // a URL is small: it saves as it is
-      if (imgs && savedImages) { const ref = refOf(e, v); if (!savedImages.has(ref)) { savedImages.set(ref, v); imgs.put(persistKey!, ref, v); } o[e.key] = ref; continue; }
-      drop(snap, e);
-      if (unsavable.get(e) === v) continue;
-      unsavable.set(e, v); e.note?.("Not saved");
+      if (!imagesReady) { drop(snap, e); continue; } // an upload before the store answers saves once it does
+      if (imgs && savedImages) {
+        const ref = refOf(e, v);
+        if (failedRefs.has(ref)) { unsavableHere(snap, e, v); continue; }
+        if (!savedImages.has(ref)) {
+          savedImages.set(ref, v);
+          // A write the store refuses (full, or gone mid-session) mustn't leave a ref that restores nothing without saying so.
+          imgs.put(persistKey!, ref, v).then((ok) => { if (ok || destroyed) return; savedImages?.delete(ref); failedRefs.add(ref); persist(); });
+        }
+        o[e.key] = ref; continue;
+      }
+      unsavableHere(snap, e, v);
       if (!unsavableWarned) { unsavableWarned = true; console.warn("[tweaks] persist: IndexedDB is unavailable here, so uploaded images aren't saved"); }
     }
     return snap;
   };
-  // A stored snapshot back to values: each ref resolved; one whose record is gone is left out, so its control keeps its value.
-  const fromRefs = (snap: Snapshot | null) => {
-    if (imgs && snap && typeof snap === "object") for (const e of imageEntries()) {
-      const v = atPath(snap, e.path), url = imgs.isRef(v) ? savedImages?.get(v) : null;
-      if (url) (atPath(snap, e.path.slice(0, -1)) as any)[e.key] = url; else if (url === undefined) drop(snap, e);
+  // A stored snapshot back to values: each ref resolved; one the store hasn't answered for, or whose record is gone, is left
+  // out, so its control keeps its value. `wait`: the session restore, whose refs fill in once the store answers.
+  const fromRefs = (snap: Snapshot | null, wait = false) => {
+    if (snap && typeof snap === "object") for (const e of imageEntries()) {
+      const v = atPath(snap, e.path); if (!isRef(v)) continue;
+      const url = savedImages?.get(v);
+      if (url) (atPath(snap, e.path.slice(0, -1)) as any)[e.key] = url;
+      else { drop(snap, e); if (wait && !imagesReady) waiting.set(e, [v, undefined]); }
     }
     return snap;
+  };
+  // The store answered: each waiting row the host and the person left alone takes its image, in one notify.
+  const restoreImages = () => {
+    imagesReady = true;
+    if (!assembled || destroyed || failed) { waiting.clear(); return; } // not built yet: the build resolves refs itself
+    let changed = false;
+    for (const [e, [ref, held]] of waiting) {
+      const url = savedImages?.get(ref);
+      if (url && !valueChanged(held, e.get())) { try { assign(e, url); changed = true; } catch (err) { console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err); } }
+    }
+    waiting.clear();
+    if (changed) { last = undefined; notify(); undoApi?.reseed(); }
+    else persist(); // an upload made while the store loaded saves now
   };
   // Delete the records nothing names any more: not the saved values, not a preset. Only records this panel knows, loaded
   // or written: another tab's panel on the same key may have just stored one this panel has never seen.
   const pruneImages = () => {
     if (!imgs || !savedImages?.size) return;
     const keep = new Set<string>();
-    for (const snap of [readStore(persistKey!), ...Object.values(listPresets())]) for (const e of imageEntries()) { const v = atPath(snap, e.path); if (imgs.isRef(v)) keep.add(v); }
+    for (const snap of [readStore(persistKey!), ...Object.values(listPresets())]) for (const e of imageEntries()) { const v = atPath(snap, e.path); if (isRef(v)) keep.add(v); }
     const gone = [...savedImages.keys()].filter((r) => !keep.has(r));
     for (const r of gone) savedImages.delete(r);
     if (gone.length) imgs.prune(persistKey!, gone);
@@ -633,7 +663,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
     };
-    return { undo, redo, onKey, flush, arm: () => { history = [snapshot()]; histIdx = 0; } };
+    // reseed: a late restore (an image the store just answered for) joins the first step rather than becoming one to undo.
+    return { undo, redo, onKey, flush, arm: () => { history = [snapshot()]; histIdx = 0; }, reseed: () => { if (history.length === 1) { clearTimeout(histTimer); histTimer = 0; history[0] = snapshot(); } } };
   })() : null;
 
   // ── Pick and copy / paste — a press beside a row (in the panel's side padding, or a gap between rows) picks it, as
@@ -730,7 +761,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       import("./fold.js").then((m) => { fold = m.fold; }, () => {}); // a fold chunk that fails to load leaves the rows toggling
     }
     // Restore last session, notifying: on the lazy path a host may already have subscribed.
-    if (persistKey) applySnapshot(unsaved(fromRefs(readStore(persistKey))));
+    if (persistKey) { applySnapshot(fromRefs(unsaved(readStore(persistKey)), true)); for (const [e, w] of waiting) w[1] = e.get(); } // what each waiting row holds now, so restoreImages can tell it was left alone
     if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm(); watchResize();
     cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); })); // one document listener per panel for its keys
@@ -817,12 +848,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     },
   } as Panel; // `ready` is filled in just below
   // Assemble once the missing modules resolve, surfacing that on ready; else assemble now. A panel that persists an image
-  // also waits for its stored images, so the restore can resolve them; a store that fails to load just saves no uploads.
+  // builds without waiting for its stored images; they fill in when the store answers, and `ready` waits for that too.
+  // A store that fails to load just saves no uploads.
   const hasImage = (ms: Meta[]): boolean => ms.some((m) => m.type === "image" || hasImage(m.children || []) || (m.pages || []).some((pg) => hasImage(pg.children)));
   const images = persistKey && hasImage(metas) ? import("./image-store.js").then(async (m) => { imgs = m; savedImages = await m.load(persistKey); }, () => {}) : null;
+  if (!images) imagesReady = true;
+  const imagesIn = images && images.then(restoreImages);
   const lazy = ensureForMetas(metas);
-  const pending = lazy && images ? Promise.all([lazy, images]) : lazy || images;
-  if (pending) {
+  if (lazy) {
     // A failed chunk or a throwing build leaves the panel unbuildable: queued calls dropped, later calls refused,
     // ready rejects. A partway build must not leave live controls behind an inert API: release what it wired.
     const fail = (e: unknown) => {
@@ -833,9 +866,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (!destroyed) console.warn(`[tweaks] "${name}": the panel could not be built — ${built >= 0 ? "the build threw" : "its lazy controls failed to load"}; the API is inert`); // the chunk's own error is logged in lazy.ts
       throw e;
     };
-    api.ready = panel.ready = pending.then(assemble).then(() => api, fail); // fail covers both the chunk and a build that throws
+    const building = lazy.then(assemble);
+    api.ready = panel.ready = (imagesIn ? Promise.all([building, imagesIn]) : building).then(() => api, fail); // fail covers both the chunk and a build that throws
     api.ready.catch(() => {}); // a handled fork: no unhandled-rejection noise
   }
-  else { assemble(); api.ready = panel.ready = Promise.resolve(api); }
+  else { assemble(); api.ready = panel.ready = imagesIn ? imagesIn.then(() => api) : Promise.resolve(api); }
   return api as Panel;
 }

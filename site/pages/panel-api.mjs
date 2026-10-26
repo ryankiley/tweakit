@@ -260,7 +260,7 @@ export const examples = [
       with <code>persist: false</code> is left out of the saved session, so it opens on its
       schema value every load (a “playing” toggle that should start off). An uploaded
       image is too big for localStorage, so it goes to IndexedDB under the same key, and a
-      panel that persists one has it back by <code>panel.ready</code>.</p>`,
+      panel that persists one has it back by <code>panel.ready</code>; the other values don't wait for it.</p>`,
     target: `
       <div class="ps-remote">
         <div class="ps-tile"></div>

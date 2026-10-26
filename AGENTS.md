@@ -151,7 +151,7 @@ The panel is dark by default and follows the system scheme; `data-tw-scheme="lig
 
 ## What tweakit does not do
 
-- It never edits source files, and it persists only when `persist` is set: values to localStorage, and uploaded images to IndexedDB, with their refs in localStorage. A panel that persists an image control restores its images by `panel.ready`. Values leave through the clipboard, `panel.changes()` or `panel.toJSON()`.
+- It never edits source files, and it persists only when `persist` is set: values to localStorage, and uploaded images to IndexedDB, with their refs in localStorage. A panel that persists an image control restores its other values as it builds, and its images by `panel.ready`; an image IndexedDB refuses is left out, and its row says "Not saved". Values leave through the clipboard, `panel.changes()` or `panel.toJSON()`.
 - It has no production switch. Gate the panel in your code, for example behind `import.meta.env.DEV`.
 - It is not a framework component. In React, Vue, Svelte or Solid, create the panel once in a mount effect, append `panel.el` to a ref, update state in `panel.on()`, and call `panel.destroy()` on unmount.
 - `params` is a plain object updated in place. Subscribe with `on()`; do not poll it.

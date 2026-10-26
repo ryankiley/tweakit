@@ -175,6 +175,53 @@ test("a save prunes only the records its own panel knows, so another tab's uploa
   c.destroy();
 });
 
+// A persisted image made the panel wait for IndexedDB before building, so on the single build every value read undefined
+// until ready, not only the image.
+test("a persisted image doesn't hold up the rest: the single build restores every other value at once", async () => {
+  const S = { x: [1, 0, 10, 1], im: { type: "image" } }, img = "data:image/gif;base64," + "D".repeat(2048);
+  const a = tweaks("Sync", S, { persist: "t-idb-sync", undo: true });
+  await a.ready;
+  a.setMany({ x: 7, im: img }); await tick(250);
+  a.destroy();
+  const b = tweaks("Sync", S, { persist: "t-idb-sync", undo: true }), heard = [];
+  b.on((p, k) => heard.push([p.im === img, k]));
+  assert.equal(b.params.x, 7, "restored as the panel builds");
+  assert.equal(b.params.im, "", "the image waits for the store");
+  b.set("x", 8); await tick(250); // a save while the store loads keeps the stored image
+  assert.match(JSON.parse(localStorage.getItem("tw:t-idb-sync")).im, /^tw-image:/);
+  await b.ready;
+  assert.equal(b.params.im, img, "and is in by ready");
+  assert.deepEqual(heard.at(-1), [true, undefined], "listeners hear it arrive");
+  b.undo(); await tick(50);
+  assert.equal(b.params.im, img, "its arrival isn't an undo step");
+  b.destroy();
+});
+
+test("an image the person replaced while the store loaded isn't overwritten by the stored one", async () => {
+  const S = { im: { type: "image" } }, one = "data:image/gif;base64," + "E".repeat(2048);
+  const a = tweaks("Mine", S, { persist: "t-idb-mine" }); await a.ready; a.set("im", one); await tick(250); a.destroy();
+  const b = tweaks("Mine", S, { persist: "t-idb-mine" });
+  b.set("im", "/picked.png");
+  await b.ready;
+  assert.equal(b.params.im, "/picked.png");
+  b.destroy();
+});
+
+// The record write ran in the background and its failure was ignored: storage named an image IndexedDB never took.
+test("an image IndexedDB refuses is left out of the save, and its row says so", async () => {
+  const { IDBObjectStore } = await import("fake-indexeddb"), put = IDBObjectStore.prototype.put;
+  IDBObjectStore.prototype.put = function () { throw new DOMException("full", "QuotaExceededError"); };
+  try {
+    const p = tweaks("Full", { x: [1, 0, 10, 1], im: { type: "image" } }, { persist: "t-idb-full" });
+    await p.ready;
+    p.setMany({ x: 4, im: "data:image/gif;base64," + "F".repeat(2048) }); await tick(250);
+    await tick(250); // the refused write, then the save that leaves it out
+    assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-idb-full")), { x: 4 });
+    assert.equal(p.el.querySelector(".tw-image-note").textContent, "Not saved");
+    p.destroy();
+  } finally { IDBObjectStore.prototype.put = put; }
+});
+
 // Each undo step was a deep clone of every value, so after an upload every later step held its own copy of it: a 4 MB image
 // and 20 slider edits grew the heap by ~80 MB, and history keeps 200 steps. A step now shares what didn't change with the one before.
 test("undo history keeps one copy of an unchanged big value, not one per step", () => {

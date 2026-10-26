@@ -29,7 +29,6 @@ const hash = (s: string) => {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36) + s.length.toString(36);
 };
 
-const isRef = (v: unknown): v is string => typeof v === "string" && v.startsWith(REF);
 const refFor = (dataUrl: string) => REF + hash(dataUrl);
 
 /** Every image stored under `key`, ref → data URL; null when IndexedDB can't be used. */
@@ -42,4 +41,4 @@ const put = (key: string, ref: string, dataUrl: string) => run("readwrite", (s) 
 /** Delete the images under `key` that `refs` name. */
 const prune = (key: string, refs: string[]) => run("readwrite", (s) => { for (const r of refs) s.delete([key, r.slice(REF.length)]); return true; });
 
-export { isRef, refFor, load, put, prune };
+export { refFor, load, put, prune };
