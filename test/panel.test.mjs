@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, wait, ptr, key } from "./_helpers.mjs";
+import { loadSingle, wait, ptr, key, saved } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const quiet = async (fn) => { const warn = console.warn; console.warn = () => {}; try { return await fn(); } finally { console.warn = warn; } };
@@ -242,7 +242,7 @@ test("spring time mode maps duration/bounce to physics and carries both through"
   const v = p.params.s;
   assert.equal(v.visualDuration, 0.5);
   assert.equal(v.bounce, 0.2);
-  const k = (2 * Math.PI / 0.5) ** 2;                       // perceptual mapping
+  const k = (2 * Math.PI / (0.5 * 1.2)) ** 2;               // Motion's mapping: the period is visualDuration × 1.2
   assert.ok(Math.abs(v.stiffness - k) < 1e-6);             // resolved physics for runtime-agnostic consumers
   assert.ok(Math.abs(v.damping - 2 * (1 - 0.2) * Math.sqrt(k)) < 1e-6);
   assert.equal(v.mass, 1);
@@ -704,7 +704,7 @@ test("destroy() flushes a pending persist write instead of dropping the last edi
   const p = tweaks("Flush", { a: [1, 0, 10, 1] }, { persist: "t-flush" });
   p.set("a", 7);
   p.destroy();
-  assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-flush")), { a: 7 }, "the pending write landed on destroy");
+  assert.deepEqual(saved("tw:t-flush"), { a: 7 }, "the pending write landed on destroy");
 });
 
 test("⌘Z inside a text field is left to the field's native undo", () => {
@@ -893,7 +893,7 @@ test("setName() moves the header, and leaves the storage key on the built-with n
   assert.equal(document.querySelector(".tw-toast"), null, "and shows no toast");
   // Persisted values stay under the original key.
   p.set("blur", 40); await new Promise((r) => setTimeout(r, 200)); // past the persist debounce
-  assert.equal(JSON.parse(localStorage.getItem("tw:Card")).blur, 40, "saved under the built-with name");
+  assert.equal(saved("tw:Card").blur, 40, "saved under the built-with name");
   assert.equal(localStorage.getItem("tw:Lock screen"), null, "nothing moved to the new name");
   p.destroy();
   p.setName("Gone");

@@ -30,14 +30,14 @@ test("a keyword curve and a duration author the easing; spring keys author a spr
   e.destroy();
   const s = await mount({ t: { type: "motion", stiffness: 300, damping: 26, mass: 1 } });
   const v = s.params.t;
-  // Physics keys map to the nearest duration + bounce (exact when mass is 1), and the value carries the resolved physics back out.
+  // Physics keys map to the duration + bounce Motion would resolve them from (its period is visualDuration × 1.2), and the value carries the resolved physics back out.
   assert.equal(v.mode, "spring"); assert.ok(Math.abs(v.stiffness - 300) < 1e-6 && Math.abs(v.damping - 26) < 1e-6 && v.mass === 1, `the physics round-trips (${v.stiffness}, ${v.damping}, ${v.mass})`);
-  assert.ok(Math.abs(v.visualDuration - 2 * Math.PI / Math.sqrt(300)) < 1e-9 && Math.abs(v.bounce - (1 - 26 / (2 * Math.sqrt(300)))) < 1e-9, `as a duration + bounce (${v.visualDuration}, ${v.bounce})`);
+  assert.ok(Math.abs(v.visualDuration - 2 * Math.PI / (1.2 * Math.sqrt(300))) < 1e-9 && Math.abs(v.bounce - (1 - 26 / (2 * Math.sqrt(300)))) < 1e-9, `as a duration + bounce (${v.visualDuration}, ${v.bounce})`);
   const shown = [...s.el.querySelectorAll(".tw-spring .tw-fields")].find((f) => f.style.display !== "none");
   assert.match(shown.textContent, /Duration/); assert.match(shown.textContent, /Bounce/); assert.doesNotMatch(shown.textContent, /Stiffness/, "the spring inside is tuned by feel only — duration + bounce");
   assert.equal(v.duration, Math.round(7 / (26 / 2) * 1000), "the run lasts to within e^-7 of settled: 7 / (ζ·ω₀), uncapped");
-  const stops = v.easing.match(/^linear\((.+)\)$/)[1].split(", ").map(Number);
-  assert.equal(stops.length, 48); assert.ok(Math.abs(stops[0]) < 0.01 && Math.abs(stops[47] - 1) < 0.05, "from rest to settled");
+  const stops = v.easing.match(/^linear\((.+)\)$/)[1].split(", ").map(parseFloat);
+  assert.ok(stops.length >= 48, `${stops.length} stops`); assert.ok(Math.abs(stops[0]) < 0.01 && Math.abs(stops.at(-1) - 1) < 0.05, "from rest to settled");
   assert.equal(s.el.querySelector(".tw-motion .tw-trigger-value").textContent, `Spring · ${Math.round(v.visualDuration * 1000)} ms`, "the summary shows the authored duration, as the field does");
   s.destroy();
 });
@@ -46,7 +46,7 @@ test("set(): infers the mode from the keys, takes a bare keyword, ignores derive
   const p = await mount({ t: { type: "motion", duration: 500 } });
   p.set("t", { visualDuration: 0.3, bounce: 0.6 });
   assert.equal(p.params.t.mode, "spring");
-  assert.ok(Math.max(...p.params.t.easing.match(/^linear\((.+)\)$/)[1].split(", ").map(Number)) > 1.1, "bounce 0.6 overshoots");
+  assert.ok(Math.max(...p.params.t.easing.match(/^linear\((.+)\)$/)[1].split(", ").map(parseFloat)) > 1.1, "bounce 0.6 overshoots");
   p.set("t", p.params.t); // the full value, derived fields included, back in — a toJSON/fromJSON or changes() round-trip
   assert.equal(p.params.t.mode, "spring");
   p.set("t", "ease-in-out");
@@ -128,7 +128,7 @@ test("review follow-ups: reset restores the mode you weren't looking at; the sum
 test("review follow-ups: the preview keeps its direction and finishes a run on edits, flips on a click; a bouncy spring's linear() ends at rest; the stage is a button; focus lands on the checked option", async () => {
   window.HTMLElement.prototype.animate = function (frames, opts) { runs.push({ el: this, frames, ...opts }); return { cancel() {}, playState: "running" }; };
   const p = await mount({ t: { type: "motion", visualDuration: 1, bounce: 0.9 } });
-  const stops = p.params.t.easing.match(/^linear\((.+)\)$/)[1].split(", ").map(Number);
+  const stops = p.params.t.easing.match(/^linear\((.+)\)$/)[1].split(", ").map(parseFloat);
   assert.ok(Math.abs(stops.at(-1) - 1) < 0.002, `ends settled (${stops.at(-1)})`); assert.ok(stops.length > 48, `more stops for a long run (${stops.length})`);
   assert.ok(p.params.t.duration > 2200, "longer than the drawn window");
   const pop = await open(p);
@@ -166,4 +166,46 @@ test("a spring's physics round-trips clean: stiffness 300 comes back 300, not 30
   assert.equal(c.stiffness, 500, "changes() carries the stiffness as set");
   assert.equal(c.damping, 25, "and the damping");
   p.destroy();
+});
+
+// Time mode mapped visualDuration to stiffness without Motion's ×1.2, so a spring tuned here played ~18% faster than the same
+// { visualDuration, bounce } in Motion, and it clamped bounce to 0–1 and the result through the physics pad's limits.
+// The expected numbers come from running motion-dom's own spring.ts (bounceToDampingRatio, overdampedFreqScale and the
+// visualDuration branch of getSpringOptions) on each pair, not from this kit's code.
+const MOTION = [[0.3, 0, 304.6174198, 34.90658504], [0.5, 0.2, 109.6622711, 16.75516082], [0.8, 0.4, 42.83682466, 7.853981634],
+  [0.5, 0.97, 109.6622711, 1.047197551], [0.4, -0.5, 1054.319822, 129.8811655], [0.6, -1, 51503.17038, 9077.723977]];
+const near = (a, b) => Math.abs(a - b) <= 1e-6 * Math.abs(b);
+test("a time-mode spring resolves to the stiffness and damping Motion gives the same visualDuration and bounce", async () => {
+  for (const [visualDuration, bounce, k, d] of MOTION) {
+    const p = tweaks("M", { s: { type: "spring", mode: "time", visualDuration, bounce } }); await p.ready;
+    const v = p.params.s;
+    assert.ok(near(v.stiffness, k) && near(v.damping, d) && v.mass === 1, `${visualDuration}s, bounce ${bounce}: got k ${v.stiffness}, d ${v.damping}; Motion ${k}, ${d}`);
+    assert.equal(v.bounce, bounce, "a negative bounce and one near 1 are kept, as Motion takes them");
+    p.destroy();
+  }
+});
+// Past ±0.95 the damping ratio sits at its floor, so a bounce there reads back as ±0.95.
+test("physics keys handed to a motion control read back as the visualDuration and bounce Motion resolves them from", async () => {
+  for (const [visualDuration, bounce, stiffness, damping] of MOTION.filter(([, b]) => Math.abs(b) < 0.95)) {
+    const p = tweaks("M", { m: { type: "motion", mode: "spring", stiffness, damping } }); await p.ready;
+    const v = p.params.m;
+    assert.ok(Math.abs(v.visualDuration - visualDuration) < 1e-6 && Math.abs(v.bounce - bounce) < 1e-6, `k ${stiffness}, d ${damping}: got ${v.visualDuration}s, bounce ${v.bounce}`);
+    p.destroy();
+  }
+});
+
+// A spring's linear() took its stops from the duration alone, so the bouncier the spring the fewer each wobble got: 3.4 a
+// cycle and 36% off at the extreme, over a 14 s run. Checked here against the closed-form response, at 2000 points.
+const exact = (k, d, m) => { const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)), wd = w0 * Math.sqrt(1 - z * z); return (t) => 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t)); };
+const easeAt = (easing, f) => { const pts = easing.slice(7, -1).split(", ").map((s) => s.split(" ").map(parseFloat)); for (let i = 1; i < pts.length; i++) if (f <= pts[i][1] / 100) { const [y0, p0] = pts[i - 1], [y1, p1] = pts[i]; return y0 + ((y1 - y0) * (f * 100 - p0)) / (p1 - p0 || 1); } return pts.at(-1)[0]; };
+test("a spring's linear() easing follows the spring within 1% however bouncy, and the run stops at 10 s", async () => {
+  for (const bounce of [0.2, 0.6, 0.8, 0.95]) {
+    const p = tweaks("Run", { m: { type: "motion", mode: "spring", visualDuration: 0.5, bounce } }); await p.ready;
+    const v = p.params.m, x = exact(v.stiffness, v.damping, v.mass), T = v.duration / 1000;
+    let worst = 0; for (let i = 0; i <= 2000; i++) { const f = i / 2000; if (f < 0.999) worst = Math.max(worst, Math.abs(easeAt(v.easing, f) - x(f * T))); }
+    assert.ok(worst < 0.01, `bounce ${bounce}: off by ${(worst * 100).toFixed(2)}%`);
+    assert.ok(v.duration <= 10000, `bounce ${bounce}: ${v.duration} ms`);
+    assert.match(v.easing, /, 1 100%\)$/, "and it ends at rest");
+    p.destroy();
+  }
 });

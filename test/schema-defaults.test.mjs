@@ -179,12 +179,30 @@ test("a point value outside the default pad range widens the range instead of pi
   assert.ok(top > 0 && top < 50, `the thumb should sit inside the pad, above center (top=${thumb.style.top})`);
 });
 
-// A string option's label title-cases a camel hump ("fontSize" → "Font Size") and leaves a
-// run of capitals or a digit before one alone ("XS", "2XL", "RGB" used to render "X S",
-// "2 X L", "R G B").
-test("string option labels: camel humps split, capital runs and digits do not", async () => {
-  const p = tweaks("L", { size: { type: "radiogrid", options: ["XS", "2XL", "RGB", "fontSize", "small", "myURLParser", "level2Up"] } }); document.body.append(p.el); await p.ready;
-  assert.deepEqual([...p.el.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up"]);
+// A string option is text the author wrote, so it shows as written: title-casing made "sRGB"
+// "S RGB", "macOS" "Mac OS" and "px" "Px". Its value is the same string either way.
+test("string option labels show as written, in every option control and in markup", async () => {
+  const opts = ["sRGB", "display-p3", "iOS", "macOS", "px", "fontSize", "XS"];
+  for (const type of ["radiogrid", "segmented", "list"]) {
+    const p = tweaks("L", { space: { type, options: opts, value: "px" } }); document.body.append(p.el); await p.ready;
+    const shown = [...p.el.querySelectorAll(".tw-radiogrid-btn, .tw-seg-btn, .tw-select-option")].map((b) => b.textContent);
+    assert.deepEqual(shown, opts, type);
+    assert.equal(p.params.space, "px", "the value is unchanged");
+    p.destroy();
+  }
+  const host = document.createElement("div");
+  host.innerHTML = '<div data-tw="radiogrid" data-key="space" data-options="sRGB,display-p3,px"></div>';
+  document.body.append(host); enhance(host);
+  assert.deepEqual([...host.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["sRGB", "display-p3", "px"]);
+  host.remove();
+});
+
+// A key still becomes a label: camel humps split, a run of capitals or a digit before one does
+// not ("XS", "2XL", "HTML Parser"), and a lowercase word ending in capitals is a name kept whole.
+test("key labels: camel humps split, capital runs stay together, sRGB and macOS stay as written", async () => {
+  const keys = { XS: 1, "2XL": 1, RGB: 1, fontSize: 1, small: 1, myURLParser: 1, level2Up: 1, HTMLParser: 1, x1: 1, offsetX: 1, sRGB: 1, iOS: 1, macOS: 1, aOK: 1 };
+  const p = tweaks("K", keys); document.body.append(p.el); await p.ready;
+  assert.deepEqual([...p.el.querySelectorAll(".tw-slider-label")].map((l) => l.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up", "HTML Parser", "X1", "Offset X", "sRGB", "iOS", "macOS", "aOK"]);
   p.destroy();
 });
 

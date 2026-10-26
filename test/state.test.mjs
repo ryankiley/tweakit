@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { window } from "./_setup-dom.mjs";
 import { indexedDB as fakeIDB, IDBKeyRange as FakeKeyRange } from "fake-indexeddb";
-import { loadSingle, tick } from "./_helpers.mjs";
+import { loadSingle, tick, saved } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -120,7 +120,7 @@ test("an uploaded image persists through IndexedDB: storage holds its ref, and t
   await p.ready;
   p.set("x", 7); p.set("im", big);
   await tick(250);
-  const stored = JSON.parse(localStorage.getItem("tw:t-idb"));
+  const stored = saved("tw:t-idb");
   assert.equal(stored.x, 7);
   assert.match(stored.im, /^tw-image:\w+$/, "storage holds a short ref, not the data URL");
   assert.equal((await records()).filter(([k]) => k === "tw:t-idb").length, 1, "and IndexedDB the image, once");
@@ -139,7 +139,7 @@ test("presets carry images by ref, and a record nothing names any more is pruned
   await p.ready;
   p.set("im", one); await tick(250);
   assert.equal(p.savePreset("first"), true);
-  assert.match(JSON.parse(localStorage.getItem("tw:t-idb-pre:presets")).first.im, /^tw-image:/, "the preset holds the ref");
+  assert.match(saved("tw:t-idb-pre:presets").first.im, /^tw-image:/, "the preset holds the ref");
   p.set("im", two); await tick(250);
   assert.equal((await ours()).length, 2, "the preset still names the first image, so both are kept");
   p.loadPreset("first");
@@ -188,7 +188,7 @@ test("a persisted image doesn't hold up the rest: the single build restores ever
   assert.equal(b.params.x, 7, "restored as the panel builds");
   assert.equal(b.params.im, "", "the image waits for the store");
   b.set("x", 8); await tick(250); // a save while the store loads keeps the stored image
-  assert.match(JSON.parse(localStorage.getItem("tw:t-idb-sync")).im, /^tw-image:/);
+  assert.match(saved("tw:t-idb-sync").im, /^tw-image:/);
   await b.ready;
   assert.equal(b.params.im, img, "and is in by ready");
   assert.deepEqual(heard.at(-1), [true, undefined], "listeners hear it arrive");
@@ -217,8 +217,8 @@ test("an image IndexedDB refuses saves inline instead, and a preset holding its 
     await p.ready;
     p.setMany({ x: 4, im: img }); assert.equal(p.savePreset("kept"), true); await tick(250);
     await tick(250); // the refused write, then the save that puts it inline
-    assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-idb-full")), { x: 4, im: img });
-    assert.equal(JSON.parse(localStorage.getItem("tw:t-idb-full:presets")).kept.im, img, "the preset's dead ref became the image");
+    assert.deepEqual(saved("tw:t-idb-full"), { x: 4, im: img });
+    assert.equal(saved("tw:t-idb-full:presets").kept.im, img, "the preset's dead ref became the image");
     p.destroy();
   } finally { IDBObjectStore.prototype.put = put; }
 });
@@ -312,10 +312,10 @@ test("a preset keeps its image when the schema changes under the same key", asyn
 test("an image 0.5 saved inline survives a mount and destroy before the store answers", async () => {
   localStorage.setItem("tw:t-legacy", JSON.stringify({ x: 3, im: imgX }));
   tweaks("L5", IMG_S, { persist: "t-legacy" }).destroy(); // React StrictMode's double mount
-  assert.equal(JSON.parse(localStorage.getItem("tw:t-legacy")).im, imgX, "still inline");
+  assert.equal(saved("tw:t-legacy").im, imgX, "still inline");
   const p = tweaks("L5", IMG_S, { persist: "t-legacy" }); await p.ready; await tick(250);
   assert.equal(p.params.im, imgX);
-  assert.match(JSON.parse(localStorage.getItem("tw:t-legacy")).im, /^tw-image:/, "and moves to the store once it answers");
+  assert.match(saved("tw:t-legacy").im, /^tw-image:/, "and moves to the store once it answers");
   p.destroy();
 });
 
@@ -365,7 +365,26 @@ test("an IndexedDB open that never settles reads as unavailable: ready resolves 
     const won = await Promise.race([p.ready.then(() => "ready"), tick(4500).then(() => "hung")]);
     assert.equal(won, "ready");
     p.set("im", imgY); await tick(250);
-    assert.equal(JSON.parse(localStorage.getItem("tw:t-blocked")).im, imgY);
+    assert.equal(saved("tw:t-blocked").im, imgY);
     p.destroy();
   } finally { held.close(); await new Promise((r) => { del.onsuccess = del.onerror = r; }); }
+});
+
+// Saved values were a bare object, so a change to what's stored (a color's precision, a grey's hue) couldn't tell old data
+// from new. They and presets are now wrapped with a format version; a bare object is the version before, read as it is.
+test("values and presets save as { v: 1, … }, and a bare object from before still restores", async () => {
+  localStorage.setItem("tw:t-v0", JSON.stringify({ x: 3 }));
+  localStorage.setItem("tw:t-v0:presets", JSON.stringify({ old: { x: 5 } }));
+  const p = tweaks("V", { x: [1, 0, 10, 1] }, { persist: "t-v0" });
+  await p.ready;
+  assert.equal(p.params.x, 3, "0.5's bare values restore");
+  assert.deepEqual(p.presets(), ["old"], "and its presets list");
+  p.loadPreset("old"); assert.equal(p.params.x, 5);
+  p.set("x", 7); p.savePreset("new"); await tick(250);
+  assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-v0")), { v: 1, values: { x: 7 } });
+  assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-v0:presets")), { v: 1, presets: { old: { x: 5 }, new: { x: 7 } } });
+  p.destroy();
+  const q = tweaks("V", { x: [1, 0, 10, 1] }, { persist: "t-v0" });
+  await q.ready; assert.equal(q.params.x, 7, "and the new format reads back");
+  q.destroy(); localStorage.removeItem("tw:t-v0"); localStorage.removeItem("tw:t-v0:presets");
 });

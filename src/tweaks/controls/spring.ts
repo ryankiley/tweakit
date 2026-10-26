@@ -1,6 +1,6 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/bounce) mode, over one settle-curve preview. Lazy. ──
 import { el, txt, onReady, onLive, clamp, createSegmented, registerControl } from "../shared.js";
-import { dragGesture, numField, cssVar, accentColor, springCurve } from "../heavy.js";
+import { dragGesture, numField, cssVar, accentColor, springCurve, springFromTime } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -20,14 +20,15 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   const clampS = (o: { stiffness?: unknown; damping?: unknown; mass?: unknown }): Phys => ({ stiffness: cl(o.stiffness, 1, 300), damping: cl(o.damping, 0.5, 26), mass: cl(o.mass, 0.1, 1) });
   const has = (x: unknown) => Number.isFinite(+x);
 
-  // Time mode edits visualDuration + bounce (Motion's spring shorthand), mapped onto the physics the preview and emit share:
-  //   stiffness = (2π / visualDuration)²,  ζ = 1 − bounce,  damping = 2ζ·√(k·m),  mass = 1.
+  // Time mode edits visualDuration + bounce (Motion's spring shorthand), mapped onto the physics the preview and emit share
+  // exactly as Motion resolves them (springFromTime): stiffness = (2π / (visualDuration × 1.2))², ζ from bounce floored at
+  // 0.05, a negative bounce overdamped. Not through the physics pad's clamps, which would cut a short spring's stiffness.
   const DUR_MIN = 0.1, DUR_MAX = 1;
   const clampDur = (v: unknown) => clamp(has(v) ? +v : 0.5, DUR_MIN, DUR_MAX);
-  const clampBounce = (v: unknown) => clamp(has(v) ? +v : 0.2, 0, 1);
+  const clampBounce = (v: unknown) => clamp(has(v) ? +v : 0.2, -1, 1); // Motion takes a negative bounce: overdamped
   // Ten significant figures: the trig round trip otherwise hands back 300.00000000000006 for a stiffness of 300.
   const sig = (x: number) => +x.toPrecision(10);
-  const timeToPhysics = (t: SpringTime): Phys => { const k = (2 * Math.PI / t.visualDuration) ** 2, z = 1 - t.bounce, m = 1; return { stiffness: sig(k), damping: sig(2 * z * Math.sqrt(k * m)), mass: m }; };
+  const timeToPhysics = (t: SpringTime): Phys => { const p = springFromTime(t.visualDuration, t.bounce); return { stiffness: sig(p.stiffness), damping: sig(p.damping), mass: p.mass }; };
 
   // Top-level props (the inline shorthand) or the `value:{…}` form, value winning; the mode is explicit or inferred, time winning.
   const explicit = (m: unknown): SpringMode | null => (m === "time" || m === "physics" ? m : null);
@@ -44,7 +45,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   const ctx = canvas.getContext("2d");
 
   // The preview and the emitted value both read this, so they can never disagree.
-  const resolved = () => (mode === "time" ? clampS(timeToPhysics(time)) : clampS(phys));
+  const resolved = () => (mode === "time" ? timeToPhysics(time) : clampS(phys));
   const draw = () => {
     // Layout size: getBoundingClientRect includes the pop's entrance scale.
     const w = Math.max(1, viz.clientWidth), h = Math.max(1, viz.clientHeight); if (w < 2) return;
@@ -72,7 +73,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   });
   // The field shows ms; the value stays Motion's visualDuration in seconds.
   const durFld = numField({ label: "Duration", value: time.visualDuration * 1000, step: 50, min: DUR_MIN * 1000, max: DUR_MAX * 1000, unit: "ms" }, (v) => { time.visualDuration = clampDur(v / 1000); draw(); emit(); });
-  const bounceFld = numField({ label: "Bounce", value: time.bounce * 100, step: 5, min: 0, max: 100, unit: "%" }, (v) => { time.bounce = clampBounce(v / 100); draw(); emit(); }); // shown as a percentage; the value stays Motion's 0–1
+  const bounceFld = numField({ label: "Bounce", value: time.bounce * 100, step: 5, min: -100, max: 100, unit: "%" }, (v) => { time.bounce = clampBounce(v / 100); draw(); emit(); }); // shown as a percentage; the value stays Motion's −1–1
   timeFields.append(durFld.el, bounceFld.el);
 
   const showMode = () => { timeFields.style.display = mode === "time" ? "" : "none"; physFields.style.display = mode === "physics" ? "" : "none"; };

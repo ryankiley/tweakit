@@ -1,7 +1,7 @@
 // ── Motion — a transition's timing: an easing curve with a duration, or a spring, in one popover over one value. The
 // value carries the CSS it resolves to — `duration` in ms and an `easing` string, cubic-bezier() or a sampled linear(). Lazy. ──
 import { el, txt, clamp, isObj, createSegmented, getControl, popover, registerControl, REDUCE_MOTION } from "../shared.js";
-import { numField, triggerRow, svgEl, springCurve } from "../heavy.js";
+import { numField, triggerRow, svgEl, springCurve, springRun, timeFromSpring } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, MotionValue, MotionInput } from "../types.js";
@@ -12,7 +12,7 @@ interface SpringOut { stiffness: number; damping: number; mass: number; visualDu
 
 const EASES: Record<string, Curve> = { ease: [0.25, 0.1, 0.25, 1], linear: [0, 0, 1, 1], "ease-in": [0.42, 0, 1, 1], "ease-out": [0, 0, 0.58, 1], "ease-in-out": [0.42, 0, 0.58, 1] };
 const DUR_DEF = 300, DUR_MAX = 10000, STAGE_PAD = 16; // ms; the stage's side padding (tweaks.css)
-const BOUNCE_MAX = 0.9; // ζ ≥ 0.1: an undamped spring never settles
+const BOUNCE_MAX = 1; // Motion's whole range: its damping-ratio floor of 0.05 keeps a bounce of 1 settling
 const has = (x: unknown) => (typeof x === "number" ? Number.isFinite(x) : typeof x === "string" && x.trim() !== "" && Number.isFinite(+x)); // a number, or a numeric string — not `true`, `[]` or " "
 const curveOf = (c: unknown): Curve | null => {
   if (typeof c === "string") return Object.prototype.hasOwnProperty.call(EASES, c) ? (EASES[c].slice() as Curve) : null; // own key only — "constructor" is not an easing
@@ -20,13 +20,12 @@ const curveOf = (c: unknown): Curve | null => {
   return null;
 };
 const springKeys = (v: MotionInput) => has(v.stiffness) || has(v.damping) || has(v.mass) || has(v.visualDuration) || has(v.bounce);
-// Physics keys map to the nearest pair: ω₀ = √(k/m), duration = 2π/ω₀, ζ = d/2√(km), bounce = 1 − ζ — the spring's
-// time→physics mapping inverted (m = 1). An explicit duration/bounce wins.
+// Physics keys map to the visualDuration + bounce Motion would resolve to them (timeFromSpring). An explicit duration/bounce wins.
 const springTime = (v: MotionInput) => {
   const out: { mode: "time"; visualDuration?: number; bounce?: number } = { mode: "time" };
-  if (has(v.stiffness)) { const k = +v.stiffness!, m = has(v.mass) ? +v.mass! : 1, w0 = Math.sqrt(k / m); out.visualDuration = 2 * Math.PI / w0; if (has(v.damping)) out.bounce = clamp(1 - +v.damping! / (2 * Math.sqrt(k * m)), 0, BOUNCE_MAX); }
+  if (has(v.stiffness)) { const k = +v.stiffness!, m = has(v.mass) ? +v.mass! : 1, t = timeFromSpring(k, has(v.damping) ? +v.damping! : 2 * Math.sqrt(k * m), m); out.visualDuration = t.visualDuration; if (has(v.damping)) out.bounce = clamp(t.bounce, -1, BOUNCE_MAX); }
   if (has(v.visualDuration)) out.visualDuration = +v.visualDuration!;
-  if (has(v.bounce)) out.bounce = clamp(+v.bounce!, 0, BOUNCE_MAX);
+  if (has(v.bounce)) out.bounce = clamp(+v.bounce!, -1, BOUNCE_MAX);
   return out;
 };
 const modeOf = (v: MotionInput, keep: Mode): Mode => (v.mode === "spring" || v.mode === "easing" ? v.mode : springKeys(v) ? "spring" : curveOf(v.curve) ? "easing" : keep); // a curve that doesn't parse is no reason to switch
@@ -63,10 +62,9 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
 
   const value = (): MotionValue => {
     if (mode === "easing") return { mode, curve: curve.slice() as Curve, duration: dur, easing: `cubic-bezier(${curve.join(", ")})` };
-    // Uncapped, to within e⁻⁷ of settled (the drawn curve stops at 2.2 s): a transition has to end at rest. More stops
-    // for a longer or bouncier run, so the sampling doesn't alias.
-    const s = spring.get() as SpringOut, span = 7 / Math.max(s.damping / (2 * s.mass), 0.5), n = clamp(Math.round(span * 40), 48, 240);
-    return { mode, ...s, duration: Math.round(span * 1000), easing: `linear(${springCurve(s.stiffness, s.damping, s.mass, n, span).map((p) => +p.toFixed(3)).join(", ")})` };
+    // The run lasts until the spring is at rest (the drawn curve stops at 2.2 s): springRun.
+    const s = spring.get() as SpringOut;
+    return { mode, ...s, ...springRun(s.stiffness, s.damping, s.mass) };
   };
   const emit = () => onChange(value());
 

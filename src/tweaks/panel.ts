@@ -67,6 +67,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   if (persistKey) { const n = liveKeys.get(persistKey) || 0; if (n) console.warn(`[tweaks] persist: another live panel already saves under "${persistKey.slice(3)}", so each overwrites the other's values; give one its own persist key`); liveKeys.set(persistKey, n + 1); }
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
+  // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to what's
+  // stored (a color's precision, a grey's hue) can tell old data from new. A bare object is the version before, read as it is.
+  const unwrap = (s: any, k: string) => (s && typeof s === "object" && s.v === 1 && Object.keys(s).length === 2 && s[k] && typeof s[k] === "object" ? s[k] : s);
+  const writeValues = (snap: Snapshot) => writeStore(persistKey!, { v: 1, values: snap });
+  const writePresets = (all: unknown) => writeStore(presetsKey!, { v: 1, presets: all });
   const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj); // own keys only: a control keyed toString must not read Object.prototype's
   // Take one entry's value out of a snapshot; true when it was there. Reflect: an undeletable key is left, not thrown.
   const drop = (snap: Snapshot | null, e: Entry) => { const o: any = atPath(snap, e.path.slice(0, -1)); if (!o || typeof o !== "object" || !hasOwn(o, e.key)) return false; Reflect.deleteProperty(o, e.key); return true; };
@@ -146,11 +151,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const save = () => {
       saveT = 0;
       const snap = toRefs(unsaved(snapshot()));
-      if (!writeStore(persistKey, snap)) {
+      if (!writeValues(snap)) {
         const inline = imageEntries().filter((e) => isDataUrl(atPath(snap, e.path)));
         if (!inline.length) return;
         for (const e of inline) { notSaved(e, atPath(snap, e.path)); drop(snap, e); }
-        if (!writeStore(persistKey, snap)) return;
+        if (!writeValues(snap)) return;
       }
       pruneImages();
     };
@@ -444,11 +449,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     last = undefined; notify(silent);
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets" ──
-  const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
+  const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? unwrap(readStore(presetsKey), "presets") : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
   // False when storage refused the write, so the caller can say so instead of claiming a save.
-  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); const ok = writeStore(presetsKey, all); if (!ok) console.warn(`[tweaks] preset "${nm}" didn't fit in storage — not saved`); return ok; };
+  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); const ok = writePresets(all); if (!ok) console.warn(`[tweaks] preset "${nm}" didn't fit in storage — not saved`); return ok; };
   const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) restore(all[nm]); }; // re-read at replay: a delete queued ahead of it wins
-  const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; if (writeStore(presetsKey, all)) pruneImages(); };
+  const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; if (writePresets(all)) pruneImages(); };
 
   // ── Whole-panel UI state (toJSON / fromJSON) — folder open/closed and the active tab, keyed by dotted path ──
   const pathKey = (p: string[]) => p.map((k) => String(k).replace(/~/g, "~1").replace(/\./g, "~0")).join("."); // JSON-pointer escaping, so a literal "." can't collide
@@ -777,7 +782,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       import("./fold.js").then((m) => { fold = m.fold; }, () => {}); // a fold chunk that fails to load leaves the rows toggling
     }
     // Restore last session, notifying: on the lazy path a host may already have subscribed.
-    if (persistKey) restore(unsaved(readStore(persistKey)));
+    if (persistKey) restore(unsaved(unwrap(readStore(persistKey), "values")));
     if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm(); watchResize();
     cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); })); // one document listener per panel for its keys
@@ -884,7 +889,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const hasImage = (ms: Meta[]): boolean => ms.some((m) => m.type === "image" || hasImage(m.children || []) || (m.pages || []).some((pg) => hasImage(pg.children)));
   const images = persistKey && hasImage(metas) ? import("./image-store.js").then(async (m) => {
     savedImages = await m.load(persistKey);
-    if (savedImages) imgs = m.bind(persistKey, savedImages, () => { if (!destroyed) persist(); }, listPresets, (v) => !!presetsKey && writeStore(presetsKey, v));
+    if (savedImages) imgs = m.bind(persistKey, savedImages, () => { if (!destroyed) persist(); }, listPresets, (v) => !!presetsKey && writePresets(v));
   }, () => {}) : null;
   if (!images) imagesReady = true;
   const imagesIn = images && images.then(restoreImages);
