@@ -71,10 +71,10 @@ A few things aren't obvious from the file tree and will trip you up otherwise:
   and `llms-full.txt`, and a version-stamped copy of `AGENTS.md`; `test/agents-md.test.mjs`
   holds the guide to the control registry and the README to the install prompt.
 - **Theming runs entirely on `--tw-*`.** New visual values go through tokens, not
-  hardcoded colors. The light token block must exist twice in the shipped CSS (CSS can't
-  share a block across a media query and a selector), but only the media-driven block is
-  authored: the build **generates** the `[data-tw-scheme="light"]` twin from it, and fails
-  if it finds a hand-written forced-light rule or an underivable rule in the media block.
+  hardcoded colors. A color that differs by scheme is one `light-dark(light, dark)` value in
+  the token block; the panel's `color-scheme` picks the arm, and `[data-tw-scheme]` pins only
+  set that. A value that isn't a color (a shadow) takes `light-dark()` on each layer's color;
+  only a shadow that exists in one scheme alone (the slider handle's edge) needs its own rule.
 - **Site copy is American English** (color, not colour). The kit's public API keeps the
   `color` type string too.
 

@@ -20,7 +20,9 @@ export const examples = [
       does. To pin a subtree, set <code>data-tw-scheme="light"</code> or
       <code>"dark"</code> on any ancestor: forcing beats the OS preference, and portaled
       popovers carry the scheme with them. Flip the segmented control and the panel
-      themes itself, whatever your system is set to.</p>`,
+      themes itself, whatever your system is set to.</p>
+      <p>Each color token is a <code>light-dark()</code> pair picked by the panel's
+      <code>color-scheme</code>, which needs Chrome and Edge 123, Firefox 120 or Safari 17.5.</p>`,
     run: ({ tweaks, mount }) => {
       const panel = tweaks("Scheme", {
         scheme: { type: "segmented", options: ["Auto", "Light", "Dark"], value: "Auto" },

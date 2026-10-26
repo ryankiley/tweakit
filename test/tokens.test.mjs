@@ -56,13 +56,31 @@ test("secondary, tertiary, label and section text clear 4.5:1 on the base in bot
   const rgba = (s) => { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)|#([0-9a-f]{6})\b/i.exec(s); assert.ok(m, `a color: ${s}`); return m[5] ? [...[0, 2, 4].map((i) => parseInt(m[5].slice(i, i + 2), 16)), 1] : [+m[1], +m[2], +m[3], m[4] == null ? 1 : +m[4]]; };
   const ratio = ([r, g, b, a], bg) => { const c = [r, g, b].map((v, i) => v * a + bg[i] * (1 - a)); const [h, l] = [lum(c), lum(bg)].sort((x, y) => y - x); return (h + 0.05) / (l + 0.05); };
   const blocks = [...src.matchAll(/([^{}]+)\{([^{}]*--tw-base:[^{}]*)\}/g)];
-  assert.equal(blocks.length, 2, "a dark and a light token block declare --tw-base");
-  for (const [, sel, decl] of blocks) {
-    const tok = (n) => rgba(new RegExp(`${n}:\\s*([^;]+)`).exec(decl)[1]);
-    const base = tok("--tw-base").slice(0, 3);
+  assert.equal(blocks.length, 1, "one token block declares --tw-base, both schemes in light-dark() pairs");
+  const decl = blocks[0][2];
+  // light-dark(light, dark): arm 0 is the light scheme's color, arm 1 the dark's.
+  const tok = (n, arm) => {
+    const m = new RegExp(`${n}:\\s*light-dark\\(((?:[^(),]|\\([^()]*\\))+),((?:[^(),]|\\([^()]*\\))+)\\)`).exec(decl);
+    assert.ok(m, `${n} is a light-dark() pair`);
+    return rgba(m[1 + arm]);
+  };
+  for (const [arm, scheme] of [[0, "light"], [1, "dark"]]) {
+    const base = tok("--tw-base", arm).slice(0, 3);
     for (const n of ["--tw-text-secondary", "--tw-text-tertiary", "--tw-text-label", "--tw-text-section"]) {
-      const r = ratio(tok(n), base);
-      assert.ok(r >= 4.5, `${n} in ${sel.trim().slice(0, 24)}… is ${r.toFixed(2)}:1 on the base`);
+      const r = ratio(tok(n, arm), base);
+      assert.ok(r >= 4.5, `${n} in ${scheme} is ${r.toFixed(2)}:1 on the base`);
     }
   }
+});
+
+// The scheme is the panel's color-scheme: the OS by default, a [data-tw-scheme] pin on the node or an ancestor
+// otherwise, and a light pin outranks a dark one, by coming later at the same specificity.
+test("pins set color-scheme on the kit's nodes, the light pin after the dark", () => {
+  const at = (s) => css.indexOf(s);
+  const dark = at('.tw-panel:where([data-tw-scheme=dark],[data-tw-scheme=dark] *),.tw-portal:where([data-tw-scheme=dark],[data-tw-scheme=dark] *){color-scheme:dark}');
+  const light = at('.tw-panel:where([data-tw-scheme=light],[data-tw-scheme=light] *),.tw-portal:where([data-tw-scheme=light],[data-tw-scheme=light] *){color-scheme:light}');
+  assert.ok(dark > 0 && light > dark, "both pin rules ship, light last");
+  assert.ok(/\.tw-panel,\.tw-portal\{[^}]*color-scheme:light dark/.test(css), "unpinned, the kit follows the OS");
+  // The slider handle's light-only edge is the one scheme rule left outside light-dark(): a shadow can't come and go by color.
+  assert.deepEqual([...css.matchAll(/@media ?\(prefers-color-scheme: ?light\)\{([^{}]+)\{/g)].map((m) => m[1]), ['.tw-slider-handle:where(:not([data-tw-scheme=dark] *))'], "no media-driven token block is left");
 });

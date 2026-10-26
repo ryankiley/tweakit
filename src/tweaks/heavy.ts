@@ -8,9 +8,22 @@ import type { Meta } from "./schema.js";
 const svgNS = "http://www.w3.org/2000/svg";
 // The SVG twin of shared.ts's el().
 const svgEl = <K extends keyof SVGElementTagNameMap>(tag: K, cls?: string): Built<SVGElementTagNameMap[K]> => { const n = document.createElementNS(svgNS, tag); if (cls) n.setAttribute("class", cls); return n; };
-const cssVar = (node: Element, name: string) => getComputedStyle(node).getPropertyValue(name).trim();
+// A token reads back as its light-dark(light, dark) pair, which a canvas can't parse: keep the arm the node's
+// color-scheme paints with ("light dark" follows the OS), innermost pairs included, as CSS would.
+const pickScheme = (v: string, cs: CSSStyleDeclaration) => {
+  if (!/light-dark\(/i.test(v)) return v;
+  const s = cs.colorScheme || "", dark = /\bdark\b/.test(s) && (!/\blight\b/.test(s) || matchMedia("(prefers-color-scheme: dark)").matches);
+  for (let i; (i = v.search(/light-dark\(/i)) !== -1;) {
+    let depth = 0, comma = -1, j = i + 11;
+    for (; j < v.length; j++) { const c = v[j]; if (c === "(") depth++; else if (c === ")") { if (!depth) break; depth--; } else if (c === "," && !depth && comma < 0) comma = j; }
+    if (comma < 0 || j >= v.length) return ""; // malformed: the caller's fallback color
+    v = v.slice(0, i) + (dark ? v.slice(comma + 1, j) : v.slice(i + 11, comma)).trim() + v.slice(j + 1);
+  }
+  return v;
+};
+const cssVar = (node: Element, name: string) => { const r = getComputedStyle(node); return pickScheme(r.getPropertyValue(name).trim(), r); };
 // One getComputedStyle for both reads — this runs in the FPS draw loop.
-const accentColor = (node: Element) => { const r = getComputedStyle(node); const v = (n: string) => r.getPropertyValue(n).trim(); return v("--tw-accent") || v("--tw-text-primary") || "#fff"; };
+const accentColor = (node: Element) => { const r = getComputedStyle(node); const v = (n: string) => pickScheme(r.getPropertyValue(n).trim(), r); return v("--tw-accent") || v("--tw-text-primary") || "#fff"; };
 // Select the whole value on focus (the hex field: you type a new color, never edit a digit).
 // Browsers collapse a focus-time selection on the click's own mouseup, so the first primary
 // mouseup after a pointer-initiated focus is swallowed while the whole value is still selected.
