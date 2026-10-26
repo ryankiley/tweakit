@@ -108,3 +108,19 @@ test("without IndexedDB an upload is left out of the save, its row says so once,
     p.destroy();
   } finally { console.warn = warn; localStorage.clear(); }
 });
+
+// Two persist: true panels named alike shared tw:<name>, and the second's save silently replaced the first's values.
+test("a second live panel on the same persist key warns; one after destroy() doesn't", async () => {
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  try {
+    const a = tweaks("Twin", { x: [1, 0, 10, 1] }, { persist: true });
+    assert.equal(warned.length, 0);
+    const b = tweaks("Twin", { y: [1, 0, 10, 1] }, { persist: true });
+    assert.equal(warned.length, 1);
+    assert.match(warned[0], /another live panel already saves under "Twin"/);
+    a.destroy(); b.destroy();
+    const c = tweaks("Twin", { x: [1, 0, 10, 1] }, { persist: true });
+    assert.equal(warned.length, 1, "a remount after destroy() is quiet");
+    c.destroy();
+  } finally { console.warn = warn; localStorage.clear(); }
+});

@@ -117,7 +117,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 - `panel.setTheme(theme)`, `panel.setName(name)`; `panel.undo()` and `panel.redo()` with `undo: true`; `savePreset`, `loadPreset`, `deletePreset` and `presets()` with `persist`.
 - `panel.destroy()`: removes it and releases every listener.
 
-Options, the third argument: `theme` (token overrides), `persist` (a localStorage key, or `true` to key by name; turns presets on), `presets: false`, `filter: true` (a search field; needs the toolbar), `floating: true` or `{ x, y, corner }`, `draggable: false` to pin, `toolbar: false`, `undo: true`, `onReset`, `onEditStart` and `onEditEnd`.
+Options, the third argument: `theme` (token overrides), `persist` (a localStorage key, or `true` to key by name; turns presets on; two live panels on one key overwrite each other, and the second warns), `presets: false`, `filter: true` (a search field; needs the toolbar), `floating: true` or `{ x, y, corner }`, `draggable: false` to pin, `toolbar: false`, `undo: true`, `onReset`, `onEditStart` and `onEditEnd`.
 
 Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from a corner. A click anywhere on the header outside its toolbar folds the panel; Escape mid-drag puts it back. Its placement is plain `.tw-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
 
