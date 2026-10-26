@@ -8,7 +8,7 @@ import "./_setup-dom.mjs";
 import { loadSingle } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
-const stored = (k) => JSON.parse(localStorage.getItem(k));
+const stored = (k) => { const s = JSON.parse(localStorage.getItem(k)); return s && s.v === 1 && Object.keys(s).length === 2 ? (s.values ?? s.presets) : s; }; // out of the { v: 1, … } wrapper
 
 test("a silent set, setMany or fromJSON skips on() but still runs conditionals, persistence and undo", async () => {
   localStorage.clear();
