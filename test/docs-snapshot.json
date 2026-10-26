@@ -2,7 +2,7 @@
   "color-and-gradient.mjs › color": [
     {
       "values": {
-        "tint": "oklch(60% 0.23 286)"
+        "tint": "#7C5CFF"
       },
       "ui": {}
     }
@@ -42,8 +42,8 @@
           "y": 12,
           "blur": 32,
           "spread": -4,
-          "color": "oklch(60% 0.23 286 / 0.35)",
-          "css": "0px 12px 32px -4px oklch(60% 0.23 286 / 0.35)"
+          "color": "rgb(124 92 255 / 0.35)",
+          "css": "0px 12px 32px -4px rgb(124 92 255 / 0.35)"
         }
       },
       "ui": {}
@@ -62,7 +62,7 @@
       "values": {
         "radius": 18,
         "visible": true,
-        "tint": "oklch(60% 0.23 286)"
+        "tint": "#7C5CFF"
       },
       "ui": {}
     }
@@ -100,7 +100,7 @@
         },
         "fill": {
           "style": "solid",
-          "color": "oklch(0% 0.00 0)",
+          "color": "rgb(0, 0, 0)",
           "gradient": {
             "stops": [
               {
@@ -124,8 +124,8 @@
             "y": 6,
             "blur": 20,
             "spread": 0,
-            "color": "oklch(0% 0.00 0 / 0.14)",
-            "css": "0px 6px 20px 0px oklch(0% 0.00 0 / 0.14)"
+            "color": "rgb(0 0 0 / 0.14)",
+            "css": "0px 6px 20px 0px rgb(0 0 0 / 0.14)"
           },
           "bounce": {
             "mode": "spring",
@@ -361,7 +361,7 @@
     {
       "values": {
         "blur": 12,
-        "accent": "oklch(60% 0.23 286)",
+        "accent": "#7C5CFF",
         "shadow": {
           "radius": 16,
           "opacity": 0.4
@@ -378,7 +378,7 @@
     {
       "values": {
         "glow": false,
-        "color": "oklch(60% 0.23 286)",
+        "color": "#7C5CFF",
         "strength": 36
       },
       "ui": {}
@@ -411,7 +411,7 @@
         "caption": "Shorthands",
         "show": true,
         "blend": "normal",
-        "glow": "oklch(60% 0.23 286)"
+        "glow": "#7C5CFF"
       },
       "ui": {}
     }
@@ -453,11 +453,11 @@
       "values": {
         "look": {
           "fill": {
-            "color": "oklch(60% 0.23 286)",
+            "color": "#7C5CFF",
             "opacity": 1
           },
           "stroke": {
-            "color": "oklch(63% 0.00 180)",
+            "color": "#888888",
             "width": 2,
             "dashed": false
           }
@@ -525,7 +525,7 @@
       "values": {
         "scheme": "Auto",
         "glow": 24,
-        "tint": "oklch(60% 0.23 286)",
+        "tint": "#7C5CFF",
         "live": true
       },
       "ui": {}
@@ -545,7 +545,7 @@
     {
       "values": {
         "glow": 24,
-        "tint": "oklch(60% 0.23 286)",
+        "tint": "#7C5CFF",
         "mode": "soft",
         "on": true
       },
@@ -553,8 +553,8 @@
     },
     {
       "values": {
-        "accent": "oklch(60% 0.23 286)",
-        "base": "oklch(26% 0.00 180)",
+        "accent": "#7C5CFF",
+        "base": "#242424",
         "radius": 8,
         "density": 32
       },

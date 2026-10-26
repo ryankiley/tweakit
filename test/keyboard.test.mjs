@@ -255,9 +255,9 @@ test("color plane: a focusable group — up/down step lightness by 0.01, left/ri
   key(plane, { key: "ArrowRight" });
   assert.equal(plane.getAttribute("aria-description"), "lightness 41%, chroma 0.204", "one step is 1% of the row's ceiling (0.4 under jsdom)");
   key(plane, { key: "ArrowRight", shiftKey: true });
-  assert.equal(oklch(p.params.tint)[1], 0.24);
+  assert.equal(oklch(p.params.tint)[1], 0.244); // the param keeps a digit past the readout
   key(plane, { key: "ArrowLeft", shiftKey: true }); key(plane, { key: "ArrowLeft", shiftKey: true });
-  assert.equal(oklch(p.params.tint)[1], 0.16);
+  assert.equal(oklch(p.params.tint)[1], 0.164);
   await closePicker(p);
 });
 
