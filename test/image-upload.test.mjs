@@ -68,6 +68,13 @@ test("animation is read from chunk headers, never the frames", async () => {
   assert.ok(Math.max(...reads) <= 64, `read at most a header at a time: ${reads}`);
 });
 
+// The scan gave up after 64 chunks, so an APNG with more ahead of its first frame read as still and was redrawn flat.
+test("an acTL past many chunks still marks an APNG, and many chunks with none is still a still PNG", async () => {
+  const notes = Array.from({ length: 100 }, (_, k) => chunk("tEXt", `Note${k}\0x`));
+  assert.equal(await animated(new Blob([png(...notes, chunk("acTL", u32be(2), u32be(0)))])), true);
+  assert.equal(await animated(new Blob([png(...notes)])), false);
+});
+
 test("a JPEG loses its Exif (GPS and all) and XMP, and keeps JFIF, its ICC profile and the scan byte for byte", async () => {
   const src = jpeg(JFIF, seg(0xe1, "Exif\0\0", tiff()), ICC, XMP);
   assert.ok(has(src, "Exif") && has(src, "GPSLatitude"));

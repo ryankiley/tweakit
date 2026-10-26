@@ -27,21 +27,20 @@ const PNG_BUDGET = 1.5 * MB;
 const PNG_SIG = "\x89PNG\r\n\x1a\n";
 const ascii = (b: Uint8Array, at: number, s: string) => { for (let k = 0; k < s.length; k++) if (b[at + k] !== s.charCodeAt(k)) return false; return true; };
 // The file says it's animated before its first frame: WebP in VP8X's animation flag or an ANIM chunk, a PNG in an acTL
-// chunk ahead of its first IDAT. Only chunk headers are read, never the frames.
+// chunk ahead of its first IDAT. Only chunk headers are read, never the frames, however many chunks come first.
 export const animated = async (file: Blob) => {
   const at = async (i: number, n: number) => new Uint8Array(await file.slice(i, i + n).arrayBuffer());
   const h = await at(0, 21), webp = ascii(h, 0, "RIFF") && ascii(h, 8, "WEBP");
   if (webp && ascii(h, 12, "VP8X") && h[20] & 2) return true;
   if (!webp && !ascii(h, 0, PNG_SIG)) return false;
-  for (let i = webp ? 12 : 8, k = 0; k < 64; k++) {
+  for (let i = webp ? 12 : 8; ; ) {
     const c = await at(i, 8); if (c.length < 8) return false;
     const type = String.fromCharCode(...c.subarray(webp ? 0 : 4, webp ? 4 : 8));
     if (type === (webp ? "ANIM" : "acTL")) return true;
     if (webp ? /^(VP8 |VP8L|ANMF)$/.test(type) : type === "IDAT") return false; // the picture has begun
     const n = new DataView(c.buffer).getUint32(webp ? 4 : 0, webp); // a WebP chunk's size is little-endian and padded to even
-    i += webp ? 8 + n + (n & 1) : 12 + n;
+    i += webp ? 8 + n + (n & 1) : 12 + n; // at least a header on, so the end of the file comes
   }
-  return false;
 };
 // A picture taken as it is keeps its bytes, and a phone's carry where it was taken: Exif's GPS, and XMP, which can repeat
 // it. The value is stored and copied as JSON into source, so those blocks are cut from the bytes, losslessly: the ICC
