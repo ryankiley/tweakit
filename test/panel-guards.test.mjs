@@ -13,13 +13,13 @@ test("every field a panel builds is left alone by autofill and password managers
   const p = tweaks("Fields", {
     owner: { type: "text", value: "Maya" },
     note: { type: "text", value: "", rows: 3 },
-  }, { filter: true, persist: "t-fields" });
+  }, { persist: "t-fields" });
   document.body.append(p.el);
   try {
     // The presets menu's name field is built in a popover on <body>.
     p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click();
     const fields = [...p.el.querySelectorAll("input, textarea"), ...document.querySelectorAll(".tw-portal input, .tw-portal textarea")];
-    for (const cls of ["tw-text", "tw-textarea", "tw-search", "tw-presets-input"]) assert.ok(fields.some((f) => f.classList.contains(cls)), `a .${cls} was built`);
+    for (const cls of ["tw-text", "tw-textarea", "tw-presets-input"]) assert.ok(fields.some((f) => f.classList.contains(cls)), `a .${cls} was built`);
     for (const f of fields) {
       assert.equal(f.getAttribute("autocomplete"), "off", `.${f.className} turns autofill off`);
       assert.ok(f.hasAttribute("data-1p-ignore"), `.${f.className} asks 1Password to leave it`);

@@ -21,9 +21,7 @@ const p = tweaks("Card", {
   ease: { type: "motion", mode: "spring", stiffness: 300 },
   wobble: { type: "spring" },
   curve: { type: "cubicbezier", value: [0.2, 0, 0, 1] },
-  back: { type: "bezier", value: [0.34, 1.56, 0.64, 1] },
-  on: { type: "toggle", value: true },
-  flag: { type: "switch" },
+  on: { type: "checkbox", value: true },
   ramp: { type: "gradient", stops: [["#000", 0], ["#fff", 1]] },
   at: { type: "point", components: [{ key: "x" }, { key: "y", value: 4 }] },
   mode: { type: "segmented", options: ["a", "b"] },
@@ -49,9 +47,7 @@ expect<Equal<typeof p.params.pad.css, string>>();
 expect<Equal<typeof p.params.ease.easing, string>>();
 expect<Equal<typeof p.params.wobble.stiffness, number>>();
 expect<Equal<typeof p.params.curve, [number, number, number, number]>>();
-expect<Equal<typeof p.params.back, [number, number, number, number]>>();
 expect<Equal<typeof p.params.on, boolean>>();
-expect<Equal<typeof p.params.flag, boolean>>();
 expect<Equal<typeof p.params.ramp.stops[number]["pos"], number>>();
 expect<Equal<typeof p.params.at, { x: number; y: number }>>();
 expect<Equal<typeof p.params.mode, "a" | "b">>();
@@ -148,7 +144,7 @@ paths.setMany({ nope: 5 });
 const plain: Schema = { a: 1 };
 tweaks("Plain", plain).set("anything", 1);
 
-// A type name no control has fails where it's written, at any depth; a known name, an alias, a widened `string` and a
+// A type name no control has fails where it's written, at any depth; a known name, a widened `string` and a
 // known name without its hinge field (a folder at runtime) all still compile.
 // @ts-expect-error "slidr" names no control
 tweaks("Typo", { a: { type: "slidr", value: 1 } });
@@ -158,7 +154,9 @@ tweaks("Typo", { f: { inner: { type: "chekbox", value: true } } });
 tweaks("Typo", { t: { type: "tabs", pages: { One: { b: { type: "colr", value: "#fff" } } } } });
 // @ts-expect-error nor in mountControl
 mountControl(document.body, { type: "numbr", value: 1 });
-tweaks("Known", { a: { type: "slider", value: 1 }, b: { type: "bezier" }, c: { type: "toggle" }, marker: { type: "point", size: 3 } });
+tweaks("Known", { a: { type: "slider", value: 1 }, b: { type: "cubicbezier" }, c: { type: "checkbox" }, marker: { type: "point", size: 3 } });
+// @ts-expect-error the toggle / switch / bezier aliases are gone
+tweaks("Alias", { c: { type: "toggle" } });
 mountControl(document.body, { type: "number", value: 1 });
 const heldTypo = { a: { type: "slidr", value: 1 } }; // held without as const: `type` is string, the runtime decides
 tweaks("Held", heldTypo);

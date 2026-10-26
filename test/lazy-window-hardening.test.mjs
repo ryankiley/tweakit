@@ -49,34 +49,19 @@ test("a queued call that throws costs only itself", async () => {
   } finally { console.error = err; }
 });
 
-test("the disabled presets and filter triggers stay inert to a synthetic click before ready", async () => {
+test("the disabled presets trigger stays inert to a synthetic click before ready", async () => {
   localStorage.clear();
-  const p = tweaks("I", { x: [1, 0, 10, 1], r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 } }, { persist: "lwh-inert", filter: true });
+  const p = tweaks("I", { x: [1, 0, 10, 1], r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 } }, { persist: "lwh-inert" });
   document.body.append(p.el);
-  const presets = p.el.querySelector('[aria-label="Presets"]'), search = p.el.querySelector('button[aria-label="Filter controls"]');
-  assert.ok(presets.disabled && search.disabled);
-  click(presets); click(search);
+  const presets = p.el.querySelector('[aria-label="Presets"]');
+  assert.ok(presets.disabled);
+  click(presets);
   await tick(30);
   assert.equal(presets.getAttribute("aria-expanded"), "false");
   assert.equal(document.querySelector("body > .tw-presets-menu.is-open"), null, "no menu opened on the unbuilt panel");
-  assert.ok(!p.el.classList.contains("is-searching"), "the filter did not open");
   await p.ready;
   click(presets); await tick(30);
   assert.ok(document.querySelector("body > .tw-presets-menu"), "after ready the same click opens it");
-  p.destroy();
-});
-
-test("a load queued behind its save sees it; a delete queued between cancels it", async () => {
-  localStorage.clear();
-  const p = tweaks("S", { x: [1, 0, 10, 1], im: { type: "image" } }, { persist: "lwh-save" });
-  p.set("x", 4);
-  assert.equal(p.savePreset("four"), true);
-  p.set("x", 9);
-  assert.equal(p.loadPreset("four"), true, "the save ahead of it counts as stored");
-  await p.ready;
-  assert.equal(p.params.x, 4, "the load replayed after the save and restored its value");
-  assert.equal(p.savePreset("gone"), true); p.deletePreset("gone");
-  assert.equal(p.loadPreset("gone"), false, "a delete queued after the save cancels it");
   p.destroy();
 });
 

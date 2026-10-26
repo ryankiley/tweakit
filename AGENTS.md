@@ -84,7 +84,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `interval` | `value: [lo, hi], min, max, step` | `[lo, hi]` |
 | `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`, whose unit is used when `unit` isn't given), `unit, step, min, max, corners`; the four floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
 | `point` | `components: [{ key, label, value, min, max, step }]`, or `value: { x: 0, y: 10 }` alone, which names them; `pad, invertY` | an object keyed by component, such as `{ x, y }` |
-| `checkbox` | `value`; `type: "toggle"` or `"switch"` names it too | boolean |
+| `checkbox` | `value` | boolean |
 | `text` | `value, rows, placeholder` | string |
 | `list` | `options, value` | string |
 | `segmented` | `options, value, cols` | string |
@@ -95,7 +95,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `image` | `value`; `options` (URLs or `{ value, label }`) makes a row that opens a gallery pane, with `cols` (1 to 6), `maxSize, upload`, and `clear: false` to keep a value chosen; an upload past `fit` px (2560) on its long side, or over 1.5 MB, is redrawn, in Display P3 where the browser can, as a PNG up to 1.5 MB, else JPEG at `quality` (0.85), or WebP for transparency; a GIF, an SVG, or an animated WebP or PNG is never redrawn, and a JPEG or PNG kept as it is loses its Exif and XMP (GPS); `fit: false` never redraws | the chosen URL, the upload's data URL, or `""` |
 | `motion` | `mode: "easing"` with `curve` and `duration` (ms), or `mode: "spring"` with `stiffness, damping, mass` or `visualDuration, bounce` | `{ mode, …, duration, easing }`; `easing` is a `cubic-bezier(…)` or sampled `linear(…)` string for a CSS transition; a spring's `duration` is its settle time |
 | `spring` | `mode: "time"` or `"physics"`, `visualDuration, bounce, stiffness, damping, mass` | `{ stiffness, damping, mass }`, plus the time pair when tuned by feel; that pair resolves exactly as Motion's `{ visualDuration, bounce }` does, bounce −1 to 1 |
-| `cubicbezier` | `value: [x1, y1, x2, y2]`; `type: "bezier"` names it too | `[x1, y1, x2, y2]`, x 0 to 1, y −1 to 2 |
+| `cubicbezier` | `value: [x1, y1, x2, y2]` | `[x1, y1, x2, y2]`, x 0 to 1, y −1 to 2 |
 | `plot` | `expr` or `fn`, `xMin, xMax, yMin, yMax, samples, editable` | the expression string, `""` when drawn from `fn` |
 | `monitor` | `get: () => number` (or a string), or `value`, `graph, view, min, max, interval, rows, decimals` | none; it watches |
 | `fpsgraph` | none | none; a frame-rate graph |
@@ -117,9 +117,9 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 - `panel.setTheme(theme)`, `panel.setName(name)`; `panel.undo()` and `panel.redo()` with `undo: true`; `savePreset`, `loadPreset`, `deletePreset` and `presets()` with `persist`.
 - `panel.destroy()`: removes it and releases every listener.
 
-Options, the third argument: `theme` (token overrides), `persist` (a localStorage key, or `true` to key by name; turns presets on; two live panels on one key overwrite each other, and the second warns), `presets: false`, `filter: true` (a search field; needs the toolbar), `floating: true` or `{ x, y, corner }`, `draggable: false` to pin, `toolbar: false`, `undo: true`, `onReset`, `onEditStart` and `onEditEnd`.
+Options, the third argument: `theme` (token overrides), `persist` (a localStorage key, or `true` to key by name; turns presets on; two live panels on one key overwrite each other, and the second warns), `presets: false`, `floating: true` or `{ x, y }`, `draggable: false` to pin, `toolbar: false`, `undo: true` and `onReset`.
 
-Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from a corner. A click anywhere on the header outside its toolbar folds the panel; Escape mid-drag puts it back. Its placement is plain `.tw-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
+Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from the top-left. A click anywhere on the header outside its toolbar folds the panel; Escape mid-drag puts it back. Its placement is plain `.tw-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
 
 An open editor pane or the presets menu drags by its edge and keeps that spot until it closes. In a pane's field, Escape restores an unsaved edit and a second Escape closes the pane. Escapes the panel handles stop at the document.
 
@@ -147,7 +147,7 @@ The core module also upgrades `[data-tw]` elements in place: `<div data-tw="slid
 
 ## Theming
 
-The panel is dark by default and follows the system scheme; `data-tw-scheme="light"` or `"dark"` on any ancestor pins it. `theme` takes friendly keys (`accent`, `base`, `surface`, `border`, `text`, `radius`, `density`, `width`, `font` and more) or raw `--tw-*` tokens; an unknown friendly key, or a color or length key whose value isn't one, is skipped with a console warning, while raw tokens pass unchecked. Details: https://ryankiley.github.io/tweakit/theming.md
+The panel is dark by default and follows the system scheme; `data-tw-scheme="light"` or `"dark"` on any ancestor pins it. `theme` takes `--tw-*` tokens (`"--tw-accent"`, `"--tw-base"`, `"--tw-radius"`, `"--tw-width"` and more) as CSS values; any other key is skipped with a console warning. Details: https://ryankiley.github.io/tweakit/theming.md
 
 ## What tweakit does not do
 

@@ -1,7 +1,6 @@
-/* The panel shell's own wiring — the header drag, the presets menu, the undo keys, the
- * edit-lifecycle hooks — doesn't depend on the lazy chunks, so it must work in the lazy
- * window too (dist/tweaks/core.js, before `ready`). It used to be wired inside the
- * deferred assemble(), so until the first chunk landed a header drag did nothing. */
+/* The panel shell's own wiring doesn't depend on the lazy chunks, so it must work in the lazy window
+ * too (dist/tweaks/core.js, before `ready`). It used to be wired inside the deferred assemble(), so
+ * until the first chunk landed a header drag did nothing. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
@@ -23,20 +22,5 @@ test("a header drag lifts the panel before the lazy chunks have landed", async (
   assert.equal(p.el.dataset.mode, "floating", "the drag lifted the panel into the floating layer");
   await p.ready;
   assert.equal(p.el.dataset.mode, "floating", "and ready didn't undo it");
-  p.destroy();
-});
-
-test("the edit-lifecycle hooks fire before the lazy chunks have landed", async () => {
-  let started = 0, ended = 0;
-  const p = tweaks("Edit", { x: [1, 0, 10, 1], r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 } }, { onEditStart: () => started++, onEditEnd: () => ended++ }); // interval, not spring: the test above already loaded that chunk, and a loaded type assembles synchronously
-  document.body.append(p.el);
-  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "still in the lazy window");
-  // The slider is a core control, but nothing is built yet — exercise the hook through the
-  // relay the popovers use, the same path a drag on any surface takes once built.
-  const fake = document.createElement("div"); fake.className = "tw-slider"; p.el.append(fake);
-  pointer("pointerdown", fake, 5, 5);
-  document.dispatchEvent(Object.assign(new window.Event("pointerup", { bubbles: true }), { pointerId: 1 }));
-  assert.equal(started, 1); assert.equal(ended, 1);
-  await p.ready;
   p.destroy();
 });

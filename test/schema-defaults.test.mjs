@@ -352,17 +352,6 @@ test("a non-finite default reads as 0 everywhere", () => {
   p.destroy();
 });
 
-// { type: "bezier" } and { type: "toggle" } built folders, the bezier's curve mangled into a slider, where the source file is
-// bezier.ts and the checkbox draws as an Off/On toggle.
-test("bezier, toggle and switch name the cubicbezier and checkbox controls, in a schema and in markup", async () => {
-  const p = tweaks("Alias", { back: { type: "bezier", value: [0.42, 0, 0.58, 1] }, on: { type: "toggle", value: true }, flag: { type: "switch" } });
-  await p.ready;
-  assert.deepEqual(p.params, { back: [0.42, 0, 0.58, 1], on: true, flag: false });
-  const host = document.createElement("div"); host.dataset.tw = "toggle"; host.dataset.checked = "true"; document.body.append(host);
-  try { await enhance(host); assert.equal(host._tw.ctrl.get(), true); } finally { host.remove(); }
-  p.destroy();
-});
-
 // { type: "point", value: { x: 0, y: 0 } } built a folder, though { x, y } is exactly the value the point returns.
 test("a point takes its components from value: { x, y }, and a value beside components sets their defaults", async () => {
   const p = tweaks("Pt", { at: { type: "point", value: { x: 0.2, y: -0.4 } }, both: { type: "point", components: [{ key: "x", min: -1, max: 1 }, { key: "y" }], value: { x: 0.5 } }, marker: { type: "point", size: 3 } });

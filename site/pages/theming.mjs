@@ -39,8 +39,8 @@ export const examples = [
   {
     id: "construction",
     title: "Theme at construction",
-    prose: `<p>Pass <code>{ theme }</code> as the third argument. Friendly names cover
-      the common moves; <code>accent</code> is the big one (the default look is
+    prose: `<p>Pass <code>{ theme }</code> as the third argument, keyed by token, each
+      value a CSS value; <code>--tw-accent</code> is the big one (the default look is
       deliberately accentless).</p>`,
     run: ({ tweaks, mount }) => {
       const panel = tweaks("Accented", {
@@ -48,7 +48,7 @@ export const examples = [
         contrast: [1.1, 0.5, 2, 0.05],
         enabled: true,
       }, {
-        theme: { accent: "#7C5CFF", radius: 12 },   // bare numbers are px
+        theme: { "--tw-accent": "#7C5CFF", "--tw-radius": "12px" },
       });
       mount.append(panel.el);
     },
@@ -84,44 +84,43 @@ export const examples = [
       mount.append(editor.el);
 
       editor.on((t) => sample.setTheme({
-        accent: t.accent, base: t.base, radius: t.radius, density: t.density,
+        "--tw-accent": t.accent, "--tw-base": t.base,
+        "--tw-radius": t.radius + "px", "--tw-row-height": t.density + "px",
       }));
     },
   },
   {
     title: "Every token",
-    prose: `<p>The full friendly-name surface (all optional, from the
+    prose: `<p>The tokens a theme usually moves (all optional, from the
       <code>Theme</code> type):</p>
       <table>
         <tr><th>Token</th><th>Drives</th></tr>
-        <tr><td><code>accent</code></td><td>slider fills, focus rings, active highlights</td></tr>
-        <tr><td><code>onAccent</code></td><td>text drawn on the accent (active segment, radio label); derived from the accent's luminance when unset</td></tr>
-        <tr><td><code>base</code></td><td>panel background, reused for recessed wells</td></tr>
-        <tr><td><code>dropdownBg</code></td><td>popover / dropdown background</td></tr>
-        <tr><td><code>surface</code>, <code>surfaceHover</code>, <code>surfaceActive</code></td><td>control surfaces and their interaction steps</td></tr>
-        <tr><td><code>border</code>, <code>borderHover</code></td><td>hairline borders</td></tr>
-        <tr><td><code>selection</code></td><td>text-selection wash</td></tr>
-        <tr><td><code>title</code>, <code>section</code>, <code>text</code>, <code>label</code>, <code>textMuted</code>, <code>textFaint</code>, <code>focus</code></td><td>the text hierarchy</td></tr>
-        <tr><td><code>success</code></td><td>copy-confirmation accent</td></tr>
-        <tr><td><code>danger</code></td><td>invalid-input accent</td></tr>
-        <tr><td><code>shadow</code>, <code>shadowPanel</code>, <code>shadowPanelLifted</code></td><td>popover, panel and floating elevations</td></tr>
-        <tr><td><code>font</code></td><td>font stack</td></tr>
-        <tr><td><code>fontMono</code></td><td>monospace font stack</td></tr>
-        <tr><td><code>radius</code>, <code>density</code></td><td>corner radius and row height; numbers are px</td></tr>
-        <tr><td><code>width</code></td><td>the panel's width, 256px by default; a number is px</td></tr>
+        <tr><td><code>--tw-accent</code></td><td>slider fills, focus rings, active highlights</td></tr>
+        <tr><td><code>--tw-on-accent</code></td><td>text drawn on the accent (active segment, radio label); the primary text tone when unset, so set it with a light accent</td></tr>
+        <tr><td><code>--tw-base</code></td><td>panel background, reused for recessed wells</td></tr>
+        <tr><td><code>--tw-dropdown-bg</code></td><td>popover / dropdown background</td></tr>
+        <tr><td><code>--tw-surface</code>, <code>-hover</code>, <code>-active</code></td><td>control surfaces and their interaction steps</td></tr>
+        <tr><td><code>--tw-border</code>, <code>--tw-border-hover</code></td><td>hairline borders</td></tr>
+        <tr><td><code>--tw-selection</code></td><td>text-selection wash</td></tr>
+        <tr><td><code>--tw-text-root</code>, <code>-section</code>, <code>-primary</code>, <code>-label</code>, <code>-secondary</code>, <code>-tertiary</code>, <code>-focus</code></td><td>the text hierarchy: title, section, values, labels, muted, faint, focus</td></tr>
+        <tr><td><code>--tw-success</code>, <code>--tw-danger</code></td><td>copy-confirmation and invalid-input accents</td></tr>
+        <tr><td><code>--tw-shadow-dropdown</code>, <code>--tw-shadow-panel</code>, <code>--tw-shadow-panel-lifted</code></td><td>popover, panel and floating elevations</td></tr>
+        <tr><td><code>--tw-font-sans</code>, <code>--tw-font-mono</code></td><td>font stacks</td></tr>
+        <tr><td><code>--tw-radius</code>, <code>--tw-row-height</code></td><td>corner radius and row height</td></tr>
+        <tr><td><code>--tw-width</code></td><td>the panel's width, 256px by default</td></tr>
       </table>`,
   },
   {
     id: "raw",
-    title: "The raw escape hatch",
-    prose: `<p>Any raw <code>--tw-*</code> key passes straight through as a custom
-      property (unknown bare names are ignored). And because the whole kit renders
-      from <code>--tw-*</code> variables, plain page CSS works too: set them on any
-      ancestor and every panel inside inherits.</p>`,
+    title: "Any token, or plain CSS",
+    prose: `<p>Any <code>--tw-*</code> key passes straight through as a custom
+      property, the ones the table leaves out too; a key that isn't a token is skipped
+      with a console warning. And because the whole kit renders from these variables,
+      plain page CSS works as well: set them on any ancestor and every panel inside inherits.</p>`,
     code: `
       tweaks("Raw", schema, { theme: {
-        accent: "#39d353",
-        "--tw-ease-out": "ease-in-out",   // any raw token rides along
+        "--tw-accent": "#39d353",
+        "--tw-ease-out": "ease-in-out",   // any token rides along
       } });
 
       /* or, in plain CSS, no JS at all: */
@@ -142,22 +141,23 @@ export const examples = [
     run: ({ tweaks, target }) => {
       const gallery = target.querySelector(".th-gallery");
       // Dark-base recipes carry a full light text-tone set, so titles / labels / toolbar
-      // icons aren't dark-on-dark on a light page; the accent stays vivid because the
-      // active pill's label is auto-contrasted (--tw-on-accent). Every tone clears WCAG AA.
+      // icons aren't dark-on-dark on a light page; each sets the text on its accent, so the
+      // active pill's label stays legible. Every tone clears WCAG AA.
       const recipes = {
-        Daylight: { base: "#f2f1ee", accent: "#5b4dff", dropdownBg: "#ffffff",
-                    surface: "rgba(0, 0, 0, 0.05)", surfaceHover: "rgba(0, 0, 0, 0.09)",
-                    border: "rgba(0, 0, 0, 0.08)", selection: "rgba(0, 0, 0, 0.15)",
-                    title: "#1a1a1a", text: "rgba(0, 0, 0, 0.85)", section: "rgba(0, 0, 0, 0.6)",
-                    label: "rgba(0, 0, 0, 0.6)", textMuted: "rgba(0, 0, 0, 0.58)", textFaint: "rgba(0, 0, 0, 0.46)" },
-        Terminal: { base: "#0d1117", accent: "#39d353", font: "ui-monospace, Menlo, monospace", radius: 4,
-                    surface: "rgba(57, 211, 83, 0.07)", border: "rgba(57, 211, 83, 0.18)",
-                    title: "#d6ffe0", text: "rgba(201, 255, 216, 0.92)", section: "rgba(201, 255, 216, 0.78)",
-                    label: "rgba(201, 255, 216, 0.72)", textMuted: "rgba(201, 255, 216, 0.64)", textFaint: "rgba(201, 255, 216, 0.5)" },
-        Cozy: { base: "#241a14", accent: "#ff8a5b", radius: 16, density: 36,
-                surface: "rgba(255, 138, 91, 0.08)", border: "rgba(255, 138, 91, 0.14)",
-                title: "#fbeada", text: "rgba(250, 235, 222, 0.92)", section: "rgba(250, 235, 222, 0.76)",
-                label: "rgba(250, 235, 222, 0.7)", textMuted: "rgba(250, 235, 222, 0.62)", textFaint: "rgba(250, 235, 222, 0.5)" },
+        Daylight: { "--tw-base": "#f2f1ee", "--tw-accent": "#5b4dff", "--tw-on-accent": "#ffffff", "--tw-dropdown-bg": "#ffffff",
+                    "--tw-surface": "rgba(0, 0, 0, 0.05)", "--tw-surface-hover": "rgba(0, 0, 0, 0.09)",
+                    "--tw-border": "rgba(0, 0, 0, 0.08)", "--tw-selection": "rgba(0, 0, 0, 0.15)",
+                    "--tw-text-root": "#1a1a1a", "--tw-text-primary": "rgba(0, 0, 0, 0.85)", "--tw-text-section": "rgba(0, 0, 0, 0.6)",
+                    "--tw-text-label": "rgba(0, 0, 0, 0.6)", "--tw-text-secondary": "rgba(0, 0, 0, 0.58)", "--tw-text-tertiary": "rgba(0, 0, 0, 0.46)" },
+        Terminal: { "--tw-base": "#0d1117", "--tw-accent": "#39d353", "--tw-on-accent": "#161616",
+                    "--tw-font-sans": "ui-monospace, Menlo, monospace", "--tw-radius": "4px",
+                    "--tw-surface": "rgba(57, 211, 83, 0.07)", "--tw-border": "rgba(57, 211, 83, 0.18)",
+                    "--tw-text-root": "#d6ffe0", "--tw-text-primary": "rgba(201, 255, 216, 0.92)", "--tw-text-section": "rgba(201, 255, 216, 0.78)",
+                    "--tw-text-label": "rgba(201, 255, 216, 0.72)", "--tw-text-secondary": "rgba(201, 255, 216, 0.64)", "--tw-text-tertiary": "rgba(201, 255, 216, 0.5)" },
+        Cozy: { "--tw-base": "#241a14", "--tw-accent": "#ff8a5b", "--tw-on-accent": "#161616", "--tw-radius": "16px", "--tw-row-height": "36px",
+                "--tw-surface": "rgba(255, 138, 91, 0.08)", "--tw-border": "rgba(255, 138, 91, 0.14)",
+                "--tw-text-root": "#fbeada", "--tw-text-primary": "rgba(250, 235, 222, 0.92)", "--tw-text-section": "rgba(250, 235, 222, 0.76)",
+                "--tw-text-label": "rgba(250, 235, 222, 0.7)", "--tw-text-secondary": "rgba(250, 235, 222, 0.62)", "--tw-text-tertiary": "rgba(250, 235, 222, 0.5)" },
       };
       for (const [name, theme] of Object.entries(recipes)) {
         const slot = document.createElement("div");

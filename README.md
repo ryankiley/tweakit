@@ -64,35 +64,10 @@ Verify the build.
 ## Floating panel
 
 Every panel drags by its header and lifts into a fixed layer on the first drag. Pass `floating`
-to start it there, and `draggable: false` to pin it:
-
-```js
-tweaks("Settings", schema, { floating: { x: 16, y: 16, corner: "top-right" }, draggable: false });
-```
-
-- `floating: true` sits 16px in from the top-left. `{ x, y, corner }` sets the insets in px
-  from the edges of `corner`: `"top-left"` (the default), `"top-right"`, `"bottom-left"` or
-  `"bottom-right"`. The panel keeps that corner as the window resizes, and a drag moves it from there.
-  A bottom-anchored panel keeps its bottom edge when it collapses, so its header drops.
-- A draggable panel with `persist` remembers where it was dropped. A pinned one always sits at
-  its `floating` placement.
-- The height caps at the window, with a gap at the far edge equal to `y` while the panel sits
-  at its placement (8px once dragged). In a window too short for both, a pinned panel's inset and
-  gap shrink together. Past the cap the whole panel scrolls, header included, with its scrollbar hidden.
-
-The placement lives in CSS at plain `.tw-panel` specificity, so a class of your own, loaded
-after `tweakit/css`, overrides any part of it without `!important`. If your bundler might load
-it first, write the selector as `.tw-panel.my-panel`:
-
-```css
-.my-panel {
-  --tw-float-gap: 1.5rem;          /* the far-edge gap the height cap leaves, in any length */
-  max-height: 60vh;                /* or replace the cap outright */
-  top: 72px; right: 16px; left: auto; /* the inset, on a pinned panel */
-  z-index: 2;                      /* 99990 by default; a drag raises it while it lasts */
-  box-shadow: none;                /* var(--tw-shadow-panel-lifted) by default */
-}
-```
+to start it there (`true` sits 16px in from the top-left; `{ x, y }` sets the insets), and
+`draggable: false` to pin it. A draggable panel with `persist` remembers where it was dropped.
+Its placement is plain `.tw-panel` CSS, so a class of yours overrides it; the
+[panel API page](https://ryankiley.github.io/tweakit/panel-api.html#floating) has the recipe.
 
 ## Develop
 

@@ -85,14 +85,14 @@ export type SchemaObject =
        *  returns anything but a finite number) leaves the value where it was. */
       parse?: (text: string) => number }
   | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
-  | { type: "checkbox" | "toggle" | "switch"; value?: boolean }
+  | { type: "checkbox"; value?: boolean }
   | { type: "list"; options: readonly Option[]; value?: string }
   | { type: "radiogrid" | "segmented"; options: readonly Option[]; value?: string; cols?: number }
   | { type: "color"; value?: string }
   | { type: "text"; value?: string; rows?: number; placeholder?: string }
   | { type: "interval"; value?: readonly [number, number]; min?: number; max?: number; step?: number }
   | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
-  | { type: "cubicbezier" | "bezier"; value?: readonly [number, number, number, number] }
+  | { type: "cubicbezier"; value?: readonly [number, number, number, number] }
   | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
   | { type: "sides"; value?: SidesInput; corners?: boolean; unit?: string; step?: number; min?: number; max?: number; top?: number; right?: number; bottom?: number; left?: number }
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
@@ -182,11 +182,11 @@ type Hinge = { list: "options"; radiogrid: "options"; segmented: "options"; poin
 // A hinge field there but unusable skips the control at runtime, so it puts nothing on params.
 type TypedValue<V> =
   V extends { readonly type: "slider" | "number" } ? number
-  : V extends { readonly type: "checkbox" | "toggle" | "switch" } ? boolean
+  : V extends { readonly type: "checkbox" } ? boolean
   : V extends { readonly type: "list" | "radiogrid" | "segmented" } ? (V extends { readonly options: readonly (infer O)[] } ? OptionValue<O> : never)
   : V extends { readonly type: "color" | "text" | "image" | "plot" } ? string
   : V extends { readonly type: "interval" } ? [number, number]
-  : V extends { readonly type: "cubicbezier" | "bezier" } ? [number, number, number, number]
+  : V extends { readonly type: "cubicbezier" } ? [number, number, number, number]
   : V extends { readonly type: "spring" } ? SpringValue
   : V extends { readonly type: "motion" } ? MotionValue
   : V extends { readonly type: "shadow" } ? ShadowValue
@@ -249,40 +249,37 @@ export type KnownType<V> = CheckValue<V>;
 
 /** A theme — token overrides applied over the default monochrome look. Every key is
  *  optional, so a partial theme only moves what it names; unset tokens keep their default.
- *  Use the friendly names here, or any raw `--tw-*` custom property. Apply at build via
+ *  Keys are the `--tw-*` custom properties themselves. Apply at build via
  *  `tweaks(name, schema, { theme })`, or live via `panel.setTheme(theme)`. The kit's whole
  *  appearance runs on these custom properties — this is the public theming surface. */
 export interface Theme {
   /** Brand accent — slider fills, focus rings, active highlights (default: neutral, no accent). */
-  accent?: string;
-  /** Text drawn on the accent (active segment / radio label). Auto-derived from the accent's luminance if unset. */
-  onAccent?: string;
+  "--tw-accent"?: string;
+  /** Text drawn on the accent (active segment / radio label); the primary text tone unless set, so set it with a light accent. */
+  "--tw-on-accent"?: string;
   /** Panel background, reused for recessed wells. */
-  base?: string;
+  "--tw-base"?: string;
   /** Popover / dropdown background. */
-  dropdownBg?: string;
+  "--tw-dropdown-bg"?: string;
   /** Control surface and its hover / active steps. */
-  surface?: string; surfaceHover?: string; surfaceActive?: string;
+  "--tw-surface"?: string; "--tw-surface-hover"?: string; "--tw-surface-active"?: string;
   /** Hairline border and its hover step. */
-  border?: string; borderHover?: string;
+  "--tw-border"?: string; "--tw-border-hover"?: string;
   /** Text-selection highlight wash. */
-  selection?: string;
+  "--tw-selection"?: string;
   /** Text tones — panel title, section heading, primary value text, control label, and the muted / faint / focus tones. */
-  title?: string; section?: string; text?: string; label?: string; textMuted?: string; textFaint?: string; focus?: string;
-  /** Copy-confirmation accent. */
-  success?: string;
-  /** Invalid-state accent (the plot's bad-expression cue). */
-  danger?: string;
+  "--tw-text-root"?: string; "--tw-text-section"?: string; "--tw-text-primary"?: string; "--tw-text-label"?: string;
+  "--tw-text-secondary"?: string; "--tw-text-tertiary"?: string; "--tw-text-focus"?: string;
+  /** Copy-confirmation accent, and the invalid-state accent (the plot's bad-expression cue). */
+  "--tw-success"?: string; "--tw-danger"?: string;
   /** Popover shadow, the panel's container elevation, and its lifted (floating / dragging) variant. */
-  shadow?: string; shadowPanel?: string; shadowPanelLifted?: string;
+  "--tw-shadow-dropdown"?: string; "--tw-shadow-panel"?: string; "--tw-shadow-panel-lifted"?: string;
   /** Font stack, and the monospace stack (the plot's expression field). */
-  font?: string; fontMono?: string;
-  /** Control corner radius and row height — a bare number is treated as px. */
-  radius?: number | string; density?: number | string;
-  /** The panel's width (256px by default) — a bare number is treated as px. */
-  width?: number | string;
-  /** Escape hatch — any raw token, e.g. `"--tw-accent": "#6c8cff"`. */
-  [token: string]: string | number | undefined;
+  "--tw-font-sans"?: string; "--tw-font-mono"?: string;
+  /** Control corner radius, row height and the panel's width (256px by default), as CSS lengths. */
+  "--tw-radius"?: string; "--tw-row-height"?: string; "--tw-width"?: string;
+  /** Any other token. */
+  [token: `--${string}`]: string | undefined;
 }
 
 /** Options for a programmatic write — `set()`, `setMany()`, `fromJSON()`. */
@@ -293,16 +290,14 @@ export interface SetOptions {
   silent?: boolean;
 }
 
-/** The corner a floating panel anchors to. */
-export type FloatingCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
-/** Where a floating panel starts: `x` / `y` are its insets in px (16 by default) from the two
- *  edges of `corner` (top-left by default), and it keeps that corner as the window resizes.
- *  The far edge keeps a gap of `y` when the height caps; CSS `--tw-float-gap` overrides it. */
-export interface FloatingPlacement { x?: number; y?: number; corner?: FloatingCorner }
+/** Where a floating panel starts: `x` / `y` are its insets in px (16 by default) from the
+ *  viewport's top-left. The far edge keeps a gap of `y` when the height caps; CSS
+ *  `--tw-float-gap` overrides it. */
+export interface FloatingPlacement { x?: number; y?: number }
 
 /** Panel options (third arg to `tweaks()`). */
 export interface TweaksOptions {
-  /** Theme overrides (friendly names or raw `--tw-*`); `null` / omitted = default monochrome. */
+  /** Theme overrides as `--tw-*` tokens; `null` / omitted = default monochrome. */
   theme?: Theme | null;
   /** Persist values to localStorage + enable presets — a key, or `true` to key by name. Uploaded images go to
    *  IndexedDB under the same key, and come back by `ready`. */
@@ -310,10 +305,8 @@ export interface TweaksOptions {
   /** With `persist`, `false` keeps saving values but leaves the Presets menu out of the
    *  toolbar (the presets API still works). On by default. */
   presets?: boolean;
-  /** Add a filter/search field to the toolbar. */
-  filter?: boolean;
   /** Start the panel already floated (fixed-positioned): `true` → 16px from the top-left, or a
-   *  placement `{ x, y, corner }`. Its height caps at the window and it scrolls, header and all. */
+   *  placement `{ x, y }`. Its height caps at the window and it scrolls, header and all. */
   floating?: boolean | FloatingPlacement;
   /** Drag the header to reposition the panel — on by default. An inline panel lifts into a
    *  floating layer on first drag; set `false` to pin it in place. */
@@ -324,10 +317,6 @@ export interface TweaksOptions {
   undo?: boolean;
   /** Custom reset handler (e.g. restore real app defaults + rebuild). */
   onReset?: () => void;
-  /** Fired when a drag/scrub on any control begins. */
-  onEditStart?: () => void;
-  /** Fired when a drag/scrub ends. */
-  onEditEnd?: () => void;
 }
 
 /** The live values bag, loosely typed — `params[key]` for each control. A schema literal passed

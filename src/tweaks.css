@@ -85,8 +85,6 @@
  * plain .tw-panel specificity, so a host class loaded after this sheet overrides any of them. */
 .tw-panel[data-mode="floating"] { position: fixed; }
 .tw-panel:where([data-mode="floating"]) { left: var(--tw-float-x); top: var(--tw-float-y); max-height: var(--tw-float-max-h); z-index: 99990; box-shadow: var(--tw-shadow-panel-lifted); }
-.tw-panel:where([data-mode="floating"][data-corner$="right"]) { left: auto; right: var(--tw-float-x); }
-.tw-panel:where([data-mode="floating"][data-corner^="bottom"]) { top: auto; bottom: var(--tw-float-y); }
 .tw-panel:where(.is-raised) { z-index: 99991; } /* the floating panel touched last (panel.ts raise()) */
 /* The lift into the floating shadow eases on a draggable panel only: a pinned one starts floated, with nothing to ease,
  * and an inline one keeps its shadow still. */
@@ -145,14 +143,6 @@
 .tw-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
 .tw-panel.is-collapsed .tw-chevron { transform: rotate(-90deg); }
 .tw-toolbar { display: flex; align-items: center; gap: 4px; }
-/* Filter (opts.filter) — the search input replaces the title while searching. */
-.tw-search { display: none; flex: 1; min-width: 0; height: 24px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); outline: none; }
-.tw-search:focus { border-color: var(--tw-border-hover); }
-.tw-search::placeholder { color: var(--tw-text-tertiary); }
-.tw-panel.is-searching .tw-header-toggle { display: none; }
-.tw-panel.is-searching .tw-search { display: block; }
-.tw-filter-hidden { display: none !important; }
-
 /* Hint marker. pointer-events:auto overrides the slider label's pointer-events:none. */
 .tw-hint { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 4px; padding: 0; vertical-align: -2px; flex: none; background: none; border: none; color: var(--tw-text-tertiary); cursor: help; pointer-events: auto; transition: color 0.15s, transform 0.18s var(--tw-ease-spring); }
 .tw-hint:focus-visible { color: var(--tw-text-secondary); transform: scale(1.2); }
@@ -231,7 +221,7 @@
 .tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
 .tw-image-clear:focus-visible,
 .tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
-.tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-search:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
+.tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
 .tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
   outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px;
 }
