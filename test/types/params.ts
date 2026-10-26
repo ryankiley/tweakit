@@ -168,6 +168,11 @@ paths.set("nope", 5);
 paths.setMany({ nope: 5 });
 const plain: Schema = { a: 1 };
 tweaks("Plain", plain).set("anything", 1);
+// Twenty folders deep still compiles (tsc ran out of depth spelling every path); past ten the rest of a path is any string.
+const deep = tweaks("Deep", { f: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { a: { x: 1 } } } } } } } } } } } } } } } } } } } } } });
+deep.set("f.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.x", 2); deep.setMany({ "f.a.a": 1 });
+// @ts-expect-error a wrong key above the cut-off is still caught
+deep.set("f.b", 1);
 
 // A type name no control has fails where it's written, at any depth; a known name, an alias, a widened `string` and a
 // known name without its hinge field (a folder at runtime) all still compile.

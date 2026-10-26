@@ -347,9 +347,11 @@ export interface TweaksOptions {
 export type Params = Record<string, any>;
 /** The keys `set()` and `setMany()` take: a typed panel's controls by dotted path (`size`, `card.size`), so a typo is a
  *  compile error; any string for a panel built from a plain `Schema`. An object-valued control's own fields read as
- *  paths too (`drop.blur`): the types can't tell its value from a folder, so they allow what the runtime refuses. */
-export type PanelPath<P> = string extends keyof P ? string
-  : { [K in keyof P & string]: K | (P[K] extends readonly unknown[] ? never : P[K] extends object ? `${K}.${PanelPath<P[K]>}` : never) }[keyof P & string];
+ *  paths too (`drop.blur`): the types can't tell its value from a folder, so they allow what the runtime refuses. Past ten
+ *  folders deep the rest of a path is any string, since spelling every one out overran tsc's depth limit. */
+export type PanelPath<P> = PathsOf<P, []>;
+type PathsOf<P, D extends unknown[]> = string extends keyof P ? string : D["length"] extends 10 ? string
+  : { [K in keyof P & string]: K | (P[K] extends readonly unknown[] ? never : P[K] extends object ? `${K}.${PathsOf<P[K], [...D, 0]>}` : never) }[keyof P & string];
 
 /** The whole-panel state `toJSON()` returns / `fromJSON()` accepts: every control value
  *  (nested to mirror folders/tabs) plus UI state — which folders are collapsed and which
