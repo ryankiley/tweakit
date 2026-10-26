@@ -62,7 +62,7 @@ test("the guide's JavaScript examples run against the built kit", async () => {
     assert.ok(panel, "a runnable fence must assign its panel to `panel`");
     await panel.ready;
     await wait(0);
-    assert.ok(Object.keys(panel.params).some((k) => k !== "_last"), "the example's panel has values");
+    assert.ok(Object.keys(panel.params).length, "the example's panel has values");
     assert.ok(card.style.cssText, "the example bound its values to the element");
     panel.destroy();
     card.remove();

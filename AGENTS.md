@@ -69,7 +69,9 @@ panel.ready.then(() => apply(panel.params));
 | `{ x: 0, y: 10 }` | folder of controls | nested object |
 | `{ type: "…", … }` | that control, verbatim (next table) | per control |
 
-A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10. Keys become labels, title-cased; `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand. `_last` is reserved and cannot be a key.
+A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10. Keys become labels, title-cased; `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
+
+In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and value types but widens list options to `string`; write it `as const` to keep them.
 
 ## Every control, as `{ type, … }`, and what it returns
 
@@ -106,8 +108,8 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 
 `tweaks(name, schema, options?)` returns synchronously.
 
-- `panel.el`: append it. `panel.params`: live values, nested like the schema, updated in place; `params._last` is the last changed key, the bare leaf (`blur`, not `shadow.blur`).
-- `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is that same leaf, so read nested values off `params` rather than switching on the key.
+- `panel.el`: append it. `panel.params`: live values, nested like the schema, updated in place. It holds values only.
+- `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the bare leaf (`blur`, not `shadow.blur`), so read nested values off `params` rather than switching on the key.
 - `panel.ready`: resolves once lazy controls have built.
 - `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; `{ silent: true }` skips your listeners.
 - `panel.changes()`: the values that differ from their defaults, keyed by dotted path. `panel.reset()` restores the defaults.
