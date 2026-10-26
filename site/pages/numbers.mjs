@@ -157,7 +157,7 @@ export const examples = [
       The param is the four numbers plus the shorthand they collapse to, so
       <code>el.style.borderRadius = p.radius.css</code> is the whole wiring. Author it as one
       number, <code>[vertical, horizontal]</code>, the four, or a CSS string like
-      <code>"8px 16px"</code>.</p>`,
+      <code>"1rem 2rem"</code>, whose unit the control keeps unless <code>unit</code> says otherwise.</p>`,
     target: `<div class="sd-card"><div class="sd-inner">Card</div></div>`,
     css: `
       .sd-card { display: inline-block; padding: 12px; background: #7C5CFF; transition: border-radius 0.1s; }
