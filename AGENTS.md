@@ -27,7 +27,7 @@ import { tweaks } from "tweakit/single";   // single-file build: every control i
 import "tweakit/css";                      // the stylesheet, needed by either build
 ```
 
-Without a bundler, copy `dist/tweaks.js` and `dist/tweaks.css` out of the package; the script is an ES module, so load it with `<script type="module">`. Both builds share one API. On the code-split build a panel whose schema needs a lazy control (color, gradient, shadow, motion, point and others) fills in when `panel.ready` resolves; the single-file build resolves it at once, except that a panel persisting an image control waits for its stored images on either build.
+Without a bundler, copy `dist/tweaks.js` and `dist/tweaks.css` out of the package; the script is an ES module, so load it with `<script type="module">`. Both builds share one API. On the code-split build a panel whose schema needs a lazy control (color, gradient, shadow, motion, point and others) fills in when `panel.ready` resolves; the single-file build resolves it at once, except that a panel persisting an image control resolves it once its stored images are back, on either build.
 
 ## A first panel
 
@@ -110,7 +110,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 
 - `panel.el`: append it. `panel.params`: live values, nested like the schema, updated in place. It holds values only.
 - `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the bare leaf (`blur`, not `shadow.blur`), so read nested values off `params` rather than switching on the key.
-- `panel.ready`: resolves once lazy controls have built.
+- `panel.ready`: resolves once lazy controls have built and, for a panel persisting an image control, its stored images are back; when they arrive, `on()` fires once more with no changed key.
 - `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; a key no control has is refused with a console warning, and a number past a hard range clamps, with a console warning once a key; `{ silent: true }` skips your listeners.
 - `panel.changes()`: the values that differ from their defaults, keyed by dotted path. `panel.reset()` restores the defaults.
 - `panel.toJSON()` and `panel.fromJSON(state)`: every value, nested, plus folder and tab UI state, JSON-safe; `JSON.stringify(panel)` uses it.
@@ -151,7 +151,7 @@ The panel is dark by default and follows the system scheme; `data-tw-scheme="lig
 
 ## What tweakit does not do
 
-- It never edits source files, and it persists only when `persist` is set: values to localStorage, and uploaded images to IndexedDB, with their refs in localStorage. A panel that persists an image control restores its other values as it builds, and its images by `panel.ready`; an image IndexedDB refuses is left out, and its row says "Not saved". Values leave through the clipboard, `panel.changes()` or `panel.toJSON()`.
+- It never edits source files, and it persists only when `persist` is set: values to localStorage, and uploaded images to IndexedDB, with their refs in localStorage. A panel that persists an image control restores its other values as it builds, and its images by `panel.ready`; an upload with nowhere else to go (no IndexedDB, or the store refused it) saves inline in localStorage when it fits, and otherwise is left out with its row saying "Not saved". Values leave through the clipboard, `panel.changes()` or `panel.toJSON()`.
 - It has no production switch. Gate the panel in your code, for example behind `import.meta.env.DEV`.
 - It is not a framework component. In React, Vue, Svelte or Solid, create the panel once in a mount effect, append `panel.el` to a ref, update state in `panel.on()`, and call `panel.destroy()` on unmount.
 - `params` is a plain object updated in place. Subscribe with `on()`; do not poll it.

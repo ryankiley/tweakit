@@ -6,12 +6,22 @@
 const REF = "tw-image:";
 type Store = IDBObjectStore;
 let db: Promise<IDBDatabase | null> | null = null;
+// An open that never settles (another tab's pending delete or upgrade) reads as unavailable after 3s rather than holding
+// panel.ready forever. The connection closes for another tab's upgrade or delete, and one the browser drops is reopened.
 const open = () => db ||= new Promise<IDBDatabase | null>((done) => {
+  let late = false;
+  const t = setTimeout(() => { late = true; db = null; done(null); }, 3000);
   try {
     const r = indexedDB.open("tweakit", 1);
     r.onupgradeneeded = () => r.result.createObjectStore("images");
-    r.onsuccess = () => done(r.result); r.onerror = () => done(null);
-  } catch { done(null); } // no indexedDB at all
+    r.onsuccess = () => {
+      const d = r.result; clearTimeout(t);
+      if (late) { d.close(); return; }
+      d.onversionchange = () => { d.close(); db = null; }; d.onclose = () => { db = null; };
+      done(d);
+    };
+    r.onerror = () => { clearTimeout(t); db = null; done(null); };
+  } catch { clearTimeout(t); done(null); } // no indexedDB at all
 });
 // One transaction; resolves with what `fn` returns once it commits, null if it fails.
 const run = <T>(mode: IDBTransactionMode, fn: (s: Store) => T) => open().then((d) => d && new Promise<T | null>((done) => {
@@ -37,8 +47,10 @@ const load = (key: string) => run("readonly", (s) => {
   s.openCursor(range(key)).onsuccess = function () { const c = this.result; if (!c) return; if (typeof c.value === "string") out.set(REF + (c.key as string[])[1], c.value); c.continue(); };
   return out;
 });
+/** One image by its ref (a preset another tab saved after this panel loaded); null when it isn't there. */
+const get = (key: string, ref: string) => run("readonly", (s) => { const r = s.get([key, ref.slice(REF.length)]); return r; }).then((r) => (r && typeof r.result === "string" ? r.result : null));
 const put = (key: string, ref: string, dataUrl: string) => run("readwrite", (s) => { s.put(dataUrl, [key, ref.slice(REF.length)]); return true; });
 /** Delete the images under `key` that `refs` name. */
 const prune = (key: string, refs: string[]) => run("readwrite", (s) => { for (const r of refs) s.delete([key, r.slice(REF.length)]); return true; });
 
-export { refFor, load, put, prune };
+export { refFor, load, get, put, prune };
