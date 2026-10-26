@@ -240,7 +240,7 @@
 /* Hold-to-reset fill. A transition, so an early release drains it. Doubled class: targets
  * like .tw-slider-value declare their own `transition: color`, which would win on order. */
 .tw-resettable.tw-resettable { transition: color 0.15s, background-color 0.3s ease-out; }
-.tw-resettable.tw-reset-holding { border-radius: calc(var(--tw-radius) - 4px); background-color: var(--tw-surface-active, rgba(128, 128, 128, 0.22)); transition: color 0.15s, background-color 0.5s ease-out; }
+.tw-resettable.tw-reset-holding { border-radius: calc(var(--tw-radius) - 4px); background-color: var(--tw-surface-active); transition: color 0.15s, background-color 0.5s ease-out; }
 
 /* ── Slider ── */
 .tw-slider-wrap { position: relative; height: var(--tw-row-height); }
@@ -275,20 +275,17 @@
 @media (hover: hover) and (pointer: fine) {
   .tw-slider:hover .tw-slider-handle { opacity: 0.5; transform: translateY(-50%) scaleX(1); }
 }
-.tw-slider.is-active .tw-slider-handle,
-.tw-slider.is-dragging .tw-slider-handle { opacity: 0.9; transform: translateY(-50%) scaleX(1); }
+.tw-slider.is-active .tw-slider-handle { opacity: 0.9; transform: translateY(-50%) scaleX(1); }
 /* Interval handles are focusable; the single slider's are decorative. */
 .tw-slider-handle:focus-visible { opacity: 0.9; transform: translateY(-50%) scaleX(1); outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
 /* The dodge: the handle yields under the label or value text. */
 .tw-slider.is-active.is-dodge .tw-slider-handle,
-.tw-slider.is-dragging.is-dodge .tw-slider-handle,
 .tw-slider.is-hover.is-dodge .tw-slider-handle { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
 @media (hover: hover) and (pointer: fine) {
   .tw-slider:hover.is-dodge .tw-slider-handle { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
 }
 /* Interval has two handles, so the dodge is per-handle (the one under the text). */
-.tw-interval.is-active .tw-slider-handle.is-dodge,
-.tw-interval.is-dragging .tw-slider-handle.is-dodge { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
+.tw-interval.is-active .tw-slider-handle.is-dodge { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
 .tw-slider-label {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%); /* 12px = the row's left padding */
   max-width: calc(100% - 64px);
@@ -298,7 +295,7 @@
 .tw-interval .tw-slider-label { max-width: calc(100% - 112px); } /* the control tightens this inline on render */
 .tw-slider-value {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  font-size: 12px; font-weight: 500; font-family: var(--tw-font-sans);
+  font-size: 12px; font-weight: 500;
   color: var(--tw-text-label); pointer-events: auto;
   transition: color 0.15s;
 }
@@ -456,19 +453,23 @@
 /* The folder's 15px chevron; the glyph sits 3.75px inside its box, so pull it out by that side-bearing. */
 .tw-select-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); opacity: 0.6; margin-right: -3.75px; transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
 .tw-select.is-open .tw-select-chevron { transform: rotate(180deg); }
-.tw-select-dropdown {
-  position: fixed; z-index: 99999; /* portaled to <body>, JS-placed */
-  padding: 4px; border-radius: calc(var(--tw-radius) + 2px); /* concentric: option (radius − 2) + padding 4 */
+/* The three portaled panes' shell (list dropdown, presets menu, color pop): fixed on <body> and placed by JS, the dropdown
+ * surface, and the entrance. Each one's own rule below sets its size, radius and origin. */
+:is(.tw-select-dropdown, .tw-presets-menu, .tw-color-pop) {
+  position: fixed; z-index: 99999;
   background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); box-shadow: var(--tw-shadow-dropdown);
+  opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s)); pointer-events: none;
+  transition: opacity 0.16s var(--tw-ease-out), transform 0.24s var(--tw-ease-spring);
+}
+.tw-select-dropdown {
+  padding: 4px; border-radius: calc(var(--tw-radius) + 2px); /* concentric: option (radius − 2) + padding 4 */
   max-height: 60vh; overflow-y: auto;
-  transform-origin: top; opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s));
-  pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.22s var(--tw-ease-spring);
+  transform-origin: top; transition-duration: 0.16s, 0.22s;
 }
 /* A pane matches its row, but never runs past the window's 8px margins. */
 :is(.tw-select-dropdown, .tw-color-pop) { max-width: calc(100vw - 16px); }
 /* Opened above the trigger: grow up from it. */
 :is(.tw-select-dropdown, .tw-color-pop)[data-side="above"] { transform-origin: bottom; transform: translateY(6px) scale(var(--tw-pop-s)); }
-.tw-select-dropdown.is-open { opacity: 1; transform: none; pointer-events: auto; }
 .tw-select-option {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; font: inherit; font-size: 12px; font-weight: 500;
   line-height: 14px; /* not normal: a 30px option whatever the font, the chips' 14px */
@@ -498,13 +499,14 @@
 
 /* ── Presets menu — portaled; save / load / delete named snapshots ── */
 .tw-presets-menu {
-  position: fixed; z-index: 99999; width: 208px;
+  width: 208px;
   display: flex; flex-direction: column; gap: 6px; padding: 8px;
-  background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) + 4px); box-shadow: var(--tw-shadow-dropdown); /* concentric: inner picker surface (radius) + padding 4 */
-  transform-origin: top right; opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s)); pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.24s var(--tw-ease-spring);
+  border-radius: calc(var(--tw-radius) + 4px); /* concentric: inner picker surface (radius) + padding 4 */
+  transform-origin: top right;
 }
 .tw-presets-menu[data-side="above"] { transform-origin: bottom right; transform: translateY(6px) scale(var(--tw-pop-s)); }
-.tw-presets-menu.is-open { opacity: 1; transform: none; pointer-events: auto; }
+/* Open: after every pane's [data-side] origin, which it must beat at the same specificity. */
+:is(.tw-select-dropdown, .tw-presets-menu, .tw-color-pop).is-open { opacity: 1; transform: none; pointer-events: auto; }
 .tw-presets-save { display: flex; gap: 6px; }
 .tw-presets-input { flex: 1; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 6px 8px; outline: none; }
 .tw-presets-input:focus { border-color: var(--tw-border-hover); }
@@ -552,7 +554,7 @@
 .tw-trigger-label { transition: color 0.15s; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a <button> centers its text by default */
 .tw-trigger-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 /* word-spacing separates a multi-part readout ("60% 0.23 286") into columns; visual only. */
-.tw-trigger-value { font-family: var(--tw-font-sans); word-spacing: 0.1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 20ch; }
+.tw-trigger-value { word-spacing: 0.1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 20ch; }
 /* The 18px preview chip — swatch, gradient strip or mini pad. */
 .tw-trigger-chip { height: 18px; flex-shrink: 0; border-radius: calc(var(--tw-radius) - 4px); box-shadow: inset 0 0 0 1px var(--tw-border-hover); transition: transform 0.2s var(--tw-ease-spring); }
 .is-open > .tw-trigger .tw-trigger-chip { transform: scale(1.07); } /* 1.14 read as a jump on the wider chips */
@@ -570,30 +572,26 @@
 
 /* the color dropdown */
 .tw-color-pop {
-  position: fixed; z-index: 99999; /* placed and sized from the trigger by JS */
   min-width: 236px; /* the default panel's row width */
   display: flex; flex-direction: column; gap: 8px; padding: 10px;
-  background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border);
   border-radius: calc(var(--tw-radius) + 10px); /* concentric: inner radius + padding 10 */
-  box-shadow: var(--tw-shadow-dropdown);
   max-height: calc(100dvh - 16px); overflow-y: auto; overflow-x: clip; /* a short viewport scrolls the picker */
-  opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s)); transform-origin: top; pointer-events: none; transition: opacity 0.16s var(--tw-ease-out), transform 0.24s var(--tw-ease-spring);
+  transform-origin: top;
 }
-.tw-color-pop.is-open { opacity: 1; transform: none; pointer-events: auto; }
 /* The picker body as one column, so the gradient pop can mount it under the stop bar. */
 .tw-color-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .tw-color-mode-row { display: flex; align-items: center; gap: 8px; }
-.tw-color-mode { appearance: none; -webkit-appearance: none; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background-color: var(--tw-surface); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6.25px center; border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 4px 26px 4px 10px; line-height: 14px; cursor: pointer; outline: none; } /* 14px, not normal: 24px tall whatever the font, the chips' 14px. The folder's 15px chevron: right 6.25px + its 3.75px side-bearing = 10 */
+.tw-color-mode { appearance: none; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background-color: var(--tw-surface); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6.25px center; border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 4px 26px 4px 10px; line-height: 14px; cursor: pointer; outline: none; } /* 14px, not normal: 24px tall whatever the font, the chips' 14px. The folder's 15px chevron: right 6.25px + its 3.75px side-bearing = 10 */
 @media (hover: hover) and (pointer: fine) {
   .tw-color-mode:hover { background-color: var(--tw-surface-hover); }
 }
 .tw-color-mode:focus-visible { border-color: var(--tw-border-hover); } /* match the channel inputs' focus cue */
-.tw-color-gamut { margin-left: auto; font-family: var(--tw-font-sans); font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); }
+.tw-color-gamut { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); }
 .tw-color-channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .tw-color-channels--hex { grid-template-columns: 1fr; }
 .tw-color-chan { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .tw-color-chan-label { font-size: 10px; font-weight: 600; letter-spacing: 0.03em; color: var(--tw-text-tertiary); text-transform: uppercase; }
-.tw-color-chan-input { width: 100%; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; font-family: var(--tw-font-sans); color: var(--tw-text-label); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 5px 6px; outline: none; text-transform: uppercase; }
+.tw-color-chan-input { width: 100%; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 5px 6px; outline: none; text-transform: uppercase; }
 .tw-color-chan-input:focus { color: var(--tw-text-focus); border-color: var(--tw-border-hover); }
 
 /* The plane and strips: no overflow:hidden, since the thumbs ride the edges. */
@@ -601,12 +599,11 @@
 .tw-wg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
 /* Thumbs are positioned by left/top, not transform, so the grab scale doesn't lag the drag. */
 .tw-wg-thumb { position: absolute; width: 14px; height: 14px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
-.tw-wg-area.is-grabbing .tw-wg-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
 .tw-wg-hue, .tw-wg-alpha { position: relative; width: 100%; height: 14px; border-radius: 999px; cursor: ew-resize; touch-action: none; box-shadow: inset 0 0 0 1px var(--tw-border); }
 .tw-wg-alpha { background: var(--tw-checker); }
 .tw-wg-hue-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
 .tw-wg-hue-thumb { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
-.tw-wg-hue.is-grabbing .tw-wg-hue-thumb, .tw-wg-alpha.is-grabbing .tw-wg-hue-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
+.tw-wg-area.is-grabbing .tw-wg-thumb, .tw-wg-hue.is-grabbing .tw-wg-hue-thumb, .tw-wg-alpha.is-grabbing .tw-wg-hue-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
 .tw-wg-alpha-grad { position: absolute; inset: 0; border-radius: inherit; }
 
 /* ── Gradient — a trigger row that opens a stop bar + picker body ── */
@@ -645,11 +642,10 @@
   text-align: right; cursor: text; padding: 0;
   border-radius: calc(var(--tw-radius) - 4px); /* rounds the focus ring (outline follows radius) */
 }
-.tw-num { font-family: var(--tw-font-sans); }
 .tw-text:focus, .tw-num:focus { color: var(--tw-text-focus); }
 .tw-text::placeholder { color: var(--tw-text-tertiary); }
 .tw-row-multiline { position: relative; flex-direction: column; align-items: stretch; height: auto; gap: 4px; padding: 7.5px 10px 10px 12px; } /* top: the label's text 9px down, as a 32px row's; bottom 10 > the 8px radius keeps the grip clear */
-.tw-textarea { flex: none; width: 100%; resize: vertical; min-height: 3em; padding: 0; line-height: 1.45; text-align: left; font-family: var(--tw-font-sans); }
+.tw-textarea { flex: none; width: 100%; resize: vertical; min-height: 3em; padding: 0; line-height: 1.45; text-align: left; }
 /* The native resizer grip is invisible on mobile Safari, so draw one; a mask lets it
  * take the token color in both schemes. */
 .tw-textarea::-webkit-resizer { background: transparent; }
@@ -716,7 +712,7 @@
   line-height: 14px; /* not normal: a graphless monitor is 33px whatever the font, the chips' 14px */
 }
 .tw-fps-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); }
-.tw-fps-val { font-family: var(--tw-font-sans); font-size: 12px; color: var(--tw-text-primary); text-align: right; }
+.tw-fps-val { font-size: 12px; color: var(--tw-text-primary); text-align: right; }
 .tw-fps-canvas { grid-column: 1 / -1; width: 100%; height: 40px; display: block; margin-top: 6px; }
 /* Monitor string buffer — the last N values, newest at the bottom. */
 .tw-monitor-buffer { grid-column: 1 / -1; margin: 6px 0 0; height: calc(var(--tw-monitor-rows, 4) * 1.45em); overflow: hidden; font-family: var(--tw-font-sans); font-variant-numeric: tabular-nums; font-size: 11px; line-height: 1.45; color: var(--tw-text-secondary); white-space: pre; word-break: break-all; }
@@ -739,7 +735,7 @@
 /* round dots with a controllable gap (`dotted` packs them too tightly) */
 .tw-grab-line { position: fixed; height: 2px; border: 0; transform: translateY(-50%); background: radial-gradient(circle closest-side, var(--tw-text-label) 99%, transparent) 0 50% / var(--tw-grab-gap, 7px) 2px repeat-x; }
 .tw-grab-dot { position: fixed; width: 5px; height: 5px; border-radius: 50%; background: var(--tw-text-label); transform: translate(-50%, -50%); }
-.tw-grab-bubble { position: fixed; transform: translate(-50%, -100%); padding: 2px 7px; border-radius: calc(var(--tw-radius) - 2px); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); box-shadow: var(--tw-shadow-dropdown); color: var(--tw-text-primary); font-family: var(--tw-font-sans); font-size: 11px; font-weight: 500; white-space: nowrap; transform-origin: bottom center; animation: tw-bubble-in 0.18s var(--tw-ease-pop); }
+.tw-grab-bubble { position: fixed; transform: translate(-50%, -100%); padding: 2px 7px; border-radius: calc(var(--tw-radius) - 2px); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); box-shadow: var(--tw-shadow-dropdown); color: var(--tw-text-primary); font-size: 11px; font-weight: 500; white-space: nowrap; transform-origin: bottom center; animation: tw-bubble-in 0.18s var(--tw-ease-pop); }
 @keyframes tw-bubble-in { from { opacity: 0; transform: translate(-50%, -100%) scale(0.8); } to { opacity: 1; transform: translate(-50%, -100%) scale(1); } }
 .tw-grab-arrow { position: fixed; width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 7px solid var(--tw-text-label); }
 
@@ -812,7 +808,7 @@
 .tw-sides-glyph[data-at="bottom-left"] svg, .tw-sides-glyph[data-at="left"] svg { transform: rotate(270deg); }
 /* The readout is set like the row's field — the digits' tone and weight, the unit's 4px gap, weight and inset — so a
  * toggle swaps one for the other without a glyph moving or changing tone. */
-.tw-sides-sum { margin-left: auto; font-family: var(--tw-font-sans); font-size: 12px; font-weight: 500; color: var(--tw-text-label); word-spacing: 0.1em; }
+.tw-sides-sum { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--tw-text-label); word-spacing: 0.1em; }
 .tw-sides-unit { margin-left: 4px; padding-right: 2px; font-weight: 400; color: var(--tw-text-tertiary); }
 /* The motion control (motion.ts). */
 .tw-motion-chip { position: relative; }
@@ -901,7 +897,7 @@
 .tw-plot-field { display: flex; align-items: center; gap: 7px; height: var(--tw-row-height); padding: 0 10px 0 12px; background: var(--tw-surface); border-radius: var(--tw-radius); box-shadow: inset 0 0 0 1px transparent; transition: box-shadow 0.15s; } /* the row idiom: 12 left, 10 right */
 .tw-plot-field:focus-within { box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
 .tw-plot-fx { flex: none; font-size: 12px; color: var(--tw-text-tertiary); font-variant-numeric: tabular-nums; -webkit-user-select: none; user-select: none; }
-.tw-plot-input { flex: 1; min-width: 0; padding: 0; background: none; border: none; outline: none; color: var(--tw-text-primary); font-family: var(--tw-font-mono, ui-monospace, "SF Mono", Menlo, monospace); font-size: 12px; }
+.tw-plot-input { flex: 1; min-width: 0; padding: 0; background: none; border: none; outline: none; color: var(--tw-text-primary); font-family: var(--tw-font-mono); font-size: 12px; }
 .tw-plot-input::placeholder { color: var(--tw-text-tertiary); }
 .tw-plot.is-invalid .tw-plot-curve { opacity: 0.25; }
 .tw-plot.is-invalid .tw-plot-field { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tw-danger) 60%, transparent); }
