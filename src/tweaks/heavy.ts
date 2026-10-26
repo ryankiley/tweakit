@@ -249,9 +249,9 @@ function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, 
   return out;
 }
 // The run as a CSS transition: how long, and a linear() easing. It lasts until within e⁻⁷ of rest, by the slowest mode
-// (an overdamped spring's slow root, not ζω₀), capped at 10 s, where the last stop is 1 so it ends at rest. Stops were
-// spaced by duration alone, so a bouncy spring got three a wobble and missed its peaks by a third; now there are at least
-// 24 a wobble plus one on every peak and trough, each at its own percentage, so the overshoots land where they are.
+// (an overdamped spring's slow root, not ζω₀), capped at 10 s, where the last stop is 1 so it ends at rest. There are at
+// least 24 stops a wobble plus one on every peak and trough, each at its own percentage, so the overshoots land where
+// they are: stops spaced by duration alone give a bouncy spring three a wobble and miss its peaks by a third.
 const springRun = (k: number, d: number, m: number) => {
   const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)), x = springAt(k, d, m);
   const span = Math.min(7 / Math.max(decayRate(w0, z), 1e-3), 10);

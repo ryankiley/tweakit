@@ -162,9 +162,9 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     const { type, label: _l, ...fields } = value;
     return meta(type, fields, ownLabel(value, label));
   }
-  // A `type` no control answers to (a typo, or another library's name for one). With a field only a control reads, it was
-  // meant as one: built anyway, `bezier`'s value array read as a slider's [value, min, max] and warned of a swap. So it's
-  // skipped. Without one it's a folder with a child named `type` (`font: { type: "Inter", size: 12 }`). Words lazy.
+  // A `type` no control answers to (a typo, or another library's name for one). With a field only a control reads, it's
+  // meant as one, and skipped: built as a folder, `bezier`'s value array would read as a slider's [value, min, max]. With
+  // none it's a folder with a child named `type` (`font: { type: "Inter", size: 12 }`). The words are lazy.
   else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string") {
     const control = hasOwn(value, "value") || Array.isArray(value.options) || typeof value.action === "function";
     import("./heavy.js").then((m) => m.unknownType(`"${key}"`, value.type, [...Object.keys(TYPED_META), ...Object.keys(LAZY_IMPORT), ...controlTypes()], control ? "control" : "folder"), () => {});

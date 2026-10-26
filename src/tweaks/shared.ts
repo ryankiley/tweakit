@@ -69,9 +69,9 @@ const gridEnds = (min: number, max: number, step: number, anchor = min): [number
   return lo > hi ? [min, min] : [lo, hi];
 };
 // By the span, then finer, a tenth at a time and at most twice, until each value the range was built around sits on the
-// grid from min: a coarser grid snapped the default off what was written (37 over 0–110 became 40). A value finer still
+// grid from min: a coarser grid would snap the default off what was written (37 over 0–110 to 40). A value finer still
 // (3.14159) rounds to the last of those. A range across zero counts 0 among them, so -45's -135–135 steps by 1, not by
-// 10 from -135 (…, -5, 5, …), which stepped over 0. roundToStep anchors the grid at min rounded to the step's decimals,
+// 10 from -135 (…, -5, 5, …), which steps over 0. roundToStep anchors the grid at min rounded to the step's decimals,
 // so min must keep its own decimals too (0.25 over 0.1 anchored at 0.3, and 1.25 came back 1.2); max joins them when a
 // step within reach fits it, else the grid trims it as before.
 const inferStep = (min: number, max: number, ...vals: number[]) => {
@@ -138,7 +138,7 @@ const overlapsText = (labelEl: HTMLElement, valueEl: HTMLElement, hx: number, hw
 // last resort), and a negative spans that much either side of zero, so it can still cross it
 // (rotate: -45 → −135 to 135).
 const defaultRange = (v: number): [number, number] => {
-  if (!Number.isFinite(v)) return [0, 1]; // NaN spanned NaN–NaN; every entry point now reads it as 0, as a verbose slider did
+  if (!Number.isFinite(v)) return [0, 1]; // NaN would span NaN–NaN; every entry point reads it as 0, as a verbose slider does
   const x3 = Number((Math.abs(v) * 3).toPrecision(12)); // 2.3 × 3 is 6.8999…, which the grid trimmed to 6.8
   if (v >= 0) return [0, v <= 1 ? 1 : x3 || 100];
   const m = v >= -1 ? 1 : x3;
@@ -540,8 +540,8 @@ const words = (s: Words | null | undefined = inForce) => Object.assign((k: strin
 }, { s });
 type Tr = ReturnType<typeof words>;
 
-// What a click or a run of keys did, in words, for a screen reader: one visually hidden status region for the page,
-// where the toast used to speak. It's cleared and written a beat later, so the same words twice are read twice.
+// What a click or a run of keys did, in words, for a screen reader: one visually hidden status region for the page.
+// It's cleared and written a beat later, so the same words twice are read twice.
 let srEl: HTMLDivElement | null = null, srT = 0;
 const announce = (msg: string) => {
   if (!srEl) { srEl = el("div", "twk-sr"); srEl.setAttribute("role", "status"); }
