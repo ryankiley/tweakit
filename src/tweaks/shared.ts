@@ -91,8 +91,11 @@ const derivedRange = (...vals: number[]) => {
 // Every range swaps an inverted min/max, which is the right recovery, but silent it hides a typo: say so.
 const swapNote = (label: string, min: unknown, max: unknown) => {
   const n = (v: unknown) => (v == null || v === "" ? NaN : +v!);
-  if (n(max) < n(min)) console.warn(`[tweaks] "${label}": min ${min} is above max ${max}, so they were swapped`);
+  if (n(max) < n(min)) notice("swap", label, min, max);
 };
+// A console notice for a mistake. Its words live in the lazy heavy chunk (heavy.ts NOTICES), so a panel that makes none
+// never downloads them; it lands a moment later, which a console doesn't mind.
+const notice = (kind: string, ...args: unknown[]) => { import("./heavy.js").then((m) => m.notice(kind, args), () => {}); };
 // Normalize a slider-style range: an absent or non-finite bound derives from the values, an inverted pair swaps (with a
 // note, given the control's label), and only then does an absent or unusable step infer, so a NaN min can't hand it a NaN
 // span. Every range source funnels here.
@@ -583,7 +586,7 @@ const announce = (msg: string) => {
 
 export {
   titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
-  normalizeRange, swapNote, rangeStep, overlapsText,
+  normalizeRange, swapNote, notice, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
