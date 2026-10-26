@@ -1,7 +1,7 @@
 /* The core controls — always-registered constructors (slider, toggle, radio grid, select,
  * buttons, text, folder) plus createControl. Statically imported by the entry, so basic panels build synchronously. */
 import {
-  el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel, json,
+  el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, swapNote, rangeStep, overlapsText, optValue, optLabel, json,
   popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, foldBody,
   quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
@@ -15,6 +15,7 @@ import type { Control, Option } from "../types.js";
 const CLICK_THRESHOLD = 3;
 function createSlider(meta: Meta, onChange: OnChange): Control {
   const label = meta.label;
+  swapNote(label, meta.min, meta.max);
   let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, 0, null, +(meta.value as number));
   // A hard slider's range is its reachable grid: the ends move in to the first/last grid point,
   // so notches, hashmarks, keyboard ends, aria bounds and the emitted value agree. A soft slider keeps its authored range.

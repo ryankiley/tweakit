@@ -71,7 +71,7 @@ panel.ready.then(() => apply(panel.params));
 
 A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, or 0 in a range across zero, would fall between steps (`37` steps by 1, not 10, and `-45` reaches 0). Keys become labels, title-cased; `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
 
-In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and value types but widens list options to `string`; write it `as const` to keep them.
+In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and its shorthands' types, but widens list options to `string` and a verbose form's `type` to `string`, which leaves that value `any`; write it `as const` to keep them all, or `satisfies Schema` to keep the verbose forms.
 
 ## Every control, as `{ type, … }`, and what it returns
 
@@ -92,7 +92,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `color` | `value` | color string in the picker's notation: `oklch(60% 0.23 286)` by default, whatever you wrote; `#rrggbb` once the user picks hex |
 | `gradient` | `stops: [[color, position], …]` | `{ stops: [{ color, pos }], interpolation, easing }`, which goes back in whole as `value`; `gradientCss(value, angle)` makes the CSS |
 | `shadow` | `x, y, blur, spread, color, inset`, or `value` as a `box-shadow` string | `{ x, y, blur, spread, color, inset, css }`; `css` is ready for `box-shadow` |
-| `image` | `value`; `options` (URLs or `{ value, label }`) makes a row that opens a gallery pane, with `cols` (1 to 6), `maxSize, upload`, and `clear: false` to keep a value chosen; an upload past `fit` px (2560) on its long side, or over 1.5 MB, is redrawn, as a PNG up to 1.5 MB, else JPEG at `quality` (0.85), or WebP for transparency; `fit: false` keeps it whole | the chosen URL, the upload's data URL, or `""` |
+| `image` | `value`; `options` (URLs or `{ value, label }`) makes a row that opens a gallery pane, with `cols` (1 to 6), `maxSize, upload`, and `clear: false` to keep a value chosen; an upload past `fit` px (2560) on its long side, or over 1.5 MB, is redrawn, in Display P3 where the browser can, as a PNG up to 1.5 MB, else JPEG at `quality` (0.85), or WebP for transparency; an animated GIF, WebP or PNG is never redrawn, and a JPEG or PNG kept as it is loses its Exif and XMP (GPS); `fit: false` never redraws | the chosen URL, the upload's data URL, or `""` |
 | `motion` | `mode: "easing"` with `curve` and `duration` (ms), or `mode: "spring"` with `stiffness, damping, mass` or `visualDuration, bounce` | `{ mode, …, duration, easing }`; `easing` is a `cubic-bezier(…)` or sampled `linear(…)` string for a CSS transition; a spring's `duration` is its settle time |
 | `spring` | `mode: "time"` or `"physics"`, `visualDuration, bounce, stiffness, damping, mass` | `{ stiffness, damping, mass }`, plus the time pair when tuned by feel; that pair resolves exactly as Motion's `{ visualDuration, bounce }` does, bounce −1 to 1 |
 | `cubicbezier` | `value: [x1, y1, x2, y2]` | `[x1, y1, x2, y2]` |
@@ -111,7 +111,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 - `panel.el`: append it. `panel.params`: live values, nested like the schema, updated in place. It holds values only.
 - `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the bare leaf (`blur`, not `shadow.blur`), so read nested values off `params` rather than switching on the key.
 - `panel.ready`: resolves once lazy controls have built.
-- `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; a key no control has is refused with a console warning; `{ silent: true }` skips your listeners.
+- `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; a key no control has is refused with a console warning, and a number past a hard range clamps, with a console warning once a key; `{ silent: true }` skips your listeners.
 - `panel.changes()`: the values that differ from their defaults, keyed by dotted path. `panel.reset()` restores the defaults.
 - `panel.toJSON()` and `panel.fromJSON(state)`: every value, nested, plus folder and tab UI state, JSON-safe; `JSON.stringify(panel)` uses it.
 - `panel.setTheme(theme)`, `panel.setName(name)`; `panel.undo()` and `panel.redo()` with `undo: true`; `savePreset`, `loadPreset`, `deletePreset` and `presets()` with `persist`.
@@ -147,7 +147,7 @@ The core module also upgrades `[data-tw]` elements in place: `<div data-tw="slid
 
 ## Theming
 
-The panel is dark by default and follows the system scheme; `data-tw-scheme="light"` or `"dark"` on any ancestor pins it. `theme` takes friendly keys (`accent`, `base`, `surface`, `border`, `text`, `radius`, `density`, `width`, `font` and more) or raw `--tw-*` tokens. Details: https://ryankiley.github.io/tweakit/theming.md
+The panel is dark by default and follows the system scheme; `data-tw-scheme="light"` or `"dark"` on any ancestor pins it. `theme` takes friendly keys (`accent`, `base`, `surface`, `border`, `text`, `radius`, `density`, `width`, `font` and more) or raw `--tw-*` tokens; an unknown friendly key, or a color or length key whose value isn't one, is skipped with a console warning, while raw tokens pass unchecked. Details: https://ryankiley.github.io/tweakit/theming.md
 
 ## What tweakit does not do
 
