@@ -1,6 +1,6 @@
 // ── Point — 2D/3D/4D vector. Lazy.
-import { el, clamp, stepPrecision, defaultRange, popover, registerControl, announce } from "../shared.js";
-import { numField, svgEl, grabSurface, boxFrac, triggerRow, decimalStep } from "../heavy.js";
+import { el, clamp, stepPrecision, defaultRange, popover, registerControl } from "../shared.js";
+import { numField, svgEl, grabSurface, boxFrac, arrowStep, sayWhenKeysStop, triggerRow, decimalStep } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta, PointComponent } from "../schema.js";
 import type { Control } from "../types.js";
@@ -89,12 +89,10 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     // pad step (⇧ = ten), ↑ always up on screen; Home restores the default. Escape is the popover's — a blur here would close it first.
     padHost.tabIndex = 0; padHost.setAttribute("role", "group");
     padHost.setAttribute("aria-label", `${meta.label ?? "Point"} pad: ${comps[0].label ?? comps[0].key} and ${comps[1].label ?? comps[1].key}`);
-    // The readout rides on aria-description, which a screen reader speaks on focus and never again: say where a run of keys stopped.
-    let sayT = 0;
-    const say = () => { clearTimeout(sayT); sayT = setTimeout(() => { if (padHost.isConnected) announce(padHost.getAttribute("aria-description") || ""); }, 250); };
+    const say = sayWhenKeysStop(padHost);
     padHost.addEventListener("keydown", (e) => {
       if (e.key === "Home") { e.preventDefault(); comps.forEach((c, k) => flds[k].set(c.value ?? 0)); sync(); emit(); say(); return; }
-      const dx = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, dy = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
+      const [dx, dy] = arrowStep(e);
       if (!dx && !dy) return;
       e.preventDefault();
       const k = e.shiftKey ? 10 : 1;

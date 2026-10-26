@@ -182,32 +182,27 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     zone.addEventListener("drop", (e) => { over.dataset.over = "false"; if (off()) return; e.preventDefault(); load(e.dataTransfer?.files[0]); });
   };
   input.addEventListener("change", () => { load(input.files?.[0]); input.value = ""; }); // cleared, so the same file picked again fires change
-  let root: HTMLElement;
+  // Both forms are a trigger row with the chosen image's thumb first, as every chip row.
+  const row = triggerRow("tw-image", meta.label), root = row.root;
+  const thumb = el("span", "tw-trigger-chip tw-image-thumb");
+  const paintThumb = () => { thumb.dataset.set = value ? "true" : "false"; thumb.style.backgroundImage = value ? urlCss(value) : ""; };
 
   if (!options.length) {
     // The plain row: the whole trigger is the target, a click opens the file dialog and the row is also the drop zone.
-    const row = triggerRow("tw-image", meta.label); root = row.root;
     row.trigger.removeAttribute("aria-expanded"); // opens a file dialog, not an expandable popover
     row.trigger.setAttribute("aria-label", `${meta.label}: choose an image`);
     const text = el("span", "tw-image-text");
-    const thumb = el("span", "tw-trigger-chip tw-image-thumb");
-    row.right.append(thumb, note, text); // thumb first, as every chip row
+    row.right.append(thumb, note, text);
     root.append(input, live);
-    render = () => {
-      thumb.dataset.set = value ? "true" : "false";
-      thumb.style.backgroundImage = value ? urlCss(value) : "";
-      text.textContent = value ? "Replace" : "Drop or choose";
-    };
+    render = () => { paintThumb(); text.textContent = value ? "Replace" : "Drop or choose"; };
     row.trigger.addEventListener("click", () => input.click());
     dropZone(row.trigger, row.trigger);
   } else {
-    // The gallery: a trigger row with the chosen image's thumb and name opens a pane of the tiles, as one radio group,
-    // over a foot with the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and
-    // the pane both take a dropped file.
-    const row = triggerRow("tw-image", meta.label); root = row.root;
+    // The gallery: the row, with the chosen image's name, opens a pane of the tiles, as one radio group, over a foot with
+    // the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and the pane both
+    // take a dropped file.
     const name = el("span", "tw-trigger-value"), rowNote = el("span", "tw-image-note");
-    const thumb = el("span", "tw-trigger-chip tw-image-thumb");
-    row.right.append(thumb, rowNote, name); // thumb first, as every chip row
+    row.right.append(thumb, rowNote, name);
     notes.push(rowNote);
     // The pane is the gallery, with no wrapper: its padding and the gaps between tiles and foot are its drag edge.
     const pop = el("div", "tw-color-pop tw-image-pop tw-image-gallery");
@@ -243,8 +238,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       btns.forEach((b, j) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = j === stop ? 0 : -1; });
       slot.dataset.open = String(!!value); slot.inert = !value; // nothing to clear: Clear folds away, out of the tab order
       foot.dataset.open = String(!!upload || (canClear && !!value)); foot.inert = foot.dataset.open === "false"; // an empty foot folds to nothing
-      thumb.dataset.set = value ? "true" : "false";
-      thumb.style.backgroundImage = value ? urlCss(value) : "";
+      paintThumb();
       name.textContent = !value ? "None" : k >= 0 ? names[k] : customName(value);
     };
     grid.addEventListener("keydown", (e) => {
