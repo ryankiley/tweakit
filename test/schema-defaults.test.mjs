@@ -232,16 +232,39 @@ test("key labels: a word ending in an acronym splits, and sRGB or iOS opening a 
 });
 
 // A typo in `type` built a folder of `type` and `value` rows without a word.
-test("an unknown type warns, naming the near type and the real ones; it still builds a folder, as a child named type may mean", async () => {
+test("an unknown type warns, naming the near type and the real ones; with no field a control reads, it still builds a folder", async () => {
   let p;
   const msgs = await warnings(() => { p = tweaks("Types", { typo: { type: "slidr", value: 1 }, font: { type: "Inter", size: [12, 8, 40, 1] } }); });
   assert.deepEqual(p.params.font, { type: "Inter", size: 12 });
-  assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"?') && m.includes("Types: button, buttongroup")));
+  assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"? It is skipped') && m.includes("Types: button, buttongroup")));
   const types = msgs.find((m) => m.includes('"typo"')).split("Types: ")[1].split(", ");
   for (const t of ["segmented", "checkbox", "cubicbezier", "tabs"]) assert.ok(types.includes(t), `the list names ${t}`);
   assert.ok(!types.includes("colorpicker") && !types.includes("folder"), "and not the picker body or a folder");
   assert.ok(msgs.some((m) => m.includes('"font": "Inter" isn\'t a control type. It builds a folder')));
   p.destroy();
+});
+
+// { type: "bezier", value: [...] } built a folder whose value array read as a slider's [value, min, max] and warned of a
+// swap, with no suggestion, as bezier is more than one edit from cubicbezier.
+test("another library's type name is skipped with the type it means, and its value can't cascade into other warnings", async () => {
+  let p;
+  const msgs = await warnings(() => { p = tweaks("Syn", { b: { type: "bezier", value: [0.34, 1.56, 0.64, 1] }, t: { type: "Toggle", value: true }, d: { type: "dropdown", options: ["a", "b"] }, s: { type: "select", options: ["a"], value: "a" }, ok: 1 }); });
+  assert.deepEqual(Object.keys(p.params), ["ok"]);
+  for (const [k, t, near] of [["b", "bezier", "cubicbezier"], ["t", "Toggle", "checkbox"], ["d", "dropdown", "list"], ["s", "select", "list"]])
+    assert.ok(msgs.some((m) => m.includes(`"${k}": "${t}" isn't a control type — did you mean "${near}"? It is skipped`)), `${t} → ${near}`);
+  assert.equal(msgs.length, 4, "one warning each, and no swap");
+  p.destroy();
+});
+
+// { type: "list", value: "a" } has no options, so the list handler returns nothing; it built a folder of type and value rows.
+test("a known type missing its required field is skipped when it holds a value, and stays a folder when it doesn't", async () => {
+  const errors = [], error = console.error; console.error = (...a) => errors.push(a.join(" "));
+  try {
+    const p = tweaks("Req", { l: { type: "list", value: "a" }, marker: { type: "point", size: 3 } });
+    assert.deepEqual(p.params, { marker: { type: "point", size: 3 } });
+    assert.deepEqual(errors, ['[tweaks] malformed "list" schema value for "l" — it needs options; control skipped']);
+    p.destroy();
+  } finally { console.error = error; }
 });
 
 // An inverted pair swaps, which is right, but silently: { min: 10, max: 0 } and data-min="40" data-max="0" built quietly.

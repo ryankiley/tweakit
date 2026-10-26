@@ -75,7 +75,7 @@ In TypeScript, a schema written inline types `params` from its shape: `radius: [
 
 ## Every control, as `{ type, … }`, and what it returns
 
-Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => boolean` (show by another value, `get("key")`), `disabled: boolean | (get) => boolean`, and `persist: false`. In a plain folder object those names are children, not options. Nested values read as `params.folder.key`.
+Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => boolean` (show by another value, `get("key")`), `disabled: boolean | (get) => boolean`, and `persist: false`. In a plain folder object those names are children, not options. Nested values read as `params.folder.key`. Use the `type` names below: `bezier` or `toggle` with a `value` is skipped, with a warning naming the right one.
 
 | `type` | Options | `params` value |
 | --- | --- | --- |

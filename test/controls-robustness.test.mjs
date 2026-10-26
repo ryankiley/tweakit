@@ -528,6 +528,9 @@ test("a markup host with an unknown data-tw type is skipped with a warning namin
     for (const t of ["segmented", "checkbox", "cubicbezier", "radiogrid"]) assert.ok(types.includes(t), `the list names ${t}`);
     for (const t of ["colorpicker", "tabs"]) assert.ok(!types.includes(t), `and not ${t}, which markup can't build`);
   } finally { host.remove(); }
+  const toggle = document.createElement("div"); toggle.dataset.tw = "toggle"; document.body.append(toggle);
+  try { assert.ok((await warnings(() => enhance(toggle))).some((m) => m.includes('"toggle" isn\'t a control type — did you mean "checkbox"?')), "another library's name finds ours"); }
+  finally { toggle.remove(); }
 });
 
 // data-tw="segmented" was warned "isn't a control type", though a schema takes it; data-tw="tabs" fell through to a folder

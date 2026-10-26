@@ -188,9 +188,9 @@ export type TabKey<T extends string> = string extends T ? string : TrimDash<Dash
 type TabClash<P> = true extends { [T in keyof P & string]: TabKey<T> extends { [U in Exclude<keyof P & string, T>]: TabKey<U> }[Exclude<keyof P & string, T>] ? true : false }[keyof P & string] ? true : false;
 
 type Valueless = "button" | "buttongroup" | "separator" | "fpsgraph" | "monitor";
-// The field each falsy-capable form hinges on (schema.ts REQUIRED): without it the object isn't
+// The field each falsy-capable form hinges on (schema.ts REQUIRED), or a `value`: without either the object isn't
 // that control but a shorthand or a folder holding a child named `type`.
-type Hinge = { list: "options"; radiogrid: "options"; segmented: "options"; point: "components" | "value"; tabs: "pages" };
+type Hinge = { list: "options" | "value"; radiogrid: "options" | "value"; segmented: "options" | "value"; point: "components" | "value"; tabs: "pages" | "value" };
 // A hinge field there but unusable skips the control at runtime, so it puts nothing on params.
 type TypedValue<V> =
   V extends { readonly type: "slider" | "number" } ? number
