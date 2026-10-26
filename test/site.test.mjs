@@ -59,15 +59,16 @@ test("docs prose has no em or en dashes outside a numeric range and the empty ta
   assert.ok(offenders.length === 0, `em or en dash in docs prose (write a colon, semicolon, comma or period instead):\n  ${offenders.join("\n  ")}`);
 });
 
+// The statement declaring `name`, from `const` to its semicolon, however it wraps.
 const line = (src, name) => {
-  const l = src.split("\n").find((x) => x.includes(`const ${name} = `));
-  assert.ok(l, `${name} not found`);
-  return l;
+  const at = src.search(new RegExp(`const ${name} =\\s`));
+  assert.ok(at >= 0, `${name} not found`);
+  return src.slice(at, src.indexOf(";", at));
 };
 // Compare what draws: the markup inside the <svg> (class hooks aside) and the stroke width.
 const unhooked = (body) => body.replace(/ class="[^"]*"/g, "");
 const kitIcon = (src, name) => {
-  const [, body, width = "2"] = line(src, name).match(/icon\('([^']*)'(?:, *"[^"]*")?(?:, *([\d.]+))?\)/);
+  const [, body, width = "2"] = line(src, name).match(/icon\(\s*'([^']*)'(?:,\s*"[^"]*")?(?:,\s*([\d.]+))?,?\s*\)/);
   return { body: unhooked(body), width };
 };
 const siteIcon = (src, name) => {

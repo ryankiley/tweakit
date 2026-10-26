@@ -15,7 +15,7 @@ const KEYS = new Map([...catalog.matchAll(/\/\*\* "((?:[^"\\]|\\.)*)"[^*]*\*\/ (
 test("the catalog and the source agree: every key the source asks for is in Strings, with the same default, and back", () => {
   const src = ["src/tweaks", "src/tweaks/controls"].flatMap((d) => readdirSync(new URL(`../${d}`, import.meta.url)).filter((f) => f.endsWith(".ts")).map((f) => read(`${d}/${f}`))).join("\n");
   const asked = new Map([...src.matchAll(/(?:\btr|words\(\))\(\s*"(\w+)",\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => [m[1], m[2]]));
-  const easings = read("src/tweaks/controls/gradient.ts").match(/const EASINGS[^\n]*/)[0];
+  const easings = read("src/tweaks/controls/gradient.ts").match(/const EASINGS[\s\S]*?\];/)[0];
   for (const m of easings.matchAll(/\["[\w-]+", "(\w+)", "([^"]+)"\]/g)) asked.set(m[1], m[2]); // gradient's easing table
   for (const m of src.matchAll(/\["(\w+)", "([A-Z][a-z]+)", [\d.]+\]/g)) asked.set(m[1], m[2]); // spring's physics fields
   for (const m of src.matchAll(/\["(interval\w+)", "([^"]+)", h\w+\]/g)) asked.set(m[1], m[2]);
