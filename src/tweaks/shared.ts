@@ -548,7 +548,8 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
   seg.addEventListener("keydown", (e) => {
     const i = activeIndex(btns, value); if (i < 0) return;
     if (sw && (e.key === " " || e.key === "Enter")) { e.preventDefault(); set(btns[1 - i]._twVal); return; }
-    const j = navIndex(e.key, i, btns.length); if (j < 0) return;
+    // A switch's arrows point at a side, Off or On, and stop there: wrapping, → on On turned it off.
+    const j = sw ? ({ ArrowRight: 1, ArrowUp: 1, End: 1, ArrowLeft: 0, ArrowDown: 0, Home: 0 } as Record<string, number>)[e.key] ?? -1 : navIndex(e.key, i, btns.length); if (j < 0) return;
     e.preventDefault(); set(btns[j]._twVal); (sw ? seg : btns[j]).focus(); // _twVal: the real, possibly non-string value
   });
   reflect();
