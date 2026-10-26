@@ -428,3 +428,15 @@ test("values and presets save as { v: 1, … }, and a bare object from before st
   await q.ready; assert.equal(q.params.x, 7, "and the new format reads back");
   q.destroy(); localStorage.removeItem("tw:t-v0"); localStorage.removeItem("tw:t-v0:presets");
 });
+
+// A schema keyed v and values saves a bare object shaped like the wrapper, so 0.5's data read as the wrapper and restored nothing.
+test("0.5's values from a schema keyed v and values aren't taken for the wrapper", async () => {
+  const S = { v: [5, 0, 10, 1], values: { gap: [8, 0, 40, 1] } }, plain = (p) => JSON.parse(JSON.stringify(p.params));
+  localStorage.setItem("tw:t-vv", JSON.stringify({ v: 1, values: { gap: 30 } }));
+  const p = tweaks("VV", S, { persist: "t-vv" }); await p.ready;
+  assert.deepEqual(plain(p), { v: 1, values: { gap: 30 } });
+  p.set("v", 2); await tick(250); p.destroy();
+  const q = tweaks("VV", S, { persist: "t-vv" }); await q.ready;
+  assert.deepEqual(plain(q), { v: 2, values: { gap: 30 } }, "and its own wrapped save reads back");
+  q.destroy(); localStorage.removeItem("tw:t-vv");
+});
