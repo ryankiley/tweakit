@@ -77,7 +77,8 @@ const gridEnds = (min: number, max: number, step: number, anchor = min): [number
 const inferStep = (min: number, max: number, ...vals: number[]) => {
   const range = max - min;
   if (min < 0 && max > 0) vals.push(0);
-  const base = range <= 1 ? 0.01 : range <= 10 ? 0.1 : range <= 100 ? 1 : 10;
+  // A span under the finest step the bands reach (0.0001) starts at a hundredth of its own decade, or [5e-6, 0, 1e-5] was 0–0.
+  const base = range > 0 && range < 1e-4 ? 10 ** Math.floor(Math.log10(range)) / 100 : range <= 1 ? 0.01 : range <= 10 ? 0.1 : range <= 100 ? 1 : 10;
   const on = (n: number) => !Number.isFinite(n) || Math.abs(n - Math.round(n)) <= 1e-6;
   const fits = (step: number, vs: number[]) => on(min / Math.min(step, 1)) && vs.every((v) => on((v - min) / step));
   const finest = (vs: number[]) => { let step = base; for (let i = 0; i < 2 && !fits(step, vs); i++) step /= 10; return step; };
@@ -93,7 +94,11 @@ const derivedRange = (...vals: number[]) => {
 };
 // A console notice for a mistake. Its words live in the lazy heavy chunk (heavy.ts NOTICES), so a panel that makes none
 // never downloads them; it lands a moment later, which a console doesn't mind.
-const notice = (kind: string, ...args: unknown[]) => { import("./heavy.js").then((m) => m.notice(kind, args), () => {}); };
+// Once the heavy chunk is in (always on the single-file build), a notice prints at once, so code that reads the console
+// right after the set() that caused it sees it; before, it waits for the chunk.
+let says: ((kind: string, args: unknown[]) => void) | null = null;
+const sayNow = (f: typeof says) => { says = f; };
+const notice = (kind: string, ...args: unknown[]) => { if (says) says(kind, args); else import("./heavy.js").then((m) => m.notice(kind, args), () => {}); };
 // Normalize a slider-style range: an absent or non-finite bound derives from the values, an inverted pair swaps (with a
 // note, given the control's label), and only then does an absent or unusable step infer, so a NaN min can't hand it a NaN
 // span. Every range source funnels here.
@@ -506,7 +511,7 @@ const announce = (msg: string) => {
 
 export {
   titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
-  normalizeRange, notice, rangeStep, overlapsText,
+  normalizeRange, notice, sayNow, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
