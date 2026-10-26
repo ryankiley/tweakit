@@ -134,7 +134,7 @@ test("presets carry images by ref, and a record nothing names any more is pruned
 });
 
 test("a ref whose record is gone leaves the image at its schema value", async () => {
-  localStorage.setItem("tw:t-idb-gone", JSON.stringify({ v: 1, values: { x: 3, im: "tw-image:nothing" } }));
+  localStorage.setItem("tw:t-idb-gone", JSON.stringify({ x: 3, im: "tw-image:nothing" }));
   const p = tweaks("Gone", { x: [1, 0, 10, 1], im: { type: "image", value: "/a.png" } }, { persist: "t-idb-gone" });
   await p.ready;
   assert.equal(p.params.im, "/a.png");
@@ -264,7 +264,7 @@ test("undo history keeps one copy of an unchanged big value, not one per step", 
 
 // parseColor reads junk as black, so a stale or hand-edited stored color loaded as oklch(0% 0 0) instead of the schema's.
 test("a stored color that isn't one falls back to the schema's, as a stale list option does", async () => {
-  localStorage.setItem("tw:t-badcolor", JSON.stringify({ v: 1, values: { a: "not a color", b: "rgb(nope)", c: "#zzzzzz", d: "oklch(50% 0.1 200)" } }));
+  localStorage.setItem("tw:t-badcolor", JSON.stringify({ a: "not a color", b: "rgb(nope)", c: "#zzzzzz", d: "oklch(50% 0.1 200)" }));
   const warned = await warnings(async () => {
     const p = tweaks("Bad", { a: "#ff0000", b: "#00ff00", c: "#0000ff", d: "#000000" }, { persist: "t-badcolor" });
     await p.ready;
@@ -319,8 +319,8 @@ test("a preset keeps its image when the schema changes under the same key", asyn
   v3.destroy();
 });
 
-test("an image saved inline survives a mount and destroy before the store answers", async () => {
-  localStorage.setItem("tw:t-legacy", JSON.stringify({ v: 1, values: { x: 3, im: imgX } }));
+test("an image 0.5 saved inline survives a mount and destroy before the store answers", async () => {
+  localStorage.setItem("tw:t-legacy", JSON.stringify({ x: 3, im: imgX }));
   tweaks("L5", IMG_S, { persist: "t-legacy" }).destroy(); // React StrictMode's double mount
   assert.equal(saved("tw:t-legacy").im, imgX, "still inline");
   const p = tweaks("L5", IMG_S, { persist: "t-legacy" }); await p.ready; await tick(250);
@@ -419,30 +419,32 @@ test("an upload IndexedDB refuses after destroy() still saves inline", async () 
   q.destroy();
 });
 
-// Values and presets are wrapped with a format version, so a change to what's stored (a color's precision, a gray's hue)
-// can tell old data from new. 0.5's bare object is no version: it reads as nothing.
-test("values and presets save as { v: 1, … }, and 0.5's bare object is ignored", async () => {
+// Saved values were a bare object, so a change to what's stored (a color's precision, a gray's hue) couldn't tell old data
+// from new. They and presets are now wrapped with a format version; a bare object is the version before, read as it is.
+test("values and presets save as { v: 1, … }, and a bare object from before still restores", async () => {
   localStorage.setItem("tw:t-v0", JSON.stringify({ x: 3 }));
   localStorage.setItem("tw:t-v0:presets", JSON.stringify({ old: { x: 5 } }));
   const p = tweaks("V", { x: [1, 0, 10, 1] }, { persist: "t-v0" });
   await p.ready;
-  assert.equal(p.params.x, 1, "the panel opens on its default");
-  assert.deepEqual(p.presets(), [], "and lists no presets");
+  assert.equal(p.params.x, 3, "0.5's bare values restore");
+  assert.deepEqual(p.presets(), ["old"], "and its presets list");
+  p.loadPreset("old"); assert.equal(p.params.x, 5);
   p.set("x", 7); p.savePreset("new"); await tick(250);
   assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-v0")), { v: 1, values: { x: 7 } });
-  assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-v0:presets")), { v: 1, presets: { new: { x: 7 } } });
+  assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-v0:presets")), { v: 1, presets: { old: { x: 5 }, new: { x: 7 } } });
   p.destroy();
   const q = tweaks("V", { x: [1, 0, 10, 1] }, { persist: "t-v0" });
   await q.ready; assert.equal(q.params.x, 7, "and the new format reads back");
   q.destroy(); localStorage.removeItem("tw:t-v0"); localStorage.removeItem("tw:t-v0:presets");
 });
 
-// A schema keyed v and values saves values shaped like the wrapper itself; only the wrapper's own v is the version.
-test("a schema keyed v and values round-trips through its wrapped save", async () => {
+// A schema keyed v and values saves a bare object shaped like the wrapper, so 0.5's data read as the wrapper and restored nothing.
+test("0.5's values from a schema keyed v and values aren't taken for the wrapper", async () => {
   const S = { v: [5, 0, 10, 1], values: { gap: [8, 0, 40, 1] } }, plain = (p) => JSON.parse(JSON.stringify(p.params));
-  localStorage.removeItem("tw:t-vv");
+  localStorage.setItem("tw:t-vv", JSON.stringify({ v: 1, values: { gap: 30 } }));
   const p = tweaks("VV", S, { persist: "t-vv" }); await p.ready;
-  p.set("v", 2); p.set("values.gap", 30); await tick(250); p.destroy();
+  assert.deepEqual(plain(p), { v: 1, values: { gap: 30 } });
+  p.set("v", 2); await tick(250); p.destroy();
   const q = tweaks("VV", S, { persist: "t-vv" }); await q.ready;
   assert.deepEqual(plain(q), { v: 2, values: { gap: 30 } }, "and its own wrapped save reads back");
   q.destroy(); localStorage.removeItem("tw:t-vv");
