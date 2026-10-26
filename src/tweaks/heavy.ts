@@ -142,6 +142,28 @@ registerControl("number", (meta: Meta, onChange?: OnChange) => numField({ ...met
 
 // ── Spring step response — shared by the spring and motion controls. The window runs to the
 // settle, capped at 2.2 s. ──
+// Motion's visualDuration + bounce, resolved as motion-dom's spring generator does (mass 1): a bounce maps to a damping ratio
+// as SwiftUI's does, floored at 0.05 either way; the period is visualDuration × 1.2; and an overdamped (negative) bounce
+// scales the frequency by a Newton solve so it arrives when the critically damped spring would. Copied value for value, so
+// what's tuned here plays the same in Motion.
+const CRIT = (2 * Math.PI) / 1.2;
+const bounceRatio = (b: number) => (b < 0 ? 1 / Math.max(1 + b, 0.05) : Math.max(1 - b, 0.05));
+const overdampedScale = (z: number) => {
+  if (!(z > 1)) return 1;
+  const r = Math.sqrt(z * z - 1), slow = z - r, fast = z + r, target = 2 * r * Math.exp(-CRIT) * (1 + CRIT);
+  let x = CRIT;
+  for (let i = 1; i < 12; i++) x -= (fast * Math.exp(-slow * x) - slow * Math.exp(-fast * x) - target) / (Math.exp(-fast * x) - Math.exp(-slow * x));
+  return x / CRIT;
+};
+const springFromTime = (visualDuration: number, bounce: number) => {
+  const z = bounceRatio(bounce), root = (CRIT / visualDuration) * overdampedScale(z), k = root * root;
+  return { stiffness: k, damping: 2 * z * Math.sqrt(k), mass: 1 };
+};
+// Its inverse, for physics keys handed to a time-mode editor: the visualDuration + bounce Motion would resolve to them.
+const timeFromSpring = (k: number, d: number, m = 1) => {
+  const z = d / (2 * Math.sqrt(k * m));
+  return { visualDuration: (CRIT * overdampedScale(z)) / Math.sqrt(k / m), bounce: z > 1 ? 1 / z - 1 : 1 - z };
+};
 const springSpan = (k: number, d: number, m: number) => { const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)); return Math.min(2.2, 9 / Math.max(z * w0, 0.5)); };
 // Closed-form step response of a damped harmonic oscillator (under/critical/over), N samples over the span.
 function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, d, m)) {
@@ -165,4 +187,4 @@ const unknownType = (where: string, type: string, known: string[], then: string)
   console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${then}. Types: ${names.join(", ")}`);
 };
 
-export { unknownType, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan };
+export { unknownType, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springFromTime, timeFromSpring };
