@@ -21,6 +21,9 @@ const p = tweaks("Card", {
   ease: { type: "motion", mode: "spring", stiffness: 300 },
   wobble: { type: "spring" },
   curve: { type: "cubicbezier", value: [0.2, 0, 0, 1] },
+  back: { type: "bezier", value: [0.34, 1.56, 0.64, 1] },
+  on: { type: "toggle", value: true },
+  flag: { type: "switch" },
   ramp: { type: "gradient", stops: [["#000", 0], ["#fff", 1]] },
   at: { type: "point", components: [{ key: "x" }, { key: "y", value: 4 }] },
   mode: { type: "segmented", options: ["a", "b"] },
@@ -46,6 +49,9 @@ expect<Equal<typeof p.params.pad.css, string>>();
 expect<Equal<typeof p.params.ease.easing, string>>();
 expect<Equal<typeof p.params.wobble.stiffness, number>>();
 expect<Equal<typeof p.params.curve, [number, number, number, number]>>();
+expect<Equal<typeof p.params.back, [number, number, number, number]>>();
+expect<Equal<typeof p.params.on, boolean>>();
+expect<Equal<typeof p.params.flag, boolean>>();
 expect<Equal<typeof p.params.ramp.stops[number]["pos"], number>>();
 expect<Equal<typeof p.params.at, { x: number; y: number }>>();
 expect<Equal<typeof p.params.mode, "a" | "b">>();

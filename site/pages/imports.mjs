@@ -29,7 +29,7 @@ export const examples = [
       schema needs lazy modules builds all of its controls when <code>panel.ready</code>
       resolves (until then the shell is an empty frame); on the single-file build,
       <code>ready</code> resolves immediately. On either build, a panel that persists an image
-      control also waits for its stored images, so they're back by <code>ready</code>. This page runs the split build; the stamp
+      control builds without its stored images and resolves <code>ready</code> once they're back. This page runs the split build; the stamp
       shows how long the lazy path took (the docs preload the chunks, so this is the
       import, not a network round trip).</p>`,
     target: `<code class="im-stamp">…</code>`,

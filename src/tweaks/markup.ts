@@ -2,7 +2,7 @@
  * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a page
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
-import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes } from "./shared.js";
+import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes, TYPE_ALIASES } from "./shared.js";
 import type { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS } from "./schema.js";
 import type { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import type { createFolder, createControl } from "./controls/basic.js";
@@ -51,7 +51,7 @@ const num = (s: string | undefined) => { if (s == null || s === "") return undef
 const flag = (s: string | undefined) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
 const splitList = (s: string | undefined) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
 const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
-  const d = host.dataset, type = d.tw;
+  const d = host.dataset, type = (d.tw && TYPE_ALIASES[d.tw]) || d.tw;
   const label = d.label ?? titleCase(d.key || type); // data-label="" means no label, like `label: ""`
   // A lazy type with no parser takes the dataset as its fields.
   const v = kit.hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (kit.LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
