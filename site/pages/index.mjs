@@ -34,11 +34,13 @@ export const script = () => {
   }).observe(body, { attributes: true, attributeFilter: ["hidden"] });
 };
 
-// What the hero says, for the Markdown mirror (the page itself sets it inside the demo).
+// What the hero says: the page sets it inside the demo, and the Markdown mirror as prose.
+const ABOUT = `A dependency-free, code-split, real-time parameter panel. Hand it a plain schema;
+  it builds a live control for each value: sliders, color, curves, springs, and more.`;
+const PILLS = ["No framework", "{{size-split}} gzip code-split", "TypeScript types included"];
+
 export const md = [
-  { prose: `<p>A dependency-free, code-split, real-time parameter panel. Hand it a plain schema;
-      it builds a live control for each value: sliders, color, curves, springs, and more.</p>
-      <ul><li>No framework</li><li>{{size-split}} gzip code-split</li><li>TypeScript types included</li></ul>` },
+  { prose: `<p>${ABOUT}</p><ul>${PILLS.map((p) => `<li>${p}</li>`).join("")}</ul>` },
   { title: "Install", code: installTabs },
 ];
 
@@ -50,14 +52,8 @@ export const examples = [
     target: `
       <div class="sp-stage">
         <h1 class="sp-text">Tweakit</h1>
-        <p class="sp-about">A dependency-free, code-split, real-time parameter panel.
-        Hand it a plain schema; it builds a live control for each value: sliders,
-        color, curves, springs, and more.</p>
-        <div class="hero-meta">
-          <span class="hero-pill">No framework</span>
-          <span class="hero-pill">{{size-split}} gzip code-split</span>
-          <span class="hero-pill">TypeScript types included</span>
-        </div>
+        <p class="sp-about">${ABOUT}</p>
+        <div class="hero-meta">${PILLS.map((p) => `<span class="hero-pill">${p}</span>`).join("")}</div>
         ${codeTabs("install", installTabs, "Install")}
       </div>`,
     css: `
