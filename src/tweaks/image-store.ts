@@ -67,4 +67,35 @@ const swapRef = (presets: unknown, ref: string, withText: string) => {
   return text.includes(ref) ? JSON.parse(text.split(ref).join(JSON.stringify(withText).slice(1, -1))) : null;
 };
 
-export { refFor, load, get, put, prune, refsIn, pruneUnnamed, swapRef };
+/** The store bound to one panel: `known` holds the records it has loaded or written (ref → data URL), `refused` runs when
+ *  a write fails (the panel saves again, that image inline), and the presets pair reads and writes its presets. */
+const bind = (key: string, known: Map<string, string>, refused: () => void, readPresets: () => unknown, writePresets: (v: unknown) => boolean) => {
+  const failed = new Set<string>(), hashed = new WeakMap<object, [string, string]>();
+  // Each row's last data URL and its ref, so a save that didn't touch the image doesn't hash megabytes again.
+  const refOf = (row: object, v: string) => { const c = hashed.get(row); if (c?.[0] === v) return c[1]; const r = refFor(v); hashed.set(row, [v, r]); return r; };
+  // A record the store refused: a preset that names it takes the data URL inline, or an empty image if storage can't fit it.
+  const inlinePresets = (ref: string, v: string) => {
+    const inlined = swapRef(readPresets(), ref, v);
+    if (!inlined || writePresets(inlined)) return;
+    writePresets(swapRef(readPresets(), ref, ""));
+    console.warn("[tweaks] persist: an image a preset holds didn't fit in storage — the preset keeps the rest");
+  };
+  return {
+    /** The ref `row`'s image saves as, or null to save it inline (the store refused it). Written once, and again whenever
+     *  `stored` (what storage holds now) no longer names it: a tab that replaced it may have pruned the record. */
+    save(row: object, v: string, stored: unknown) {
+      const ref = refOf(row, v);
+      if (failed.has(ref)) return null;
+      if (!known.has(ref) || !refsIn(stored).has(ref)) {
+        known.set(ref, v);
+        put(key, ref, v).then((ok) => { if (ok) return; known.delete(ref); failed.add(ref); refused(); inlinePresets(ref, v); });
+      }
+      return ref;
+    },
+    prune: (named: unknown[]) => pruneUnnamed(key, known, named),
+    /** A ref this panel hasn't seen (a preset another tab saved), read from the store. */
+    fetch: (ref: string) => get(key, ref).then((url) => { if (url) known.set(ref, url); return url; }),
+  };
+};
+
+export { refFor, load, bind };

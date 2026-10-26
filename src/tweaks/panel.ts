@@ -77,37 +77,22 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // image waits in `waiting` until the store answers, then fills in (restoreImages), by `ready`. With no store to hold an
   // upload (not answered yet, unavailable, or it refused that image), the data URL saves inline, as 0.5 saved it, and moves
   // to the store on a later save; a write storage refuses then leaves the inline images out. ──
-  let imgs: typeof import("./image-store.js") | null = null, savedImages: Map<string, string> | null = null; // null without IndexedDB
+  let imgs: ReturnType<typeof import("./image-store.js")["bind"]> | null = null, savedImages: Map<string, string> | null = null; // both null without IndexedDB
   let imagesReady = false; // the store has answered, or failed to load
   const waiting = new Map<Entry, [string, unknown]>(); // a row's stored ref, and the value it held while the store loaded
   const isRef = (v: unknown): v is string => typeof v === "string" && v.startsWith("tw-image:"); // image-store.ts's ref, readable before that chunk loads
   const isDataUrl = (v: unknown): v is string => typeof v === "string" && v.startsWith("data:");
   const imageEntries = () => entries.filter((e) => e.m.type === "image");
-  const unsavable = new Map<Entry, unknown>(), failedRefs = new Set<string>();
+  const unsavable = new Map<Entry, unknown>();
   const notSaved = (e: Entry, v: unknown) => { if (unsavable.get(e) === v) return; unsavable.set(e, v); e.note?.("Not saved"); };
-  // Each row's last data URL and its ref, so a save that didn't touch the image doesn't hash megabytes again.
-  const hashed = new Map<Entry, [string, string]>();
-  const refOf = (e: Entry, v: string) => { const c = hashed.get(e); if (c?.[0] === v) return c[1]; const r = imgs!.refFor(v); hashed.set(e, [v, r]); return r; };
-  // A record the store refused: a preset that names it takes the data URL inline, or an empty image if storage can't fit it.
-  const inlineInPresets = (ref: string, v: string) => {
-    const inlined = presetsKey && imgs!.swapRef(listPresets(), ref, v);
-    if (!inlined || writeStore(presetsKey, inlined)) return;
-    writeStore(presetsKey, imgs!.swapRef(listPresets(), ref, ""));
-    console.warn("[tweaks] persist: an image a preset holds didn't fit in storage — the preset keeps the rest");
-  };
   const toRefs = (snap: Snapshot) => {
-    const named = imagesReady && savedImages ? imgs!.refsIn(readStore(persistKey!)) : null;
+    const stored = imagesReady && imgs ? readStore(persistKey!) : undefined; // undefined: no store to hold an upload
     for (const e of imageEntries()) {
       const o: any = atPath(snap, e.path.slice(0, -1)), v = o?.[e.key], w = waiting.get(e);
       if (w && o && hasOwn(o, e.key) && !valueChanged(w[1], v)) { o[e.key] = w[0]; continue; } // still loading: keep the stored ref
-      if (!isDataUrl(v) || !named || failedRefs.has(refOf(e, v))) continue; // a URL is small, and a data URL with no store saves inline
-      const ref = refOf(e, v);
-      // Written once, and again whenever storage no longer names it: a tab that replaced it may have pruned the record.
-      if (!savedImages!.has(ref) || !named.has(ref)) {
-        savedImages!.set(ref, v);
-        imgs!.put(persistKey!, ref, v).then((ok) => { if (ok || destroyed) return; savedImages?.delete(ref); failedRefs.add(ref); persist(); inlineInPresets(ref, v); });
-      }
-      o[e.key] = ref;
+      if (!isDataUrl(v) || stored === undefined) continue; // a URL is small, and a data URL with no store saves inline
+      const ref = imgs!.save(e, v, stored);
+      if (ref) o[e.key] = ref;
     }
     return snap;
   };
@@ -137,7 +122,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (!imagesReady) { waiting.set(e, [ref, e.get()]); continue; }
       if (!imgs || !savedImages) continue;
       const held = e.get();
-      imgs.get(persistKey!, ref).then((url) => { if (!url || !savedImages) return; savedImages.set(ref, url); if (late(e, held, url)) { last = undefined; notify(); } });
+      imgs.fetch(ref).then((url) => { if (url && late(e, held, url)) { last = undefined; notify(); } });
     }
   };
   // The store answered: each waiting row the host and the person left alone takes its image, in one notify.
@@ -152,7 +137,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
   // Delete the records nothing names any more: not the saved values, not a preset. Only records this panel knows, loaded
   // or written: another tab's panel on the same key may have just stored one this panel has never seen.
-  const pruneImages = () => { if (imgs && savedImages?.size) imgs.pruneUnnamed(persistKey!, savedImages, [readStore(persistKey!), listPresets()]); };
+  const pruneImages = () => imgs?.prune([readStore(persistKey!), listPresets()]);
   // Debounced save; destroy() flushes a pending write rather than dropping it.
   const persist = persistKey ? (() => {
     let saveT = 0;
@@ -897,7 +882,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // builds without waiting for its stored images; they fill in when the store answers, and `ready` waits for that too.
   // A store that fails to load just saves no uploads.
   const hasImage = (ms: Meta[]): boolean => ms.some((m) => m.type === "image" || hasImage(m.children || []) || (m.pages || []).some((pg) => hasImage(pg.children)));
-  const images = persistKey && hasImage(metas) ? import("./image-store.js").then(async (m) => { imgs = m; savedImages = await m.load(persistKey); }, () => {}) : null;
+  const images = persistKey && hasImage(metas) ? import("./image-store.js").then(async (m) => {
+    savedImages = await m.load(persistKey);
+    if (savedImages) imgs = m.bind(persistKey, savedImages, () => { if (!destroyed) persist(); }, listPresets, (v) => !!presetsKey && writeStore(presetsKey, v));
+  }, () => {}) : null;
   if (!images) imagesReady = true;
   const imagesIn = images && images.then(restoreImages);
   const lazy = ensureForMetas(metas);
