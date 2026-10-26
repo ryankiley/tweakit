@@ -57,7 +57,7 @@ panel.ready.then(() => apply(panel.params));
 
 | You write | Control | `params` value |
 | --- | --- | --- |
-| `24` | slider; range 0 to 1 for a value up to 1, else 0 to 3 times the value; a negative value mirrors that below 0 | number |
+| `24` | slider; range 0 to 1 for a value up to 1, else 0 to 3 times the value; a negative value spans that either side of 0 (`-45` gives −135 to 135) | number |
 | `[1.2, 0, 3, 0.1]` | slider with min, max, step; `[v]`, `[v, min]` and `[v, min, max]` fill in the rest; up to four numbers are always this tuple, never a list | number |
 | `[[20, 80], 0, 100]` | interval, two handles | `[lo, hi]` |
 | `true` | checkbox | boolean |
