@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, tick, key, distCss } from "./_helpers.mjs";
+import { loadSingle, tick, key, distCss, warnings } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -512,12 +512,32 @@ test("a markup host with an unknown data-tw type is skipped with a warning namin
   const { enhance } = await loadSingle();
   const host = document.createElement("div"); host.dataset.tw = "slidr";
   document.body.append(host);
-  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
+  const msgs = await warnings(() => enhance(host));
   try {
-    await enhance(host); await tick(20);
     assert.equal(host.children.length, 0);
     assert.ok(msgs.some((m) => m.includes('data-tw="slidr": "slidr" isn\'t a control type — did you mean "slider"? It is skipped.')));
-  } finally { console.warn = warn; host.remove(); }
+    const types = msgs.find((m) => m.includes("slidr")).split("Types: ")[1].split(", ");
+    for (const t of ["segmented", "toggle", "switch", "bezier", "radiogrid"]) assert.ok(types.includes(t), `the list names ${t}`);
+    for (const t of ["colorpicker", "tabs"]) assert.ok(!types.includes(t), `and not ${t}, which markup can't build`);
+  } finally { host.remove(); }
+});
+
+// data-tw="segmented" was warned "isn't a control type", though a schema takes it; data-tw="tabs" fell through to a folder
+// whose missing get() threw out of enhance(), leaving every later host claimed but never built.
+test("markup builds segmented as a schema does, leaves a tabs host untouched, and one bad host doesn't stop the rest", async () => {
+  const { enhance } = await loadSingle();
+  const holder = document.createElement("div"); document.body.append(holder);
+  holder.innerHTML = '<div data-tw="tabs" data-key="t"></div><div data-tw="segmented" data-key="s" data-options="sRGB,display-p3" data-value="display-p3"></div><div data-tw="slider" data-key="after" data-value="5"></div>';
+  const warn = console.warn, error = console.error, msgs = []; console.warn = console.error = (...a) => msgs.push(a.join(" "));
+  try {
+    await enhance(holder); await tick(20);
+    const [tabs, seg, after] = holder.querySelectorAll("[data-tw]");
+    assert.deepEqual([tabs.children.length, tabs.hasAttribute("data-tw-bound"), tabs._tw], [0, false, undefined], "tabs is panel-only: left untouched");
+    assert.equal(seg._tw.ctrl.get(), "display-p3");
+    assert.deepEqual([...seg.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["sRGB", "display-p3"]);
+    assert.equal(after._tw.ctrl.get(), 5, "the host after it still binds");
+    assert.deepEqual(msgs, [], "quietly");
+  } finally { console.warn = warn; console.error = error; holder.remove(); }
 });
 
 // y was clamped to −0.25–1.25, so easeOutBack [0.34, 1.56, 0.64, 1] and easeInOutBack [0.68, -0.6, 0.32, 1.6] came back

@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, mounter, distCss } from "./_helpers.mjs";
+import { loadSingle, mounter, distCss, warnings } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const mount = mounter(tweaks, "B");
@@ -30,11 +30,6 @@ test("every input form, and the CSS shorthand the four collapse to", async () =>
   q.destroy();
 });
 
-// Collect the warnings fn raises.
-const warnings = async (fn) => {
-  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
-  try { await fn(); return msgs; } finally { console.warn = warn; }
-};
 
 test("a string keeps its unit when its sides agree; an explicit unit wins; mixed units warn and read as px", async () => {
   let p;
@@ -124,5 +119,23 @@ test("markup: data-value as a shorthand, or the sides as attributes", async () =
   assert.equal(c.css, "1rem 2rem", "data-value's unit, as a schema string's");
   assert.deepEqual([d.css, msgs], ["0", []], "a host with no sides at all starts at 0, quietly");
   assert.deepEqual([...holder.querySelectorAll(".tw-field-label")].map((l) => l.dataset.at).slice(0, 8), ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-right", "bottom-left"]);
+  holder.remove();
+});
+
+// The step defaulted to 1, so "0.5rem 1.25rem" came back "1rem" and "1.5em" "2em", from a schema and from markup.
+test("no step: 1, or fine enough for each side's decimals, so a fractional default keeps its value", async () => {
+  const p = await mount({ a: { type: "sides", value: "0.5rem 1.25rem" }, b: { type: "sides", value: "1.5em" }, c: { type: "sides", value: ".5rem" }, d: { type: "sides", value: "0.125rem" }, e: { type: "sides", value: 8 }, f: { type: "sides", value: "0.5rem", step: 1 } });
+  const v = p.params;
+  assert.deepEqual([four(v.a), v.a.css], [[0.5, 1.25, 0.5, 1.25], "0.5rem 1.25rem"]);
+  assert.deepEqual([v.b.css, v.c.css, v.d.css], ["1.5em", "0.5rem", "0.125rem"]);
+  const linked = p.el.querySelectorAll(".tw-sides")[1].querySelector(".tw-row .tw-num");
+  linked.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+  assert.equal(p.params.b.css, "1.6em", "an arrow moves by the inferred step");
+  assert.deepEqual([v.e.css, v.f.css], ["8px", "1rem"], "whole sides step by 1, and an explicit step still wins");
+  p.destroy();
+  const holder = document.createElement("div"); document.body.append(holder);
+  holder.innerHTML = '<div data-tw="sides" data-value="0.5rem 1rem"></div>';
+  await enhance(holder);
+  assert.equal(holder.querySelector('[data-tw="sides"]')._tw.ctrl.get().css, "0.5rem 1rem");
   holder.remove();
 });

@@ -1,6 +1,6 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
 import { el, btn, txt, clamp, onReady, onLive, registerControl } from "../shared.js";
-import { dragGesture, numField, svgEl } from "../heavy.js";
+import { dragGesture, numField, svgEl, arrowStep } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -79,7 +79,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
     handle.addEventListener("keydown", (e) => {
       if (e.key === "Escape") return handle.blur();
       if (e.key === "Home") { e.preventDefault(); v = def.slice(); drawGraph(); syncFields(); onChange(v.slice()); return; }
-      const dx = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, dy = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
+      const [dx, dy] = arrowStep(e);
       if (!dx && !dy) return;
       e.preventDefault();
       const k = e.shiftKey ? 0.1 : 0.01, i = idx * 2;

@@ -5,10 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle } from "./_helpers.mjs";
+import { loadSingle, wait, saved as stored, quiet, warnings } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
-const stored = (k) => { const s = JSON.parse(localStorage.getItem(k)); return s && s.v === 1 && Object.keys(s).length === 2 ? (s.values ?? s.presets) : s; }; // out of the { v: 1, … } wrapper
 
 test("a silent set, setMany or fromJSON skips on() but still runs conditionals, persistence and undo", async () => {
   localStorage.clear();
@@ -19,7 +18,7 @@ test("a silent set, setMany or fromJSON skips on() but still runs conditionals, 
   p.setMany({ time: 600 }, { silent: true });
   p.fromJSON({ values: { zoom: 90 } }, { silent: true });
   assert.equal(calls, 0, "no echo");
-  await new Promise((r) => setTimeout(r, 200)); // past the persist debounce
+  await wait(200); // past the persist debounce
   assert.equal(stored("tw:Silent").zoom, 90, "still saved");
   p.undo(); // flushes the pending history step the silent writes made
   assert.equal(p.params.zoom, 100, "silent writes are in the undo history");
@@ -72,27 +71,27 @@ test("a plain folder object's persist is its child, not an option", () => {
 
 // A preset carries its image whole, so storage can refuse it: the menu must say so and keep the typed name.
 test("a preset storage refuses is announced from the menu as not saved, and keeps its name", async () => {
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   localStorage.clear();
   const p = tweaks("Pre", { zoom: [100, 25, 300, 1] }, { persist: true });
   document.body.append(p.el); await p.ready;
-  const warn = console.warn; console.warn = () => {};
   const proto = Object.getPrototypeOf(localStorage), setItem = proto.setItem;
   proto.setItem = () => { throw new Error("QuotaExceededError"); };
   try {
-    p.el.querySelector('[aria-label="Presets"]').click(); await wait(30);
-    const input = document.querySelector(".tw-presets-input"); input.value = "C";
-    document.querySelector(".tw-presets-savebtn").click(); await wait(150);
-    assert.equal(document.querySelector(".tw-sr[role=status]").textContent, "Preset C not saved: storage is full");
-    assert.equal(input.value, "C", "the name stays, to try again");
-  } finally { proto.setItem = setItem; console.warn = warn; }
+    await quiet(async () => {
+      p.el.querySelector('[aria-label="Presets"]').click(); await wait(30);
+      const input = document.querySelector(".tw-presets-input"); input.value = "C";
+      document.querySelector(".tw-presets-savebtn").click(); await wait(150);
+      assert.equal(document.querySelector(".tw-sr[role=status]").textContent, "Preset C not saved: storage is full");
+      assert.equal(input.value, "C", "the name stays, to try again");
+    });
+  } finally { proto.setItem = setItem; }
   p.destroy(); localStorage.clear();
 });
 
 // jsdom has no IndexedDB, as some locked-down browsers don't: there an upload can't be saved, and the rest still is.
 test("without IndexedDB an upload saves inline when it fits, as 0.5 did, and is left out with a note when it doesn't", async () => {
   localStorage.clear();
-  const big = "data:image/gif;base64," + "A".repeat(2048), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const big = "data:image/gif;base64," + "A".repeat(2048);
   const p = tweaks("NoDB", { x: [1, 0, 10, 1], im: { type: "image" }, url: { type: "image" } }, { persist: "t-nodb" });
   await p.ready;
   const [note] = p.el.querySelectorAll(".tw-image-note");
@@ -116,17 +115,17 @@ test("without IndexedDB an upload saves inline when it fits, as 0.5 did, and is 
 
 // Two persist: true panels named alike shared tw:<name>, and the second's save silently replaced the first's values.
 test("a second live panel on the same persist key warns; one after destroy() doesn't", async () => {
-  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
-  try {
+  await warnings(async (warned) => {
     const a = tweaks("Twin", { x: [1, 0, 10, 1] }, { persist: true });
     assert.equal(warned.length, 0);
     const b = tweaks("Twin", { y: [1, 0, 10, 1] }, { persist: true });
-    await new Promise((r) => setTimeout(r, 10)); // a notice's words come from a lazy chunk
+    await wait(10); // a notice's words come from a lazy chunk
     assert.equal(warned.length, 1);
     assert.match(warned[0], /another live panel already saves under "Twin"/);
     a.destroy(); b.destroy();
     const c = tweaks("Twin", { x: [1, 0, 10, 1] }, { persist: true });
-    await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 1, "a remount after destroy() is quiet");
+    await wait(10); assert.equal(warned.length, 1, "a remount after destroy() is quiet");
     c.destroy();
-  } finally { console.warn = warn; localStorage.clear(); }
+  });
+  localStorage.clear();
 });

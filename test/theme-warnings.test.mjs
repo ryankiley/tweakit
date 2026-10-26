@@ -4,15 +4,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, tick } from "./_helpers.mjs";
+import { loadSingle, warnings } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
-// Collect warnings across fn and the lazy notice it loads.
-const warnings = async (fn) => {
-  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
-  try { await fn(); await tick(20); return msgs; } finally { console.warn = warn; }
-};
 const vars = (p) => [...p.el.style].filter((k) => k.startsWith("--tw-")).sort().map((k) => `${k}: ${p.el.style.getPropertyValue(k)}`);
 
 test("an unknown theme key warns once, naming the near key and the valid ones", async () => {

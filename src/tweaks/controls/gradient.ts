@@ -1,7 +1,7 @@
 // ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the color
 // module (reuses its picker body, parseColor, and oklchStr).
 import { el, btn, clamp, popover, registerControl, icon } from "../shared.js";
-import { dragGesture, triggerRow } from "../heavy.js";
+import { dragGesture, triggerRow, arrowStep } from "../heavy.js";
 import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./color.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
 import { gradientCss, parseEasing, easingSamples } from "../easing.js";
@@ -115,6 +115,8 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   // A stop's accessible name carries its position and selection, the state the ring shows sighted users.
   const labelStop = (h: StopHandle) => h.setAttribute("aria-label", `Color stop at ${Math.round(h._stop.pos * 100)}%${h._stop === selStop ? ", selected" : ""}`);
   const reflectSel = () => { for (const h of rail.children as HTMLCollectionOf<StopHandle>) { h.dataset.sel = String(h._stop === selStop); labelStop(h); } };
+  // A drag or an arrow moving a stop: its spot on the rail, its name, the ramp and the value follow.
+  const moveStop = (h: StopHandle, pos: number) => { h._stop.pos = clamp(pos, 0, 1); h.style.left = h._stop.pos * 100 + "%"; labelStop(h); paint(); emit(); };
   const renderHandles = () => {
     rail.replaceChildren();
     for (const s of stops) {
@@ -131,7 +133,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
         onMove: (e) => {
           // One rail rect for X and the off-bar Y test; the X math is posFromX inlined.
           const r = rail.getBoundingClientRect();
-          s.pos = clamp((e.clientX - r.left) / (r.width || 1), 0, 1); h.style.left = s.pos * 100 + "%"; labelStop(h); paint(); emit();
+          moveStop(h, (e.clientX - r.left) / (r.width || 1));
           // Dragging ~24px clear of the bar removes the stop (floored at two).
           offBar = stops.length > 2 && (e.clientY < r.top - 24 || e.clientY > r.bottom + 24);
           h.dataset.removing = String(offBar);
@@ -141,10 +143,8 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
       h.addEventListener("dblclick", (e) => { e.preventDefault(); removeStop(s); });
       // Arrows nudge by 0.01 (⇧ = 0.1); Delete stays on the popover.
       h.addEventListener("keydown", (e) => {
-        const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0; if (!d) return;
-        e.preventDefault();
-        s.pos = clamp(s.pos + d * (e.shiftKey ? 0.1 : 0.01), 0, 1);
-        h.style.left = s.pos * 100 + "%"; labelStop(h); paint(); emit();
+        const [d] = arrowStep(e); if (!d) return;
+        e.preventDefault(); moveStop(h, s.pos + d * (e.shiftKey ? 0.1 : 0.01));
       });
       rail.append(h);
     }
@@ -181,15 +181,12 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const insertStopAt = (pos: number) => {
     const s = { color: colorAt(pos), pos: clamp(pos, 0, 1) };
     stops.push(s); paint(); select(s, true); reflectCount(); emit();
-    return s;
   };
+  // Midway toward the next stop, or toward the previous from the last. There are always two stops at least (the
+  // normalizer's default pair, removeStop's floor), and the selected one is always among them.
   const addStop = () => {
-    const ss = sorted();
-    let i = ss.indexOf(selStop); if (i < 0) i = 0;
-    const at = i < ss.length - 1 ? (ss[i].pos + ss[i + 1].pos) / 2   // midway toward the next stop
-             : i > 0             ? (ss[i - 1].pos + ss[i].pos) / 2   // selected is last → midway toward the previous
-             : clamp(ss[i].pos + 0.1, 0, 1);                         // lone stop (floor is 2, so a safety net)
-    insertStopAt(at);
+    const ss = sorted(), i = ss.indexOf(selStop);
+    insertStopAt(i < ss.length - 1 ? (ss[i].pos + ss[i + 1].pos) / 2 : (ss[i - 1].pos + ss[i].pos) / 2);
   };
   addBtn.addEventListener("click", (e) => { e.stopPropagation(); addStop(); });
   // Double-click, not single, so it never fights grabbing a stop; a double-click on a stop falls through to its own handler.

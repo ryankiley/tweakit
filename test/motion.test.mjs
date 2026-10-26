@@ -209,3 +209,14 @@ test("a spring's linear() easing follows the spring within 1% however bouncy, an
     p.destroy();
   }
 });
+
+// The preview window ran to the settle of ζω₀, an overdamped spring's fast root: at bounce −1 it spanned 1.6 ms and the
+// chip drew a flat line ending at 0.011. With no overshoot the chip scales y from 90 (at 0) to 10 (at rest), so it ends near 10.
+test("an overdamped spring's preview curve runs until it settles, as a critically damped one's does", async () => {
+  for (const bounce of [-1, -0.5, -0.05, 0]) {
+    const p = tweaks("Pre", { m: { type: "motion", mode: "spring", visualDuration: 0.5, bounce } }); await p.ready;
+    const end = +p.el.querySelector(".tw-motion-chip path").getAttribute("d").split(",").at(-1);
+    assert.ok(end < 11, `bounce ${bounce}: the curve ends at y ${end}, short of rest`);
+    p.destroy();
+  }
+});
