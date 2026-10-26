@@ -88,6 +88,22 @@ test("an inferred step fits the default, so a value is never snapped off what wa
   p.destroy();
 });
 
+// The bands' finest step is 0.0001, so a written span under it had a step past its own width and collapsed to 0–0.
+test("an explicit range narrower than the finest band steps within itself", () => {
+  const p = tweaks("Tiny", { t: [5e-6, 0, 1e-5], i: [[2e-6, 8e-6], 0, 1e-5], keep: [0.0003, 0, 0.001] });
+  const [t, i0, i1, keep] = p.el.querySelectorAll("[role=slider]");
+  assert.equal(p.params.t, 5e-6);
+  assert.deepEqual([t.getAttribute("aria-valuemin"), t.getAttribute("aria-valuemax")], ["0", "0.00001"]);
+  assert.deepEqual(p.params.i, [2e-6, 8e-6]);
+  for (const h of [i0, i1]) assert.equal(h.getAttribute("aria-valuemax"), "0.00001");
+  p.set("t", 7e-6); assert.equal(p.params.t, 7e-6);
+  t.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.ok(p.params.t > 7e-6 && p.params.t <= 1e-5, `an arrow moves within the span (${p.params.t})`);
+  assert.equal(keep.getAttribute("aria-valuemax"), "0.001", "a span the bands reach steps as before");
+  p.set("keep", 0.00042); assert.equal(p.params.keep, 0.0004);
+  p.destroy();
+});
+
 // 2.3 × 3 is 6.8999… in floating point, and the grid's top trimmed it to 6.8.
 test("a derived range reaches three times the default, float error and all", () => {
   const p = tweaks("X3", { up: 2.3, down: -2.3, odd: 4.1 });
