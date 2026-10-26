@@ -314,6 +314,17 @@ test("a number with no step infers one its default sits on, 1 for a whole number
   host.remove();
 });
 
+// A computed default fitted exactly at 12 digits: 1/3 stepped by 1e-12, so an arrow showed "0.333333333334".
+test("a number or point with a computed default steps at its fourth digit, as a slider rounds it", async () => {
+  const p = tweaks("Rep", { third: { type: "number", value: 1 / 3 }, pi: { type: "number", value: Math.PI }, big: { type: "number", value: 200 / 3 }, kept: { type: "number", value: 1234.5678 }, pt: { type: "point", value: { x: 1 / 3, y: 0 } }, s: 1 / 3 });
+  await p.ready;
+  assert.deepEqual([p.params.third, p.params.pi, p.params.big, p.params.kept, p.params.pt.x, p.params.s], [0.3333, 3.142, 66.67, 1234.5678, 0.3333, 0.3333], "eight written digits still fit exactly");
+  const [third, pi, big] = p.el.querySelectorAll(".tw-row .tw-num");
+  press(third, "ArrowUp"); press(pi, "ArrowUp"); press(big, "ArrowUp");
+  assert.deepEqual([p.params.third, p.params.pi, p.params.big, third.value], [0.3334, 3.143, 66.68, "0.3334"]);
+  p.destroy();
+});
+
 // A point's step was the decade at or below range/200, whatever the default: 337 over ±1011 stepped by 10 to 340.
 test("a point component's derived step keeps its default", async () => {
   const p = tweaks("PtStep", { pt: { type: "point", components: [{ key: "a", value: 337 }, { key: "b", value: 1234 }, { key: "c", value: 3.14159 }] } });

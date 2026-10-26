@@ -140,9 +140,11 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
 // ── Number — numField in its row chrome. ──
 // The coarsest power of ten a number sits on (0.5 → 0.1, 3.14159 → 0.00001, 1230 → 10), read at 12 significant digits so
 // 0.1 + 0.2 counts as 0.3; Infinity for 0 or a non-number, which constrains nothing. A step no coarser keeps it exactly.
+// Past eight significant digits a number was computed, not written (1/3, Math.PI): it steps at its fourth digit, as a slider
+// rounds it, so an arrow moves it by 0.0001, not by 1e-12.
 const decimalStep = (v: unknown) => {
   const n = Number(Math.abs(+(v as number)).toPrecision(12)); if (!n || !Number.isFinite(n)) return Infinity;
-  const d = stepPrecision(n); if (d) return Number(`1e-${d}`);
+  const d = stepPrecision(n), e = Math.floor(Math.log10(n)); if (d) return Number(`1e${e + d + 1 > 8 ? e - 3 : -d}`);
   let k = 0; while (k < 15 && n % 10 ** (k + 1) === 0) k++;
   return 10 ** k;
 };
