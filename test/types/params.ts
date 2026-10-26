@@ -1,6 +1,6 @@
 // Type-level checks for params inferred from a schema. test/types.test.mjs runs tsc over this
 // file against the built declarations: each @ts-expect-error must be an error, the rest must pass.
-import { tweaks, mountControl, type Schema, type Params, type ShadowValue } from "../../dist/types/tweaks/core.js";
+import { tweaks, mountControl, type Schema, type Params, type Panel, type ShadowValue } from "../../dist/types/tweaks/core.js";
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 const expect = <T extends true>() => {};
@@ -167,3 +167,10 @@ tweaks("Held", heldTypo);
 const pv = tweaks("Pv", { at: { type: "point", value: { x: 0, y: 10 } }, both: { type: "point", components: [{ key: "u" }], value: { u: 2 } } });
 expect<Equal<typeof pv.params.at, { x: number; y: number }>>();
 expect<Equal<typeof pv.params.both, { u: number }>>();
+
+// A typed panel is still a Panel: hosts hold one in a ref or pass it to a helper typed with the bare name.
+const asPanel: Panel = tweaks("AsPanel", { x: 1, card: { size: [2, 0, 10, 1] } });
+const ref: { current: Panel | null } = { current: null };
+ref.current = tweaks("Ref", { on: true });
+const takesPanel = (p: Panel) => p.set("anything", 1);
+takesPanel(paths); asPanel.reset();

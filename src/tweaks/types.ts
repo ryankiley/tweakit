@@ -361,8 +361,9 @@ export interface PanelState {
   };
 }
 
-/** The panel object `tweaks()` returns; `P` is its values' shape. */
-export interface Panel<P = Params> {
+/** The panel object `tweaks()` returns; `P` is its values' shape. A bare `Panel` takes any panel, typed or not (its
+ *  default is `any`, not `Params`: `set()`'s typed paths would make a typed panel unassignable to `Panel<Params>`). */
+export interface Panel<P = any> {
   /** The panel root element — append it to the DOM. */
   el: HTMLElement;
   /** Live values, updated in place as controls change. */
@@ -374,8 +375,9 @@ export interface Panel<P = Params> {
    *  name it, or undefined when many changed at once (a restore, `reset()`, `fromJSON`, `setMany`). */
   on(fn: (params: P, last?: string) => void): () => void;
   /** Set a control's value programmatically. Nested controls take a dotted path
-   *  ("folder.child", "tabs.page.child"); a bare key also reaches a nested control
-   *  when it's unambiguous. A key matching no control is stored on `params` as-is. */
+   *  ("folder.child", "tabs.page.child"); at runtime a bare key also reaches a nested control
+   *  when it's unambiguous, though a typed panel's types take the full path. A key matching
+   *  no control, or a folder or tab, is refused with a console warning. */
   set(key: PanelPath<P>, value: unknown, options?: SetOptions): void;
   /** Set several controls at once — a flat map of keys (dotted for nested controls), e.g.
    *  `setMany({ "shadow.radius": 28, blur: 48 })`. Resolves each key like `set()`, then fires
