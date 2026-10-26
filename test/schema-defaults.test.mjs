@@ -206,6 +206,15 @@ test("key labels: camel humps split, capital runs stay together, sRGB and macOS 
   p.destroy();
 });
 
+// Every lowercase word ending in capitals was kept whole, so showFPS and baseURL stayed raw, and a name opening a longer
+// key split inside it ("iOSVersion" read "I OS Version").
+test("key labels: a word ending in an acronym splits, and sRGB or iOS opening a key stays whole", async () => {
+  const keys = { showFPS: 1, useHDR: 1, baseURL: 1, maxDPR: 1, enableGPU: 1, isOK: 1, useSRGB: 1, iOSVersion: 1, sRGBGamut: 1, macOSVersion: 1, tvOS: 1, watchOS: 1, iPadOS: 1, visionOS: 1 };
+  const p = tweaks("K2", keys); document.body.append(p.el); await p.ready;
+  assert.deepEqual([...p.el.querySelectorAll(".tw-slider-label")].map((l) => l.textContent), ["Show FPS", "Use HDR", "Base URL", "Max DPR", "Enable GPU", "Is OK", "Use SRGB", "iOS Version", "sRGB Gamut", "macOS Version", "tvOS", "watchOS", "iPadOS", "visionOS"]);
+  p.destroy();
+});
+
 // A typo in `type` built a folder of `type` and `value` rows without a word.
 test("an unknown type warns, naming the near type and the real ones; it still builds a folder, as a child named type may mean", async () => {
   const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));

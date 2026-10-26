@@ -30,8 +30,11 @@ type ControlCtor<M = Meta, C = Control> = (meta: M, onChange?: OnChange) => C;
 
 // ── helpers ──
 // A word starts at a camel hump or where a capital opens a lowercase word ("myURLParser" → "My URL Parser").
-// Lowercase then a run of capitals is a name written as meant ("sRGB", "macOS", not "S RGB"), kept whole.
-const titleCase = (s: string) => (/^[a-z]+[A-Z]{2,}$/.test(s) ? s : s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim());
+// A key opening on one lowercase letter and capitals, or on an Apple OS, is a name written as meant ("sRGB", "iOS",
+// "macOS", not "S RGB"), kept whole and the rest split after it ("sRGBGamut" → "sRGB Gamut"); a word ending in an
+// acronym splits as any other ("showFPS" → "Show FPS").
+const humanize = (s: string) => s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim();
+const titleCase = (s: string) => { const m = /^(?:[a-z][A-Z]{2,}?|(?:mac|tv|watch|iPad|vision)OS)(?=[A-Z][a-z]|[^A-Za-z]|$)/.exec(s); return m ? `${m[0]} ${humanize(s.slice(m[0].length))}`.trim() : humanize(s); };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
 // Hex or any CSS color function: routes a schema string to the color control.
