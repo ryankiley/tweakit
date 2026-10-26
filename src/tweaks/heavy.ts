@@ -157,4 +157,12 @@ function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, 
   return out;
 }
 
-export { numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan };
+// A schema or markup `type` no control answers to: name the types, and the one a typo is a single edit from (a letter
+// added, dropped or changed). Lazy, as only a mistake needs it.
+const unknownType = (where: string, type: string, known: string[], then: string) => {
+  const names = [...new Set(known)].filter((t) => t !== "folder").sort(), a = type.toLowerCase();
+  const near = names.find((k) => { let i = 0; while (i < a.length && a[i] === k[i]) i++; return [[1, 1], [0, 1], [1, 0]].some(([x, y]) => a.slice(i + x) === k.slice(i + y)); });
+  console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${then}. Types: ${names.join(", ")}`);
+};
+
+export { unknownType, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan };

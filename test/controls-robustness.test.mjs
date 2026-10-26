@@ -501,3 +501,16 @@ test("markup builds a gallery from data-options, with data-upload and data-cols"
     assert.equal(host._tw.ctrl.get(), "/b.png");
   } finally { host.remove(); }
 });
+
+// data-tw="slidr" rendered nothing and logged nothing.
+test("a markup host with an unknown data-tw type is skipped with a warning naming the near type", async () => {
+  const { enhance } = await loadSingle();
+  const host = document.createElement("div"); host.dataset.tw = "slidr";
+  document.body.append(host);
+  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
+  try {
+    await enhance(host); await tick(20);
+    assert.equal(host.children.length, 0);
+    assert.ok(msgs.some((m) => m.includes('data-tw="slidr": "slidr" isn\'t a control type — did you mean "slider"? It is skipped.')));
+  } finally { console.warn = warn; host.remove(); }
+});

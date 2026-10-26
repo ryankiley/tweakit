@@ -2,7 +2,7 @@
  * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a page
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
-import { el, btn, foldBody, getControl, titleCase, setMarkup } from "./shared.js";
+import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes } from "./shared.js";
 import type { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS } from "./schema.js";
 import type { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import type { createFolder, createControl } from "./controls/basic.js";
@@ -55,7 +55,8 @@ const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
   const label = d.label ?? titleCase(d.key || type); // data-label="" means no label, like `label: ""`
   // A lazy type with no parser takes the dataset as its fields.
   const v = kit.hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (kit.LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
-  if (!v) return null;
+  // A typo (`data-tw="slidr"`) rendered nothing and said nothing.
+  if (!v) { import("./heavy.js").then((m) => m.unknownType(`data-tw="${type}"`, String(type), [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()], "is skipped"), () => {}); return null; }
   // The label rides the verbose value; v spreads after, so a parser's own type or label wins.
   return kit.metaFor("v", { type, label, ...v });
 };
