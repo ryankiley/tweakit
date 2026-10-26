@@ -213,6 +213,8 @@ export type ValueOf<V> =
   V extends { readonly type: infer T } ? (
     string extends T ? any                                   // a `type` widened by a schema held in a variable: the control can't be known
     : T extends SchemaObject["type"] ? (T extends keyof Hinge ? ([Extract<Hinge[T], keyof V>] extends [never] ? ShorthandValue<V> : VerboseValue<V, T>) : VerboseValue<V, T>)
+    // A name no control has: with a field only a control reads, the runtime skips it; without one, it's a folder.
+    : T extends string ? ([Extract<"value" | "options" | "action", keyof V>] extends [never] ? ShorthandValue<V> : never)
     : ShorthandValue<V>)
   : ShorthandValue<V>;
 type VerboseValue<V, T> = T extends Valueless ? never : TypedValue<V>;

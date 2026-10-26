@@ -1,6 +1,6 @@
 // Type-level checks for params inferred from a schema. test/types.test.mjs runs tsc over this
 // file against the built declarations: each @ts-expect-error must be an error, the rest must pass.
-import { tweaks, mountControl, type Schema, type Params, type Panel, type ShadowValue } from "../../dist/types/tweaks/core.js";
+import { tweaks, mountControl, type Schema, type Params, type Panel, type ShadowValue, type ParamsOf } from "../../dist/types/tweaks/core.js";
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 const expect = <T extends true>() => {};
@@ -136,6 +136,9 @@ expect<Equal<typeof badHinge.params, {}>>();
 // A value is a hinge too: a list holding one but no options is skipped at runtime, not a folder of `type` and `value`.
 // @ts-expect-error a list needs its options
 tweaks("Hinge", { noOptions: { type: "list", value: "a" } });
+// A name no control has, with a value, options or an action, is skipped at runtime: nothing on params. Without one, a folder.
+const unknownTypes = { b: { type: "bezier", value: [0.3, 1, 0.6, 1] }, d: { type: "dropdown", options: ["a", "b"] }, font: { type: "Inter", size: 12 }, ok: 1 } as const;
+expect<Equal<ParamsOf<typeof unknownTypes>, { font: { type: string; size: number }; ok: number }>>();
 
 // Numeric choices put the number on params, as the runtime does, bare or as `{ value, label }`.
 const nums = tweaks("Nums", {

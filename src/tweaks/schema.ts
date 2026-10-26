@@ -103,7 +103,7 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
   },
   point: (v, _depth, at) => {
     // `value: { x: 0, y: 0 }`, the shape the control hands back, names the components itself; a value beside components sets
-    // their defaults. Without either, it's a folder with a child named `type`, as before. A value's component is a finite
+    // their defaults. With neither, a value makes it malformed, and no value a folder with a child named `type`. A value's component is a finite
     // number or a numeric string; anything else (null, true, "abc") starts at 0 with one notice. A reserved key is skipped.
     const bad: string[] = [];
     const num = (k: string, n: unknown) => { const x = typeof n === "number" ? n : typeof n === "string" && n.trim() ? +n : NaN; if (Number.isFinite(x)) return x; bad.push(k); return 0; };
@@ -153,10 +153,12 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     if (fields) return meta(String(value.type), fields, ownLabel(value, label)); // a String object would miss m.type === "tabs" downstream
     // Nothing back with the hinge field or a value present is malformed. With neither, this is a plain folder
     // holding a child named `type` (`marker: { type: "point", size: 3 }`) — fall through.
-    if (hasOwn(value, REQUIRED[value.type]) || hasOwn(value, "value")) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — it needs ${REQUIRED[value.type]}; control skipped`); return null; }
+    const need = REQUIRED[value.type];
+    if (hasOwn(value, need) || hasOwn(value, "value")) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — ${hasOwn(value, need) ? `its ${need} can't be used` : `it needs ${need}${value.type === "point" ? " or a { x, y } value" : ""}`}; control skipped`); return null; }
   }
   // A lazy control with no handler reads its own fields off the verbose form as given.
-  else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && (LAZY_IMPORT[value.type] || getControl(value.type))) {
+  // A folder and the color module's picker body are registered, but aren't types to write.
+  else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && value.type !== "folder" && value.type !== "colorpicker" && (LAZY_IMPORT[value.type] || getControl(value.type))) {
     const { type, label: _l, ...fields } = value;
     return meta(type, fields, ownLabel(value, label));
   }

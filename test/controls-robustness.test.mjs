@@ -572,6 +572,15 @@ test("the markup page names every control type markup binds, and every one it na
 
 // y was clamped to −0.25–1.25, so easeOutBack [0.34, 1.56, 0.64, 1] and easeInOutBack [0.68, -0.6, 0.32, 1.6] came back
 // flattened. CSS takes any y; x stays 0–1.
+// A keyword read as the ease curve without a word, though "easing" points people here.
+test("a cubicbezier takes a CSS keyword or cubic-bezier() as its value and through set()", async () => {
+  const p = tweaks("Kw", { a: { type: "cubicbezier", value: "ease-in-out" }, b: { type: "cubicbezier", value: "cubic-bezier(0.1, 0.7, 1, 0.1)" } });
+  document.body.append(p.el); await p.ready;
+  assert.deepEqual([p.params.a, p.params.b], [[0.42, 0, 0.58, 1], [0.1, 0.7, 1, 0.1]]);
+  p.set("a", "linear"); assert.deepEqual(p.params.a, [0, 0, 1, 1]);
+  p.destroy();
+});
+
 test("a cubicbezier keeps an overshoot curve's y, from −1 to 2, and still fits x to 0–1", async () => {
   const p = tweaks("Back", { out: { type: "cubicbezier", value: [0.34, 1.56, 0.64, 1] }, io: { type: "cubicbezier", value: [0.68, -0.6, 0.32, 1.6] } });
   await p.ready;
