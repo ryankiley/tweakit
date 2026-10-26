@@ -104,3 +104,16 @@ test("a hex's digits and a color() space name aren't read as numbers, so they re
   p.set("a", "color(rec2020 1e999 0 0)"); assert.ok(!/e999/.test(p.params.a), `a hostile argument is still normalized (${p.params.a})`);
   p.destroy();
 });
+
+// With no canvas to ask (jsdom, a worker), any word passed as a color and parsed as black: a stored "junk" loaded #000000.
+test("a stored or set color that can't be read keeps the default, and says so, even with no canvas", async () => {
+  const warns = [], warn = console.warn; console.warn = (...a) => warns.push(a.join(" "));
+  try {
+    localStorage.setItem("tw:t-junk-color", JSON.stringify({ v: 1, values: { c: "junk" } }));
+    const p = tweaks("J", { c: "#ff0000" }, { persist: "t-junk-color" }); await p.ready;
+    assert.equal(p.params.c, "#ff0000");
+    p.set("c", "nope"); assert.equal(p.params.c, "#ff0000");
+    assert.equal(warns.filter((w) => /isn't a color — kept #ff0000/.test(w)).length, 2, warns.join("\n"));
+    p.destroy();
+  } finally { console.warn = warn; localStorage.removeItem("tw:t-junk-color"); }
+});

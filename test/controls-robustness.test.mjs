@@ -2,6 +2,7 @@
  * what toFixed accepts, an Infinity sample, and a plot whose expression doesn't parse. */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import "./_setup-dom.mjs";
 import { loadSingle, tick, key, distCss, warnings } from "./_helpers.mjs";
 
@@ -62,6 +63,20 @@ test("option controls ignore a set() value that matches no option", () => {
   p.set("l", -Infinity); p.set("r", { stiffness: NaN }); p.set("s", NaN);
   assert.equal(p.params.l, "a"); assert.equal(p.params.r, "x"); assert.equal(p.params.s, "low");
   p.set("l", "b"); assert.equal(p.params.l, "b");
+});
+
+test("an option control takes back a default written off its options, so reset() restores it", async () => {
+  const p = tweaks("D", { l: { type: "list", options: ["a", "b"], value: "c" }, r: { type: "radiogrid", options: ["a", "b"], value: "c" }, s: { type: "segmented", options: ["a", "b"], value: "c" } });
+  document.body.append(p.el); await p.ready;
+  try {
+    assert.deepEqual(p.params, { l: "c", r: "c", s: "c" });
+    p.setMany({ l: "b", r: "b", s: "b" }); p.reset();
+    assert.deepEqual(p.params, { l: "c", r: "c", s: "c" });
+    assert.deepEqual(p.changes(), {});
+    p.setMany({ l: "b", r: "b", s: "b" }); p.setMany({ l: "c", r: "c", s: "c" });
+    assert.deepEqual(p.params, { l: "c", r: "c", s: "c" }, "set() of the exact default is taken");
+    p.set("l", "z"); assert.equal(p.params.l, "c", "any other off-list value is still ignored");
+  } finally { p.destroy(); }
 });
 
 test("the image control ignores a non-string value and clears on null", () => {
@@ -538,6 +553,25 @@ test("markup builds segmented as a schema does, leaves a tabs host untouched, an
     assert.equal(after._tw.ctrl.get(), 5, "the host after it still binds");
     assert.deepEqual(msgs, [], "quietly");
   } finally { console.warn = warn; console.error = error; holder.remove(); }
+});
+
+// The markup page's list of the types markup understands left out gradient and monitor, which bind like the rest.
+test("the markup page names every control type markup binds, and every one it names binds", async () => {
+  const { enhance } = await loadSingle();
+  const { examples } = await import("../site/pages/markup.mjs");
+  const prose = examples.find((e) => e.id === "heavy-markup").prose;
+  const named = [...prose.slice(0, prose.indexOf("plus the")).matchAll(/<code>([a-z]+)<\/code>/g)].map((m) => m[1]);
+  const guide = readFileSync(new URL("../AGENTS.md", import.meta.url), "utf8");
+  const table = guide.slice(guide.indexOf("## Every control"), guide.indexOf("## The panel"));
+  const types = [...table.matchAll(/^\| `([a-z0-9-]+)` \|/gm)].map((m) => m[1]).filter((t) => t !== "type" && t !== "tabs");
+  for (const t of types) assert.ok(named.includes(t), `the markup page doesn't name "${t}"`);
+  const holder = document.createElement("div"); document.body.append(holder);
+  holder.innerHTML = named.map((t) => `<div data-tw="${t}" data-key="k" data-options="a,b" data-buttons="A" data-interval="30"></div>`).join("");
+  const warn = console.warn; console.warn = () => {};
+  try {
+    await enhance(holder); await tick(80); // past the monitor's first tick, so it stops once the holder leaves
+    for (const h of holder.querySelectorAll("[data-tw]")) assert.ok(h._tw || h.children.length, `data-tw="${h.dataset.tw}" didn't bind`);
+  } finally { console.warn = warn; holder.remove(); await tick(80); }
 });
 
 // y was clamped to −0.25–1.25, so easeOutBack [0.34, 1.56, 0.64, 1] and easeInOutBack [0.68, -0.6, 0.32, 1.6] came back
