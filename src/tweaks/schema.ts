@@ -1,7 +1,7 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
  * or verbose `{ type }`), and a [data-tw] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
-import { titleCase, isObj, isColorStr, inferStep, defaultRange, optValue, getControl, controlTypes } from "./shared.js";
+import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, TYPE_ALIASES } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
@@ -72,13 +72,6 @@ const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) 
 // falsy return marks a malformed shape, skipped with a console error like a throw. ──
 // "segmented" is an alias: a single-select from a list renders as the radio grid; the pill is for booleans.
 const radiogridMeta = (v: any): MetaFields => Array.isArray(v.options) && { type: "radiogrid", options: v.options, value: v.value ?? optValue(v.options[0]), cols: v.cols };
-// Absent min/max derive from the value the range must contain, like the bare-number
-// shorthand: `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`.
-const rangeOf = (v: any, ...seeds: unknown[]) => {
-  const ranges = (seeds.length ? seeds : [0]).map((s) => defaultRange(Number.isFinite(+s) ? +s : 0));
-  const min = v.min ?? Math.min(...ranges.map((r) => r[0])), max = v.max ?? Math.max(...ranges.map((r) => r[1]));
-  return { min, max, step: v.step ?? inferStep(min, max, ...seeds.map(Number)) };
-};
 // `??` semantics: an explicit "" (no label) survives where `||` fell back to the key.
 const ownLabel = (v: any, label: string) => (v.label == null ? label : String(v.label));
 const fnOf = (f: unknown) => (typeof f === "function" ? (f as any) : undefined);
@@ -87,8 +80,10 @@ const unitOf = (u: unknown) => (typeof u === "string" && u.trim() ? u.trim().sli
 // but missing here. "button" has no handler: the `{ action }` shorthand covers its verbose form.
 const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"]; // read by the spring and motion controls
 const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) => MetaFields>> = {
-  slider: (v) => { const r = rangeOf(v, v.value ?? v.min ?? 0); return { value: v.value ?? r.min, ...r, soft: v.soft, unit: unitOf(v.unit), format: fnOf(v.format), parse: fnOf(v.parse) }; },
-  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step ?? 1, soft: v.soft, unit: unitOf(v.unit) }),
+  // Absent min/max derive in the control from the value the range must contain, like the bare-number shorthand:
+  // `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`.
+  slider: (v) => ({ value: v.value ?? v.min ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit), format: fnOf(v.format), parse: fnOf(v.parse) }),
+  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit) }), // no step: the number control (heavy.ts) fits one to the default
   checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
@@ -149,6 +144,7 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   if (depth > 64) return null; // a pathological depth is skipped, not a RangeError
   const label = titleCase(key);
   const meta = (type: string, fields: Partial<Meta>, lab = label): Meta => ({ type, key, label: lab, ...fields });
+  if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && TYPE_ALIASES[value.type]) value = { ...value, type: TYPE_ALIASES[value.type] };
   if (isObj(value) && !Array.isArray(value) && hasOwn(TYPED_META, value.type)) { // own key only: "toString" must miss
     // A handler that throws or returns nothing for a malformed shape skips that control, not
     // the whole panel. The label is resolved here, once, so every verbose form honors `{ label }`.
@@ -170,24 +166,14 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string" && !hasOwn(TYPED_META, value.type))
     import("./heavy.js").then((m) => m.unknownType(`"${key}"`, value.type, [...Object.keys(TYPED_META), ...Object.keys(LAZY_IMPORT), ...controlTypes()], "builds a folder"), () => {});
   // ── Shorthand inference ──
-  // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple.
-  if (Array.isArray(value) && Array.isArray(value[0]) && value[0].length === 2 && typeof value[0][0] === "number") {
-    // Missing bounds fall back to the tuple itself ([[2,8]] → min 2, max 8).
-    const mn = Number.isFinite(+value[1]) ? +value[1] : +value[0][0], mx = Number.isFinite(+value[2]) ? +value[2] : +value[0][1];
-    return meta("interval", { value: value[0].map(Number), min: mn, max: mx, step: value[3] ?? inferStep(mn, mx, ...value[0].map(Number)) });
-  }
-  if (Array.isArray(value) && value.length <= 4 && typeof value[0] === "number") {
-    // A short array ([n] = "just a default") takes the bare-number range.
-    const v0 = value[0];
-    const [dmin, dmax] = defaultRange(v0);
-    const min = value.length > 1 ? value[1] : dmin;
-    const max = value.length > 2 ? value[2] : dmax;
-    return meta("slider", { value: v0, min, max, step: value[3] ?? inferStep(min, max, v0) });
-  }
-  if (typeof value === "number") {
-    const [min, max] = defaultRange(value);
-    return meta("slider", { value, min, max, step: inferStep(min, max, value) });
-  }
+  // Interval / range: [[lo, hi], min, max, step?] — the first entry is a 2-tuple. Missing bounds and step derive in the
+  // control, as for `{ type: "interval" }`: [[20, 80]] spans 0–240 (the tuple's own 20–80 pinned both handles).
+  if (Array.isArray(value) && Array.isArray(value[0]) && value[0].length === 2 && typeof value[0][0] === "number")
+    return meta("interval", { value: value[0].map(Number), min: value[1], max: value[2], step: value[3] });
+  // [value, min?, max?, step?]: a short array ([n] = "just a default") takes the bare-number range. The slider derives
+  // a missing or non-number bound and infers the step after, so [5, NaN] can't double 5 on a NaN span.
+  if (Array.isArray(value) && value.length <= 4 && typeof value[0] === "number") return meta("slider", { value: value[0], min: value[1], max: value[2], step: value[3] });
+  if (typeof value === "number") return meta("slider", { value });
   if (typeof value === "boolean") return meta("checkbox", { value });
   if (Array.isArray(value)) return meta("list", { options: value, value: optValue(value[0]) });
   if (isObj(value) && typeof value.action === "function") return meta("button", { action: value.action }, ownLabel(value, label));

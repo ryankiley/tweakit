@@ -158,10 +158,10 @@ test("spring and cubic-bezier render a label row", () => {
 });
 
 test("cubic-bezier clamps its initial value the way set() does", () => {
-  const p = tweaks("Bz", { bz: { type: "cubicbezier", value: [1.5, 2, -0.2, -1] } });
-  assert.deepEqual(p.params.bz, [1, 1.25, 0, -0.25]); // x to [0,1], y to the editor's range
+  const p = tweaks("Bz", { bz: { type: "cubicbezier", value: [1.5, 3, -0.2, -2] } });
+  assert.deepEqual(p.params.bz, [1, 2, 0, -1]); // x to [0,1], y to the editor's range, −1 to 2
   const fields = [...p.el.querySelectorAll(".tw-bezier .tw-num")].map((i) => +i.value);
-  assert.deepEqual(fields, [1, 1.25, 0, -0.25]); // the fields agree with get()
+  assert.deepEqual(fields, [1, 2, 0, -1]); // the fields agree with get()
 });
 
 test("a point without min/max/step is continuous, not a -1/0/1 grid", () => {
@@ -232,4 +232,132 @@ test("a min above max still swaps, and says so", async () => {
     assert.equal(msgs.filter((m) => m.includes("swapped")).length, 2, "a pair in order says nothing");
     p.destroy();
   } finally { console.warn = warn; }
+});
+
+// ── Ranges and steps: a default the author wrote comes back unchanged, the range holds it, and a key steps the inferred grid. ──
+const press = (el, key = "ArrowRight") => el.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+const ends = (h) => [h.getAttribute("aria-valuemin"), h.getAttribute("aria-valuemax")];
+const sliders = (p) => [...p.el.querySelectorAll("[role=slider]")];
+
+// -1 ≤ v < 0 spans -1–1, a span of 2, and stepped by 0.1 where 0.5 steps by 0.01; -30's -90–90 stepped by 10 where 30's by 1.
+test("a negative's derived range steps like its positive twin", () => {
+  const p = tweaks("Mirror", { nudge: -0.5, half: 0.5, two: -2, thirty: -30, v: { type: "slider", value: -0.5 } });
+  assert.deepEqual([p.params.nudge, p.params.half, p.params.two, p.params.thirty, p.params.v], [-0.5, 0.5, -2, -30, -0.5]);
+  const [nudge, half, two, thirty, v] = sliders(p);
+  assert.deepEqual([ends(nudge), ends(two), ends(thirty), ends(v)], [["-1", "1"], ["-6", "6"], ["-90", "90"], ["-1", "1"]]);
+  for (const h of [nudge, half, two, thirty, v]) press(h);
+  assert.deepEqual([p.params.nudge, p.params.half, p.params.two, p.params.thirty, p.params.v], [-0.49, 0.51, -1.9, -29, -0.49]);
+  p.set("nudge", 0); assert.equal(p.params.nudge, 0, "0 stays on the grid");
+  p.destroy();
+});
+
+// The grid is anchored at min rounded to the step's decimals: 0.25 over a step of 0.1 anchored at 0.3, so 1.25 came back 1.2.
+test("an inferred step fits the min too, and the max when a finer step reaches it", async () => {
+  const p = tweaks("Anchor", { a: [1.25, 0.25, 4], b: [3.25, 0.25, 50], c: [0.375, 0.125, 1], d: [1, 0, 2.25], i: [[1.25, 2.25], 0.25, 4] });
+  await p.ready;
+  assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.d], [1.25, 3.25, 0.375, 1]);
+  assert.deepEqual(p.params.i, [1.25, 2.25]);
+  const [a, b, c, d, i0, i1] = sliders(p);
+  assert.deepEqual([ends(a), ends(b), ends(c), ends(d), ends(i0), ends(i1)], [["0.25", "4"], ["0.25", "50"], ["0.125", "1"], ["0", "2.25"], ["0.25", "4"], ["0.25", "4"]]);
+  for (const h of [a, b, c, d, i0]) press(h);
+  assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.d], [1.26, 3.26, 0.376, 1.01]);
+  assert.deepEqual(p.params.i, [1.26, 2.25]);
+  p.destroy();
+});
+
+// 0.1 * 3 is 0.30000000000000004; its grid's first point, 0.3, sat a hair under it and the trim moved the floor to 0.31.
+test("float noise in a bound doesn't cost a step", async () => {
+  const p = tweaks("Noise", { s: [0.3, 0.1 * 3, 1], i: [[0.1 + 0.2, 0.7]], j: [[0.3, 0.7], 0.1 * 3, 1] });
+  await p.ready;
+  assert.equal(p.params.s, 0.3);
+  assert.deepEqual([p.params.i, p.params.j], [[0.3, 0.7], [0.3, 0.7]]);
+  const [s, i0, , j0] = sliders(p);
+  assert.deepEqual([ends(s), ends(i0), ends(j0)], [["0.3", "1"], ["0", "1"], ["0.3", "1"]]);
+  press(s); press(i0); press(j0);
+  assert.deepEqual([p.params.s, p.params.i, p.params.j], [0.31, [0.31, 0.7], [0.31, 0.7]]);
+  p.destroy();
+});
+
+// The number control's step defaulted to 1, so 0.5 came back 1 and 3.14159 came back 3, from a schema and from markup.
+test("a number with no step infers one its default sits on, 1 for a whole number", async () => {
+  const p = tweaks("Num", { half: { type: "number", value: 0.5 }, pi: { type: "number", value: 3.14159 }, whole: { type: "number", value: 7 }, given: { type: "number", value: 0.5, step: 1 } });
+  await p.ready;
+  assert.deepEqual([p.params.half, p.params.pi, p.params.whole, p.params.given], [0.5, 3.14159, 7, 1], "an explicit step still wins");
+  const [half, pi, whole] = p.el.querySelectorAll(".tw-num");
+  press(half, "ArrowUp"); press(pi, "ArrowUp"); press(whole, "ArrowUp");
+  assert.deepEqual([p.params.half, p.params.pi, p.params.whole], [0.6, 3.1416, 8]);
+  p.destroy();
+  const host = document.createElement("div");
+  host.innerHTML = '<div data-tw="number" data-value="0.5"></div>';
+  document.body.append(host); await enhance(host);
+  assert.equal(host.querySelector(".tw-num").value, "0.5");
+  host.remove();
+});
+
+// A point's step was the decade at or below range/200, whatever the default: 337 over ±1011 stepped by 10 to 340.
+test("a point component's derived step keeps its default", async () => {
+  const p = tweaks("PtStep", { pt: { type: "point", components: [{ key: "a", value: 337 }, { key: "b", value: 1234 }, { key: "c", value: 3.14159 }] } });
+  await p.ready;
+  assert.deepEqual(p.params.pt, { a: 337, b: 1234, c: 3.14159 });
+  const [a] = p.el.querySelectorAll(".tw-point .tw-num");
+  press(a, "ArrowUp");
+  assert.equal(p.params.pt.a, 338);
+  p.destroy();
+});
+
+// The shorthand fell back to the tuple itself, pinning both handles at the ends, while the verbose form and markup derived a range.
+test("the interval shorthand derives missing bounds as the verbose form does; given ones still win", async () => {
+  const p = tweaks("IvShort", { a: [[20, 80]], b: { type: "interval", value: [20, 80] }, c: [[-20, 10]], d: { type: "interval", value: [-20, 10] }, e: [[20, 80], 10, 90, 5] });
+  await p.ready;
+  const hs = sliders(p);
+  assert.deepEqual(hs.filter((_, k) => k % 2 === 0).map(ends), [["0", "240"], ["0", "240"], ["-60", "60"], ["-60", "60"], ["10", "90"]]);
+  for (const k of [0, 2, 4, 6, 8]) press(hs[k]);
+  assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.d, p.params.e], [[30, 80], [30, 80], [-19, 10], [-19, 10], [25, 80]]);
+  p.destroy();
+});
+
+// [5, NaN] inferred a step of 10 on a NaN span, and 5 rounded to 10 over 0–10; [5, 20] inferred 0.01 over 15–20.
+test("a bound that isn't a number derives, and the step infers after the range is whole", async () => {
+  const warn = console.warn; console.warn = () => {};
+  try {
+    const p = tweaks("Hostile", { a: [5, NaN], b: [5, "abc"], c: { type: "slider", value: 5, min: NaN }, d: [5, 20], e: [-5, NaN] });
+    assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.e], [5, 5, 5, -5]);
+    const hs = sliders(p);
+    assert.deepEqual(hs.map(ends), [["0", "15"], ["0", "15"], ["0", "15"], ["15", "20"], ["-15", "15"]]);
+    for (const h of hs) press(h);
+    assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.d, p.params.e], [6, 6, 6, 15.1, -4]);
+    p.destroy();
+  } finally { console.warn = warn; }
+});
+
+test("the interval takes PageUp and PageDown, a tenth of its range", async () => {
+  const p = tweaks("IvPage", { r: [[20, 60], 0, 100] });
+  await p.ready;
+  const [lo, hi] = sliders(p);
+  press(lo, "PageUp"); assert.deepEqual(p.params.r, [30, 60]);
+  press(hi, "PageDown"); assert.deepEqual(p.params.r, [30, 50]);
+  press(lo, "PageUp"); press(lo, "PageUp"); assert.deepEqual(p.params.r, [50, 50], "a handle stops at the other");
+  p.destroy();
+});
+
+// defaultRange(NaN) was NaN–NaN: a bare NaN got 0–100 by 10, where a verbose one got 0–1 by 0.01.
+test("a non-finite default reads as 0 everywhere", () => {
+  const p = tweaks("NaN", { a: NaN, b: { type: "slider", value: NaN }, c: [Infinity] });
+  assert.deepEqual([p.params.a, p.params.b, p.params.c], [0, 0, 0]);
+  const hs = sliders(p);
+  assert.deepEqual(hs.map(ends), [["0", "1"], ["0", "1"], ["0", "1"]]);
+  for (const h of hs) press(h);
+  assert.deepEqual([p.params.a, p.params.b, p.params.c], [0.01, 0.01, 0.01]);
+  p.destroy();
+});
+
+// { type: "bezier" } and { type: "toggle" } built folders, the bezier's curve mangled into a slider, where the source file is
+// bezier.ts and the checkbox draws as an Off/On toggle.
+test("bezier, toggle and switch name the cubicbezier and checkbox controls, in a schema and in markup", async () => {
+  const p = tweaks("Alias", { back: { type: "bezier", value: [0.42, 0, 0.58, 1] }, on: { type: "toggle", value: true }, flag: { type: "switch" } });
+  await p.ready;
+  assert.deepEqual(p.params, { back: [0.42, 0, 0.58, 1], on: true, flag: false });
+  const host = document.createElement("div"); host.dataset.tw = "toggle"; host.dataset.checked = "true"; document.body.append(host);
+  try { await enhance(host); assert.equal(host._tw.ctrl.get(), true); } finally { host.remove(); }
+  p.destroy();
 });

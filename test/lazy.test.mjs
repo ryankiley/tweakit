@@ -49,7 +49,7 @@ test("during the lazy window, setMany() replays as ONE batch — a single notify
   assert.equal(p.params.a, 5);
   assert.equal(p.params.b, 7);
   assert.equal(calls, 1);     // ONE notify for the batch on replay, not one per key
-  assert.equal(lastKey, "b"); // on()'s last key is the final applied key
+  assert.equal(lastKey, undefined); // several changed at once: no one key is named, as after a restore
 });
 
 test("reset() during the lazy window replays, in order with the sets around it", async () => {

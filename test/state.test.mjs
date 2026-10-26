@@ -208,16 +208,17 @@ test("an image the person replaced while the store loaded isn't overwritten by t
 });
 
 // The record write ran in the background and its failure was ignored: storage named an image IndexedDB never took.
-test("an image IndexedDB refuses is left out of the save, and its row says so", async () => {
+test("an image IndexedDB refuses saves inline instead, and a preset holding its ref takes the data URL", async () => {
   const { IDBObjectStore } = await import("fake-indexeddb"), put = IDBObjectStore.prototype.put;
   IDBObjectStore.prototype.put = function () { throw new DOMException("full", "QuotaExceededError"); };
+  const img = "data:image/gif;base64," + "F".repeat(2048);
   try {
     const p = tweaks("Full", { x: [1, 0, 10, 1], im: { type: "image" } }, { persist: "t-idb-full" });
     await p.ready;
-    p.setMany({ x: 4, im: "data:image/gif;base64," + "F".repeat(2048) }); await tick(250);
-    await tick(250); // the refused write, then the save that leaves it out
-    assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-idb-full")), { x: 4 });
-    assert.equal(p.el.querySelector(".tw-image-note").textContent, "Not saved");
+    p.setMany({ x: 4, im: img }); assert.equal(p.savePreset("kept"), true); await tick(250);
+    await tick(250); // the refused write, then the save that puts it inline
+    assert.deepEqual(JSON.parse(localStorage.getItem("tw:t-idb-full")), { x: 4, im: img });
+    assert.equal(JSON.parse(localStorage.getItem("tw:t-idb-full:presets")).kept.im, img, "the preset's dead ref became the image");
     p.destroy();
   } finally { IDBObjectStore.prototype.put = put; }
 });
@@ -282,4 +283,89 @@ test("set() reaches a key holding a dot by the path changes() names it; two cont
     assert.ok(warned.some((m) => m.includes('set("a.b") is ambiguous — 2 controls read as that path')));
     q.destroy();
   } finally { console.warn = warn; p.destroy(); }
+});
+
+// The image-saving review: each of these lost an image before.
+const IMG_S = { x: [1, 0, 10, 1], im: { type: "image" } };
+const imgX = "data:image/gif;base64," + "X".repeat(3000), imgY = "data:image/gif;base64," + "Y".repeat(3000);
+
+test("two tabs: a tab still showing an image another tab replaced puts it back when it saves", async () => {
+  const a0 = tweaks("T2", IMG_S, { persist: "t-tabs2" }); await a0.ready; a0.set("im", imgX); await tick(250); a0.destroy();
+  const a = tweaks("T2", IMG_S, { persist: "t-tabs2" }), b = tweaks("T2", IMG_S, { persist: "t-tabs2" });
+  await Promise.all([a.ready, b.ready]);
+  a.set("im", imgY); await tick(250); // a's save prunes X
+  b.set("x", 5); await tick(300);     // b still shows X and saves last
+  a.destroy(); b.destroy();
+  const c = tweaks("T2", IMG_S, { persist: "t-tabs2" }); await c.ready;
+  assert.equal(c.params.im, imgX); assert.equal(c.params.x, 5);
+  c.destroy();
+});
+
+test("a preset keeps its image when the schema changes under the same key", async () => {
+  const v1 = tweaks("SC", IMG_S, { persist: "t-schema" }); await v1.ready; v1.set("im", imgX); await tick(250); v1.savePreset("p"); v1.destroy();
+  const v2 = tweaks("SC", { x: [1, 0, 10, 1], bg: { type: "image" } }, { persist: "t-schema" }); await v2.ready; v2.set("x", 4); await tick(250); v2.destroy();
+  const v3 = tweaks("SC", IMG_S, { persist: "t-schema" }); await v3.ready; v3.loadPreset("p");
+  assert.equal(v3.params.im, imgX);
+  v3.destroy();
+});
+
+test("an image 0.5 saved inline survives a mount and destroy before the store answers", async () => {
+  localStorage.setItem("tw:t-legacy", JSON.stringify({ x: 3, im: imgX }));
+  tweaks("L5", IMG_S, { persist: "t-legacy" }).destroy(); // React StrictMode's double mount
+  assert.equal(JSON.parse(localStorage.getItem("tw:t-legacy")).im, imgX, "still inline");
+  const p = tweaks("L5", IMG_S, { persist: "t-legacy" }); await p.ready; await tick(250);
+  assert.equal(p.params.im, imgX);
+  assert.match(JSON.parse(localStorage.getItem("tw:t-legacy")).im, /^tw-image:/, "and moves to the store once it answers");
+  p.destroy();
+});
+
+test("a preset saved right after an upload, before the store answers, keeps the image", async () => {
+  const p = tweaks("EP", IMG_S, { persist: "t-early-preset" });
+  p.set("im", imgY);
+  assert.equal(p.savePreset("now"), true);
+  await p.ready; p.set("im", ""); p.loadPreset("now");
+  assert.equal(p.params.im, imgY);
+  p.destroy();
+});
+
+test("reset() before the store answers wins over the stored image", async () => {
+  const a = tweaks("RS", IMG_S, { persist: "t-reset-early" }); await a.ready; a.set("im", imgX); await tick(250); a.destroy();
+  const p = tweaks("RS", IMG_S, { persist: "t-reset-early" });
+  p.reset(); await p.ready;
+  assert.equal(p.params.im, "");
+  p.destroy();
+});
+
+test("a preset another tab saved after this panel loaded comes with its image", async () => {
+  const a = tweaks("OT", IMG_S, { persist: "t-other-tab" }), b = tweaks("OT", IMG_S, { persist: "t-other-tab" });
+  await Promise.all([a.ready, b.ready]);
+  a.set("im", imgY); a.savePreset("fromA"); await tick(250);
+  b.loadPreset("fromA"); await tick(50);
+  assert.equal(b.params.im, imgY);
+  a.destroy(); b.destroy();
+});
+
+test("a stored image arriving late is no undo step, and an edit made before it stays undoable", async () => {
+  const a = tweaks("UN", IMG_S, { persist: "t-undo-late" }); await a.ready; a.set("im", imgX); await tick(250); a.destroy();
+  const p = tweaks("UN", IMG_S, { persist: "t-undo-late", undo: true });
+  p.set("x", 6); await p.ready; await tick(400);
+  assert.equal(p.params.im, imgX);
+  p.undo();
+  assert.equal(p.params.x, 1, "the edit undoes");
+  assert.equal(p.params.im, imgX, "the restored image stays");
+  p.destroy();
+});
+
+test("an IndexedDB open that never settles reads as unavailable: ready resolves and an upload saves inline", async () => {
+  const held = await new Promise((r) => { const q = indexedDB.open("tweakit", 1); q.onsuccess = () => r(q.result); });
+  const del = indexedDB.deleteDatabase("tweakit"); // blocked by `held`, which ignores versionchange; ours closes for it
+  await tick(20); // the store's own connection hears versionchange and lets go
+  try {
+    const p = tweaks("BL", IMG_S, { persist: "t-blocked" });
+    const won = await Promise.race([p.ready.then(() => "ready"), tick(4500).then(() => "hung")]);
+    assert.equal(won, "ready");
+    p.set("im", imgY); await tick(250);
+    assert.equal(JSON.parse(localStorage.getItem("tw:t-blocked")).im, imgY);
+    p.destroy();
+  } finally { held.close(); await new Promise((r) => { del.onsuccess = del.onerror = r; }); }
 });
