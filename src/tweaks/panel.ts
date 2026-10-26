@@ -3,10 +3,10 @@
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, foldBody,
   applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, fuzzyMatch,
-  getControl, notice, isObj,
+  getControl, notice, isObj, hasOwn, isReservedKey, valueChanged, restoreDefault,
 } from "./shared.js";
-import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
-import { ensureForMetas } from "./lazy.js";
+import { metaFor, VALUELESS } from "./schema.js";
+import { ensureForMetas, scanTypes } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X, ICON_SEARCH } from "./icons.js";
@@ -40,7 +40,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const params: Params = {};
   let last: string | undefined; // the dotted path the latest change touched (`card.size`), as set() and changes() name it: on()'s second argument
   const entries: Entry[] = []; // flattened across folders, for reset + persist
-  const subTrees = new Set<Target>(); // set() refuses to overwrite one: it orphans every child
   const listeners = new Set<(p: Params, last?: string) => void>();
   const own = new Set<(p: Params, last?: string) => void>(); // undo + conditionals: all a silent write calls
   const cleanups: Array<() => void> = []; // releases for destroy(): document/window listeners, timers
@@ -106,8 +105,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // An image a restore names by ref: from the store's answer, or once it answers; a ref the store has never seen here (a
   // preset another tab saved) is fetched. It lands only on a row the host and the person left alone meanwhile.
   const late = (e: Entry, held: unknown, url: string) => {
-    if (destroyed || valueChanged(held, e.get())) return false;
-    try { assign(e, url); } catch (err) { console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err); return false; }
+    if (destroyed || valueChanged(held, e.get()) || !tryAssign(e, url)) return false;
     undoApi?.patch(e.path, held, e.get()); // not a step of its own: ⌘Z mustn't take a restored image back out
     return true;
   };
@@ -171,6 +169,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const notAValue = (v: unknown) => typeof v === "function" || typeof v === "symbol" || typeof v === "bigint";
   // An explicit write also settles a row still waiting for its stored image: the host's or the person's value wins.
   const assign = (e: Entry, v: unknown) => { if (notAValue(v)) throw new TypeError(`a ${typeof v} is not a control value`); waiting.delete(e); e.set(v); e.target[e.key] = e.get(); };
+  const tryAssign = (e: Entry, v: unknown) => { try { assign(e, v); return true; } catch (err) { console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err); return false; } };
   // …and the reset write: the opened form, then the authored value (restoreDefault).
   const assignDefault = (e: Entry) => { waiting.delete(e); restoreDefault(e, e.raw, e.def); e.target[e.key] = e.get(); };
   // opts.onReset replaces the default; a reset() called from INSIDE it performs the default instead of recursing.
@@ -235,8 +234,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let dragMoved = false, swallowClick = false;
   header.addEventListener("click", (e) => { if (swallowClick) { swallowClick = false; e.preventDefault(); e.stopPropagation(); } }, true);
   // A bottom-parked floating panel grows past the viewport when it expands: re-clamp once the collapse has settled.
-  const settle = () => { if (panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } };
-  const toggleBody = () => foldBody(panel, titleBtn, body, !panel.classList.contains("is-collapsed"), settle);
+  const toggleBody = () => foldBody(panel, titleBtn, body, !panel.classList.contains("is-collapsed"), reclamp);
   titleBtn.addEventListener("click", toggleBody);
   // A click anywhere on the header outside the toolbar folds the panel, if the press began on the header or title (a press
   // slid off a toolbar button also clicks here). A drag's closing click arrives defaultPrevented.
@@ -298,10 +296,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const room = vh() - Math.min(panel.scrollHeight + 1, vh() / 2), k = Math.min(1, room / (y0 + gap || 1));
     py = Math.round(y0 * k); gap = Math.round(gap * k);
   };
+  const reclamp = () => { if (!destroyed && panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } };
   if ((draggable || opts.floating) && (opts.floating || saved)) {
     panel.dataset.mode = "floating"; clampPos(); apply();
     // A position saved on a larger monitor restores off-viewport: re-clamp once mounted (offsetWidth is 0 until then).
-    requestAnimationFrame(() => { if (!destroyed && panel.dataset.mode === "floating" && panel.isConnected) { clampPos(); apply(); } });
+    requestAnimationFrame(reclamp);
   }
 
   // Per-control reset. The target is LABEL_SEL — the hint marker's list, so the two can't drift — or the root.
@@ -327,13 +326,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     t.addEventListener("contextmenu", (e) => { if (held) e.preventDefault(); }); // a long-press mustn't raise the text callout
     t.addEventListener("click", (e) => { if (held) { e.preventDefault(); e.stopImmediatePropagation(); held = false; } }, true); // a completed hold-reset swallows the trailing tap-to-edit
     t.addEventListener("dblclick", (e) => {
-      if (t === root && (e.target as Element).closest && (e.target as Element).closest("input, textarea")) return; // a double-click in a text field is a word-select
+      if (t === root && (e.target as Element).closest?.("input, textarea")) return; // a double-click in a text field is a word-select
       e.preventDefault(); e.stopPropagation(); resetEntry(entry);
     });
     // Click #1 can swap the readout for the inline input, so the dblclick lands there; delegated on the root.
     if (t.classList.contains("tw-slider-value")) root.addEventListener("dblclick", (e) => {
       const inp = e.target as HTMLElement;
-      if (!inp.classList || !inp.classList.contains("tw-slider-input")) return;
+      if (!inp.classList?.contains("tw-slider-input")) return;
       e.preventDefault(); e.stopPropagation();
       inp.blur(); // commits + closes the editor; a no-op change, so no notify
       resetEntry(entry);
@@ -342,7 +341,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     root.addEventListener("keydown", (e) => {
       if (!e.altKey || e.metaKey || e.ctrlKey || (e.key !== "Backspace" && e.key !== "Delete")) return;
       e.preventDefault(); e.stopPropagation();
-      if ((e.target as HTMLElement).classList && (e.target as HTMLElement).classList.contains("tw-slider-input")) (e.target as HTMLElement).blur(); // an open inline editor commits + closes first
+      if ((e.target as HTMLElement).classList?.contains("tw-slider-input")) (e.target as HTMLElement).blur(); // an open inline editor commits + closes first
       resetEntry(entry);
     });
   };
@@ -370,17 +369,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const build = (container: HTMLElement, ms: Meta[], target: Target, basePath: string[] = [], folderItem: FolderItem | null = null) => {
     for (const m of ms) {
       if (m.type === "tabs") {
-        const sub: Target = {}; subTrees.add(sub); target[m.key] = sub;
+        const sub: Target = {}; target[m.key] = sub;
         const makeTabs = getControl<TabsControl>("tabs");
         const tabsCtrl = makeTabs && makeTabs(m);
         if (!tabsCtrl) continue; // ensured before assemble; skipped if its chunk failed
         tabsCtrls.push({ path: [...basePath, m.key], ctrl: tabsCtrl, pageKeys: m.pages.map((p) => p.key) });
-        m.pages.forEach((page, i) => { const psub: Target = {}; subTrees.add(psub); sub[page.key] = psub; build(tabsCtrl.bodies[i], page.children, psub, [...basePath, m.key, page.key]); });
+        m.pages.forEach((page, i) => { const psub: Target = {}; sub[page.key] = psub; build(tabsCtrl.bodies[i], page.children, psub, [...basePath, m.key, page.key]); });
         registerCond(tabsCtrl.el, m); container.append(tabsCtrl.el);
         continue;
       }
       if (m.type === "folder") {
-        const sub: Target = {}; subTrees.add(sub); target[m.key] = sub;
+        const sub: Target = {}; target[m.key] = sub;
         const f = createFolder(m);
         folderEls.push({ path: [...basePath, m.key], el: f.el, setCollapsed: f.setCollapsed });
         scopes.set(f.el, { kind: "folder", path: [...basePath, m.key], label: m.label });
@@ -443,8 +442,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (!snap || typeof snap !== "object") return;
     for (const e of entries) {
       const v = atPath(snap, e.path); if (v === undefined) continue;
-      try { assign(e, v); }
-      catch (err) { console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err); }
+      tryAssign(e, v);
     }
     // Free bag keys the host parked on params ride along, so a restore brings them back too.
     for (const k of Object.keys(snap)) if (!owned.has(k) && hasOwn(params, k) && !isReservedKey(k) && !notAValue(snap[k])) { try { params[k] = snap[k]; } catch (err) { console.error(`[tweaks] restoring "${k}" failed — value skipped:`, err); } } // a getter-only bag key costs only itself
@@ -501,6 +499,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Two floating panels share one stylesheet z-index; the last touched gets a higher one. A class at plain .tw-panel
     // specificity, not an inline value, so a host's own z-index still wins after a drag.
     const raise = () => { if (topFloating && topFloating !== panel) topFloating.classList.remove("is-raised"); panel.classList.add("is-raised"); topFloating = panel; };
+    const grab = () => { moved = true; lift(); raise(); readGap(); };
+    const moveTo = (x: number, y: number, dx: number, dy: number) => { const { maxX, maxY } = bounds(); px = clamp(x + (fromRight ? -dx : dx), MARGIN, maxX); py = clamp(y + (fromBottom ? -dy : dy), MARGIN, maxY); apply(); };
+    const savePos = () => { if (posKey) writeStore(posKey, { x: px, y: py, corner }); };
 
     let dragId: number | null = null, sx = 0, sy = 0, ox = 0, oy = 0, snapT = 0;
     // Document listeners (capture, so the panel's own pointer-stop can't hide them) for the press's duration.
@@ -540,11 +541,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (!dx && !dy) return;
       e.preventDefault(); e.stopPropagation();
       const lifting = panel.dataset.mode !== "floating";
-      moved = true; lift(); raise(); readGap();
+      grab();
       if (lifting) titleBtn.focus({ preventScroll: true }); // the lift moves the panel to <body>, which drops focus; the next step needs it back
-      const { maxX, maxY } = bounds();
-      px = clamp(px + (fromRight ? -dx : dx), MARGIN, maxX); py = clamp(py + (fromBottom ? -dy : dy), MARGIN, maxY); apply();
-      if (posKey) writeStore(posKey, { x: px, y: py, corner });
+      moveTo(px, py, dx, dy); savePos();
     });
     const onMove = (e: PointerEvent) => {
       if (e.pointerId !== dragId) return;
@@ -554,12 +553,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (!dragMoved) {
         // Drag slop: quick clicks wander a few px, fingers more. Collapsing is common and moving rare, so favor the click.
         if (Math.hypot(dx, dy) < (e.pointerType === "mouse" ? 6 : 10)) return;
-        dragMoved = true; moved = true; lift(); raise(); readGap(); ox = px; oy = py; // the (possibly just-lifted) origin, once the drag starts
+        dragMoved = true; grab(); ox = px; oy = py; // the (possibly just-lifted) origin, once the drag starts
         try { header.setPointerCapture(dragId); } catch {}
         panel.classList.add("is-dragging");
       }
-      const { maxX, maxY } = bounds();
-      px = clamp(ox + (fromRight ? -dx : dx), MARGIN, maxX); py = clamp(oy + (fromBottom ? -dy : dy), MARGIN, maxY); apply();
+      moveTo(ox, oy, dx, dy);
     };
     const endDrag = (e: PointerEvent) => {
       if (e.pointerId !== dragId) return;
@@ -577,7 +575,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // One timer at a time: an earlier drop's would strip the class 340ms after it, partway through this snap.
         clearTimeout(snapT); panel.classList.add("is-snapping"); snapT = setTimeout(() => panel.classList.remove("is-snapping"), 340);
         apply();
-        if (posKey) writeStore(posKey, { x: px, y: py, corner });
+        savePos();
       }
       panel.classList.remove("is-dragging");
     };
@@ -587,8 +585,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Registered by assemble(): onLive releases itself once the owner LEAVES the document, which it can only tell if it saw the panel connected first.
   const watchResize = () => {
     if (!(draggable || opts.floating)) return;
-    if (panel.dataset.mode === "floating") { clampPos(); apply(); } // a resize during the lazy window went unheard; clamp now
-    cleanups.push(onLive(panel, [[window, "resize"]], () => { if (panel.dataset.mode === "floating") { clampPos(); apply(); } }));
+    reclamp(); // a resize during the lazy window went unheard; clamp now
+    cleanups.push(onLive(panel, [[window, "resize"]], reclamp));
   };
 
   if (presetsBtn) {
@@ -615,7 +613,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } if (!savePreset(nm)) { announce(`Preset ${nm} not saved: storage is full`); return; } input.value = ""; renderList(); announce(`Saved preset ${nm}`); }; // a refused save keeps the typed name
     // The shared popover shell; align:"end" hangs it off the button's right edge.
     const menuPop = popover(presetsBtn, presetsBtn, menu, {
-      width: 208, fallbackH: 160, gap: 6, align: "end",
+      width: 208, fallbackH: 160, align: "end",
       onOpen: () => { renderList(); input.focus(); },
     });
     saveBtn.addEventListener("click", doSave);
@@ -672,11 +670,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
     const redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
     const focused = () => panel.matches(":hover") || panel.contains(document.activeElement);
-    // A text field owns its own undo: ⌘Z with the caret in a text control stays native.
-    const inTextField = (t: HTMLElement | null) => !!(t && t.matches && (t.matches("input, textarea") || t.isContentEditable));
     // Registered by assemble() — see watchResize for why a global listener waits for the build.
     const onKey = (e: KeyboardEvent) => {
-      if (!focused() || !(e.metaKey || e.ctrlKey) || inTextField(e.target as HTMLElement)) return;
+      if (!focused() || !(e.metaKey || e.ctrlKey) || inEditable(e.target as Element)) return;
       const k = e.key.toLowerCase();
       if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (k === "y") { e.preventDefault(); redo(); }
@@ -817,22 +813,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const exact = entries.filter((x) => x.path.join(".") === key);
     if (exact.length > 1) { notice("ambiguousPath", key, exact.length); return false; }
     let e: Entry | undefined = exact[0];
-    if (e) { /* found by its path */ }
-    else if (parts.length > 1) {
-      // Dotted path — walk the folder/tabs subtrees to the owning target.
-      let t: any = params; // any: the bag's subtrees hold whatever the host parked
-      for (let i = 0; i < parts.length - 1 && t; i++) { t = t[parts[i]]; if (!subTrees.has(t)) t = null; }
-      e = t && entries.find((x) => x.target === t && x.key === parts[parts.length - 1]);
-      if (!e) { notice("noPath", key); return false; }
-    } else {
-      // Bare key — a top-level control wins outright; else a unique nested match, and ambiguity warns instead of guessing.
+    if (!e && parts.length > 1) { notice("noPath", key); return false; }
+    if (!e) {
       const matches = entries.filter((x) => x.key === key);
-      const top = matches.find((x) => x.target === params);
-      if (!top && matches.length > 1) { notice("ambiguousKey", key, matches.length, matches[0].path.join(".")); return false; }
-      e = top || matches[0];
+      if (matches.length > 1) { notice("ambiguousKey", key, matches.length, matches[0].path.join(".")); return false; }
+      e = matches[0];
     }
     // A key no control owns is refused: written through, a typo landed on params and in every save after.
-    if (!e) { notice("noControl", key, subTrees.has(params[key])); return false; }
+    if (!e) { notice("noControl", key, metas.some((m) => m.key === key && (m.type === "folder" || m.type === "tabs"))); return false; }
     const prev = e.target[e.key];
     // Same isolation as applySnapshot: a hostile value costs only that key.
     if (notAValue(v)) { notice("notAValue", key, typeof v); return false; } // warns like the API's other refusals
@@ -892,8 +880,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Assemble once the missing modules resolve, surfacing that on ready; else assemble now. A panel that persists an image
   // builds without waiting for its stored images; they fill in when the store answers, and `ready` waits for that too.
   // A store that fails to load just saves no uploads.
-  const hasImage = (ms: Meta[]): boolean => ms.some((m) => m.type === "image" || hasImage(m.children || []) || (m.pages || []).some((pg) => hasImage(pg.children)));
-  const images = persistKey && hasImage(metas) ? import("./image-store.js").then(async (m) => {
+  const images = persistKey && scanTypes(metas).has("image") ? import("./image-store.js").then(async (m) => {
     savedImages = await m.load(persistKey);
     // A refused upload saves again, inline; after destroy() no save is armed, so it writes now while storage still names that ref.
     if (savedImages) imgs = m.bind(persistKey, savedImages, (ref) => { if (!destroyed) persist(); else if (JSON.stringify(readStore(persistKey)).includes(JSON.stringify(ref))) saveNow(); }, listPresets, (v) => !!presetsKey && writePresets(v));

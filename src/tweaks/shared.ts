@@ -38,7 +38,7 @@ const titleCase = (s: string) => { const m = /^(?:[a-z][A-Z]{2,}?|(?:mac|tv|watc
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
 // Hex or any CSS color function: routes a schema string to the color control.
-const isColorStr = (v: unknown) => typeof v === "string" && (/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v.trim()) || /^(oklch|oklab|rgba?|hsla?|hwb|lab|lch|color)\(/i.test(v.trim()));
+const isColorStr = (v: unknown) => typeof v === "string" && /^(#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$|(oklch|oklab|rgba?|hsla?|hwb|lab|lch|color)\()/i.test(v.trim());
 // toFixed() throws past 100 digits, and a readout past 20 decimals is noise.
 const MAX_FIXED = 20;
 const stepPrecision = (step: number) => {
@@ -91,11 +91,6 @@ const derivedRange = (...vals: number[]) => {
   const min = Math.min(...rs.map((r) => r[0])), max = Math.max(...rs.map((r) => r[1]));
   return { min, max, step: min < 0 && min === -max ? inferStep(0, max, max, ...vals.map(Math.abs)) : inferStep(min, max, ...vals) };
 };
-// Every range swaps an inverted min/max, which is the right recovery, but silent it hides a typo: say so.
-const swapNote = (label: string, min: unknown, max: unknown) => {
-  const n = (v: unknown) => (v == null || v === "" ? NaN : +v!);
-  if (n(max) < n(min)) notice("swap", label, min, max);
-};
 // A console notice for a mistake. Its words live in the lazy heavy chunk (heavy.ts NOTICES), so a panel that makes none
 // never downloads them; it lands a moment later, which a console doesn't mind.
 const notice = (kind: string, ...args: unknown[]) => { import("./heavy.js").then((m) => m.notice(kind, args), () => {}); };
@@ -110,7 +105,7 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals
   // One bound written at or past the values' own other end: that end derives from the written bound, as a bare number its
   // size would, and steps a span past it when that's still no range, so [5, 20] slides 20–60 and [0.5, 1] 1–2, not 15–20 or 1–1.
   if (given(rawMin) !== given(rawMax) && !(max > min)) { const up = given(rawMin), b = up ? min : max, r = derivedRange(b); if (up) max = r.max > b ? r.max : b + r.max - r.min; else min = r.min < b ? r.min : b - r.max + r.min; }
-  if (max < min) { if (label != null) swapNote(label, min, max); const t = min; min = max; max = t; }
+  if (max < min) { if (label != null) notice("swap", label, min, max); const t = min; min = max; max = t; }
   if (!(step > 0) || step > max - min) step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
   return { min, max, step };
 };
@@ -163,7 +158,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: 
 // Every <button> is type="button" — inside a host's <form> the default would submit — and
 // text goes through textContent, never innerHTML: labels are host data.
 const btn = (cls: string, html?: string) => { const b = el("button", cls, html); b.type = "button"; return b; };
-const txt = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text: string) => { const n = el(tag, cls); n.textContent = text; if (tag === "button") (n as HTMLButtonElement).type = "button"; return n; };
+const txt = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text: string) => { const n = tag === "button" ? btn(cls) : el(tag, cls); n.textContent = text; return n as Built<HTMLElementTagNameMap[K]>; };
 // Stop a node's pointer events and clicks leaking to the page behind it.
 const stopPointerLeak = (node: EventTarget) => ["pointerdown", "pointermove", "pointerup", "click"].forEach((t) => node.addEventListener(t, (e) => e.stopPropagation()));
 // Run fn next frame and again once web fonts load — font swaps change the metrics controls measure.
@@ -185,8 +180,8 @@ const onLive = (owner: Element, targets: Array<[EventTarget, string]>, fn: (e?: 
 // Namespaced, not a real "resize": host pages listen to that.
 const requestReflow = () => requestAnimationFrame(() => window.dispatchEvent(new Event("tw-reflow")));
 // Toggle .is-hover while the pointer is over a node; onEnter runs on entry.
-const wireHoverClass = (el: HTMLElement, onEnter?: () => void) => {
-  el.addEventListener("pointerenter", () => { el.classList.add("is-hover"); onEnter && onEnter(); });
+const wireHoverClass = (el: HTMLElement, onEnter: () => void) => {
+  el.addEventListener("pointerenter", () => { el.classList.add("is-hover"); onEnter(); });
   el.addEventListener("pointerleave", () => el.classList.remove("is-hover"));
 };
 // ── Quiet mouse focus — :focus-visible always matches a focused text field, so a plain
@@ -201,12 +196,6 @@ const quietFocus = (input: HTMLElement) => {
   input.addEventListener("focus", () => input.classList.toggle("tw-focus-quiet", pointerModality));
   input.addEventListener("blur", () => input.classList.remove("tw-focus-quiet"));
 };
-// Escape in an edited field restores `kept` and stops; otherwise it passes on and closes the pane. Without this,
-// closing blurred the field and committed the half-typed value.
-const escapeReverts = (input: HTMLInputElement, kept: () => string) => input.addEventListener("keydown", (e: KeyboardEvent) => {
-  if (e.key !== "Escape" || input.value === kept()) return;
-  e.preventDefault(); e.stopPropagation(); input.value = kept();
-});
 /** Place a portaled popover under its trigger, flipping above when it won't fit, clamped into
  *  the viewport. width:"match" sizes it to the trigger; align:"end" lines up the right edges. */
 export const placeBelow = (trigger: Element, pop: HTMLElement, { width, fallbackH = 300, gap = 6, align = "start", prefer = "below" }: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end" | "center"; prefer?: "above" | "below" } = {}) => {
@@ -303,9 +292,9 @@ const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => {
 // trigger at its width (unless opts.width), carries the host theme, closes on outside-press / Esc / scroll-out. Globally
 // single-open. onOpen runs once it's placed at real size; onReflow on resize while open. ──
 let activePopoverClose: null | (() => void) = null, activePopoverTrigger: HTMLElement | null = null;
-// With `owner` given, closes only when the open popover's trigger lives inside it.
-const closeActivePopover = (owner?: Element) => { if (activePopoverClose && (!owner || owner.contains(activePopoverTrigger))) activePopoverClose(); };
-function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end"; movable?: boolean; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
+// Closes the open popover when its trigger lives inside `owner`.
+const closeActivePopover = (owner: Element) => { if (activePopoverClose && owner.contains(activePopoverTrigger)) activePopoverClose(); };
+function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement, opts: { width?: number | "match"; fallbackH?: number; align?: "start" | "end"; movable?: boolean; onOpen?: () => void; onReflow?: () => void; initialFocus?: () => HTMLElement | null | undefined } = {}): Popover {
   let open = false, schemeObs: MutationObserver | null = null, removeTimer: ReturnType<typeof setTimeout> | undefined, byPointer = false, sizeObs: ResizeObserver | null = null;
   // Focus goes back to the row as the pane was opened: quietly after a click, even when an Escape closes it.
   const refocus = () => trigger.focus({ focusVisible: !byPointer });
@@ -318,40 +307,13 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   // A scroll carries the pop along at its offset from the trigger (follow) instead of
   // re-placing it; once the row has left the viewport the pop closes.
   let dx = 0, dy = 0;
-  // Drag the pane by its edge (padding, or a gap between parts) to uncover what's beneath. It keeps that offset from its
-  // row while open; the next open resets it.
-  let moved = false;
+  // A movable pane drags by its edge (heavy.ts dragPane, bound on the first open); `st` is the state the two share.
+  const st = { open: false, moved: false }; let dragBound = false;
   const keepInView = () => { pop.style.left = clamp(parseFloat(pop.style.left), 8, window.innerWidth - pop.offsetWidth - 8) + "px"; pop.style.top = clamp(parseFloat(pop.style.top), 8, window.innerHeight - pop.offsetHeight - 8) + "px"; };
   const place = () => {
-    if (moved) keepInView(); else placeBelow(trigger, pop, { width: opts.width ?? "match", fallbackH: opts.fallbackH, gap: opts.gap, align: opts.align });
+    if (st.moved) keepInView(); else placeBelow(trigger, pop, { width: opts.width ?? "match", fallbackH: opts.fallbackH, align: opts.align });
     const r = trigger.getBoundingClientRect(); dx = parseFloat(pop.style.left) - r.left; dy = parseFloat(pop.style.top) - r.top;
   };
-  pop.addEventListener("pointerdown", (e) => {
-    if (e.target !== pop || e.button !== 0 || !open || opts.movable === false) return;
-    e.preventDefault(); // no text selection, and focus stays where it was
-    const id = e.pointerId, sx = e.clientX, sy = e.clientY, ox = parseFloat(pop.style.left), oy = parseFloat(pop.style.top), wasMoved = moved;
-    let going = false;
-    try { pop.setPointerCapture(id); } catch {}
-    const move = (m: PointerEvent) => {
-      if (m.pointerId !== id) return;
-      if (!going) { if (Math.hypot(m.clientX - sx, m.clientY - sy) < 4) return; going = moved = true; pop.classList.add("is-moving"); }
-      pop.style.left = ox + m.clientX - sx + "px"; pop.style.top = oy + m.clientY - sy + "px"; place();
-    };
-    const end = (m: PointerEvent) => { if (m.pointerId === id) stop(); };
-    // Escape mid-move puts it back and keeps it open. Capture phase, so it beats the pane's own Escape.
-    const key = (k: KeyboardEvent) => {
-      if (k.key !== "Escape" || !going) return;
-      k.preventDefault(); k.stopPropagation();
-      pop.style.left = ox + "px"; pop.style.top = oy + "px"; moved = wasMoved; place(); stop();
-      try { pop.releasePointerCapture(id); } catch {}
-    };
-    const stop = () => {
-      pop.removeEventListener("pointermove", move); pop.removeEventListener("pointerup", end); pop.removeEventListener("pointercancel", end); pop.removeEventListener("lostpointercapture", end);
-      document.removeEventListener("keydown", key, true); pop.classList.remove("is-moving");
-    };
-    pop.addEventListener("pointermove", move); pop.addEventListener("pointerup", end); pop.addEventListener("pointercancel", end); pop.addEventListener("lostpointercapture", end); // lost: the node left mid-press
-    document.addEventListener("keydown", key, true);
-  });
   // A detached trigger has a zero rect: if the host has unmounted the panel, close instead.
   const reflow = () => { if (open) { if (!root.isConnected) return close(); place(); opts.onReflow && opts.onReflow(); } };
   const follow = () => {
@@ -383,10 +345,11 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   const openPop = () => {
     if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open popover first
     activePopoverClose = close; activePopoverTrigger = trigger;
-    open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
+    open = st.open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
     // Reopened mid-fade, it's still on <body>; re-appending would kill the transition, so it reverses in place.
-    clearTimeout(removeTimer); const fading = pop.parentNode === document.body; moved = false; byPointer = pointerModality;
+    clearTimeout(removeTimer); const fading = pop.parentNode === document.body; st.moved = false; byPointer = pointerModality;
     pop.inert = false; if (!fading) document.body.appendChild(pop);
+    if (!dragBound && opts.movable !== false) { dragBound = true; import("./heavy.js").then((m) => m.dragPane(pop, st, place), () => {}); }
     carrySkin(pop, root);
     window.addEventListener("tw-retheme", recarry); // setTheme() while open
     if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] }); } // host scheme flip while open
@@ -413,7 +376,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (activePopoverClose === close) { activePopoverClose = null; activePopoverTrigger = null; }
     // Focus stranded inside the pop returns to the trigger before the node is removed.
     if (pop.contains(document.activeElement)) refocus();
-    open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); pop.inert = true; trigger.setAttribute("aria-expanded", "false");
+    open = st.open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); pop.inert = true; trigger.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", reflow);
     window.removeEventListener("tw-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; } sizeObs?.disconnect(); sizeObs = null;
@@ -568,6 +531,17 @@ const icon = (body: string, cls = "", width = 2, box = 24) => `<svg${cls ? ` cla
 // wiring. `destroy` lets panel.destroy() stop a control's loop even if the panel never connected.
 const blade = (el: HTMLElement, destroy?: () => void): Control => ({ el, set: () => {}, get: () => undefined, destroy });
 
+// Own-key lookup for objects used as maps: "toString" must miss, not hit Object.prototype.
+const hasOwn = <T extends object>(o: T, k: PropertyKey): k is keyof T => Object.prototype.hasOwnProperty.call(o, k);
+// A key by one of these names would write through to Object.prototype on the params bag.
+const isReservedKey = (k: string) => k === "__proto__" || k === "constructor" || k === "prototype";
+// Identity for primitives, structural for the object-valued controls (a fresh object each
+// get()). Gates notify(): a same-value echo from an on() listener recursed to stack exhaustion.
+const valueChanged = (a: unknown, b: unknown) => a !== b && !(isObj(a) && isObj(b) && JSON.stringify(a) === JSON.stringify(b));
+// Reset: the form the control OPENED on first (it covers a value set() can't take as-is),
+// then the authored value on top, so whatever the control CAN take lands exactly.
+const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) => { ctrl.set(def); ctrl.set(raw); }; // a control, or the panel's entry for one
+const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"]; // read by the spring and motion controls, and their markup
 // ── Control registry — type → constructor. Core controls register on load; a lazy one when
 // its module is imported, so the loaded set drives what can be built. ──
 const REGISTRY: Record<string, ControlCtor<any, any>> = {}; // heterogeneous by design — see ControlCtor
@@ -593,11 +567,11 @@ const announce = (msg: string) => {
 
 export {
   titleCase, clamp, isObj, isColorStr, stepPrecision, gridEnds, roundToStep, inferStep, defaultRange,
-  normalizeRange, swapNote, notice, rangeStep, overlapsText,
+  normalizeRange, notice, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
   resolveTheme, applyThemeVars, carryScheme, carrySkin, fuzzyMatch, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
-  blade, quietFocus, escapeReverts, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce,
+  blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce, hasOwn, isReservedKey, valueChanged, restoreDefault, SPRING_KEYS,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };
 // Re-exported for the chunking: core and the gradient control both import easing.ts, and a

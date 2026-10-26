@@ -1,14 +1,14 @@
 /* Markup-driven enhancement, core's side: enhance() and its auto-run on load. The work lives in markup.ts, a lazy chunk of
  * the code-split build that only a page with markup fetches; core lends it what it shares with the panel, as a kit. */
 import { getMarkup } from "./shared.js";
-import { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS } from "./schema.js";
+import { metaFor } from "./schema.js";
 import { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
 import type { MarkupKit } from "./markup.js";
 
 declare const TW_SPLIT: boolean;
-const kit: MarkupKit = { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS, ensureForMetas, LAZY_IMPORT, createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker };
+const kit: MarkupKit = { metaFor, ensureForMetas, LAZY_IMPORT, createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker };
 
 /** Bind every unbound [data-tw] host under `root` (the document by default). */
 export function enhance(root: Document | Element = document): Promise<void> {

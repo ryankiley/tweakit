@@ -32,8 +32,7 @@ const loading: Record<string, Promise<unknown>> = {};
 const ensure = (type: string) => (getControl(type) || !LAZY_IMPORT[type]) ? null : (loading[type] ||= LAZY_IMPORT[type]().catch((e) => { delete loading[type]; console.error(`[tweaks] control chunk "${type}" failed to load:`, e); throw e; })); // a rejection isn't cached, so a later panel retries
 const scanTypes = (metas: MetaNode[], set = new Set<string>()) => {
   for (const m of metas) {
-    if (!m) continue;
-    if (LAZY_IMPORT[m.type]) set.add(m.type);
+    set.add(m.type);
     if (m.children) scanTypes(m.children, set);
     if (m.pages) for (const pg of m.pages) scanTypes(pg.children, set);
   }
@@ -44,4 +43,4 @@ const ensureForMetas = (metas: MetaNode[]) => {
   return pend.length ? Promise.all(pend) : null;
 };
 
-export { ensureForMetas, LAZY_IMPORT }; // LAZY_IMPORT is exported for the registry sync test only
+export { ensureForMetas, scanTypes, LAZY_IMPORT }; // LAZY_IMPORT is exported for the registry sync test only

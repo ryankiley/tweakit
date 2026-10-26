@@ -1,7 +1,7 @@
 /* Schema derivation — ONE meta derivation for both entry points: a schema value (shorthand
  * or verbose `{ type }`), and a [data-tw] dataset through markup.ts, parses into the same control meta. A lazy
  * control that reads its own fields needs no table entry. test/registry.test.mjs cross-checks the tables. */
-import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, TYPE_ALIASES } from "./shared.js";
+import { titleCase, isObj, isColorStr, optValue, getControl, controlTypes, TYPE_ALIASES, hasOwn, isReservedKey, SPRING_KEYS } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
 import type { SchemaObject, Option, Get, Control } from "./types.js";
 
@@ -56,17 +56,6 @@ function metaFor(key: string, value: any, depth = 0): Meta | null {
   }
   return meta;
 }
-// Own-key lookup for objects used as maps: "toString" must miss, not hit Object.prototype.
-const hasOwn = <T extends object>(o: T, k: PropertyKey): k is keyof T => Object.prototype.hasOwnProperty.call(o, k);
-// A key by one of these names would write through to Object.prototype on the params bag.
-const isReservedKey = (k: string) => k === "__proto__" || k === "constructor" || k === "prototype";
-// Identity for primitives, structural for the object-valued controls (a fresh object each
-// get()). Gates notify(): a same-value echo from an on() listener recursed to stack exhaustion.
-const valueChanged = (a: unknown, b: unknown) => a !== b && !(isObj(a) && isObj(b) && JSON.stringify(a) === JSON.stringify(b));
-// Reset: the form the control OPENED on first (it covers a value set() can't take as-is),
-// then the authored value on top, so whatever the control CAN take lands exactly.
-const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) => { ctrl.set(def); ctrl.set(raw); }; // a control, or the panel's entry for one
-
 // ── Verbose `{ type: "…" }` forms — one handler per control type, returning only the control's
 // own fields; baseMetaFor stamps type / key / label on top, and a handler may override them. A
 // falsy return marks a malformed shape, skipped with a console error like a throw. ──
@@ -78,7 +67,6 @@ const fnOf = (f: unknown) => (typeof f === "function" ? (f as any) : undefined);
 const unitOf = (u: unknown) => (typeof u === "string" && u.trim() ? u.trim().slice(0, 12) : undefined);
 // Typed against the public SchemaObject union, so tsc flags a control type added to types.ts
 // but missing here. "button" has no handler: the `{ action }` shorthand covers its verbose form.
-const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"]; // read by the spring and motion controls
 const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number) => MetaFields>> = {
   // Absent min/max derive in the control from the value the range must contain, like the bare-number shorthand:
   // `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`.
@@ -191,5 +179,5 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
 }
 // Display/action controls carry no value; the panel build skips entry/reset/persist wiring.
 const VALUELESS = new Set<string>(["button", "fpsgraph", "monitor", "buttongroup", "separator"]);
-export { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS, TYPED_META, SPRING_KEYS };
+export { metaFor, VALUELESS, TYPED_META };
 export type { Meta, TabPage, PointComponent };

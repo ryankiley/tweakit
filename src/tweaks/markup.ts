@@ -2,8 +2,8 @@
  * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a page
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
-import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes, TYPE_ALIASES } from "./shared.js";
-import type { metaFor, restoreDefault, hasOwn, valueChanged, SPRING_KEYS } from "./schema.js";
+import { el, btn, foldBody, getControl, titleCase, setMarkup, controlTypes, TYPE_ALIASES, hasOwn, valueChanged, restoreDefault, SPRING_KEYS } from "./shared.js";
+import type { metaFor } from "./schema.js";
 import type { ensureForMetas, LAZY_IMPORT } from "./lazy.js";
 import type { createFolder, createControl } from "./controls/basic.js";
 import type { makeCopyBtn, makeResetBtn, addHintMarker } from "./feedback.js";
@@ -11,15 +11,14 @@ import type { Control, SchemaObject } from "./types.js";
 
 /** What core lends the markup chunk. */
 export interface MarkupKit {
-  metaFor: typeof metaFor; restoreDefault: typeof restoreDefault; hasOwn: typeof hasOwn; valueChanged: typeof valueChanged; SPRING_KEYS: typeof SPRING_KEYS;
+  metaFor: typeof metaFor;
   ensureForMetas: typeof ensureForMetas; LAZY_IMPORT: typeof LAZY_IMPORT; createFolder: typeof createFolder; createControl: typeof createControl;
   makeCopyBtn: typeof makeCopyBtn; makeResetBtn: typeof makeResetBtn; addHintMarker: typeof addHintMarker;
 }
 
 // ── The markup forms — each [data-tw] type parses its dataset into the same verbose
 // schema value TYPED_META consumes, then rides metaFor: ONE derivation, so markup defaults can't drift. ──
-let springKeys: readonly string[] = []; // the kit's SPRING_KEYS, set by enhance()
-const springData = (d: DOMStringMap) => ({ ...Object.fromEntries(springKeys.map((k) => [k, num(d[k])])), mode: d.mode }); // the motion control reads the same markup
+const springData = (d: DOMStringMap) => ({ ...Object.fromEntries(SPRING_KEYS.map((k) => [k, num(d[k])])), mode: d.mode }); // the motion control reads the same markup
 const choices = (d: DOMStringMap) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }); // the radio grid, by either name
 const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: HTMLElement, label: string) => object>> = {
   slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft), unit: d.unit }), // absent bounds derive from the value, like the schema
@@ -59,7 +58,7 @@ const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
   if (type === "tabs") return null;
   const label = d.label ?? titleCase(d.key || type); // data-label="" means no label, like `label: ""`
   // A lazy type with no parser takes the dataset as its fields.
-  const v = kit.hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (kit.LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
+  const v = hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (kit.LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
   // A typo (`data-tw="slidr"`) rendered nothing and said nothing. The list names what markup builds, so not tabs.
   if (!v) { import("./heavy.js").then((m) => m.unknownType(`data-tw="${type}"`, String(type), [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()].filter((t) => t !== "tabs"), "is skipped"), () => {}); return null; }
   // The label rides the verbose value; v spreads after, so a parser's own type or label wins. A form that comes back a
@@ -87,8 +86,7 @@ const announce = (host: HTMLElement, key: string, v: unknown) => {
 const select = <T extends Element = HTMLElement>(root: Document | Element, sel: string): T[] => [...(typeof (root as Element).matches === "function" && (root as Element).matches(sel) ? [root as T] : []), ...root.querySelectorAll<T>(sel)];
 /** Bind every unbound [data-tw] host under `root`. */
 async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> {
-  const { createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker, restoreDefault, hasOwn, valueChanged, ensureForMetas } = kit;
-  springKeys = kit.SPRING_KEYS;
+  const { createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker, ensureForMetas } = kit;
   // Static showcase panels collapse like the real one: wrap the controls in a .tw-body, make the title the toggle.
   select(root, '.tw-panel[data-mode="inline"]:not([data-tw-panel-bound])').forEach((panel) => {
     const header = panel.querySelector(":scope > .tw-header");

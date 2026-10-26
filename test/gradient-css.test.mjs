@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import { bundle } from "./_bundle.mjs";
 import { close } from "./_helpers.mjs";
 
-const { parseEasing, easingName, easingSamples, easingAt, gradientStops, gradientCss } = await bundle("src/tweaks/easing.ts");
+const { parseEasing, easingSamples, gradientStops, gradientCss } = await bundle("src/tweaks/easing.ts");
+const { easingName, easingAt } = await bundle("src/tweaks/controls/gradient.ts"); // the editor's own, beside the parser they read
 
 const LARSEN = [[0, 0], [.081, .013], [.155, .049], [.225, .104], [.29, .175], [.353, .259], [.412, .352], [.471, .45], [.529, .55], [.588, .648], [.647, .741], [.71, .825], [.775, .896], [.845, .951], [.919, .987], [1, 1]];
 const RED_BLUE = { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], interpolation: "oklch" };
@@ -53,13 +54,15 @@ test("linear (or no) easing gives today's plain stop list, byte for byte", () =>
   assert.equal(gradientCss({ stops: RED_BLUE.stops }, "to bottom"), "linear-gradient(in oklch to bottom, red 0%, blue 100%)"); // no interpolation → oklch, the editor's default
 });
 
-test("a value that can't make a gradient still makes valid CSS, and says why once", (t) => {
+test("a value that can't make a gradient still makes valid CSS, and says why once", async (t) => {
+  const words = () => new Promise((r) => setTimeout(r, 0)); // the warning's words load with the lazy chunk
   const warn = t.mock.method(console, "warn", () => {});
   // No usable stops → "none" for background-image, and a stop list that is still a stop list.
   for (const bad of [null, undefined, {}, 42, { stops: [] }, { stops: [{ pos: 0 }, null] }]) {
     assert.equal(gradientCss(bad), "none", `gradientCss(${JSON.stringify(bad)})`);
     assert.equal(gradientStops(bad), "transparent, transparent", `gradientStops(${JSON.stringify(bad)})`);
   }
+  await words();
   assert.ok(warn.mock.calls.length > 0 && warn.mock.calls.every((c) => /^\[tweaks\] gradient(Css|Stops)\(\): /.test(c.arguments[0])));
   assert.ok(warn.mock.calls.some((c) => c.arguments[0].includes("got null")) && warn.mock.calls.some((c) => c.arguments[0].includes("no stops")));
   // One stop is no <color-stop-list>; doubled, it's a solid fill, eased or not.
@@ -69,9 +72,10 @@ test("a value that can't make a gradient still makes valid CSS, and says why onc
   // A broken stop beside good ones is skipped, not printed as "undefined NaN%".
   warn.mock.resetCalls();
   assert.equal(gradientCss({ stops: [...RED_BLUE.stops, { color: "lime" }] }), "linear-gradient(in oklch to right, red 0%, blue 100%)");
+  await words();
   assert.equal(warn.mock.calls.length, 1, "one warning per call, though gradientCss draws the stop list too");
   assert.match(warn.mock.calls[0].arguments[0], /skipped 1 of 3 stops/);
-  gradientCss({ stops: [...RED_BLUE.stops, { color: "lime" }] });
+  gradientCss({ stops: [...RED_BLUE.stops, { color: "lime" }] }); await words();
   assert.equal(warn.mock.calls.length, 1, "the same fault again, as in a render loop, doesn't warn again");
 });
 
@@ -107,12 +111,13 @@ test("y overshoot clamps into color-mix's 0–100% and the stops still sort by p
 
 // A stop's color and the blend space went into the CSS unchecked: `in junk`, `in 5`, and a color holding a comma spliced a
 // url() layer the browser fetches. A stop that isn't one color token is skipped; an unknown space falls to oklch.
-test("a stop that isn't one color token is skipped, and an unknown blend space falls to oklch", (t) => {
+test("a stop that isn't one color token is skipped, and an unknown blend space falls to oklch", async (t) => {
   const warn = t.mock.method(console, "warn", () => {});
   for (const color of ["red, url(https://x/a.png) 0%", "url(a.png)", "var(--c)", "rgb(1 2 3)) , url(a.png", "#12345", ""]) {
     assert.equal(gradientCss({ stops: [{ color, pos: 0 }, ...RED_BLUE.stops] }), "linear-gradient(in oklch to right, red 0%, blue 100%)", JSON.stringify(color));
     assert.equal(gradientStops({ stops: [{ color, pos: 0 }, ...RED_BLUE.stops] }), "red 0%, blue 100%", JSON.stringify(color));
   }
+  await new Promise((r) => setTimeout(r, 0)); // the warning's words load with the lazy chunk
   assert.ok(warn.mock.calls.some((c) => /skipped 1 of 3 stops without a CSS color/.test(c.arguments[0])));
   // Every color the editor's picker writes still passes, legacy commas and color-mix() included.
   const kept = ["#1E40AF", "#fff8", "rebeccapurple", "rgba(10, 20, 30, 0.5)", "oklch(62% 0.005 none)", "color(display-p3 1 0 0 / 50%)", "color-mix(in oklch, red 40%, blue)"];
