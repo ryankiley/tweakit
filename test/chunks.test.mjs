@@ -69,37 +69,17 @@ test("the markup chunk is lazy and imports only the shared chunk; a page without
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means
 // finding something to move into a lazy chunk (heavy.ts is where lazy-only helpers live).
-// Raised 26 → 27 KiB for the saved-data format version, a color kept in the notation it was written in, and the toggle
-// as one switch (role, aria-checked, Space and Enter), together ~190 B gzip; on CI's Node 22, which gzips ~100 B heavier
-// than a local Node 24, they would have put a basic panel at about 26.7 KB.
-// Raised 25 → 26 KiB for the console warnings that end silent failures: a set() that clamps, a key no control has,
-// two live panels on one persist key, an image restore that no longer holds up the build, and on()'s dotted paths
-// (~300 B gzip together; the unknown-type message itself lives in heavy.ts). 25,432 B locally, 25,613 B on CI's Node 22.
-// Raised 24 → 25 KiB for folds over only the visible height, panes that drag by their edge, and Escape that reverts a
-// field or cancels a drag (~1 KB gzip together, all in the shared popover and panel code a basic panel loads): 24,487 B
-// on a local Node 24, over the 24 KiB gate on CI's Node 22.
-// Raised 23 → 24 KiB for undo steps sharing unchanged strings (~90 B gzip), which holds an uploaded image once across
-// history instead of once a step (a 4 MB image and 20 edits: 80 MB → under 1 MB). It put main ~100 B under 23 KiB on a
-// local Node 24, about on the gate on CI's Node 22.
-// Trimmed ~1 KB under the 23 KiB gate by moving the markup layer (enhance() and the [data-tw] parsers) into a lazy
-// chunk that only a page with markup fetches: 23,393 → 22,341 B on a local Node 24. floating.corner and the
-// --tw-float-* placement then took ~380 B of that back.
-// Raised 22 → 23 KiB for the floating panel's height cap: the clamp on its natural height and closing a popover
-// whose row scrolls out of the panel. main sat ~30 B under 22 KiB on CI's Node 22,
-// which measures ~100 B more than a local Node 24: judge closeness to the gate by CI's figure.
-// Raised 21 → 22 KiB for the unit suffix on sliders/number fields and the motion and shadow
-// controls' registry lines (schema handler, markup parser, lazy import), which together cross
-// 21 KiB by a few dozen bytes; the controls themselves are lazy chunks.
-// Raised 20 → 21 KiB for the gradient's easing (#101): gradientCss() is a core export so a
-// host templates from one place, and it is ~700 B gzip of pure string work.
-test("a basic panel's code-split download stays under 27 KiB gzip", async () => {
+// It rose a KiB at a time from 20 to 27 as features landed (this file's git log has each reason), then came down to
+// 25 KiB once #254 and #260 took ~2.6 KB back out. CI's Node 22 gzips ~100 B heavier than a local Node 24: judge how
+// close a change sits to the gate by CI's figure.
+test("a basic panel's code-split download stays under 25 KiB gzip", async () => {
   const { readFile } = await import("node:fs/promises");
   const { gzipSync } = await import("node:zlib");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const core = await readFile(new URL("core.js", dir));
   let bytes = gzipSync(core).length;
   for (const [, c] of String(core).matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)) bytes += gzipSync(await readFile(new URL(c, dir))).length;
-  assert.ok(bytes < 27648, `core + shared chunk is ${bytes} B gzip — over the 27 KiB budget`);
+  assert.ok(bytes < 25600, `core + shared chunk is ${bytes} B gzip — over the 25 KiB budget`);
 });
 
 // Number is lazy on the split build (no shorthand infers it): the standalone and markup

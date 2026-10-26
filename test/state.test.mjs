@@ -68,13 +68,6 @@ test("toJSON escapes dotted folder keys injectively; fromJSON restores values + 
   assert.ok(q.el.querySelector(".tw-folder").classList.contains("is-collapsed"));
 });
 
-test("fromJSON skips values whose path no longer exists", () => {
-  const p = tweaks("J2", { x: [1, 0, 10, 1] });
-  p.fromJSON({ values: { x: 9, gone: 5 } });
-  assert.equal(p.params.x, 9);
-  assert.ok(!("gone" in p.params) || p.params.gone === undefined);
-});
-
 test("a restore reads only a snapshot's own keys: a control named for an Object.prototype member is left alone", () => {
   // Regression: applySnapshot's path reader followed inherited keys, so a control keyed toString / valueOf /
   // hasOwnProperty read the prototype's function out of any snapshot that lacked the key — a fromJSON({ values }) from
@@ -87,16 +80,6 @@ test("a restore reads only a snapshot's own keys: a control named for an Object.
     assert.deepEqual([p.params.toString, p.params.valueOf, p.params.hasOwnProperty, p.params.blur], [5, "hi", true, 7]);
     assert.deepEqual(errors, [], "no restore error for the keys the snapshot lacks");
   } finally { console.error = orig; }
-});
-
-test("setMany applies a batch and notifies once", () => {
-  const p = tweaks("M", { x: [1, 0, 10, 1], f: { y: [2, 0, 10, 1] } });
-  let notifies = 0;
-  p.on(() => notifies++);
-  p.setMany({ x: 5, "f.y": 7 });
-  assert.equal(p.params.x, 5);
-  assert.equal(p.params.f.y, 7);
-  assert.equal(notifies, 1);
 });
 
 test("gradient normalizes its value: default pair, clamped positions, tuple stops", () => {

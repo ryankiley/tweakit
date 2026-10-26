@@ -61,4 +61,5 @@ for (const file of files) {
   }
 }
 
-after(async () => { if (update) await writeFile(snapFile, JSON.stringify(fresh, null, 2) + "\n"); });
+// One line per example, so a changed example is a one-line diff.
+after(async () => { if (update) await writeFile(snapFile, `{\n${Object.entries(fresh).map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(",\n")}\n}\n`); });

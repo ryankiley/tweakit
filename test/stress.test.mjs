@@ -30,14 +30,11 @@ import { loadSingle, tick } from "./_helpers.mjs";
 // controls draw into the context they got — a browser never hands back null for a fresh
 // canvas. A tiny no-op context stands in, installed before the bundle loads (the color
 // module probes canvas support at import), so the harness exercises the kit, not jsdom's
-// gaps. Every method is a no-op with a plausible return. `fillStyle` behaves like the real
-// one for the sRGB family — the color parser normalizes rgb / hsl / hwb / named colors by
-// writing them to a canvas and reading the echo back ("#rrggbb", or "rgba(…)" when
-// translucent; an invalid write is ignored) — so those modes round-trip here as they do in
-// a browser instead of degrading to black.
+// gaps. Every method is a no-op with a plausible return. `fillStyle` echoes hex and named
+// colors as the real one does ("#rrggbb", or "rgba(…)" when translucent; an invalid write is
+// ignored): the color parser reads a named color back off a canvas, so it round-trips here
+// as it does in a browser instead of degrading to black.
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
-const hslToRgb = (h, s, l) => { h = ((h % 360) + 360) % 360; const a = s * Math.min(l, 1 - l); const f = (n) => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; };
-const hwbToRgb = (h, w, b) => { if (w + b >= 1) { const g = w / (w + b); return [g, g, g]; } return hslToRgb(h, 1, 0.5).map((c) => c * (1 - w - b) + w); };
 const NAMED_COLORS = { red: [1, 0, 0], black: [0, 0, 0], white: [1, 1, 1], blue: [0, 0, 1], lime: [0, 1, 0], transparent: [0, 0, 0, 0] };
 function canvasColor(str) { // what a 2D context's fillStyle getter echoes for `str`, or null when the write would be ignored
   const s = String(str).trim().toLowerCase();
@@ -47,16 +44,6 @@ function canvasColor(str) { // what a 2D context's fillStyle getter echoes for `
     if (h.length !== 6 && h.length !== 8) return null;
     rgb = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); if (h.length === 8) a = parseInt(h.slice(6, 8), 16) / 255;
   } else if (NAMED_COLORS[s]) { rgb = NAMED_COLORS[s].slice(0, 3); a = NAMED_COLORS[s][3] ?? 1; }
-  else if ((m = s.match(/^(rgba?|hsla?|hwb)\(([^)]*)\)$/))) {
-    const parts = m[2].replace("/", " ").split(/[\s,]+/).filter(Boolean);
-    if (parts.length < 3) return null;
-    const nums = parts.map((p) => { const v = parseFloat(p); return Number.isFinite(v) ? (p.endsWith("%") ? v / 100 : v) : NaN; });
-    if (nums.some(Number.isNaN)) return null;
-    if (nums.length > 3) a = clamp01(nums[3]);
-    if (m[1].startsWith("rgb")) rgb = nums.slice(0, 3).map((v, i) => clamp01(parts[i].endsWith("%") ? v : v / 255));
-    else if (m[1].startsWith("hsl")) rgb = hslToRgb(nums[0], clamp01(nums[1]), clamp01(nums[2]));
-    else rgb = hwbToRgb(nums[0], clamp01(nums[1]), clamp01(nums[2]));
-  }
   if (!rgb) return null;
   const b = rgb.map((v) => Math.round(clamp01(v) * 255));
   return a >= 1 ? "#" + b.map((v) => v.toString(16).padStart(2, "0")).join("") : `rgba(${b[0]}, ${b[1]}, ${b[2]}, ${a})`;
