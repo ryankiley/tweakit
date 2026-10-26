@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-tw-scheme="light">
+<head>
+  <meta charset="utf-8" />
+  <title>Tweakit social card</title>
+  <!-- The 1200×630 social card, drawn with the real panel. `node site/og/render.mjs` shoots it
+       to site/static/og.png after a build; open it at /site/og/card.html from a server at the root to tune it. -->
+  <link rel="stylesheet" href="../../dist/tweaks.css" />
+  <style>
+    html, body { margin: 0; }
+    body { width: 1200px; height: 630px; overflow: hidden; background: #f1f1f1;
+           font-family: system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+    /* the word and the pane share one cell, both centered: the pane sits over the word */
+    .card { width: 100%; height: 100%; display: grid; place-items: center;
+            background:
+              radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255, 255, 255, 0.7), transparent 70%),
+              radial-gradient(circle, rgba(0, 0, 0, 0.05) 1px, transparent 1.5px) 0 0 / 24px 24px; }
+    .card > * { grid-area: 1 / 1; }
+    /* size, weight, tracking and fill come from the panel; a gradient only paints inside the box, so
+       it is padded out over the ascenders and the pad canceled with margins */
+    .word { margin: -0.25em 0; padding-block: 0.25em; line-height: 1; text-box: trim-both cap alphabetic;
+            -webkit-background-clip: text; background-clip: text; }
+    .card .tw-panel { position: relative; zoom: 1.3; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 30px 70px rgba(0, 0, 0, 0.22); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 class="word">Tweakit</h1>
+  </div>
+  <script type="module">
+    import { tweaks, gradientCss } from "../../dist/tweaks.js";
+    const word = document.querySelector(".word");
+    const when = (style) => (get) => get("style") === style;   // a row for one fill style
+    const panel = tweaks("Tweakit", {
+      text: {
+        size: { type: "slider", label: "Font size", value: 380, min: 16, max: 480, step: 1, unit: "px" },
+        weight: [250, 100, 900, 10],
+        tracking: { type: "slider", value: -0.04, min: -0.1, max: 0.25, step: 0.005, unit: "em" },
+      },
+      fill: {
+        style: { type: "segmented", options: ["solid", "gradient"], value: "solid" },
+        color: { type: "color", value: "oklch(80% 0 0)", render: when("solid") },
+        gradient: { type: "gradient", stops: [["oklch(0.78 0.19 30)", 0], ["oklch(0.68 0.22 295)", 1]], render: when("gradient") },
+        angle: { type: "slider", value: 90, min: 0, max: 360, step: 1, unit: "°", render: when("gradient") },
+      },
+      effects: {
+        bounce: { type: "motion", mode: "spring", visualDuration: 0.6, bounce: 0.5 },
+      },
+    }, { theme: { width: 300 }, draggable: false });
+    document.querySelector(".card").append(panel.el);
+    const apply = ({ text: { size, weight, tracking }, fill }) => {
+      const s = word.style, gradient = fill.style === "gradient";
+      s.fontSize = `${size}px`;
+      s.fontWeight = weight;
+      s.letterSpacing = `${tracking}em`;
+      s.color = gradient ? "transparent" : fill.color;
+      s.backgroundImage = gradient && fill.gradient ? gradientCss(fill.gradient, fill.angle) : "none";
+    };
+    panel.on(apply);
+    await panel.ready;
+    apply(panel.params);
+    document.fonts.ready.then(() => requestAnimationFrame(() => document.body.dataset.ready = ""));
+  </script>
+</body>
+</html>
