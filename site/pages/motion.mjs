@@ -22,7 +22,7 @@ export const examples = [
       (<code>cubic-bezier(…)</code>, or a sampled <code>linear(…)</code> for the spring), so
       one <code>transition</code> works in both modes. The spring's fields read in ms and %,
       but the value keeps <code>visualDuration</code> in seconds and <code>bounce</code> as
-      0–1, as the snippet writes them; a stiffness/damping/mass config is accepted and
+      −1 to 1, as the snippet writes them; a stiffness/damping/mass config is accepted and
       mapped to the nearest pair. Tap anywhere on the stage and the box goes there with
       the motion; make the spring bouncier, or switch to an easing.</p>`,
     target: `<div class="mo-stage"><div class="mo-box"></div></div>`,
