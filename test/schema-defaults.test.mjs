@@ -64,6 +64,16 @@ test("a negative default spans either side of zero, so it can cross it", () => {
   p.destroy();
 });
 
+// -45 spans -135–135 in steps of 10 counted from -135 (…, -5, 5, …), so 0 was out of reach; 0.5.2's -135 to -5 couldn't reach it either.
+test("an inferred step across zero puts 0 on the grid", () => {
+  const p = tweaks("Zero", { a: -45, b: -25, c: [-45], d: { type: "slider", value: -45 }, e: [5, -15, 105], f: 45 });
+  for (const k of ["a", "b", "c", "d", "e", "f"]) { p.set(k, 0); assert.equal(p.params[k], 0, `${k} reaches 0`); }
+  p.set("a", -45); assert.equal(p.params.a, -45, "and its default");
+  const i = tweaks("ZeroI", { r: { type: "interval", value: [-45, 15] } });
+  i.set("r", [0, 15]); assert.deepEqual(i.params.r, [0, 15]);
+  p.destroy(); i.destroy();
+});
+
 test("an inferred step fits the default, so a value is never snapped off what was written", () => {
   const p = tweaks("Fit", { neg: -23, dec: -2.3, size: 37, big: 1234, tup: [37, 0, 200], v: { type: "slider", value: -23 }, i: { type: "interval", value: [-23, 37] }, e: [[-2.3, 7.7], -10, 10], pi: 3.14159, round: 40 });
   assert.deepEqual([p.params.neg, p.params.dec, p.params.size, p.params.big, p.params.tup, p.params.v], [-23, -2.3, 37, 1234, 37, -23]);
