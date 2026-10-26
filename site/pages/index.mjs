@@ -30,7 +30,7 @@ export const script = () => {
     grid.classList.toggle("is-open", !body.hidden);
     if (!body.hidden) { if (top) grid.style.setProperty("--row-top", top); return; }
     grid.style.removeProperty("--row-top");
-    dispatchEvent(new Event("resize"));                      // the slot is whole again: the pane re-centres in it
+    dispatchEvent(new Event("resize"));                      // the slot is whole again: the pane re-centers in it
   }).observe(body, { attributes: true, attributeFilter: ["hidden"] });
 };
 
@@ -72,8 +72,8 @@ export const examples = [
       #ex-specimen .ex-live { display: contents; }
       #ex-specimen .ex-target { grid-column: 1; grid-row: 2; min-height: 0; padding: 0; display: block; container-type: inline-size; }
       /* The pane's slot fills the first screen (less the column's 44px top padding and as much
-       * below); the run centres the pane in it once, so its top stays put when a folder closes.
-       * The stack's flexible rows span the same slot, so the stack centres there too. */
+       * below); the run centers the pane in it once, so its top stays put when a folder closes.
+       * The stack's flexible rows span the same slot, so the stack centers there too. */
       #ex-specimen .ex-mount { grid-column: 2; grid-row: 1 / 5; align-self: stretch; min-height: calc(100svh - 88px); }
       #ex-specimen.is-open .ex-mount { min-height: 0; } /* the pane keeps its padding-top, so it stays put */
       /* Opening and closing the schema never scrolls the page: the browser's scroll anchoring would
@@ -188,7 +188,7 @@ export const examples = [
             { scale: "1.14 0.84", offset: land / squash, easing: "cubic-bezier(0.3, 1.6, 0.5, 1)" },
             { scale: "1 1" },
           ], { duration: squash }).finished]);
-        } catch {} finally {                               // a cancelled run still frees the next one
+        } catch {} finally {                               // a canceled run still frees the next one
           hopping = false;
           if (again) { again = false; hop(); }
         }
@@ -197,7 +197,7 @@ export const examples = [
       // The pane at the slot's middle, on its fullest height: measured only while it sits open in
       // the slot (not collapsed, not floated out), so a closed folder or a drag can't shift it.
       let fullHeight = 0;
-      const centre = () => {
+      const center = () => {
         if (mount.closest(".is-open")) return;                     // the schema is open and the slot shorter for now: stay put
         const inSlot = panel.el.parentElement === mount, open = panel.el.querySelector(".tw-header-toggle")?.getAttribute("aria-expanded") !== "false";
         if (inSlot && open) fullHeight = Math.max(fullHeight, panel.el.offsetHeight);
@@ -207,9 +207,9 @@ export const examples = [
       const fromPage = new Set();                                     // the page colors the panel has held
       panel.ready.then(() => {                                        // the values exist from here
         fromPage.add(panel.params.fill.color);
-        apply(panel.params); centre(); hop();
-        setTimeout(centre, 400);                                     // again once the folders finish opening
-        window.addEventListener("resize", () => { apply(panel.params); centre(); });
+        apply(panel.params); center(); hop();
+        setTimeout(center, 400);                                     // again once the folders finish opening
+        window.addEventListener("resize", () => { apply(panel.params); center(); });
         // the device theme flips: a color still taken from the page moves to the new one;
         // a color you picked stays
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

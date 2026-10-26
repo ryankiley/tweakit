@@ -177,7 +177,7 @@ test("a press beside a row picks it with an even band, and ⌘C / ⌘V act on th
   const css = distCss();
   assert.doesNotMatch(css, /is-picked[^{]*\{[^}]*margin/, "picking moves nothing");
   assert.match(css, /\.tw-panel:not\(\[data-mode=floating\]\):has\(\.is-picked\)\{overflow:clip\}/, "an inline panel clips the band on both axes, so it follows the rounded corners");
-  assert.match(css, /\.tw-panel \.is-picked:before\{[^}]*inset:-3px -100vmax/, "the band reaches 3px past the row on both sides, halfway to its neighbours, edge to edge");
+  assert.match(css, /\.tw-panel \.is-picked:before\{[^}]*inset:-3px -100vmax/, "the band reaches 3px past the row on both sides, halfway to its neighbors, edge to edge");
   assert.match(css, /\.tw-body>\.tw-controls\{[^}]*padding-block:3px;margin-block:-3px\}/, "the body's clip edges sit 3px out, offset so nothing moves, so a first or last row's band isn't cut");
   assert.match(css, /\.tw-folder-body>\.tw-controls\{[^}]*padding:3px 0 8px;margin-top:-3px/, "and a folder's top clip edge too");
   const c = await clipKey(document.activeElement, "c");
@@ -310,7 +310,7 @@ test("the toolbar copy: plain click copies the full snapshot, Shift-click only t
   p.set("blur", 31);
   assert.deepEqual(JSON.parse(await copyVia(p, { shiftKey: true })), { blur: 31 }, "Shift-click: the changes only");
   const full = JSON.parse(await copyVia(p, {}));
-  assert.deepEqual(full, { blur: 31, on: true, shape: { radius: 8, origin: { x: 0, y: 0 } } }, "plain click: the nested snapshot, defaults included — unchanged behaviour");
+  assert.deepEqual(full, { blur: 31, on: true, shape: { radius: 8, origin: { x: 0, y: 0 } } }, "plain click: the nested snapshot, defaults included — unchanged behavior");
   p.destroy();
 });
 

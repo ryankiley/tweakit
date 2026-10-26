@@ -84,7 +84,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   onReady(render);
   onLive(track, [[window, "resize"], [window, "tw-reflow"]], render); // tw-reflow: a tab page revealing this re-measures it
 
-  // Home/End snap a handle to its neighbour-or-limit, so the two can't cross.
+  // Home/End snap a handle to its neighbor-or-limit, so the two can't cross.
   const onKey = (which: "lo" | "hi") => (e: KeyboardEvent) => {
     const nv = which === "lo" ? rangeStep(e, lo, step, min, hi) : rangeStep(e, hi, step, lo, max);
     if (nv == null) return;

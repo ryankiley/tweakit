@@ -1,5 +1,5 @@
 /* Inline SVG icons for the kit's core chrome (toolbar, folder chevron, select, hint marker),
- * kept in one module so the licence notice below covers them all. */
+ * kept in one module so the license notice below covers them all. */
 // ── Icons for the toolbar ──
 // Adapted from Hugeicons' free set (MIT; per-icon origins in ../../THIRD-PARTY-NOTICES.md), path
 // data compacted. The icon color is translucent, so strokes that cross double-composite into a
@@ -8,7 +8,7 @@
 import { icon } from "./shared.js";
 const ICON_COPY = icon('<path class="tw-copy-back" d="m5.5 16.5-.7-.2q-1.5-.6-2.1-2.1-.2-.7-.2-2.7v-2c0-3.3 0-5 1-6s2.7-1 6-1h2c1.4 0 2 0 2.7.2q1.6.5 2.1 2.1l.2.7"/><path class="tw-copy-front" d="M7.5 14.5c0-3.3 0-5 1-6s2.7-1 6-1 5 0 6 1 1 2.7 1 6 0 5-1 6-2.7 1-6 1-5 0-6-1-1-2.7-1-6"/>', "tw-toolbar-btn__copy");
 const ICON_CHECK = icon('<path d="m5 14 3.5 3.5L19 6.5"/>', "tw-toolbar-btn__check", 2.4);
-// Reset is Hugeicons' undo, a near-full circle, so the spin on click reads as a turn about the centre.
+// Reset is Hugeicons' undo, a near-full circle, so the spin on click reads as a turn about the center.
 const ICON_RESET = icon('<path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-7.6 4.2M3.3 3l.2 2q0 2.2.6 2.7t2.7.2l2-.2"/>');
 const ICON_SEARCH = icon('<path d="m17 17 4 4m-2-10a8 8 0 0 0-16 0 8 8 0 0 0 16 0"/>');
 const chevronIcon = (cls: string) => icon('<path d="M18 9s-4.4 6-6 6-6-6-6-6"/>', cls, 2.5);

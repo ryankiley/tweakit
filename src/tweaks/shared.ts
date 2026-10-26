@@ -18,7 +18,7 @@ interface RadioBtn extends HTMLButtonElement { _twVal?: string }
  *  stringifies either). Type-level only. */
 interface Stringifying { setAttribute(name: string, value: string | number): void; style: { setProperty(name: string, value: string | number | null, priority?: string): void } }
 type Built<E extends Element> = E & Stringifying;
-/** The labelled numeric field's spec (numField). */
+/** The labeled numeric field's spec (numField). */
 interface NumSpec { label: string; value?: unknown; min?: unknown; max?: unknown; step?: unknown; soft?: boolean; row?: boolean; unit?: string } // unit: muted suffix, also in the accessible name
 /** The numeric field's handle: set() coerces and fits, get() reads the fitted number. */
 interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number }

@@ -66,7 +66,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   let positionPad = () => { previewDot.style.left = "50%"; previewDot.style.top = "50%"; };
 
   if (hasPad) {
-    // The mini preview is clipped, so inset the 5px dot: its centre travels from +2.5px at 0 to −2.5px at 1.
+    // The mini preview is clipped, so inset the 5px dot: its center travels from +2.5px at 0 to −2.5px at 1.
     const DOT = 5;
     const inset = (f: number) => `calc(${(f * 100).toFixed(2)}% + ${((0.5 - f) * DOT).toFixed(2)}px)`;
     positionPad = () => {

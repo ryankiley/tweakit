@@ -26,13 +26,13 @@ test("slider: the readout and aria-valuetext carry the unit; the param, the inli
 });
 
 test("number: the field shows the unit and its accessible name names it; a bad unit is dropped", async () => {
-  const p = await mount({ delay: { type: "number", value: 300, unit: "ms" }, odd: { type: "number", value: 1, unit: 42 }, long: { type: "number", value: 1, unit: "  kilometres per hour  " } });
+  const p = await mount({ delay: { type: "number", value: 300, unit: "ms" }, odd: { type: "number", value: 1, unit: 42 }, long: { type: "number", value: 1, unit: "  kilometers per hour  " } });
   const [delay, odd, long] = [...p.el.querySelectorAll(".tw-num-wrap")];
   assert.equal(delay.querySelector(".tw-num-unit").textContent, "ms");
   assert.equal(delay.querySelector(".tw-num").getAttribute("aria-label"), "Delay (ms)");
   assert.equal(p.params.delay, 300);
   assert.equal(odd.querySelector(".tw-num-unit"), null, "a non-string unit is ignored");
-  assert.equal(long.querySelector(".tw-num-unit").textContent, "kilometres p", "trimmed and capped at 12 characters");
+  assert.equal(long.querySelector(".tw-num-unit").textContent, "kilometers p", "trimmed and capped at 12 characters");
   p.destroy();
 });
 

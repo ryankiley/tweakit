@@ -33,7 +33,7 @@ function normalizeStops(value: any): GradientStop[] {
   // A stop's color must be a single color token: stop text goes straight into the preview's
   // `linear-gradient(…)`, where an unparsed string could splice in further layers (a url() fetch
   // from persisted state). A non-finite pos → 0, clamped into [0,1]; fewer than two usable stops → the default pair.
-  // Trimmed as the gate trims it: the CSS tokeniser reads a non-ASCII space as part of a name.
+  // Trimmed as the gate trims it: the CSS tokenizer reads a non-ASCII space as part of a name.
   const stop = (color: string, pos: unknown): GradientStop | null => (isColor(color) ? { color: String(color).trim(), pos: clamp(+pos || 0, 0, 1) } : null);
   const out = (arr || []).map((s: any) => {
     if (Array.isArray(s)) return stop(s[0], s[1]);
@@ -46,7 +46,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   meta.value ??= meta.stops; // the verbose form's `stops` aliases `value`
   let stops = normalizeStops(meta.value);
   let selStop = stops[0];
-  let easing = easingName(parseEase(meta.value)); // unrecognised reads as linear
+  let easing = easingName(parseEase(meta.value)); // unrecognized reads as linear
 
   // ── Trigger row — the strip is the readout; the stop count rides along for the accessibility tree. ──
   const { root, trigger, right } = triggerRow("tw-gradient", meta.label ?? "Gradient"); // ??: an explicit "" label renders none
@@ -148,7 +148,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     const ach = (c: Oklcha) => c[1] < 1e-4;
     let dh = b[2] - a[2]; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
     if (ach(a) || ach(b)) dh = 0;
-    const H = ((((ach(a) && !ach(b) ? b[2] : a[2]) + dh * t) % 360) + 360) % 360; // normalise to [0,360) so the picker reads it cleanly
+    const H = ((((ach(a) && !ach(b) ? b[2] : a[2]) + dh * t) % 360) + 360) % 360; // normalize to [0,360) so the picker reads it cleanly
     return oklchStr(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, H, a[3] + (b[3] - a[3]) * t);
   };
   const removeStop = (s: GradientStop) => {
@@ -160,7 +160,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     handleFor(selStop)?.focus(); // keep focus on a handle so Delete can chain
   };
   // Insert a stop at `pos`, colored by sampling the gradient there, and select it. Shared by the +
-  // button (midway toward the selected stop's neighbour, so where it lands is predictable) and double-click on the bar.
+  // button (midway toward the selected stop's neighbor, so where it lands is predictable) and double-click on the bar.
   const insertStopAt = (pos: number) => {
     const s = { color: colorAt(pos), pos: clamp(pos, 0, 1) };
     stops.push(s); paint(); select(s, true); reflectCount(); emit();

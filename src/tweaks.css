@@ -96,7 +96,7 @@
 @property --tw-float-gap { syntax: "<length>"; inherits: true; initial-value: -1px; }
 /* The footprint a lifted panel leaves in its old slot, so the host layout holds still. */
 .tw-lift-slot { display: block; flex: none; pointer-events: none; }
-/* The header is the drag handle. The negative margin (cancelled by an equal padding-top)
+/* The header is the drag handle. The negative margin (canceled by an equal padding-top)
  * stretches its hit area up through the panel's top padding to the edge. Draggable panels
  * only: a pinned floating one keeps a plain cursor, and a swipe on its header scrolls it. */
 .tw-panel[data-draggable="true"] > .tw-header,
@@ -493,7 +493,7 @@
 
 /* A row or folder picked for ⌘C / ⌘V (a press beside it): a filled band behind it, edge to edge across the panel at any
  * depth (the panel clips it to its rounded edge while something is picked). A row's band reaches 3px past it, halfway
- * across the 6px gap to its neighbours, the same on both sides wherever it sits; nothing moves. A folder's band runs
+ * across the 6px gap to its neighbors, the same on both sides wherever it sits; nothing moves. A folder's band runs
  * between its own rules. */
 .tw-panel:not([data-mode="floating"]):has(.is-picked) { overflow: clip; } /* both axes, so it follows the rounded corners; a floating panel already clips, scrolling */
 .tw-panel .is-picked { position: relative; isolation: isolate; }
@@ -557,7 +557,7 @@
 .is-open > .tw-trigger { background: var(--tw-surface-active); }
 /* The label takes what the right cluster leaves, down to 5ch; shrink weights instead
  * shaved a fraction of a pixel off the readout and drew an ellipsis over a value that fit. */
-.tw-trigger-label { transition: color 0.15s; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a <button> centres its text by default */
+.tw-trigger-label { transition: color 0.15s; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a <button> centers its text by default */
 .tw-trigger-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 /* word-spacing separates a multi-part readout ("60% 0.23 286") into columns; visual only. */
 .tw-trigger-value { font-family: var(--tw-font-sans); word-spacing: 0.1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 20ch; }
@@ -731,7 +731,7 @@
 /* ── Number grab handle (drag to scrub) ── */
 .tw-num-wrap { display: flex; align-items: center; gap: 4px; }
 .tw-slider-unit { color: var(--tw-text-tertiary); } /* the slider readout's unit ("24 px") */
-/* The unit shares the input's size and line box, so centring lands both on one baseline. */
+/* The unit shares the input's size and line box, so centering lands both on one baseline. */
 .tw-num-unit { flex-shrink: 0; font-size: 12px; line-height: normal; color: var(--tw-text-tertiary); padding-right: 2px; user-select: none; -webkit-user-select: none; }
 .tw-num-wrap .tw-num { flex: 0 0 auto; width: 6ch; text-overflow: ellipsis; } /* a wide value shows it is cut */
 .tw-row > .tw-num-wrap .tw-num { width: 9ch; } /* the Number row has room a field grid lacks */
@@ -838,7 +838,7 @@
 /* No resting border, so the grab cue is an inset ring. */
 .tw-spring-viz.is-dragging { background: var(--tw-surface-hover); box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
 .tw-spring-canvas { width: 100%; height: 100%; display: block; }
-/* Labelled numeric fields — shared by Spring, Point and Bezier */
+/* Labeled numeric fields — shared by Spring, Point and Bezier */
 .tw-fields { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
 /* ── Point — a trigger row that opens the 2D pad ── */
 .tw-point { position: relative; }
@@ -898,7 +898,7 @@
  * 12px in like every row's. (The motion pane's editors aren't rows, and stay flush.) */
 :is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-spring, .tw-bezier, .tw-plot) { padding: 4px; background: var(--tw-surface); border-radius: var(--tw-radius); } /* a markup panel's control sits in its host */
 /* A 24px line for the label: in the 4px frame its text lands 9px down, where a
- * 32px row's centred label does. */
+ * 32px row's centered label does. */
 :is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-spring, .tw-bezier, .tw-plot) > :is(.tw-spring-label, .tw-bezier-label, .tw-plot-label) { padding-left: 8px; line-height: 24px; }
 .tw-plot-graph { position: relative; width: 100%; height: 140px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); }
 .tw-plot-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }

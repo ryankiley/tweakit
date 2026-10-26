@@ -70,7 +70,7 @@ test("the hover walker reads nesting, not just presence", () => {
 
 // The control stack is a grid item holding a flex column; without zero floors, one nowrap
 // child (a long selected option, a wide tab bar, an eight-button group) widened every row
-// past the panel and over its neighbours. This keeps the floors in place.
+// past the panel and over its neighbors. This keeps the floors in place.
 test("src/tweaks.css: the control stack and its children can shrink below their content", async () => {
   const css = (await read("src/tweaks.css")).replace(/\/\*[\s\S]*?\*\//g, "");
   const rule = (selector) => { const m = css.match(new RegExp(`(^|[\\n}])\\s*${selector.replace(/[.*+?^${}()|[\]\\>]/g, "\\$&")}\\s*\\{([^}]*)\\}`)); return m ? m[2] : ""; };

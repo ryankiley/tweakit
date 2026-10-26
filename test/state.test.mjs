@@ -1,7 +1,7 @@
 /* State machinery — the subsystems with the most intricate logic and (previously)
  * no coverage: persistence + presets, undo/redo, toJSON/fromJSON (including the
  * JSON-pointer path escaping), setMany batching, and the gradient's value
- * normalisation. Runs against the built single-file bundle under jsdom, like
+ * normalization. Runs against the built single-file bundle under jsdom, like
  * panel.test.mjs. */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -98,7 +98,7 @@ test("setMany applies a batch and notifies once", () => {
   assert.equal(notifies, 1);
 });
 
-test("gradient normalises its value: default pair, clamped positions, tuple stops", () => {
+test("gradient normalizes its value: default pair, clamped positions, tuple stops", () => {
   const p = tweaks("G", {
     def: { type: "gradient" },
     tup: { type: "gradient", value: [["#ff0000", -0.5], ["#0000ff", 2]] },

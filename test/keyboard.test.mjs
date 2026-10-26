@@ -341,7 +341,7 @@ test("Alt+arrows on the focused title move the panel, the keyboard's drag: 10px 
   p.destroy();
 });
 
-test("the panel is a labelled region, renamed by setName", () => {
+test("the panel is a labeled region, renamed by setName", () => {
   const p = mount({ a: 1 });
   assert.equal(p.el.getAttribute("role"), "region");
   assert.equal(p.el.getAttribute("aria-label"), "K");

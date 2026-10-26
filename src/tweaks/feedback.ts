@@ -28,7 +28,7 @@ const makeResetBtn = (onReset: () => void) => { const b = toolbarBtn("tw-toolbar
 const flashCopied = (btn: ToolbarBtn) => { btn.classList.add("is-copied"); clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove("is-copied"), 1400); };
 /** Reset spin — an accumulated rotation on --tw-spin driven by the transform transition, so a
  *  second click mid-spin retargets smoothly instead of snapping back. Once settled the counter
- *  renormalises to 0 with the transition suppressed (−n·360° is the same angle). "Settled" is the
+ *  renormalizes to 0 with the transition suppressed (−n·360° is the same angle). "Settled" is the
  *  transform's own transitionend, not a timer: the hover wind-up shares the transform and restarts
  *  the clock. An end <250ms after the click is a stale wind settle; the timeout is only a fallback
  *  for when no transition runs at all (reduced motion, hidden panel). */
