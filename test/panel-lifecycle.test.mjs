@@ -311,6 +311,24 @@ test("set() refuses a key no control has, with a warning, and keeps it out of pa
   p.destroy();
 });
 
+test("set() on a button, monitor or separator says it holds no value, not that no control has the key", async () => {
+  const p = tweaks("Bag", { go: { action: () => {} }, m: { type: "monitor", value: 1 }, line: { type: "separator" }, f: { b: { type: "button", action: () => {} } } });
+  const warn = console.warn, warned = []; console.warn = (...m) => warned.push(m.join(" "));
+  try {
+    p.set("go", 1); p.set("m", 2); p.setMany({ line: 3, "f.b": 4 }); p.set("b", 5); p.set("nope", 6);
+    await new Promise((r) => setTimeout(r, 10)); // a notice's words come from a lazy chunk
+    assert.deepEqual(warned, [
+      '[tweaks] set("go") ignored — a button holds no value to set',
+      '[tweaks] set("m") ignored — a monitor holds no value to set',
+      '[tweaks] set("line") ignored — a separator holds no value to set',
+      '[tweaks] set("f.b") ignored — a button holds no value to set',
+      '[tweaks] set("b") ignored — a button holds no value to set',
+      '[tweaks] set("nope") ignored — no control has that key',
+    ]);
+    assert.deepEqual(p.toJSON().values, { f: {} });
+  } finally { console.warn = warn; p.destroy(); }
+});
+
 test("collapsing folds the body over the height in view, not its whole content, and cleans up after", () => {
   const p = tweaks("Tall", { a: 1 }); document.body.append(p.el);
   const body = p.el.querySelector(".tw-body"), title = p.el.querySelector(".tw-header-toggle");

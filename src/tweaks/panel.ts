@@ -38,6 +38,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const params: Params = {};
   let last: string | undefined; // the dotted path the latest change touched (`card.size`), as set() and changes() name it: on()'s second argument
   const entries: Entry[] = []; // flattened across folders, for reset + persist
+  const valueless = new Map<string, string>(); // dotted path → type of each button, monitor, separator: set() says it holds no value
   const listeners = new Set<(p: Params, last?: string) => void>();
   const own = new Set<(p: Params, last?: string) => void>(); // undo + conditionals: all a silent write calls
   const cleanups: Array<() => void> = []; // releases for destroy(): document/window listeners, timers
@@ -387,6 +388,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; if (entry) waiting.delete(entry); target[m.key] = v; last = dotted; notify(); } : () => {}); // same-value emits (a re-entrant echo) don't notify
       if (!ctrl) continue;
       adopt(ctrl);
+      if (!valued) valueless.set(dotted, m.type);
       if (valued) {
         // reset() restores `raw` over the form the control OPENED on (`def`), read before the parked value applies — see restoreDefault.
         const def = ctrl.get();
@@ -756,14 +758,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const exact = entries.filter((x) => x.path.join(".") === key);
     if (exact.length > 1) { notice("ambiguousPath", key, exact.length); return false; }
     let e: Entry | undefined = exact[0];
-    if (!e && parts.length > 1) { notice("noPath", key); return false; }
+    if (!e && parts.length > 1) { const t = valueless.get(key); notice(t ? "noValue" : "noPath", key, t); return false; }
     if (!e) {
       const matches = entries.filter((x) => x.key === key);
       if (matches.length > 1) { notice("ambiguousKey", key, matches.length, matches[0].path.join(".")); return false; }
       e = matches[0];
     }
     // A key no control owns is refused: written through, a typo landed on params and in every save after.
-    if (!e) { notice("noControl", key, metas.some((m) => m.key === key && (m.type === "folder" || m.type === "tabs"))); return false; }
+    // A button, monitor or separator is there but holds nothing to set, which "no control has that key" would misstate.
+    const vt = !e && (valueless.get(key) || [...valueless].find(([p]) => p.split(".").pop() === key)?.[1]);
+    if (!e) { if (vt) notice("noValue", key, vt); else notice("noControl", key, metas.some((m) => m.key === key && (m.type === "folder" || m.type === "tabs"))); return false; }
     const prev = e.target[e.key];
     // Same isolation as applySnapshot: a hostile value costs only that key.
     if (notAValue(v)) return false;

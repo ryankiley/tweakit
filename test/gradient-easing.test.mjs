@@ -93,3 +93,13 @@ test("a stop added to an eased ramp samples the eased color, so it lands on the 
   }
   assert.ok(L(eas) < L(lin) - 0.08, `eased insert ${L(eas)} should be darker than linear ${L(lin)}`);
 });
+
+test("a pasted gradient value copied onto the { type } form keeps its blend and easing, the value form still winning", () => {
+  const pasted = { stops: [{ color: "#ff0000", pos: 0 }, { color: "#0000ff", pos: 1 }], interpolation: "hsl", easing: "ease-in-out" };
+  const p = tweaks("GP", { g: { type: "gradient", ...pasted }, h: { type: "gradient", value: { ...pasted, interpolation: "srgb", easing: "ease" }, interpolation: "hsl", easing: "ease-in" } });
+  assert.deepEqual(p.params.g, pasted, "top-level interpolation and easing read, as AGENTS.md's paste step copies them");
+  assert.equal(p.params.h.interpolation, "srgb"); assert.equal(p.params.h.easing, "ease");
+  p.set("g", { ...pasted, interpolation: "srgb", easing: "linear" }); p.reset();
+  assert.deepEqual(p.params.g, pasted, "reset restores the top-level pair");
+  p.destroy();
+});

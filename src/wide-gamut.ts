@@ -6,7 +6,7 @@ import type { ColorMode, GradientInterpolation } from "./tweaks/types.js";
 export type Vec3 = [number, number, number];
 type Mat3 = [Vec3, Vec3, Vec3];
 /** The spaces convert() hubs between, through CIE XYZ. */
-export type Space = "srgb" | "p3" | "rec2020" | "prophoto-rgb" | "oklab" | "oklch" | "lab" | "lch" | "hsl" | "hwb";
+export type Space = "srgb" | "p3" | "rec2020" | "prophoto-rgb" | "a98-rgb" | "srgb-linear" | "xyz-d65" | "xyz-d50" | "oklab" | "oklch" | "lab" | "lch" | "hsl" | "hwb";
 /** The RGB gamuts a color can be mapped into. */
 export type Gamut = "srgb" | "p3" | "rec2020";
 /** One editable channel of a mode: label, display range and step, engine-to-display scale. */
@@ -47,6 +47,11 @@ const LIN_REC2020_TO_XYZ: Mat3 = [[0.6369580483012914, 0.14461690358620832, 0.16
 const XYZ_TO_LIN_REC2020: Mat3 = [[1.7166511879712674, -0.35567078377639233, -0.25336628137365974], [-0.6666843518324892, 1.6164812366349395, 0.01576854581391113], [0.017639857445310783, -0.042770613257808524, 0.9421031212354738]];
 const LIN_PRO_TO_XYZ_D50: Mat3 = [[0.7977604896723027, 0.13518583717574031, 0.0313493495815248], [0.2880711282292934, 0.7118432178101014, 0.00008565396060525902], [0, 0, 0.8251046025104601]];
 const XYZ_D50_TO_LIN_PRO: Mat3 = [[1.3457989731028281, -0.25558010007997534, -0.05110628506753401], [-0.5446224939028347, 1.5082327413132781, 0.02053603239147973], [0, 0, 1.2119675456389454]];
+// CSS Color 4's a98-rgb (Adobe RGB 1998): a pure 563/256 gamma over these primaries, D65.
+const A98_GAMMA = 563 / 256, a98Lin = (c: number) => Math.sign(c) * Math.abs(c) ** A98_GAMMA, a98Gam = (c: number) => Math.sign(c) * Math.abs(c) ** (1 / A98_GAMMA);
+const LIN_A98_TO_XYZ: Mat3 = [[573536 / 994567, 263643 / 1420810, 187206 / 994567], [591459 / 1989134, 6239551 / 9945670, 374412 / 4972835], [53769 / 1989134, 351524 / 4972835, 4929758 / 4972835]];
+const XYZ_TO_LIN_A98: Mat3 = [[1829569 / 896150, -506331 / 896150, -308931 / 896150], [-851781 / 878810, 1648619 / 878810, 36519 / 878810], [16779 / 1248040, -147721 / 1248040, 1266979 / 1248040]];
+const same = (c: number) => c;
 const XYZ_D65_TO_D50: Mat3 = [[1.0479298208405488, 0.022946793341019088, -0.05019222954313557], [0.029627815688159344, 0.990434484573249, -0.01707382502938514], [-0.009243058152591178, 0.015055144896577895, 0.7518742899580008]];
 const XYZ_D50_TO_D65: Mat3 = [[0.9554734527042182, -0.023098536874261423, 0.0632593086610217], [-0.028369706963208136, 1.0099954580058226, 0.021041398966943008], [0.012314001688319899, -0.020507696433477912, 1.3303659366080753]];
 const XYZ_TO_LMS: Mat3 = [[0.819022437996703, 0.3619062600528904, -0.1288737815209879], [0.0329836539323885, 0.9292868615863434, 0.0361446663506424], [0.0481771893596242, 0.2642395317527308, 0.6335478284694309]];
@@ -97,12 +102,16 @@ function hwbToSrgb(hwb: Vec3): Vec3 {
 }
 const srgbToHwb = (rgb: Vec3): Vec3 => [srgbHue(rgb), Math.min(...rgb) * 100, (1 - Math.max(...rgb)) * 100];
 
-function toXyz(c: Vec3, space: Space) {
+function toXyz(c: Vec3, space: Space): Vec3 {
   switch (space) {
     case "srgb": return rgbToXyz(c, srgbLin, LIN_SRGB_TO_XYZ);
     case "p3": return rgbToXyz(c, srgbLin, LIN_P3_TO_XYZ);
     case "rec2020": return rgbToXyz(c, rec2020Lin, LIN_REC2020_TO_XYZ);
     case "prophoto-rgb": return mul(XYZ_D50_TO_D65, rgbToXyz(c, prophotoLin, LIN_PRO_TO_XYZ_D50));
+    case "a98-rgb": return rgbToXyz(c, a98Lin, LIN_A98_TO_XYZ);
+    case "srgb-linear": return mul(LIN_SRGB_TO_XYZ, c);
+    case "xyz-d65": return [c[0], c[1], c[2]];
+    case "xyz-d50": return mul(XYZ_D50_TO_D65, c);
     case "oklab": return oklabToXyz(c);
     case "oklch": return oklabToXyz(toRect(c));
     case "lab": return labToXyz(c);
@@ -111,12 +120,16 @@ function toXyz(c: Vec3, space: Space) {
     case "hwb": return rgbToXyz(hwbToSrgb(c), srgbLin, LIN_SRGB_TO_XYZ);
   }
 }
-function fromXyz(xyz: Vec3, space: Space) {
+function fromXyz(xyz: Vec3, space: Space): Vec3 {
   switch (space) {
     case "srgb": return xyzToRgb(xyz, srgbGam, XYZ_TO_LIN_SRGB);
     case "p3": return xyzToRgb(xyz, srgbGam, XYZ_TO_LIN_P3);
     case "rec2020": return xyzToRgb(xyz, rec2020Gam, XYZ_TO_LIN_REC2020);
     case "prophoto-rgb": return xyzToRgb(mul(XYZ_D65_TO_D50, xyz), prophotoGam, XYZ_D50_TO_LIN_PRO);
+    case "a98-rgb": return xyzToRgb(xyz, a98Gam, XYZ_TO_LIN_A98);
+    case "srgb-linear": return xyzToRgb(xyz, same, XYZ_TO_LIN_SRGB);
+    case "xyz-d65": return [xyz[0], xyz[1], xyz[2]];
+    case "xyz-d50": return mul(XYZ_D65_TO_D50, xyz);
     case "oklab": return xyzToOklab(xyz);
     case "oklch": return toPolar(xyzToOklab(xyz));
     case "lab": return xyzToLab(xyz);
