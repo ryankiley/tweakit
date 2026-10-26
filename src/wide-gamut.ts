@@ -276,13 +276,15 @@ const wrapCss = (t: string, mode: ColorMode) =>
   mode === "hsl" ? `hsl(${t})` : mode === "hwb" ? `hwb(${t})` :
   mode === "p3" ? `color(display-p3 ${t})` : mode === "rec2020" ? `color(rec2020 ${t})` : `${mode}(${t})`;
 // The value's channels, a digit finer than the readout (L 63.2%, C 0.257, H 29.2): rounded to the readout, 98% of colors came
-// back different (#939796's faint green read as a neutral grey). A powerless hue is `none`, as CSS Color 4 writes it: a
-// float-noise hue on white (180, cyan) or a grey bent every oklch gradient and color-mix() through it.
+// back different (#939796's faint green read as a neutral gray). A powerless hue is `none`, as CSS Color 4 writes it: a
+// float-noise hue on white (180, cyan) or a gray bent every oklch gradient and color-mix() through it. HSL's black and
+// white are written S 0 and hue none: S divides by min(L, 1 - L), so next to either end it read noise as 100% and a hue.
 function precise(oklch: Vec3, mode: ColorMode) {
   const chans = MODE_CHANNELS[mode], c = modeCoords(oklch, modeSpaceId(mode), mode);
   const v = chans.map((ch, i) => { const d = digitsFor(ch.step) + 1, x = +clamp(num(c[i]) * ch.scale, ch.min, ch.max).toFixed(d); return ch.k === "H" && x === 360 ? 0 : x + 0; }); // + 0: no -0
-  const grey = mode === "oklch" || mode === "lch" || mode === "hsl" ? v[1] === 0 : mode === "hwb" && v[1] + v[2] >= 100;
-  return joinChannels(mode, (i) => (grey && chans[i].k === "H" ? "none" : String(v[i])));
+  if (mode === "hsl" && (v[2] === 0 || v[2] === 100)) v[1] = 0;
+  const gray = mode === "oklch" || mode === "lch" || mode === "hsl" ? v[1] === 0 : mode === "hwb" && v[1] + v[2] >= 100;
+  return joinChannels(mode, (i) => (gray && chans[i].k === "H" ? "none" : String(v[i])));
 }
 /** The emitted CSS value in `mode`'s own syntax, a digit finer than the readout, alpha appended. */
 export function serialize(oklch: Vec3, mode: ColorMode, alpha: number) {

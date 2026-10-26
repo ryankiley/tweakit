@@ -1,12 +1,14 @@
 /* A color keeps the notation it was written in and the precision it needs. "#ff0000" read back as oklch(63% 0.26 29):
  * code expecting hex broke, pasted values drifted, and the rounding changed 98% of colors (#939796's faint green read as
- * grey). A grey's hue came out as float noise (white as hue 180, cyan), which bends every oklch gradient through it. */
+ * gray). A gray's hue came out as float noise (white as hue 180, cyan), which bends every oklch gradient through it. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 import { loadSingle, key } from "./_helpers.mjs";
+import { bundle } from "./_bundle.mjs";
 
 const { tweaks, createColorPicker } = await loadSingle();
+const { serialize, convert } = await bundle("src/wide-gamut.ts");
 
 test("a color reads back exactly as it was written, in any notation the picker edits", async () => {
   const written = { hex: "#ff0000", short: "#7C5CFF", rgb: "rgb(10 20 30)", legacy: "rgba(10, 20, 30, 0.5)", hsl: "hsl(200 50% 40%)", ok: "oklch(0.6 0.2 280)", p3: "color(display-p3 1 0 0)" };
@@ -26,7 +28,7 @@ test("an edit writes the color's own notation, a digit finer than the readout", 
   picker.el.remove(); hex.el.remove();
 });
 
-test("a grey's hue is written none, so a gradient through it doesn't bend", async () => {
+test("a gray's hue is written none, so a gradient through it doesn't bend", async () => {
   const picker = createColorPicker({ value: "#ffffff", mode: "oklch", onChange: () => {} }); document.body.append(picker.el); await picker.ready;
   key(picker.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" });
   assert.equal(picker.get(), "oklch(100% 0 none)");
@@ -34,6 +36,49 @@ test("a grey's hue is written none, so a gradient through it doesn't bend", asyn
   key(hsl.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" });
   assert.match(hsl.get(), /^hsl\(none 0% 50\.\d%\)$/);
   picker.el.remove(); hsl.el.remove();
+});
+
+test("HSL's black and white have no hue, whatever float noise makes of S", async () => {
+  // S divides by min(L, 1 - L), so a breath off black read as hsl(247 100% 0%) and bent an `in hsl` gradient through it.
+  assert.equal(serialize(convert([1, 1, 0.99999], "srgb", "oklch"), "hsl", 1), "hsl(none 0% 100%)", "white was hsl(60 100% 100%)");
+  assert.equal(serialize([0.99999, 0.0001, 350], "hsl", 1), "hsl(none 0% 100%)", "white was hsl(300 100% 100%)");
+  assert.equal(serialize(convert([0.00001, 0, 0.00002], "srgb", "oklch"), "hsl", 1), "hsl(none 0% 0%)", "black was hsl(270 100% 0%)");
+  const p = createColorPicker({ value: "oklch(0.1% 0.1 256)", mode: "hsl", onChange: () => {} }); document.body.append(p.el); await p.ready;
+  const hue = p.el.querySelector(".tw-wg-hue"); key(hue, { key: "ArrowRight" });
+  assert.equal(p.get(), "hsl(none 0% 0%)", "an edit next to black was hsl(247 100% 0%)");
+  p.set(p.get()); key(hue, { key: "ArrowRight" });
+  assert.equal(p.get(), "hsl(none 0% 0%)", "and it reads back in without drifting");
+  p.el.remove();
+  // LCH and OKLCH test chroma, which doesn't blow up at either end: a real chroma at L 0 keeps its hue.
+  assert.equal(serialize([0, 0.1, 256], "oklch", 1), "oklch(0% 0.1 256)");
+  assert.match(serialize([0, 0.1, 256], "lch", 1), /^lch\(0% [1-9][\d.]* \d[\d.]*\)$/);
+});
+
+test("an edit keeps the written flavor of its notation: color(srgb), legacy commas, the rgba and hsla names", async () => {
+  // color(srgb 1 0 0) came back rgb(255 0 0) after one hue nudge, and hsla(200, 50%, 40%, 0.5) as hsl(… / 0.5).
+  const nudged = async (value, then) => {
+    const p = createColorPicker({ value, onChange: () => {} }); document.body.append(p.el); await p.ready;
+    if (then) then(p);
+    key(p.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" }); const out = p.get(); p.el.remove(); return out;
+  };
+  assert.match(await nudged("color(srgb 1 0 0)"), /^color\(srgb 1 0\.\d+ 0\)$/);
+  assert.match(await nudged("color(srgb 0.2 0.4 0.6 / 0.5)"), /^color\(srgb [\d.]+ [\d.]+ [\d.]+ \/ 0\.5\)$/);
+  assert.match(await nudged("hsla(200, 50%, 40%, 0.5)"), /^hsla\([\d.]+, [\d.]+%, [\d.]+%, 0\.5\)$/);
+  assert.match(await nudged("hsl(200, 50%, 40%)"), /^hsl\([\d.]+, [\d.]+%, [\d.]+%\)$/);
+  assert.match(await nudged("rgba(10, 20, 30, 0.5)"), /^rgba\([\d.]+, [\d.]+, [\d.]+, 0\.5\)$/);
+  assert.match(await nudged("rgb(10, 20, 30)"), /^rgb\([\d.]+, [\d.]+, [\d.]+\)$/, "no alpha slot it didn't have");
+  assert.match(await nudged("rgba(10 20 30 / 0.5)"), /^rgba\([\d.]+ [\d.]+ [\d.]+ \/ 0\.5\)$/);
+  assert.equal(await nudged("hsl(0, 0%, 50%)"), "hsl(0, 0%, 50%)", "legacy syntax can't carry none, so a gray's hue writes 0");
+  // Picking a mode from the dropdown is picking its notation: the flavor goes with it.
+  const pick = (m) => (p) => { const sel = p.el.querySelector(".tw-color-mode"); sel.value = m; sel.dispatchEvent(new window.Event("change")); };
+  assert.match(await nudged("hsla(200, 50%, 40%, 0.5)", pick("oklch")), /^oklch\(.* \/ 0\.5\)$/);
+  assert.match(await nudged("color(srgb 1 0 0)", (p) => { pick("hsl")(p); pick("srgb")(p); }), /^rgb\(\d/);
+  // set() takes the new string's flavor, and a seeded mode (a gradient's blend space) never takes one.
+  assert.match(await nudged("#7c5cff", (p) => p.set("rgba(10, 20, 30, 0.5)")), /^rgba\([\d.]+, [\d.]+, [\d.]+, 0\.5\)$/);
+  const seeded = createColorPicker({ value: "hsla(200, 50%, 40%, 0.5)", mode: "hsl", onChange: () => {} }); document.body.append(seeded.el); await seeded.ready;
+  key(seeded.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" });
+  assert.match(seeded.get(), /^hsl\([\d.]+ [\d.]+% [\d.]+% \/ 0\.5\)$/);
+  seeded.el.remove();
 });
 
 test("a hostile number isn't handed back as written: it reads as the picker normalizes it", async () => {

@@ -68,7 +68,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
   // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to what's
-  // stored (a color's precision, a grey's hue) can tell old data from new. A bare object is the version before, read as it is.
+  // stored (a color's precision, a gray's hue) can tell old data from new. A bare object is the version before, read as it is.
   // A schema keyed v and values saves a bare object of that shape too; then only a wrapper's values hold that v.
   const unwrap = (s: any, k: string, inner?: string) => (s && typeof s === "object" && s.v === 1 && Object.keys(s).length === 2 && s[k] && typeof s[k] === "object" && (!inner || hasOwn(s[k], inner)) ? s[k] : s);
   const writeValues = (snap: Snapshot) => writeStore(persistKey!, { v: 1, values: snap });
