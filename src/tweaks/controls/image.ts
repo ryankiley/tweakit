@@ -59,22 +59,53 @@ const orientation = (t: Uint8Array) => {
 const bareExif = (o: number) => new Uint8Array([77, 77, 0, 42, 0, 0, 0, 8, 0, 1, 1, 0x12, 0, 3, 0, 0, 0, 1, 0, o, 0, 0, 0, 0, 0, 0]);
 type Bytes = Uint8Array<ArrayBuffer>; // what a Blob takes: never a SharedArrayBuffer
 const crc32 = (b: Uint8Array) => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
+// An Ultra HDR JPEG's XMP carries its gain map (hdrgm:), the HDR itself, so it stays when every namespace it declares and
+// every prefix it uses is the gain map's or its container's: nothing there can say where or who. Anything more, and it's cut.
+const XMP = "http://ns.adobe.com/xap/1.0/\0";
+const GAIN_NS = ["adobe:ns:meta/", "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "http://ns.adobe.com/hdr-gain-map/1.0/", "http://ns.google.com/photos/1.0/container/", "http://ns.google.com/photos/1.0/container/item/"];
+const gainMapOnly = (b: Uint8Array) => {
+  const x = new TextDecoder("latin1").decode(b), ok = new Set(["xmlns", "xml"]);
+  if (!x.includes(GAIN_NS[2])) return false;
+  for (const [, p, ns] of x.matchAll(/xmlns(?::([\w.-]+))?\s*=\s*["']([^"']*)["']/g)) { if (!GAIN_NS.includes(ns)) return false; if (p) ok.add(p); }
+  for (const [, p] of x.matchAll(/[<\s/]([\w.-]+):[\w.-]/g)) if (!ok.has(p)) return false;
+  return true;
+};
+// An MPF JPEG (Ultra HDR's gain map, a camera's preview) indexes the images after the first by their offset from its MP
+// header, so a cut between that header and the first image's end moves them all up by the bytes cut. A list that doesn't
+// read is left as it was. The images after the first are left whole, their own Exif or XMP with them: the MP index and
+// the gain-map XMP's Item:Length both record their sizes, so cutting into them means rewriting both, and a gain map's XMP
+// is its HDR.
+const mpfShift = (seg: Uint8Array, by: number) => {
+  const le = ascii(seg, 0, "II"), v = new DataView(seg.buffer, seg.byteOffset, seg.byteLength); if (!le && !ascii(seg, 0, "MM")) return;
+  try {
+    const ifd = v.getUint32(4, le);
+    for (let k = 0, n = v.getUint16(ifd, le); k < n; k++) {
+      const e = ifd + 2 + k * 12; if (v.getUint16(e, le) !== 0xb002) continue; // MPEntry: 16 bytes an image, its offset at 8
+      const list = v.getUint32(e + 8, le), count = v.getUint32(e + 4, le) >>> 4;
+      if (count) v.getUint32(list + count * 16 - 4, le); // the whole list is in the segment, or nothing is written
+      for (let j = 0; j < count; j++) { const o = list + j * 16 + 8, off = v.getUint32(o, le); if (off > by) v.setUint32(o, off - by, le); }
+    }
+  } catch { /* an offset past the segment */ }
+};
 const jpegCut = (b: Bytes) => {
   if (b[0] !== 0xff || b[1] !== 0xd8) return null;
-  const out: Bytes[] = []; let i = 2, from = 0, turned = 0;
+  const out: Bytes[] = []; let i = 2, from = 0, turned = 0, mpf: Uint8Array | null = null, moved = 0;
   for (;;) {
     while (b[i] === 0xff && b[i + 1] === 0xff) i++; // fill bytes before a marker (T.81 B.1.1.2) stay with what's kept
     const m = b[i + 1], end = i + 2 + ((b[i + 2] << 8) | b[i + 3]);
     if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null; // a marker out of place
     if (m === 0xda) break; // start of scan: the picture itself, kept to the end
+    if (m === 0xe2 && ascii(b, i + 4, "MPF\0")) mpf = b.subarray(i + 8, end);
     const exif = m === 0xe1 && ascii(b, i + 4, "Exif\0");
-    if (exif || (m === 0xe1 && ascii(b, i + 4, "http://ns.adobe.com/x"))) { // XMP, and its extension
+    if (exif || (m === 0xe1 && ascii(b, i + 4, "http://ns.adobe.com/x") && !(ascii(b, i + 4, XMP) && gainMapOnly(b.subarray(i + 4 + XMP.length, end))))) { // XMP, and its extension
       const o = exif ? orientation(b.subarray(i + 10, end)) : 1; if (o === null) return null;
       out.push(b.subarray(from, i)); from = end;
-      if (o > 1 && !turned++) out.push(new Uint8Array([0xff, 0xe1, 0, 34, 69, 120, 105, 102, 0, 0, ...bareExif(o)]));
+      const bare = o > 1 && !turned++; if (bare) out.push(new Uint8Array([0xff, 0xe1, 0, 34, 69, 120, 105, 102, 0, 0, ...bareExif(o)]));
+      if (mpf) moved += end - i - (bare ? 36 : 0);
     }
     i = end;
   }
+  if (mpf && moved > 0) mpfShift(mpf, moved); // in place: these are strip()'s own bytes, and they go out as parts of it
   return out.length ? [...out, b.subarray(from)] : null;
 };
 const pngCut = (b: Bytes) => {

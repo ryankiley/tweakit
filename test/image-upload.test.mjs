@@ -88,6 +88,43 @@ test("a JPEG with fill bytes before a marker still loses its Exif", async () => 
   assert.deepEqual(out, bytes(SOI, [0xff, 0xff], JFIF, DQT, SCAN));
 });
 
+// Ultra HDR: the primary's XMP names the gain map (hdrgm:) and its container, and the gain map follows the primary's EOI
+// as a second JPEG with an XMP of its own, found through MPF's index of offsets from the MP header.
+const NS = 'xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:hdrgm="http://ns.adobe.com/hdr-gain-map/1.0/" xmlns:Container="http://ns.google.com/photos/1.0/container/" xmlns:Item="http://ns.google.com/photos/1.0/container/item/"';
+const gainXmp = (more = "", body = "") => seg(0xe1, "http://ns.adobe.com/xap/1.0/\0", `<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta ${NS}${more} x:xmptk="XMP Core 5.5.0"><rdf:RDF><rdf:Description rdf:about="" hdrgm:Version="1.0">${body}<Container:Directory><rdf:Seq><rdf:li rdf:parseType="Resource"><Container:Item Item:Semantic="GainMap" Item:Mime="image/jpeg" Item:Length="99"/></rdf:li></rdf:Seq></Container:Directory></rdf:Description></rdf:RDF></x:xmpmeta>`);
+const GAIN_MAP = bytes(SOI, seg(0xe1, "http://ns.adobe.com/xap/1.0/\0", `<x:xmpmeta ${NS}><rdf:RDF><rdf:Description hdrgm:GainMapMax="2.3"/></rdf:RDF></x:xmpmeta>`), DQT, SCAN);
+// MPF big-endian: one IFD holding MPEntry, two 16-byte entries; the second image's offset is from the MP header.
+const mpIndex = (off) => bytes("MM", [0, 42], u32be(8), [0, 1], [0xb0, 0x02, 0, 7], u32be(32), u32be(26), u32be(0), u32be(0), u32be(0), u32be(0), u32be(0), u32be(0), u32be(GAIN_MAP.length), u32be(off), u32be(0));
+const ultraHdr = (before, after) => {
+  const build = (off) => bytes(SOI, ...before, seg(0xe2, "MPF\0", mpIndex(off)), ...after, DQT, SCAN, GAIN_MAP);
+  const header = 2 + before.reduce((n, s) => n + s.length, 0) + 8;
+  return build(build(0).length - GAIN_MAP.length - header);
+};
+const secondAt = (b) => { const h = Buffer.from(b).indexOf("MPF\0") + 4; return h + new DataView(b.buffer, b.byteOffset).getUint32(h + 26 + 16 + 8); };
+
+test("an Ultra HDR JPEG keeps its gain-map XMP and its gain map, and still loses its Exif", async () => {
+  const src = ultraHdr([JFIF, seg(0xe1, "Exif\0\0", tiff()), gainXmp(), ICC], []);
+  assert.deepEqual(await read(await strip(file(src, "image/jpeg"))), ultraHdr([JFIF, gainXmp(), ICC], []));
+});
+
+test("a gain-map XMP that declares or uses any other namespace is cut like any XMP", async () => {
+  for (const xmp of [gainXmp(' xmlns:exif="http://ns.adobe.com/exif/1.0/" exif:GPSLatitude="37,46.5N"'), gainXmp("", "<exif:GPSLatitude>37,46.5N</exif:GPSLatitude>"), gainXmp(' xmlns:dc="http://purl.org/dc/elements/1.1/"')]) {
+    const out = await read(await strip(file(ultraHdr([JFIF, xmp], []), "image/jpeg")));
+    assert.ok(!has(out, "GPSLatitude") && !has(out, "xmlns:dc") && !has(out, "hdrgm:Version"), "the primary's XMP is cut");
+    assert.ok(has(out, "GainMapMax"), "the gain map is left whole");
+  }
+});
+
+// A cut between the MP header and the primary's end moved the gain map up, and MPF's offset then pointed past it.
+test("a cut after the MPF segment moves the gain map's offset up with it", async () => {
+  const src = ultraHdr([JFIF, gainXmp()], [XMP]);
+  assert.deepEqual([...src.subarray(secondAt(src), secondAt(src) + 2)], SOI);
+  const out = await read(await strip(file(src, "image/jpeg")));
+  assert.ok(!has(out, "GPSLatitude"));
+  assert.deepEqual([...out.subarray(secondAt(out), secondAt(out) + 2)], SOI, "MPF still finds the gain map");
+  assert.deepEqual(out, ultraHdr([JFIF, gainXmp()], []));
+});
+
 test("a turned JPEG keeps a bare Exif holding only its Orientation", async () => {
   const out = await read(await strip(file(jpeg(JFIF, seg(0xe1, "Exif\0\0", tiff(6)), ICC), "image/jpeg")));
   const bare = seg(0xe1, "Exif\0\0", "MM", [0, 42], u32be(8), [0, 1], [1, 0x12, 0, 3], u32be(1), [0, 6, 0, 0], u32be(0));
