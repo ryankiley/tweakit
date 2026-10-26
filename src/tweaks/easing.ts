@@ -55,12 +55,33 @@ export function easingAt(b: Bez | null, x: number): number {
 
 const pct = (n: number) => +(n * 100).toFixed(2);
 
-/** A gradient value's `<color-stop-list>` with the easing expanded; for a conic / radial gradient. */
+const warned = new Set<string>();
+
+/** The stops a value can draw, sorted. A hand-built value can hold no stops, or stops without a
+ *  color string or a numeric pos, and any of those builds CSS the browser drops whole, silently;
+ *  so they're set aside, with one warning per distinct fault rather than one per frame. */
+function drawable(value: unknown, fn: string): GradientStop[] {
+  const all: unknown = value && typeof value === "object" ? (value as GradientValue).stops : null;
+  const ok = Array.isArray(all) ? all.filter((s) => s && typeof s.color === "string" && s.color.trim() && Number.isFinite(s.pos)) : [];
+  const why = !Array.isArray(all) ? `expected { stops: [{ color, pos }] }, got ${value === null ? "null" : typeof value === "object" ? "an object without a stops array" : typeof value}`
+    : ok.length < all.length ? `skipped ${all.length - ok.length} of ${all.length} stops without a color string and a numeric pos`
+    : ok.length ? "" : "the gradient has no stops";
+  if (why && !warned.has(fn + why)) { warned.add(fn + why); console.warn(`[tweaks] ${fn}(): ${why}`); }
+  return ok.sort((a, b) => a.pos - b.pos);
+}
+
+/** A gradient value's `<color-stop-list>` with the easing expanded; for a conic / radial gradient.
+ *  One stop comes back doubled and none as `transparent, transparent`, so the list stays valid. */
 export function gradientStops(value: GradientValue): string {
-  const stops = [...value.stops].sort((a, b) => a.pos - b.pos);
+  const stops = drawable(value, "gradientStops");
+  return stops.length ? stopList(value, stops) : "transparent, transparent";
+}
+
+function stopList(value: GradientValue, stops: GradientStop[]): string {
   const plain = (s: GradientStop) => `${s.color} ${pct(s.pos)}%`;
+  if (stops.length < 2) return `${stops[0].color}, ${stops[0].color}`; // one stop isn't a stop list; doubled, it's a solid fill
   const bez = parseEasing(value.easing);
-  if (!bez || stops.length < 2) return stops.map(plain).join(", ");
+  if (!bez) return stops.map(plain).join(", ");
   const samples = easingSamples(bez), space = value.interpolation || "oklch";
   const out = [plain(stops[0])];
   for (let i = 1; i < stops.length; i++) {
@@ -75,7 +96,9 @@ export function gradientStops(value: GradientValue): string {
   return out.join(", ");
 }
 
-/** The `linear-gradient(…)` for a gradient value; `direction` is degrees or any CSS direction. */
+/** The `linear-gradient(…)` for a gradient value; `direction` is degrees or any CSS direction.
+ *  One stop draws a solid fill and no stops is `none`, both still valid for background-image. */
 export function gradientCss(value: GradientValue, direction: number | string = "to right"): string {
-  return `linear-gradient(in ${value.interpolation || "oklch"} ${typeof direction === "number" ? `${direction}deg` : direction}, ${gradientStops(value)})`;
+  const stops = drawable(value, "gradientCss");
+  return stops.length ? `linear-gradient(in ${value.interpolation || "oklch"} ${typeof direction === "number" ? `${direction}deg` : direction}, ${stopList(value, stops)})` : "none";
 }

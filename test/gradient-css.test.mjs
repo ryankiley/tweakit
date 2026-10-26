@@ -53,6 +53,28 @@ test("linear (or no) easing gives today's plain stop list, byte for byte", () =>
   assert.equal(gradientCss({ stops: RED_BLUE.stops }, "to bottom"), "linear-gradient(in oklch to bottom, red 0%, blue 100%)"); // no interpolation → oklch, the editor's default
 });
 
+test("a value that can't make a gradient still makes valid CSS, and says why once", (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  // No usable stops → "none" for background-image, and a stop list that is still a stop list.
+  for (const bad of [null, undefined, {}, 42, { stops: [] }, { stops: [{ pos: 0 }, null] }]) {
+    assert.equal(gradientCss(bad), "none", `gradientCss(${JSON.stringify(bad)})`);
+    assert.equal(gradientStops(bad), "transparent, transparent", `gradientStops(${JSON.stringify(bad)})`);
+  }
+  assert.ok(warn.mock.calls.length > 0 && warn.mock.calls.every((c) => /^\[tweaks\] gradient(Css|Stops)\(\): /.test(c.arguments[0])));
+  assert.ok(warn.mock.calls.some((c) => c.arguments[0].includes("got null")) && warn.mock.calls.some((c) => c.arguments[0].includes("no stops")));
+  // One stop is no <color-stop-list>; doubled, it's a solid fill, eased or not.
+  const one = { stops: [{ color: "red", pos: 0.3 }], easing: "ease" };
+  assert.equal(gradientCss(one), "linear-gradient(in oklch to right, red, red)");
+  assert.equal(gradientStops(one), "red, red");
+  // A broken stop beside good ones is skipped, not printed as "undefined NaN%".
+  warn.mock.resetCalls();
+  assert.equal(gradientCss({ stops: [...RED_BLUE.stops, { color: "lime" }] }), "linear-gradient(in oklch to right, red 0%, blue 100%)");
+  assert.equal(warn.mock.calls.length, 1, "one warning per call, though gradientCss draws the stop list too");
+  assert.match(warn.mock.calls[0].arguments[0], /skipped 1 of 3 stops/);
+  gradientCss({ stops: [...RED_BLUE.stops, { color: "lime" }] });
+  assert.equal(warn.mock.calls.length, 1, "the same fault again, as in a render loop, doesn't warn again");
+});
+
 test("an eased two-stop ramp expands to 16 stops: the ends verbatim, 14 color-mix samples in the value's blend space", () => {
   const css = gradientStops({ ...RED_BLUE, interpolation: "srgb", easing: "ease-in-out" });
   const stops = css.split(/, (?![^(]*\))/); // split on the top-level commas only
