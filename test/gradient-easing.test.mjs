@@ -78,7 +78,7 @@ test("set() applies an easing it names and leaves one it doesn't; reset returns 
 });
 
 test("a stop added to an eased ramp samples the eased color, so it lands on the ramp the bar draws", () => {
-  // Black → white, ease-in-out: at 25% the eased ramp is well below the straight blend's 25% grey.
+  // Black → white, ease-in-out: at 25% the eased ramp is well below the straight blend's 25% gray.
   const lin = tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "#000000", pos: 0 }, { color: "#ffffff", pos: 1 }] } } });
   const eas = tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "#000000", pos: 0 }, { color: "#ffffff", pos: 1 }], easing: "ease-in-out" } } });
   const L = (p) => +/oklch\(([\d.]+)/.exec(p.params.g.stops[1].color)[1];

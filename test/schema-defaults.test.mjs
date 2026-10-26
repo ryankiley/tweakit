@@ -130,7 +130,7 @@ test("a point value outside the default pad range widens the range instead of pi
   assert.deepEqual(p.params.pt, { x: 0, y: 5 });
   const thumb = p.el.querySelector(".tw-pad-thumb");
   const top = parseFloat(thumb.style.top);
-  assert.ok(top > 0 && top < 50, `the thumb should sit inside the pad, above centre (top=${thumb.style.top})`);
+  assert.ok(top > 0 && top < 50, `the thumb should sit inside the pad, above center (top=${thumb.style.top})`);
 });
 
 // A string option's label title-cases a camel hump ("fontSize" → "Font Size") and leaves a

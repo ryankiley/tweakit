@@ -246,7 +246,7 @@ test("a pinned panel in a window too short for its insets shrinks them together,
   p.destroy();
 });
 
-test("an inset of 0 is honoured, not read as missing", () => {
+test("an inset of 0 is honored, not read as missing", () => {
   const p = tweaks("Flush", { a: 1 }, { floating: { x: 0, y: 0, corner: "top-right" }, draggable: false }); document.body.append(p.el);
   assert.deepEqual([...pos(p), cap(p)], ["0px", "0px", "calc(100dvh - 0px)"]);
   p.destroy();
@@ -363,17 +363,17 @@ test("collapsing folds the body over the height in view, not its whole content, 
   let drawn = 0;
   body.getBoundingClientRect = () => ({ top: 50, height: body.style.gridTemplateRows ? drawn : p.el.classList.contains("is-collapsed") ? 0 : 1874 });
   const calls = [];
-  body.animate = (frames, o) => { const a = { frames, o, cancel() { a.cancelled = true; }, onfinish: null }; calls.push(a); return a; };
+  body.animate = (frames, o) => { const a = { frames, o, cancel() { a.canceled = true; }, onfinish: null }; calls.push(a); return a; };
   title.click();
   assert.ok(p.el.classList.contains("is-collapsed"));
   assert.deepEqual(calls[0].frames, [{ height: "718px" }, { height: "0px" }], "from the window's edge, not 1874px");
   assert.equal(calls[0].o.duration, 350); assert.equal(calls[0].o.fill, "forwards");
   assert.equal(body.style.gridTemplateRows, "1fr", "the rows stay laid out under the fold");
   drawn = 300; title.click(); // turned around mid-fold
-  assert.ok(calls[0].cancelled, "the running fold gave way");
+  assert.ok(calls[0].canceled, "the running fold gave way");
   assert.deepEqual(calls[1].frames, [{ height: "300px" }, { height: "718px" }], "from where it's drawn, open to what fits");
   calls[1].onfinish();
-  assert.equal(body.style.gridTemplateRows, ""); assert.equal(body.style.transition, ""); assert.ok(calls[1].cancelled, "its held frame released");
+  assert.equal(body.style.gridTemplateRows, ""); assert.equal(body.style.transition, ""); assert.ok(calls[1].canceled, "its held frame released");
   p.destroy();
 });
 
@@ -384,14 +384,14 @@ test("a folder's click folds over what's in view too, and a restore mid-fold tur
   let drawn = 0;
   body.getBoundingClientRect = () => ({ top: 700, height: body.style.gridTemplateRows ? drawn : folder.classList.contains("is-collapsed") ? 0 : 306 });
   const calls = [];
-  body.animate = (frames, o) => { const a = { frames, o, cancel() { a.cancelled = true; }, onfinish: null }; calls.push(a); return a; };
+  body.animate = (frames, o) => { const a = { frames, o, cancel() { a.canceled = true; }, onfinish: null }; calls.push(a); return a; };
   folder.querySelector(".tw-folder-header").click();
   assert.ok(folder.classList.contains("is-collapsed"));
   assert.deepEqual(calls[0].frames, [{ height: "68px" }, { height: "0px" }], "only the 68px above the window's edge");
   assert.equal(p.toJSON().ui.folders.group, true, "toJSON reads the fold's end state");
   drawn = 30; p.fromJSON({ ...p.toJSON(), ui: { folders: { group: false } } }); // restored open, mid-fold
   assert.ok(!folder.classList.contains("is-collapsed"), "restored open");
-  assert.ok(calls[0].cancelled, "the running fold gave way");
+  assert.ok(calls[0].canceled, "the running fold gave way");
   assert.deepEqual(calls[1].frames, [{ height: "30px" }, { height: "68px" }], "and the restore folds back from where it's drawn");
   calls[1].onfinish(); assert.equal(body.style.gridTemplateRows, ""); assert.equal(body.style.transition, "");
   p.destroy();

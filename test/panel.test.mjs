@@ -1,4 +1,4 @@
-/* Panel behaviour against the built single-file bundle (dist/tweaks.js — every
+/* Panel behavior against the built single-file bundle (dist/tweaks.js — every
  * control registered synchronously), under jsdom. `npm test` builds dist first.
  * These pin the degrade contracts and API semantics the adversarial passes
  * established — the panel must never throw on hostile schemas, and set()/on()/
@@ -127,7 +127,7 @@ test("a hostile color string is skipped, not thrown, and the rest of a restore s
   p.set("c", "color(constructor 1 0 0)");       // must not throw…
   p.set("c", "color(__proto__ 1 0 0)");         // …nor this: an unknown color() space
   const neutral = p.params.c;                   // degrades to the picker's neutral default, like any other unsupported space
-  assert.match(String(neutral), /^oklch\(/, "an unrecognised space degrades to a real color");
+  assert.match(String(neutral), /^oklch\(/, "an unrecognized space degrades to a real color");
 
   let calls = 0;
   p.on(() => calls++);
@@ -163,7 +163,7 @@ test("markup mode echoes an object-valued control as its components, not [object
 });
 
 test("markup mode's copy keys by data-key and suffixes duplicates", async () => {
-  // Regression: the copy keyed every control by its LABEL, so two same-labelled hosts
+  // Regression: the copy keyed every control by its LABEL, so two same-labeled hosts
   // collided and the later one silently overwrote the earlier in the copied JSON.
   const holder = document.createElement("div");
   holder.innerHTML = `<div class="tw-panel" data-mode="inline"><div class="tw-header"><span class="tw-title">P</span></div><div class="tw-controls">
@@ -424,7 +424,7 @@ test("the toolbar's copy emits the values snapshot (nested, no _last) and its re
 
 test("a keyboard step during a snap slider's settle doesn't leave it lit", async () => {
   // Regression: after a press-release the discrete slider springs to its notch over ~300ms
-  // and only that settle dropped .is-active; an arrow key in that window cancelled the
+  // and only that settle dropped .is-active; an arrow key in that window canceled the
   // settle (keyboard steps are instant) and the active styling stuck until the next press.
   const p = tweaks("Settle", { snap: [3, 0, 6, 1] });
   document.body.append(p.el);
@@ -453,7 +453,7 @@ test("a color control given no value resets to the color it opened on, not black
   assert.equal(p.params.c, opened);
 });
 
-test("reset() restores the value a control opened on, not the raw schema value it sanitised", () => {
+test("reset() restores the value a control opened on, not the raw schema value it sanitized", () => {
   const p = tweaks("Def", {
     label: { type: "text", value: 5 },                 // a numeric text default
     n: { type: "number", value: "abc" },               // an unusable number default → 0
@@ -623,7 +623,7 @@ test("set() refuses a function as a control value (JSON can't carry it, so every
   assert.deepEqual(p.toJSON().values, { sel: "a", free: 1 });
 });
 
-test("a control holding undefined serialises as null, so undo/redo and the copy carry it", async () => {
+test("a control holding undefined serializes as null, so undo/redo and the copy carry it", async () => {
   const p = tweaks("Undef", { sel: ["a", "b"] }, { undo: true });
   document.body.append(p.el);
   p.set("sel", null); await wait(400);          // one history step: null

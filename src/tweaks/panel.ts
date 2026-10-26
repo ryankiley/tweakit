@@ -57,7 +57,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // A bag value JSON can't take must not throw out of every snapshot: fall back to the controls' values, say so once.
   let snapshotWarned = false;
   const controlsSnapshot = (): Snapshot => { const out: Record<string, any> = {}; for (const e of entries) { let o = out; for (const k of e.path.slice(0, -1)) o = o[k] ||= {}; o[e.key] = e.get(); } return JSON.parse(JSON.stringify(out, replacer)); };
-  const snapshot = (): Snapshot => { try { return JSON.parse(JSON.stringify(params, replacer)); } catch (e) { if (!snapshotWarned) { snapshotWarned = true; console.warn("[tweaks] a value parked on params can't be serialised — snapshots carry the controls' values only:", e); } return controlsSnapshot(); } };
+  const snapshot = (): Snapshot => { try { return JSON.parse(JSON.stringify(params, replacer)); } catch (e) { if (!snapshotWarned) { snapshotWarned = true; console.warn("[tweaks] a value parked on params can't be serialized — snapshots carry the controls' values only:", e); } return controlsSnapshot(); } };
   // Storage keys — opt-in via opts.persist (a string key, or `true` to key by name).
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
@@ -74,7 +74,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // An image's data URL can outgrow storage (~5 MB an origin), and a refused write would drop every value with it: the write
     // is retried without the largest images, so the rest still saves; each image left out says so on its row, and a host is
     // told once why its image comes back empty.
-    // A value storage refused stays out of later saves until it changes, so the serialise-throw-retry runs once per image, not per save.
+    // A value storage refused stays out of later saves until it changes, so the serialize-throw-retry runs once per image, not per save.
     let quotaWarned = false;
     const refused = new Map<Entry, unknown>();
     const save = () => {
@@ -280,7 +280,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     });
   };
 
-  // Conditional controls — `render` shows/hides, `disabled` greys-out + locks, both re-evaluated on every change; `hint` is a static tooltip.
+  // Conditional controls — `render` shows/hides, `disabled` grays-out + locks, both re-evaluated on every change; `hint` is a static tooltip.
   const conditionals: Array<{ node: HTMLElement; m: Meta }> = [];
   // fold.ts is a lazy chunk the first pass imports, so that pass just toggles; foldRow returns whether the row was revealed (re-measure).
   let fold: typeof import("./fold.js").fold | undefined;
@@ -484,7 +484,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (e.buttons === 0) { endDrag(e); return; }
       const dx = e.clientX - sx, dy = e.clientY - sy;
       if (!dragMoved) {
-        // Drag slop: quick clicks wander a few px, fingers more. Collapsing is common and moving rare, so favour the click.
+        // Drag slop: quick clicks wander a few px, fingers more. Collapsing is common and moving rare, so favor the click.
         if (Math.hypot(dx, dy) < (e.pointerType === "mouse" ? 6 : 10)) return;
         dragMoved = true; moved = true; lift(); raise(); readGap(); ox = px; oy = py; // the (possibly just-lifted) origin, once the drag starts
         try { header.setPointerCapture(dragId); } catch {}
@@ -580,7 +580,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     let history: Snapshot[] = [], histIdx = 0, applyingHistory = false, histTimer = 0;
     // Walk a new step beside the one before it: a string that didn't change takes the earlier step's copy, so an image's
     // data URL is held once across history, not once a step. Strings only, never objects, so no step can edit another.
-    // True when nothing changed, which spares serialising both steps to compare them.
+    // True when nothing changed, which spares serializing both steps to compare them.
     // (Snapshots are JSON: own keys, no undefined. A key b lacks reads undefined or an inherited function, and never matches.)
     const share = (a: any, b: any): boolean => {
       if (a === b) return true;

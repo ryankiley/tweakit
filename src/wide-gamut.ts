@@ -81,7 +81,7 @@ function hslToSrgb(hsl: Vec3): Vec3 {
 }
 function srgbHue(rgb: Vec3) {
   const max = Math.max(...rgb), min = Math.min(...rgb), d = max - min;
-  if (d < 1e-9) return NaN; // a grey; the hue would be float noise
+  if (d < 1e-9) return NaN; // a gray; the hue would be float noise
   let h: number; if (max === rgb[0]) h = (rgb[1] - rgb[2]) / d + (rgb[1] < rgb[2] ? 6 : 0); else if (max === rgb[1]) h = (rgb[2] - rgb[0]) / d + 2; else h = (rgb[0] - rgb[1]) / d + 4;
   return h * 60;
 }
@@ -175,7 +175,7 @@ export function oklchGamutProbe(hue: number, gamut: Gamut) {
     const b = gam(F[2][0] * c0 + F[2][1] * c1 + F[2][2] * c2); return b >= lo && b <= hi;
   };
 }
-/** OKLCH→RGB at a fixed hue for per-pixel rasterising; `(L, C, out)` writes into `out`. */
+/** OKLCH→RGB at a fixed hue for per-pixel rasterizing; `(L, C, out)` writes into `out`. */
 export function oklchToRgbFn(hue: number, gamut: Gamut) {
   const { d: [d0, d1, d2], F, gam } = hueFold(hue, gamut);
   return (L: number, C: number, out: number[]) => {

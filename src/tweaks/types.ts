@@ -42,7 +42,7 @@ export type MotionValue =
   | { mode: "easing"; curve: [number, number, number, number]; duration: number; easing: string }
   | { mode: "spring"; stiffness: number; damping: number; mass: number; visualDuration?: number; bounce?: number; duration: number; easing: string };
 
-/** How a gradient blends between neighbouring stops: `"linear"` (CSS's own straight blend,
+/** How a gradient blends between neighboring stops: `"linear"` (CSS's own straight blend,
  *  the default) or a CSS easing — `ease`, `ease-in`, `ease-out`, `ease-in-out`, or any
  *  `cubic-bezier(x1, y1, x2, y2)`. No browser eases a gradient natively, so `gradientCss()`
  *  samples the curve into stops; template through it rather than by hand. */
@@ -63,7 +63,7 @@ export interface ControlOptions {
   label?: string;
   /** Show/hide this control based on other values. */
   render?: (get: Get) => boolean;
-  /** Grey-out + lock this control (static, or derived from other values). */
+  /** Gray-out + lock this control (static, or derived from other values). */
   disabled?: boolean | ((get: Get) => boolean);
   /** A tooltip revealed by an ⓘ marker beside the label. */
   hint?: string;

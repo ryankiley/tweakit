@@ -19,7 +19,7 @@ export interface PickerBody extends Control { el: HTMLDivElement; set(v: string)
 // resolution in a Display-P3 canvas where supported, so wide colors render true. ──
 const WIDE_CANVAS = (() => { try { return document.createElement("canvas").getContext("2d", { colorSpace: "display-p3" })?.getContextAttributes?.().colorSpace === "display-p3"; } catch { return false; } })();
 const CANVAS_CS: CanvasRenderingContext2DSettings & ImageDataSettings = WIDE_CANVAS ? { colorSpace: "display-p3" } : {};
-const ENGINE_GAMUT: Gamut = WIDE_CANVAS ? "p3" : "srgb"; // working gamut for the rasterised pixels
+const ENGINE_GAMUT: Gamut = WIDE_CANVAS ? "p3" : "srgb"; // working gamut for the rasterized pixels
 const sampleCurve = (curve: Float64Array, t: number) => { const last = curve.length - 1, pos = Math.max(0, Math.min(last, t * last)), i = Math.floor(pos), f = pos - i; return curve[i] * (1 - f) + curve[Math.min(i + 1, last)] * f; };
 const gamutCurve = (hue: number, gamut: Gamut) => { const probe = oklchGamutProbe(hue, gamut), c = new Float64Array(128); for (let i = 0; i < 128; i++) c[i] = chromaCeil(probe, i / 127); return c; };
 const CHECKER = "var(--tw-checker)"; // the alpha checker, a tweaks.css token
@@ -134,7 +134,7 @@ function parseColor(str: string | null | undefined): Oklcha {
     const [k, A] = sf;
     return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A];
   }
-  // Named colors and `transparent` normalise via a canvas, whose fillStyle getter echoes
+  // Named colors and `transparent` normalize via a canvas, whose fillStyle getter echoes
   // "#rrggbb" or "rgba(r,g,b,a)". Junk, or no canvas at all (a headless DOM), parses as black.
   const c2d = canvas2d(); if (!c2d) return [0, 0, 0, 1];
   c2d.fillStyle = "#000"; c2d.fillStyle = str;
@@ -191,7 +191,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     const stretch = showsGamutBoundary(mode) ? "p3" : "srgb";
     const curve = gamutCurve(H, stretch); chromaCurve = curve; // per-lightness chroma ceiling of the plane gamut
     const backingW = Math.round(cssW * dpr), backingH = Math.round(cssH * dpr);
-    const W = Math.max(1, Math.round(backingW / 4)), Hh = Math.max(1, Math.round(backingH / 4)); // gradient rasterised at 1/4 res
+    const W = Math.max(1, Math.round(backingW / 4)), Hh = Math.max(1, Math.round(backingH / 4)); // gradient rasterized at 1/4 res
     if (off.width !== W || off.height !== Hh) { off.width = W; off.height = Hh; offData = new ImageData(W, Hh, CANVAS_CS); }
     const data = offData.data;
     const invH = Hh > 1 ? 1 / (Hh - 1) : 0, invW = W > 1 ? 1 / (W - 1) : 0;
@@ -228,7 +228,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     const ceil = chromaCurve ? sampleCurve(chromaCurve, L) : 0.4; // thumb x is C as a fraction of the row's ceiling
     // The area thumb may overhang, so a color at the gamut boundary reads as fully selected.
     const at = (frac: number) => `${clamp(frac, 0, 1) * 100}%`;
-    // The strip thumbs stay inside their track: the centre runs from +w/2 at 0 to −w/2 at 1.
+    // The strip thumbs stay inside their track: the center runs from +w/2 at 0 to −w/2 at 1.
     const inside = (frac: number, w: number) => { const f = clamp(frac, 0, 1); return `calc(${f * 100}% + ${(0.5 - f) * w}px)`; };
     areaThumb.style.left = at(ceil > 0 ? C / ceil : 0); areaThumb.style.top = at(1 - L);
     hueThumb.style.left = inside(H / 360, 16); alphaThumb.style.left = inside(A, 16);
@@ -249,7 +249,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".tw-color-chan-input"); if (hx && document.activeElement !== hx) hx.value = hexText(); }
     else { const vals = channelValues([L, C, H], mode); chanFields.forEach((f, i) => { if (!f.el.contains(document.activeElement)) f.set(vals[i]); }); }
   };
-  const reflow = () => { renderHue(); renderArea(); positionThumbs(); }; // mounted at real size → rasterise + place the thumbs
+  const reflow = () => { renderHue(); renderArea(); positionThumbs(); }; // mounted at real size → rasterize + place the thumbs
   const emit = () => onChange(colorStr());
   // renderArea bails on zero width, so an offscreen repaint is a cheap no-op.
   const sync = (repaint: boolean) => { if (repaint && H !== paintedHue) renderArea(); positionThumbs(); refresh(); };

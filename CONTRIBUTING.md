@@ -89,7 +89,7 @@ until the fix lands; `TW_STRESS_UNSKIP=1` runs those seeds anyway, to check that
 - `npm test` is green (build + tsc + the jsdom suite — the build fails on `tsc` errors,
   so a green build is meaningful).
 - Keep PRs focused; the project squash-merges, so one logical change per PR reads best.
-- If you change behaviour or sizes, update the [README](README.md). There's no changelog
+- If you change behavior or sizes, update the [README](README.md). There's no changelog
   file — release notes live in each version's [GitHub Release](https://github.com/ryankiley/tweakit/releases),
   written when the release is cut.
 

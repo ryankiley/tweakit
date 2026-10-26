@@ -349,7 +349,7 @@ function createButtonGroup(meta: Meta) {
 // ── Separator — a thin divider to break a long panel into sections. ──
 const createSeparator = () => blade(el("div", "tw-separator"));
 
-// ── String — a labelled text input ──
+// ── String — a labeled text input ──
 function createString(meta: Meta, onChange: OnChange): Control {
   // A non-string default holds its string form so get() and reset() agree with the input.
   const str = (v: unknown) => (v == null ? "" : typeof v === "object" ? json(v) : String(v));

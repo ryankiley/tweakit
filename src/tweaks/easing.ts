@@ -16,7 +16,7 @@ const KEYWORDS: Record<string, Bez> = Object.assign(Object.create(null), {
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const SAMPLES = 15; // 16 per segment, Larsen's count; the joins vanish
 
-/** Bezier control points, or null for linear and anything unrecognised (bad input degrades to a
+/** Bezier control points, or null for linear and anything unrecognized (bad input degrades to a
  *  straight blend). x1/x2 clamp into [0,1] as CSS requires; y may overshoot. */
 export function parseEasing(e: unknown): Bez | null {
   if (typeof e !== "string") return null;

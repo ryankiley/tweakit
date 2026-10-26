@@ -483,7 +483,7 @@ test("a file that can't be decoded falls back to the file as it is", async () =>
 });
 
 test("the stylesheet rings a focused gallery tile with an outline", () => {
-  // jsdom honours [hidden] over display: flex, so this is checked in the built CSS, not on the element.
+  // jsdom honors [hidden] over display: flex, so this is checked in the built CSS, not on the element.
   const css = distCss();
   assert.match(css, /\.tw-image-tile:focus-visible\{outline:2px solid/);
 });

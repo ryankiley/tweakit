@@ -155,7 +155,7 @@ test("a bag value no snapshot can take doesn't break the build; snapshots carry 
     p.set("x", 5);
     assert.equal(p.params.x, 5, "the panel works");
     assert.deepEqual(p.toJSON().values.x, 5, "toJSON carries the controls' values");
-    assert.equal(warns.filter((m) => m.includes("can't be serialised")).length, 1, "said once");
+    assert.equal(warns.filter((m) => m.includes("can't be serialized")).length, 1, "said once");
     p.destroy();
   } finally { console.warn = warn; }
 });

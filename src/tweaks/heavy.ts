@@ -72,7 +72,7 @@ function makeGrabGuide() {
     show(x: number, atY: number, bubbleX: number | undefined, anchor: Element) {
       g = el("div", "tw-grab-guide tw-portal") as GuideEl;
       g.innerHTML = `<span class="tw-grab-line"></span><span class="tw-grab-dot"></span><span class="tw-grab-arrow"></span><span class="tw-grab-bubble"></span>`;
-      y = atY; x0 = x; bx = bubbleX ?? x; // bubble anchors over the field centre, not the cursor
+      y = atY; x0 = x; bx = bubbleX ?? x; // bubble anchors over the field center, not the cursor
       g.children[1].style.cssText = `left:${x}px;top:${y}px`;
       carrySkin(g, anchor); // the anchor panel's theme + scheme, like every portal
       document.body.appendChild(g);
@@ -99,7 +99,7 @@ function attachScrub(grab: HTMLElement, wrap: HTMLElement, step: number, read: (
   });
 }
 
-// ── The labelled numeric field — ONE numeric engine: a sanitized step, min-anchored
+// ── The labeled numeric field — ONE numeric engine: a sanitized step, min-anchored
 // round-to-step, optional `soft`, a text input committing on change/Enter, and the grab
 // handle. Two chromes: the boxed field, and with `spec.row` the row that IS the Number control. ──
 function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {

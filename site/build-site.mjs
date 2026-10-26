@@ -4,7 +4,7 @@
  * A page exports meta { slug, title, nav?, description?, hero?, wide? }, intro (HTML under the
  * h1) and examples, blocks of { id, title, prose, target, css, run, html, code, noCaption, noMount, foldCode };
  * `code` is a string, { lang, text }, or an array of { label, lang, text } shown as tabs.
- * A page may also export `script`, a function the page runs once (page-only behaviour, shown nowhere;
+ * A page may also export `script`, a function the page runs once (page-only behavior, shown nowhere;
  * toString()-serialized like `run`, so it can't reach the module's imports or constants), and
  * `md`, blocks shaped like examples that only its Markdown mirror shows (for a page whose
  * content lives in demo markup the mirror can't read). */
