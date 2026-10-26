@@ -31,7 +31,9 @@ export function parseExpr(src: unknown): Expr | string {
   if (typeof src !== "string" || !src.trim()) return "type an expression in x";
   if (src.length > 512) return "too long: 512 characters at most"; // also bounds recursion depth, so no RangeError mid-parse
   const s = src, toks: Tok[] = [];
-  const numRe = /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y, idRe = /[A-Za-z_]\w*/y; // `5.` reads as 5, as `.5` reads as 0.5
+  // `5.` reads as 5, as `.5` reads as 0.5. An e is an exponent only with a digit right after it (and its sign): `2e+1` is
+  // 20, while `2e+x` is the constant, 2·e + x, as `2e` alone is 2·e. Scientific notation never has a name for its power.
+  const numRe = /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y, idRe = /[A-Za-z_]\w*/y;
   let i = 0;
   while (i < s.length) {
     const ch = s[i];
@@ -65,9 +67,10 @@ export function parseExpr(src: unknown): Expr | string {
   const mul = (): Expr | null => {
     let a = unary(); if (!a) return null;
     for (let t = peek(); t; t = peek()) {
-      // `2x`, `2pi`, `3(x+1)`: a number directly before a name or "(" multiplies, as on paper. Only after a number,
-      // so `xy` stays one (unknown) name and `x(2)` a call, never a product. It binds as `*` does: `2x^2` is 2·x².
-      const implied = toks[p - 1].t === "num" && (t.t === "id" || t.t === "lp");
+      // `2x`, `2pi`, `3(x+1)`, `pi x`, `3x(x)`, `(x)(x)`, `sin(x)cos(x)`: a number, x, a constant or ")" directly before
+      // a name or "(" multiplies, as on paper. x and the constants are never functions, so `x(2)` is 2x; `xy` stays one
+      // (unknown) name, and a number after an operand (`2 3`, `(x)2`) asks for an operator. It binds as `*` does: `2x^2` is 2·x².
+      const prev = toks[p - 1].t, implied = (prev === "num" || prev === "id" || prev === "rp") && (t.t === "id" || t.t === "lp");
       if (!implied && !(t.t === "op" && (t.v === "*" || t.v === "/" || t.v === "%"))) break;
       const op = implied ? "*" : eat("op").v, b = unary(); if (!b) return null; const aa = a;
       a = op === "*" ? (x) => aa(x) * b(x) : op === "/" ? (x) => aa(x) / b(x) : (x) => aa(x) % b(x);
@@ -92,7 +95,7 @@ export function parseExpr(src: unknown): Expr | string {
     if (tok.t === "lp") { eat("lp"); const e = add(); if (!e || !eat("rp")) return null; return e; }
     if (tok.t === "id") {
       eat("id"); const name = tok.v.toLowerCase(), fn = PLOT_FUNCS[name];
-      if (peek() && peek().t === "lp") {
+      if (peek() && peek().t === "lp" && (fn || (name !== "x" && !(name in PLOT_CONSTS)))) { // `x(2)`: a product, in mul()
         if (!fn) return fail(`unknown function "${tok.v}"`);
         eat("lp"); const argv: Expr[] = [];
         if (peek() && peek().t !== "rp") { do { const a = add(); if (!a) return null; argv.push(a); } while (eat("comma")); }
@@ -119,8 +122,17 @@ export function parseExpr(src: unknown): Expr | string {
     if (t && t.t === "num") { eat("num"); if (!named(peek())) return () => t.v; const b = atom(); return b && ((x) => t.v * b(x)); }
     return named(t) ? atom() : null;
   };
-  const tree = add();
-  return tree && p === toks.length ? tree : why || "not a valid expression"; // leftover tokens ⇒ malformed
+  const tree = add(), left = toks[p];
+  if (tree && !left) return tree;
+  if (why) return why;
+  // A parse that stopped short, or tokens left over: say where.
+  const last = toks[p - 1], unclosed = toks.slice(0, p).reduce((d, t) => d + (t.t === "lp" ? 1 : t.t === "rp" ? -1 : 0), 0);
+  if (!tree && last && last.t === "op") return `"${last.v}" needs a value on each side`;
+  if (!left) return unclosed > 0 ? 'missing ")"' : "not a valid expression";
+  return left.t === "num" ? `missing an operator before ${left.v}`
+    : left.t === "rp" ? (last && last.t === "lp" ? "nothing inside the parentheses" : 'unmatched ")"')
+    : left.t === "comma" ? '"," outside a function\'s parentheses'
+    : left.t === "op" ? `"${left.v}" needs a value on each side` : "not a valid expression";
 }
 
 // ── Plot — y = f(x) across a range with an editable expression, or a fixed `fn`. Y auto-ranges unless yMin/yMax are

@@ -29,7 +29,7 @@ const CHECKER = "var(--tw-checker)"; // the alpha checker, a tweaks.css token
 // for sRGB-family colors, since its fillStyle getter echoes wide colors in their own notation.
 // Null-prototype: the space name comes from the parsed string, so `color(constructor …)` must
 // miss rather than resolve to a member of Object.prototype and reach convert().
-const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" });
+const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb", "a98-rgb": "a98-rgb", "srgb-linear": "srgb-linear", xyz: "xyz-d65", "xyz-d65": "xyz-d65", "xyz-d50": "xyz-d50" });
 const SRGB_FN_RE = /^(rgba?|hsla?|hwb)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i; // sRGB-family functions; no nested parens
 const ENGINE_FN_RE = /^(oklch|oklab|lch|lab|color)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i; // the engine's own functions
 const CSS_SPACES = /^(srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|xyz|xyz-d50|xyz-d65)$/i; // color()'s predefined spaces
@@ -145,10 +145,10 @@ function parseColor(str: string | null | undefined): Oklcha {
   return [num(k[0]), num(k[1]), num(k[2]), cm[3] != null ? clamp(num(cm[3]), 0, 1) : 1];
 }
 
-// Whether a written color is handed back as written: a color in a notation the picker edits, with every number a plain
-// one. Anything else (1e999, a named color) is normalized, as the picker reads it. Only a function's arguments are
+// Whether a written color is handed back as written: a color in a notation the picker edits, or in a color() space it
+// reads but has no mode for (xyz, a98-rgb, prophoto-rgb…), with every number a plain one. Anything else (1e999, a named color) is normalized, as the picker reads it. Only a function's arguments are
 // numbers: a hex's digits read as exponents (#1E40AF as 1e40) and `rec2020` as 2020, so those came back rewritten.
-const verbatim = (v: unknown): v is string => typeof v === "string" && isColor(v) && notationOf(v) !== null && (HEX_RE.test(v.trim()) || (v.replace(/^\s*[a-z]+\(\s*(?:[a-z][\w-]*\s)?/i, "").match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).every((n) => Math.abs(+n) <= 1000));
+const verbatim = (v: unknown): v is string => typeof v === "string" && isColor(v) && (notationOf(v) !== null || /^\s*color\(/i.test(v)) && (HEX_RE.test(v.trim()) || (v.replace(/^\s*[a-z]+\(\s*(?:[a-z][\w-]*\s)?/i, "").match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).every((n) => Math.abs(+n) <= 1000));
 // The edit mode a written color's notation maps to; null for one with no mode of its own (a named color, lab() with
 // alpha in a form the picker can't echo), which opens in OKLCH.
 const notationOf = (v: unknown): ColorMode | null => {
@@ -169,6 +169,15 @@ const flavorOf = (v: string): Flavor | null => {
   const name = m[1].toLowerCase(), args = m[2].split(",").length;
   if (name === "color") return /^srgb\s/i.test(m[2]) ? { name, legacy: false, alphaSlot: false } : null;
   return { name, legacy: args > 1, alphaSlot: args === 4 };
+};
+// The dropdown's name for a kept flavor its mode doesn't write on its own ("color(srgb)", "rgba()", "hsl(,)" for commas),
+// short as the mode names, since a select is as wide as its widest option; null when the mode writes it anyway (rgb() in
+// RGB, rgba(…, 1) in CSS).
+const keptLabel = (f: Flavor | null, mode: ColorMode) => {
+  if (!f) return null;
+  if (f.name === "color") return "color(srgb)";
+  const plain = mode === "css" ? { name: "rgba", legacy: true, alphaSlot: true } : { name: mode === "hsl" ? "hsl" : "rgb", legacy: false, alphaSlot: false };
+  return f.name === plain.name && f.legacy === plain.legacy && f.alphaSlot === plain.alphaSlot ? null : `${f.name}(${f.legacy ? "," : ""})`;
 };
 // serialize()'s string in the written flavor, rebuilt from its numbers. Legacy syntax has no `none`: a gray's hue writes 0.
 const flavored = (s: string, f: Flavor | null, oklch: Vec3, A: number) => {
@@ -205,7 +214,15 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const modeRow = el("div", "tw-color-mode-row");
   const modeSel = el("select", "tw-color-mode"); modeSel.setAttribute("aria-label", "Color mode");
   EDIT_MODES.forEach((m) => { const o = document.createElement("option"); o.value = m; o.textContent = MODE_LABELS[m]; modeSel.append(o); });
-  modeSel.value = mode;
+  // A kept flavor shows as its own option beside its mode's, selected, so picking the mode the dropdown would otherwise
+  // show is a change, and drops it: re-picking the shown option fires nothing, so rgb() couldn't come back from color(srgb).
+  const keptOpt = document.createElement("option"); keptOpt.value = "kept";
+  const showMode = () => {
+    const label = keptLabel(flavor, mode);
+    if (label) { keptOpt.textContent = label; modeSel.querySelector(`option[value="${mode}"]`)!.after(keptOpt); modeSel.value = "kept"; }
+    else { keptOpt.remove(); modeSel.value = mode; }
+  };
+  showMode();
   const gamut2 = el("span", "tw-color-gamut");
   modeRow.append(modeSel, gamut2);
   const channels = el("div", "tw-color-channels");
@@ -343,8 +360,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 
   // A mode switch is formatting-only and never emits: notifying would push a no-op change into
   // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode); setMode is the host pushing a mode in, so it fires neither.
-  const remode = (m: ColorMode) => { mode = m; raw = null; flavor = null; modeSel.value = m; renderChannels(); renderArea(); positionThumbs(); };
-  modeSel.addEventListener("change", () => { remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); }); // the dropdown only holds EDIT_MODES
+  const remode = (m: ColorMode) => { mode = m; raw = null; flavor = null; showMode(); renderChannels(); renderArea(); positionThumbs(); };
+  modeSel.addEventListener("change", () => { if (modeSel.value === "kept") return; remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); }); // the dropdown holds EDIT_MODES and the kept flavor
 
   renderChannels();
 
@@ -352,7 +369,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     el: root,
     // Blur a focused text field before re-pointing: its change handler commits typed text against
     // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as focus leaving the popover, which closes it.
-    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
+    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; showMode(); raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
     get: () => colorStr(),
     // The gradient reads the mode to choose its blend space and re-points it on a stored ramp.
     mode: () => mode,

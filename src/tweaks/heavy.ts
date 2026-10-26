@@ -198,6 +198,8 @@ registerControl("number", (meta: Meta, onChange?: OnChange) => numField({ ...met
 // scales the frequency by a Newton solve so it arrives when the critically damped spring would. Copied value for value, so
 // what's tuned here plays the same in Motion.
 const CRIT = (2 * Math.PI) / 1.2;
+// The visualDuration (s) the spring editor shows and resolves: down to 10 ms, up to the 10 s a spring's linear() runs.
+const SPRING_DUR = [0.01, 10] as const;
 const bounceRatio = (b: number) => (b < 0 ? 1 / Math.max(1 + b, 0.05) : Math.max(1 - b, 0.05));
 const overdampedScale = (z: number) => {
   if (!(z > 1)) return 1;
@@ -286,9 +288,11 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
   noValue: (key, type) => `set("${key}") ignored — a ${type} holds no value to set`,
   ambiguousKey: (key, n, eg) => `set("${key}") is ambiguous — ${n} controls share that key; use a dotted path (e.g. "${eg}")`,
   notAValue: (key, kind) => `set("${key}") ignored — a ${kind} is not a control value`,
+  springDur: (key, v, shown) => `"${key}": a spring visualDuration of ${v} s is past the editor's 0.01–10 s, so it uses ${shown} s`,
+  springKept: (key, k, d, m) => `"${key}": a spring of stiffness ${k}, damping ${d}, mass ${m} is past what the editor draws (0.01–10 s, bounce ±95%); the value keeps it as written, the editor shows the nearest`,
   noControl: (key, group) => (group ? `set("${key}") ignored — it's a folder/tabs group; set its children instead` : `set("${key}") ignored — no control has that key`),
 };
 const notice = (kind: string, args: unknown[]) => { const say = NOTICES[kind]; if (say) console.warn(`[tweaks] ${say(...args)}`); };
 sayNow(notice);
 
-export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring, arrowStep, sayWhenKeysStop };
+export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring, arrowStep, sayWhenKeysStop, SPRING_DUR };
