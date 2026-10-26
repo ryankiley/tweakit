@@ -5,7 +5,7 @@
  * directly (TW_SPLIT=true) and loads these controls on demand instead. */
 import "./markup.js"; // registers enhance()'s work, so the auto-run and enhance() stay synchronous here
 import "./heavy.js"; // registers the Number control
-import "./controls/colour.js";
+import "./controls/color.js";
 import "./controls/gradient.js";
 import "./controls/shadow.js";
 import "./controls/sides.js";

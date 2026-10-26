@@ -1,11 +1,11 @@
-// ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the colour
+// ── Gradient — a wide-gamut OKLCH gradient editor. Lazy; depends on the color
 // module (reuses its picker body, parseColor, and oklchStr).
 import { el, btn, clamp, popover, registerControl, icon } from "../shared.js";
 import { dragGesture, triggerRow } from "../heavy.js";
-import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./colour.js";
+import { createPickerBody, parseColor, isColor, oklchStr, CHECKER } from "./color.js";
 import { modeInterpolation, interpolationMode } from "../../wide-gamut.js";
 import { gradientCss, parseEasing, easingName, easingAt } from "../easing.js";
-import type { Oklcha } from "./colour.js";
+import type { Oklcha } from "./color.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, GradientStop, GradientEasing } from "../types.js";
@@ -17,7 +17,7 @@ interface StopHandle extends HTMLButtonElement { _stop?: GradientStop }
 const ICON_PLUS = icon('<path d="M12 5v14m7-7H5"/>', "", 2.5);
 
 // ── Gradient — a Figma-style editor: a swatch-trigger row opens a popover holding the stop bar
-// over a reused colour picker body; selecting a stop re-points the body at it. The bar blends in
+// over a reused color picker body; selecting a stop re-points the body at it. The bar blends in
 // the space of the editor's mode, which rides along as `interpolation`, and `easing` likewise, so a
 // host's `linear-gradient(in …)` through gradientCss() gets the same pixels. ──
 // A value's blend space / easing: an explicit string on the object form, else null (the array
@@ -30,7 +30,7 @@ const EASINGS: Array<[GradientEasing, string]> = [["linear", "Linear"], ["ease",
 function normalizeStops(value: any): GradientStop[] {
   const DEF: GradientStop[] = [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }];
   const arr = Array.isArray(value) ? value : (value && Array.isArray(value.stops) ? value.stops : null);
-  // A stop's colour must be a single colour token: stop text goes straight into the preview's
+  // A stop's color must be a single color token: stop text goes straight into the preview's
   // `linear-gradient(…)`, where an unparsed string could splice in further layers (a url() fetch
   // from persisted state). A non-finite pos → 0, clamped into [0,1]; fewer than two usable stops → the default pair.
   // Trimmed as the gate trims it: the CSS tokeniser reads a non-ASCII space as part of a name.
@@ -53,14 +53,14 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const preview = el("span", "tw-trigger-chip tw-gradient-preview"); preview.setAttribute("role", "img");
   right.append(preview);
 
-  // ── Editor popover — carries the colour popover's class so it inherits its tokens and shell. ──
+  // ── Editor popover — carries the color popover's class so it inherits its tokens and shell. ──
   const pop = el("div", "tw-color-pop tw-gradient-pop");
   const barRow = el("div", "tw-gradient-bar-row");
   const bar = el("div", "tw-gradient-bar");
   const grad = el("div", "tw-gradient-grad");
   const rail = el("div", "tw-gradient-rail");
   bar.append(grad, rail);
-  const addBtn = btn("tw-gradient-add", ICON_PLUS); addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a colour stop after the selected one");
+  const addBtn = btn("tw-gradient-add", ICON_PLUS); addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a color stop after the selected one");
   barRow.append(bar, addBtn);
 
   const sorted = () => [...stops].sort((a, b) => a.pos - b.pos);
@@ -74,7 +74,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const emit = () => onChange(value());
 
   const handleFor = (s: GradientStop) => [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s); // the rail holds only stop handles
-  // Unlike the standalone colour control, a mode switch here IS a change to the gradient's output, so it repaints and re-emits.
+  // Unlike the standalone color control, a mode switch here IS a change to the gradient's output, so it repaints and re-emits.
   const body = createPickerBody({ value: selStop.color, mode: interpolationMode(parseInterp(meta.value) || "oklch"), onMode: () => { paint(); emit(); } }, (c) => { // oklch: the documented default and colorAt's blend space
     selStop.color = c;
     handleFor(selStop)?.style.setProperty("--stop", c);
@@ -96,7 +96,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   root.append(pop);
 
   // A stop's accessible name carries its position and selection, the state the ring shows sighted users.
-  const labelStop = (h: StopHandle) => h.setAttribute("aria-label", `Colour stop at ${Math.round(h._stop.pos * 100)}%${h._stop === selStop ? ", selected" : ""}`);
+  const labelStop = (h: StopHandle) => h.setAttribute("aria-label", `Color stop at ${Math.round(h._stop.pos * 100)}%${h._stop === selStop ? ", selected" : ""}`);
   const reflectSel = () => { for (const h of rail.children as HTMLCollectionOf<StopHandle>) { h.dataset.sel = String(h._stop === selStop); labelStop(h); } };
   const renderHandles = () => {
     rail.replaceChildren();
@@ -138,7 +138,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
 
   const posFromX = (x: number) => { const r = rail.getBoundingClientRect(); return clamp((x - r.left) / (r.width || 1), 0, 1); };
 
-  // A new stop's colour: the bracketing stops interpolated in OKLCH at the EASED progress, so it lands invisibly on the ramp the bar draws.
+  // A new stop's color: the bracketing stops interpolated in OKLCH at the EASED progress, so it lands invisibly on the ramp the bar draws.
   const colorAt = (pos: number) => {
     const ss = sorted(); let lo = ss[0], hi = ss[ss.length - 1];
     for (let k = 0; k < ss.length - 1; k++) if (pos >= ss[k].pos && pos <= ss[k + 1].pos) { lo = ss[k]; hi = ss[k + 1]; break; }
@@ -159,7 +159,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     paint(); select(next, true); reflectCount(); emit();
     handleFor(selStop)?.focus(); // keep focus on a handle so Delete can chain
   };
-  // Insert a stop at `pos`, coloured by sampling the gradient there, and select it. Shared by the +
+  // Insert a stop at `pos`, colored by sampling the gradient there, and select it. Shared by the +
   // button (midway toward the selected stop's neighbour, so where it lands is predictable) and double-click on the bar.
   const insertStopAt = (pos: number) => {
     const s = { color: colorAt(pos), pos: clamp(pos, 0, 1) };

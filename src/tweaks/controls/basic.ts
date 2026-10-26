@@ -265,7 +265,7 @@ function createRadiogrid(meta: Meta, onChange: OnChange): Control {
 }
 
 // ── Select ──
-// An option's colour: one token, no nesting, so a `)` can't close it early and splice a url() into the background shorthand.
+// An option's color: one token, no nesting, so a `)` can't close it early and splice a url() into the background shorthand.
 const COLOR_TOKEN = /^(?:#[0-9a-f]{3,8}|[a-z]+|(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch|color|var)\([^()]*\))$/i;
 const CHEVRON = chevronIcon("tw-select-chevron");
 function createSelect(meta: Meta, onChange: OnChange): Control {

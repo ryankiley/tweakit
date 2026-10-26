@@ -3,9 +3,9 @@
  * the schema shorthands + the verbose control forms + the panel methods. */
 
 /** An option for a select / radio grid: a bare string, or `{ value, label }`. */
-export type Option = string | { value: string; label?: string; color?: string }; // color: any CSS colour, shown as a swatch beside a dropdown option (and the chosen one on the row)
+export type Option = string | { value: string; label?: string; color?: string }; // color: any CSS color, shown as a swatch beside a dropdown option (and the chosen one on the row)
 
-/** A colour stop in a gradient. */
+/** A color stop in a gradient. */
 export type GradientStop = { color: string; pos: number };
 
 /** The CSS `<color-interpolation-method>` a gradient blends through — the space of the
@@ -23,12 +23,12 @@ export type SidesInput = number | number[] | string | { top?: number; right?: nu
  *  to (`css`, in the control's unit, `0` bare), so `el.style.padding = css`. */
 export interface SidesValue { top: number; right: number; bottom: number; left: number; css: string }
 
-/** What a shadow control accepts — any subset of its fields (px, `color` any colour the kit
+/** What a shadow control accepts — any subset of its fields (px, `color` any color the kit
  *  parses); or, as `value`, a `box-shadow` string: optional `inset`, two to four px lengths,
- *  one colour, one layer. */
+ *  one color, one layer. */
 export interface ShadowInput { inset?: boolean; x?: number; y?: number; blur?: number; spread?: number; color?: string }
 /** A shadow control's value — the fields, plus the `box-shadow` CSS they resolve to (`css`),
- *  built from the numbers and the picker's own colour notation, so `el.style.boxShadow = css`. */
+ *  built from the numbers and the picker's own color notation, so `el.style.boxShadow = css`. */
 export interface ShadowValue { inset: boolean; x: number; y: number; blur: number; spread: number; color: string; css: string }
 /** What a motion control accepts — any subset of either mode's fields. A `curve` may be
  *  the four cubic-bezier numbers or a CSS keyword (`ease`, `ease-out`, …); `duration` is
@@ -129,7 +129,7 @@ export type SchemaObject =
 export type SchemaValue =
   | number                                          // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative mirrors that below zero)
   | boolean                                         // → checkbox
-  | string                                          // a label, or a colour string → colour picker
+  | string                                          // a label, or a color string → color picker
   | [number] | [number, number] | [number, number, number] | [number, number, number, number] // [value, min?, max?, step?] → slider
   | [[number, number], number, number] | [[number, number], number, number, number]           // [[lo,hi], min, max, step?] → interval
   | Option[]                                        // a list of options → list (dropdown)
@@ -347,17 +347,17 @@ export interface MountedControl {
   ready: Promise<MountedControl>;
 }
 
-/** The notations the colour picker edits in (its mode dropdown). The emitted value follows
- *  the mode: `hex` gives `#rrggbb`, the wide-gamut modes give a CSS colour like `oklch(…)`. */
+/** The notations the color picker edits in (its mode dropdown). The emitted value follows
+ *  the mode: `hex` gives `#rrggbb`, the wide-gamut modes give a CSS color like `oklch(…)`. */
 export type ColorMode = "hex" | "srgb" | "css" | "hsl" | "hwb" | "oklch" | "oklab" | "lch" | "lab" | "p3" | "rec2020";
 
 /** Options for `createColorPicker(opts?)` — the picker body alone, no trigger row. */
 export interface ColorPickerOptions {
-  /** The colour it opens on — any CSS colour string (default `#7c5cff`). */
+  /** The color it opens on — any CSS color string (default `#7c5cff`). */
   value?: string;
   /** The notation it opens in (default `oklch`). */
   mode?: ColorMode;
-  /** Fired with the new colour string whenever it changes — by hand or through `set()`. */
+  /** Fired with the new color string whenever it changes — by hand or through `set()`. */
   onChange?: (value: string) => void;
 }
 
@@ -366,11 +366,11 @@ export interface ColorPickerOptions {
 export interface ColorPicker {
   /** The picker's root (`.tw-color-picker`), stable from creation; it carries the kit's tokens,
    *  so the picker renders anywhere. On the code-split build the editor fills it in once the
-   *  colour chunk has loaded. */
+   *  color chunk has loaded. */
   el: HTMLElement;
-  /** Apply a colour — the picker updates AND `onChange` fires (when the colour actually changed). */
+  /** Apply a color — the picker updates AND `onChange` fires (when the color actually changed). */
   set(value: string): void;
-  /** The current colour, serialized in the picker's mode. */
+  /** The current color, serialized in the picker's mode. */
   get(): string;
   /** The current notation. */
   mode(): ColorMode;

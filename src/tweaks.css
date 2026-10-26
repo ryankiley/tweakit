@@ -542,7 +542,7 @@
 }
 .tw-image-clear:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 
-/* ── Trigger rows — the row button behind the colour, gradient and point controls ── */
+/* ── Trigger rows — the row button behind the color, gradient and point controls ── */
 .tw-trigger {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
   height: var(--tw-row-height); padding: 0 10px 0 12px; /* the row idiom: 12 left, 10 right */
@@ -565,7 +565,7 @@
 .tw-trigger-chip { height: 18px; flex-shrink: 0; border-radius: calc(var(--tw-radius) - 4px); box-shadow: inset 0 0 0 1px var(--tw-border-hover); transition: transform 0.2s var(--tw-ease-spring); }
 .is-open > .tw-trigger .tw-trigger-chip { transform: scale(1.07); } /* 1.14 read as a jump on the wider chips */
 
-/* ── Colour — a trigger row that opens the picker ── */
+/* ── Color — a trigger row that opens the picker ── */
 .tw-color { position: relative; }
 .tw-color-swatch { width: 18px; }
 
@@ -576,7 +576,7 @@
 /* Entrance scale from the height placeBelow() records: the far edge moves ~5px at any height, so a tall pop doesn't zoom. */
 .tw-portal { --tw-pop-s: max(0.96, calc(1 - 5 / var(--tw-pop-h, 125))); }
 
-/* the colour dropdown */
+/* the color dropdown */
 .tw-color-pop {
   position: fixed; z-index: 99999; /* placed and sized from the trigger by JS */
   min-width: 236px; /* the default panel's row width */
@@ -659,7 +659,7 @@
 .tw-row-multiline { position: relative; flex-direction: column; align-items: stretch; height: auto; gap: 4px; padding: 7.5px 10px 10px 12px; } /* top: the label's text 9px down, as a 32px row's; bottom 10 > the 8px radius keeps the grip clear */
 .tw-textarea { flex: none; width: 100%; resize: vertical; min-height: 3em; padding: 0; line-height: 1.45; text-align: left; font-family: var(--tw-font-sans); }
 /* The native resizer grip is invisible on mobile Safari, so draw one; a mask lets it
- * take the token colour in both schemes. */
+ * take the token color in both schemes. */
 .tw-textarea::-webkit-resizer { background: transparent; }
 /* Text past the field's edges fades rather than cuts (basic.ts clip()). */
 .tw-textarea:is(.is-clip-top, .is-clip-bottom) { --tw-clip-top: 0px; --tw-clip-bottom: 0px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--tw-clip-top), #000 calc(100% - var(--tw-clip-bottom)), transparent); mask-image: linear-gradient(to bottom, transparent, #000 var(--tw-clip-top), #000 calc(100% - var(--tw-clip-bottom)), transparent); }
@@ -787,7 +787,7 @@
 .tw-shadow-chip-tile { width: 12px; height: 8px; border-radius: 2px; background: var(--tw-dropdown-bg); }
 .tw-shadow-stage { display: flex; align-items: center; justify-content: center; height: 84px; border-radius: var(--tw-radius); background: var(--tw-base); overflow: hidden; }
 .tw-shadow-card { width: 64px; height: 40px; border-radius: 9px; background: var(--tw-dropdown-bg); }
-.tw-shadow-color { width: 100%; } /* the colour row in the pop discloses the picker body */
+.tw-shadow-color { width: 100%; } /* the color row in the pop discloses the picker body */
 .tw-shadow-color .tw-trigger-right, .tw-shadow-color .tw-trigger-value { max-width: none; } /* the row has the pop's full width */
 .tw-shadow-pop .tw-color-body[hidden] { display: none; } /* display: flex would beat the hidden attribute */
 .tw-shadow-chevron { flex-shrink: 0; width: 12px; height: 12px; color: var(--tw-text-tertiary); transition: transform 0.2s var(--tw-ease-pop); }
@@ -879,7 +879,7 @@
 .tw-bezier-ctl { stroke: var(--tw-text-tertiary); stroke-width: 1.5; }
 .tw-bezier-curve { fill: none; stroke: var(--tw-accent, var(--tw-text-primary)); stroke-width: 2; stroke-linecap: round; }
 .tw-bezier-handle {
-  position: absolute; width: 14px; height: 14px; margin: 0; padding: 0; /* 14px, as the colour-area and point-pad thumbs */
+  position: absolute; width: 14px; height: 14px; margin: 0; padding: 0; /* 14px, as the color-area and point-pad thumbs */
   transform: translate(-50%, -50%); border-radius: 999px;
   background: var(--tw-text-primary); border: 2px solid var(--tw-base);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); cursor: grab; touch-action: none;
@@ -970,7 +970,7 @@
   .tw-image-tile[data-active="true"] { outline-color: Highlight; }
   .tw-gradient-stop[data-sel="true"] { border-color: Highlight; }
   .tw-select-option:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; } /* the roving focus is a background, flattened here */
-  /* Where the colour is the content, keep it: a swatch, strip, bar or thumb flattened to Canvas shows nothing. */
+  /* Where the color is the content, keep it: a swatch, strip, bar or thumb flattened to Canvas shows nothing. */
   .tw-color-swatch, .tw-option-swatch, .tw-image-thumb, .tw-gradient-preview, .tw-gradient-bar, .tw-gradient-stop, .tw-wg-area, .tw-wg-hue, .tw-wg-alpha, .tw-pad-thumb { forced-color-adjust: none; }
   /* …but their focus ring is still the system's: opting out would leave it in the accent, which may match the flattened background. */
   .tw-gradient-stop:focus-visible, .tw-wg-area:focus-visible, .tw-wg-hue:focus-visible, .tw-wg-alpha:focus-visible { outline-color: Highlight; }

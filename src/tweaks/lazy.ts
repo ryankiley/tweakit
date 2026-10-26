@@ -13,7 +13,7 @@ declare const TW_SPLIT: boolean;
 const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
   number: () => import("./heavy.js"), // heavy.js registers the Number control itself
   interval: () => import("./controls/interval.js"),
-  color: () => import("./controls/colour.js"),
+  color: () => import("./controls/color.js"),
   gradient: () => import("./controls/gradient.js"),
   shadow: () => import("./controls/shadow.js"),
   sides: () => import("./controls/sides.js"),

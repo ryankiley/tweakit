@@ -1,4 +1,4 @@
-/* A dropdown option may carry a colour: it shows as a swatch before the label in the list
+/* A dropdown option may carry a color: it shows as a swatch before the label in the list
  * and, for the chosen option, on the row; options without one render as before. */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -7,7 +7,7 @@ import { loadSingle } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
-test("coloured options get a swatch in the list and on the row; plain ones do not", async () => {
+test("colored options get a swatch in the list and on the row; plain ones do not", async () => {
   const p = tweaks("S", { tone: { options: [{ value: "n10", label: "Neutral 10", color: "#f4f4f5" }, { value: "n90", label: "Neutral 90", color: "rgb(24 24 27 / 0.8)" }, "plain"], value: "n90" } });
   document.body.append(p.el); await p.ready;
   const sel = p.el.querySelector(".tw-select"), options = [...sel.querySelectorAll(".tw-select-option")];
@@ -22,21 +22,21 @@ test("coloured options get a swatch in the list and on the row; plain ones do no
   p.destroy();
 });
 
-test("a hostile colour string neither throws nor leaks into the label", async () => {
+test("a hostile color string neither throws nor leaks into the label", async () => {
   const p = tweaks("S", { tone: { options: [{ value: "x", label: "X", color: "</style><img src=x onerror=alert(1)>" }, { value: "y", color: 42 }], value: "x" } });
   document.body.append(p.el); await p.ready;
   const options = [...p.el.querySelectorAll(".tw-select-option")];
-  assert.equal(options[0].textContent, "X"); assert.equal(p.el.querySelector("img"), null, "a colour is only ever an inline background value");
-  assert.equal(options[1].querySelector(".tw-option-swatch"), null, "a non-string colour is ignored");
+  assert.equal(options[0].textContent, "X"); assert.equal(p.el.querySelector("img"), null, "a color is only ever an inline background value");
+  assert.equal(options[1].querySelector(".tw-option-swatch"), null, "a non-string color is ignored");
   p.destroy();
 });
 
-test("review follow-up: a colour is one token; a string that would splice layers into the background is dropped, a var() is kept", async () => {
+test("review follow-up: a color is one token; a string that would splice layers into the background is dropped, a var() is kept", async () => {
   const p = tweaks("S", { tone: { options: [{ value: "a", color: "red), url(https://x/p.png), linear-gradient(red" }, { value: "b", color: "var(--accent)" }, { value: "c", color: " color(display-p3 1 0 0) " }, { value: "d", color: "rgb(1 2 3) rgb(4 5 6)" }], value: "a" } });
   document.body.append(p.el); await p.ready;
   const [a, b, c, d] = [...p.el.querySelectorAll(".tw-select-option")].map((o) => o.querySelector(".tw-option-swatch"));
   assert.equal(a, null, "a spliced string gets no swatch"); assert.equal(p.el.querySelector(".tw-select-right .tw-option-swatch").style.display, "none", "and none on the row");
-  assert.ok(b && c, "var() and a trimmed color() are one token each"); assert.equal(d, null, "two tokens are not a colour");
+  assert.ok(b && c, "var() and a trimmed color() are one token each"); assert.equal(d, null, "two tokens are not a color");
   assert.doesNotMatch(p.el.innerHTML, /url\(https:\/\/x/, "the string never reaches a style attribute");
   p.destroy();
 });

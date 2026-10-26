@@ -98,14 +98,14 @@ test("the undo keys release after a mount-then-unmount with no event while conne
 });
 
 test("a chunk that fails to load leaves the API inert instead of a silent sink", async () => {
-  // Build against a copy of the split build whose colour chunk is missing, so a panel that
+  // Build against a copy of the split build whose color chunk is missing, so a panel that
   // needs it can never assemble.
   const { mkdtemp, cp, readdir, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const path = await import("node:path");
   const dir = await mkdtemp(path.join(tmpdir(), "tw-broken-"));
   await cp(new URL("../dist/tweaks/", import.meta.url), dir, { recursive: true });
-  for (const f of await readdir(dir)) if (/^colour-.*\.js$/.test(f)) await rm(path.join(dir, f));
+  for (const f of await readdir(dir)) if (/^color-.*\.js$/.test(f)) await rm(path.join(dir, f));
   const { tweaks: broken } = await import(path.join(dir, "core.js"));
   const errors = []; const err = console.error; console.error = (...a) => errors.push(a);
   try {

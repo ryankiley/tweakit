@@ -31,7 +31,7 @@ typescript).
   heavy controls use, plus the Number control), `markup.ts` (the `[data-tw]` parsers and
   the binding behind `enhance()`; `enhance.ts` is core's side of it and the on-load
   auto-run), `clip.ts` (a picked row's paste) and `fold.ts` (the conditional row's fold).
-- `src/wide-gamut.ts` — the OKLCH / wide-gamut colour engine.
+- `src/wide-gamut.ts` — the OKLCH / wide-gamut color engine.
 - `src/tweaks.css` — panel styling, entirely on `--tw-*` custom properties.
 - `site/` — the docs/examples site and its zero-dependency generator.
 - `test/` — the `npm test` suite.
@@ -64,7 +64,7 @@ A few things aren't obvious from the file tree and will trip you up otherwise:
   and `llms-full.txt`, and a version-stamped copy of `AGENTS.md`; `test/agents-md.test.mjs`
   holds the guide to the control registry and the README to the install prompt.
 - **Theming runs entirely on `--tw-*`.** New visual values go through tokens, not
-  hardcoded colours. The light token block must exist twice in the shipped CSS (CSS can't
+  hardcoded colors. The light token block must exist twice in the shipped CSS (CSS can't
   share a block across a media query and a selector), but only the media-driven block is
   authored: the build **generates** the `[data-tw-scheme="light"]` twin from it, and fails
   if it finds a hand-written forced-light rule or an underivable rule in the media block.

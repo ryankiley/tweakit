@@ -34,14 +34,14 @@ const unflatten = (flat: Record<string, unknown>): Snapshot => {
 
 // A pasted value fits where it's going when it has the current value's shape: the same JSON type all the way down, a
 // finite number, a tuple (an interval, a curve) of the same length, a list (a gradient's stops) of 2 to 64 items each
-// shaped like the first, a colour the browser can parse wherever a colour stands (a colour or gradient control), and
+// shaped like the first, a color the browser can parse wherever a color stands (a color or gradient control), and
 // for a list control one of its options. Anything else would be coerced or ignored by set() — null to 0, a stray string
 // to black, a short tuple dropped — so it's skipped, and counted as not pasted; so is anything for a disabled row.
-const isColour = (v: unknown) => isColorStr(v) && (typeof CSS === "undefined" || !CSS.supports || CSS.supports("color", v as string));
+const isCssColor = (v: unknown) => isColorStr(v) && (typeof CSS === "undefined" || !CSS.supports || CSS.supports("color", v as string));
 const sameShape = (cur: unknown, v: unknown, col: boolean): boolean => {
   if (Array.isArray(cur)) return Array.isArray(v) && (cur.every((x) => !isObj(x)) ? v.length === cur.length && v.every((x, i) => sameShape(cur[i], x, col)) : v.length >= 2 && v.length <= 64 && v.every((x) => sameShape(cur[0], x, col)));
   if (isObj(cur)) return isObj(v) && !Array.isArray(v) && Object.keys(cur).every((k) => sameShape(cur[k], v[k], col));
-  return typeof v === typeof cur && (typeof v !== "number" || Number.isFinite(v)) && (!col || !isColorStr(cur) || isColour(v));
+  return typeof v === typeof cur && (typeof v !== "number" || Number.isFinite(v)) && (!col || !isColorStr(cur) || isCssColor(v));
 };
 const fits = (s: Slot, v: unknown) => v != null && !s.el?.closest(".is-disabled") && sameShape(s.get(), v, s.m.type === "color" || s.m.type === "gradient")
   && (!s.m.options || s.m.options.some((o) => JSON.stringify(optValue(o)) === JSON.stringify(v)));

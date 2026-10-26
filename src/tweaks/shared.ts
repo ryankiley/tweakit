@@ -33,7 +33,7 @@ type ControlCtor<M = Meta, C = Control> = (meta: M, onChange?: OnChange) => C;
 const titleCase = (s: string) => s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim();
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
-// Hex or any CSS colour function: routes a schema string to the colour control.
+// Hex or any CSS color function: routes a schema string to the color control.
 const isColorStr = (v: unknown) => typeof v === "string" && (/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v.trim()) || /^(oklch|oklab|rgba?|hsla?|hwb|lab|lch|color)\(/i.test(v.trim()));
 // toFixed() throws past 100 digits, and a readout past 20 decimals is noise.
 const MAX_FIXED = 20;
@@ -189,11 +189,11 @@ export const placeBelow = (trigger: Element, pop: HTMLElement, { width, fallback
 // resolveTheme maps a friendly object to {var: value}, applyThemeVars sets them inline.
 // Null-prototype, like every table indexed with caller data: a key of "constructor" must miss.
 const THEME_ALIASES: Record<string, string> = Object.assign(Object.create(null), {
-  // colour — backdrops
+  // color — backdrops
   accent: "--tw-accent", onAccent: "--tw-on-accent", base: "--tw-base", dropdownBg: "--tw-dropdown-bg",
   surface: "--tw-surface", surfaceHover: "--tw-surface-hover", surfaceActive: "--tw-surface-active",
   border: "--tw-border", borderHover: "--tw-border-hover", selection: "--tw-selection",
-  // colour — text tones
+  // color — text tones
   title: "--tw-text-root", section: "--tw-text-section", text: "--tw-text-primary", label: "--tw-text-label",
   textMuted: "--tw-text-secondary", textFaint: "--tw-text-tertiary", focus: "--tw-text-focus",
   success: "--tw-success", danger: "--tw-danger",

@@ -12,7 +12,7 @@ import { loadSingle, wait, key } from "./_helpers.mjs";
 const { tweaks, mountControl } = await loadSingle();
 const mount = (schema, opts) => { const p = tweaks("K", schema, opts); document.body.append(p.el); return p; };
 
-test("opening the colour popover moves focus inside it, and Tab-out closes it", async () => {
+test("opening the color popover moves focus inside it, and Tab-out closes it", async () => {
   const p = mount({ tint: "#7c5cff" });
   const outside = document.createElement("button"); document.body.append(outside);
   const trigger = p.el.querySelector(".tw-color .tw-trigger");
@@ -32,7 +32,7 @@ test("opening the colour popover moves focus inside it, and Tab-out closes it", 
   outside.remove(); p.destroy();
 });
 
-test("Escape closes the colour popover and returns focus to the trigger", async () => {
+test("Escape closes the color popover and returns focus to the trigger", async () => {
   const p = mount({ tint: "#7c5cff" });
   const trigger = p.el.querySelector(".tw-color .tw-trigger");
   trigger.focus(); trigger.click();
@@ -170,14 +170,14 @@ test("gradient: focusing a stop selects it, and its label carries position + sel
   p.destroy();
 });
 
-// The colour control emits in the picker's edit mode (OKLCH unless the schema says
+// The color control emits in the picker's edit mode (OKLCH unless the schema says
 // otherwise): read L / C / H back out of the string, L as a fraction whether it was
 // written as one or as a percentage.
 const oklch = (s) => { const m = String(s).match(/^oklch\(([\d.]+)(%?) ([\d.]+) ([\d.]+)/); assert.ok(m, `an oklch() string, got ${s}`); return [m[2] ? +m[1] / 100 : +m[1], +m[3], +m[4]]; };
 const openPicker = async (p) => { const trigger = p.el.querySelector(".tw-color .tw-trigger"); trigger.focus(); trigger.click(); await wait(40); const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
 const closePicker = async (p) => { key(document.activeElement, { key: "Escape" }); await wait(220); p.destroy(); };
 
-test("colour hue strip: a focusable slider — arrows step 1°, Shift x10, Home/End snap to the ends", async () => {
+test("color hue strip: a focusable slider — arrows step 1°, Shift x10, Home/End snap to the ends", async () => {
   const p = mount({ tint: { type: "color", value: "oklch(0.6 0.2 120)" } });
   const pop = await openPicker(p);
   const hue = pop.querySelector(".tw-wg-hue");
@@ -201,7 +201,7 @@ test("colour hue strip: a focusable slider — arrows step 1°, Shift x10, Home/
   await closePicker(p);
 });
 
-test("a closed colour popover is inert — its plane is not in the tab order before it opens or after it closes", async () => {
+test("a closed color popover is inert — its plane is not in the tab order before it opens or after it closes", async () => {
   const p = mount({ tint: "#7c5cff" });
   const pop = p.el.querySelector(".tw-color-pop");
   assert.equal(pop.inert, true, "never opened: inert");
@@ -228,7 +228,7 @@ test("a host mirroring values back through set() keeps the picker open while the
   await closePicker(p);
 });
 
-test("colour plane: a focusable group — up/down step lightness by 0.01, left/right step chroma by 1% of the row's ceiling, Shift x10", async () => {
+test("color plane: a focusable group — up/down step lightness by 0.01, left/right step chroma by 1% of the row's ceiling, Shift x10", async () => {
   const p = mount({ tint: { type: "color", value: "oklch(0.5 0.2 200)" } });
   const pop = await openPicker(p);
   const plane = pop.querySelector(".tw-wg-area");
@@ -261,7 +261,7 @@ test("colour plane: a focusable group — up/down step lightness by 0.01, left/r
   await closePicker(p);
 });
 
-test("colour plane: a run of arrow keys ends with the plane's readout spoken", async () => {
+test("color plane: a run of arrow keys ends with the plane's readout spoken", async () => {
   const p = mount({ tint: "#7c5cff" });
   const trigger = p.el.querySelector(".tw-color .tw-trigger");
   trigger.focus(); trigger.click();

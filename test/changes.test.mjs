@@ -81,7 +81,7 @@ test("a paste onto a pick lands only what fits; with nothing fitting the band fl
     assert.deepEqual([JSON.stringify(p.params.f), notified], [before, 0], "nothing coerced, nobody told");
     assert.equal((await clipKey(head, "v", JSON.stringify({ blur: 40, on: null, tint: "#00ff00", pick: "b", span: [3, 4], locked: 9, origin: { x: 2, y: 3 } }))).flash, "ok");
     assert.deepEqual([p.params.f.blur, p.params.f.on, p.params.f.pick, p.params.f.span, p.params.f.locked, p.params.f.origin], [40, true, "b", [3, 4], 3, { x: 2, y: 3 }], "what fits landed; a null and a disabled row stayed");
-    assert.notEqual(p.params.f.tint, JSON.parse(before).tint, "a colour that parses is a colour");
+    assert.notEqual(p.params.f.tint, JSON.parse(before).tint, "a color that parses is a color");
   } finally { globalThis.CSS = css; p.destroy(); }
 });
 

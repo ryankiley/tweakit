@@ -1,9 +1,9 @@
 // ── Shadow — a box-shadow editor with the kit's own picker mounted inline (popover() is single-open). The value carries
-// the CSS as `css`, built only from the numbers and a colour the picker re-serialized — a host string reaching a `style`
+// the CSS as `css`, built only from the numbers and a color the picker re-serialized — a host string reaching a `style`
 // sink could splice in a url(). Lazy. ──
 import { el, txt, popover, createSegmented, registerControl, btn, icon, isObj } from "../shared.js";
 import { numField, triggerRow } from "../heavy.js";
-import { createPickerBody, isColor } from "./colour.js";
+import { createPickerBody, isColor } from "./color.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, ShadowValue, ShadowInput } from "../types.js";
@@ -11,10 +11,10 @@ import type { Control, ShadowValue, ShadowInput } from "../types.js";
 const DEF = { x: 0, y: 8, blur: 24, spread: 0, color: "rgb(0 0 0 / 0.18)" };
 const num = (v: unknown, d: number) => (v != null && v !== "" && Number.isFinite(+v) ? +v : d);
 const fmt = (n: number) => String(+n.toFixed(1));
-// One colour function, no nesting, so a stray `)` can't extend the match.
+// One color function, no nesting, so a stray `)` can't extend the match.
 const COLOR_RE = /#[0-9a-f]{3,8}\b|(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch|color)\([^()]*\)/i;
 const LEN_RE = /^(-?\d*\.?\d+)(px)?$/;
-// Strict: optional `inset`, two to four px lengths, one colour, one layer; anything else is null.
+// Strict: optional `inset`, two to four px lengths, one color, one layer; anything else is null.
 const parseShadow = (s: string): ShadowInput | null => {
   const m = COLOR_RE.exec(s); if (!m || !isColor(m[0])) return null;
   const rest = (s.slice(0, m.index) + " " + s.slice(m.index + m[0].length)).trim().split(/\s+/).filter(Boolean);
@@ -47,10 +47,10 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const fb = field("Blur", () => blur, (v) => { blur = Math.max(0, v); }, 0), fs = field("Spread", () => spread, (v) => { spread = v; });
   // As the fields fitted them: an authored 2.5 showed "3" and emitted 2.5px.
   x = fx.get(); y = fy.get(); blur = fb.get(); spread = fs.get();
-  // The colour row discloses the picker, so the pop opens compact.
+  // The color row discloses the picker, so the pop opens compact.
   const colorRow = btn("tw-trigger tw-shadow-color"); colorRow.setAttribute("aria-expanded", "false");
   const cSwatch = el("span", "tw-trigger-chip tw-color-swatch"), cText = el("span", "tw-trigger-value"), cRight = el("span", "tw-trigger-right");
-  cRight.append(cSwatch, cText); cRight.insertAdjacentHTML("beforeend", CHEVRON); colorRow.append(txt("span", "tw-trigger-label", "Colour"), cRight);
+  cRight.append(cSwatch, cText); cRight.insertAdjacentHTML("beforeend", CHEVRON); colorRow.append(txt("span", "tw-trigger-label", "Color"), cRight);
   const body = createPickerBody({ value: typeof init.color === "string" && isColor(init.color) ? init.color : DEF.color, onMode: () => update() }, () => { update(); emit(); });
   body.el.hidden = true;
   colorRow.addEventListener("click", () => { const show = body.el.hidden; body.el.hidden = !show; colorRow.setAttribute("aria-expanded", String(show)); pop_.reflow(); }); // re-place for the new height; the picker lays out now
@@ -68,7 +68,7 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const pop_ = popover(root, trigger, pop, { fallbackH: 300, onOpen: body.reflow, onReflow: body.reflow });
   update();
 
-  // Set/restore: the object form or a strict box-shadow string; `css` is ignored, a colour comes back in the picker's notation.
+  // Set/restore: the object form or a strict box-shadow string; `css` is ignored, a color comes back in the picker's notation.
   const set = (v: unknown) => {
     const inp = read(v); if (!inp) return;
     if (inp.inset != null) { inset = !!inp.inset; insetSeg.set(inset ? "inner" : "outer"); }

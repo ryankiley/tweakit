@@ -39,7 +39,7 @@
   --site-drawer-shadow: rgba(0, 0, 0, 0.45);
   --site-overlay: rgba(0, 0, 0, 0.4);
   --site-shadow-ink: rgba(0, 0, 0, 0.35);
-  /* Highlighter palette (vivid, Tokyo Night-style — see the tok- block). Colour is
+  /* Highlighter palette (vivid, Tokyo Night-style — see the tok- block). Color is
    * sanctioned in code blocks as content; the chrome around them stays monochrome. */
   --tok-cm: #6c7396;
   --tok-pn: #8a8fa3;

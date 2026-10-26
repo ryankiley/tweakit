@@ -1,4 +1,4 @@
-// ── Colour — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
+// ── Color — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
 import { el, txt, clamp, rangeStep, popover, quietFocus, escapeReverts, registerControl, announce } from "../shared.js";
 import { numField, grabSurface, boxFrac, triggerRow, selectAllOnFocus } from "../heavy.js";
@@ -10,13 +10,13 @@ import type { Control, ColorMode } from "../types.js";
 
 /** A parsed color: OKLCH plus alpha. */
 export type Oklcha = [number, number, number, number];
-/** What the picker body is built from: the opening colour, the notation, and an onMode hook for the host's trigger. */
+/** What the picker body is built from: the opening color, the notation, and an onMode hook for the host's trigger. */
 export interface PickerOptions { value?: string; mode?: ColorMode; onMode?: () => void }
 /** The picker body's handle — a Control plus the mode and trigger-painting surface. */
 export interface PickerBody extends Control { el: HTMLDivElement; set(v: string): void; get(): string; mode(): ColorMode; setMode(m: ColorMode): void; reflow(): void; swatchCss(): string; valueText(): string }
 
-// ── Colour-area rendering. The plane stretches to the P3 gamut, drawn at device-pixel
-// resolution in a Display-P3 canvas where supported, so wide colours render true. ──
+// ── Color-area rendering. The plane stretches to the P3 gamut, drawn at device-pixel
+// resolution in a Display-P3 canvas where supported, so wide colors render true. ──
 const WIDE_CANVAS = (() => { try { return document.createElement("canvas").getContext("2d", { colorSpace: "display-p3" })?.getContextAttributes?.().colorSpace === "display-p3"; } catch { return false; } })();
 const CANVAS_CS: CanvasRenderingContext2DSettings & ImageDataSettings = WIDE_CANVAS ? { colorSpace: "display-p3" } : {};
 const ENGINE_GAMUT: Gamut = WIDE_CANVAS ? "p3" : "srgb"; // working gamut for the rasterised pixels
@@ -24,9 +24,9 @@ const sampleCurve = (curve: Float64Array, t: number) => { const last = curve.len
 const gamutCurve = (hue: number, gamut: Gamut) => { const probe = oklchGamutProbe(hue, gamut), c = new Float64Array(128); for (let i = 0; i < 128; i++) c[i] = chromaCeil(probe, i / 127); return c; };
 const CHECKER = "var(--tw-checker)"; // the alpha checker, a tweaks.css token
 
-// Parsing: any CSS colour (hex / oklch / oklab / lab / lch / color() / rgb / hsl / named) → [L, C, H, alpha].
+// Parsing: any CSS color (hex / oklch / oklab / lab / lch / color() / rgb / hsl / named) → [L, C, H, alpha].
 // The CSS Color 4 functions are parsed by regex + the engine; the canvas fallback is only safe
-// for sRGB-family colours, since its fillStyle getter echoes wide colours in their own notation.
+// for sRGB-family colors, since its fillStyle getter echoes wide colors in their own notation.
 // Null-prototype: the space name comes from the parsed string, so `color(constructor …)` must
 // miss rather than resolve to a member of Object.prototype and reach convert().
 const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb" });
@@ -38,11 +38,11 @@ const HEX_RE = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i; // 3/4/6/8 digits
 let c2dCache: CanvasRenderingContext2D | null;
 const canvas2d = () => (c2dCache === undefined ? (c2dCache = document.createElement("canvas").getContext("2d")) : c2dCache);
 // Shape first, then grammar: a stop's text is concatenated into a `linear-gradient()`, where a
-// stray ")" could splice in a url(), and a colour-shaped `oklch(a b c)` makes a browser drop the
+// stray ")" could splice in a url(), and a color-shaped `oklch(a b c)` makes a browser drop the
 // whole gradient. A bare keyword is put to the canvas against two sentinels, so a legitimate
 // `black` isn't mistaken for the "junk leaves fillStyle unchanged" echo.
 const COLOR_TOKEN = /^(#[0-9a-f]{3,8}|[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
-/** Is `str` one CSS colour token and nothing more? The gate a gradient stop passes before it reaches a style sink. */
+/** Is `str` one CSS color token and nothing more? The gate a gradient stop passes before it reaches a style sink. */
 export function isColor(str: string | null | undefined) {
   str = String(str == null ? "" : str).trim();
   if (!COLOR_TOKEN.test(str)) return false;
@@ -53,7 +53,7 @@ export function isColor(str: string | null | undefined) {
   return ["#000", "#fff"].some((sentinel) => { c2d.fillStyle = sentinel; const before = c2d.fillStyle; c2d.fillStyle = str; return c2d.fillStyle !== before; });
 }
 // The sRGB-family functions by CSS Color 4's own grammar — modern and legacy syntax, `none`,
-// percentages, angle units — and nothing looser, so a colour-shaped string CSS would reject
+// percentages, angle units — and nothing looser, so a color-shaped string CSS would reject
 // (`rgb(a b c)`, a mixed legacy `rgb(255, 0%, 0)`) is null here. Channels clamp where CSS clamps.
 const CSS_NUM = "[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:e[+-]?\\d+)?"; // CSS's <number>; a trailing dot ("1.") is not one
 const TOK_NUM = new RegExp("^" + CSS_NUM + "$", "i"), TOK_PCT = new RegExp("^" + CSS_NUM + "%$", "i"), TOK_ANGLE = new RegExp("^(" + CSS_NUM + ")(deg|grad|rad|turn)$", "i"), CSS_WS = /[ \t\n\r\f]+/, NONE = /^none$/i; // keywords are ASCII case-insensitive
@@ -134,7 +134,7 @@ function parseColor(str: string | null | undefined): Oklcha {
     const [k, A] = sf;
     return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A];
   }
-  // Named colours and `transparent` normalise via a canvas, whose fillStyle getter echoes
+  // Named colors and `transparent` normalise via a canvas, whose fillStyle getter echoes
   // "#rrggbb" or "rgba(r,g,b,a)". Junk, or no canvas at all (a headless DOM), parses as black.
   const c2d = canvas2d(); if (!c2d) return [0, 0, 0, 1];
   c2d.fillStyle = "#000"; c2d.fillStyle = str;
@@ -148,9 +148,9 @@ function parseColor(str: string | null | undefined): Oklcha {
 
 // ── Picker body ──
 /** The editor surface: L×C plane, hue + alpha strips, mode dropdown + gamut label, and per-mode channel inputs.
- *  No trigger or popover of its own: the colour control mounts one in its popover, the gradient editor re-points one at the selected stop. */
+ *  No trigger or popover of its own: the color control mounts one in its popover, the gradient editor re-points one at the selected stop. */
 function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): PickerBody {
-  let [L, C, H, A] = parseColor(meta.value || "#7c5cff"); // the kit's default colour
+  let [L, C, H, A] = parseColor(meta.value || "#7c5cff"); // the kit's default color
   let mode = EDIT_MODES.includes(meta.mode) ? meta.mode : "oklch"; // the host can seed the mode
   let paintedHue = NaN, chromaCurve: Float64Array | null = null, chanFields: NumField[] = [];
   let hueRingH = NaN, hueRingBg = ""; // the hue ring depends only on H; cached
@@ -163,7 +163,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   // The rasters are decoration; the plane and strips carry the names and live values.
   areaCanvas.setAttribute("aria-hidden", "true"); hueCanvas.setAttribute("aria-hidden", "true");
   // Keyboard-operable plane: a focusable group (no ARIA role fits a 2D value; the readout rides on aria-description).
-  area.tabIndex = 0; area.setAttribute("role", "group"); area.setAttribute("aria-label", "Colour plane: chroma across, lightness up");
+  area.tabIndex = 0; area.setAttribute("role", "group"); area.setAttribute("aria-label", "Color plane: chroma across, lightness up");
   hueBar.tabIndex = 0; hueBar.setAttribute("role", "slider"); hueBar.setAttribute("aria-label", "Hue");
   hueBar.setAttribute("aria-valuemin", "0"); hueBar.setAttribute("aria-valuemax", "360");
   alphaBar.tabIndex = 0; alphaBar.setAttribute("role", "slider"); alphaBar.setAttribute("aria-label", "Alpha");
@@ -213,7 +213,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     }
     paintedHue = H;
   };
-  // The strip's colour at a hue: the sRGB chroma ceiling at a fixed lightness, so every hue
+  // The strip's color at a hue: the sRGB chroma ceiling at a fixed lightness, so every hue
   // shows at its most saturated displayable form; the same fill paints the hue thumb's ring.
   const STRIP_L = 0.7;
   const vividHue = (hue: number) => { const rgb = convert([STRIP_L, chromaCeil(oklchGamutProbe(hue, "srgb"), STRIP_L), hue], "oklch", "srgb"); return `rgb(${clamp(rgb[0] * 255, 0, 255) | 0},${clamp(rgb[1] * 255, 0, 255) | 0},${clamp(rgb[2] * 255, 0, 255) | 0})`; };
@@ -226,7 +226,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   };
   const positionThumbs = () => {
     const ceil = chromaCurve ? sampleCurve(chromaCurve, L) : 0.4; // thumb x is C as a fraction of the row's ceiling
-    // The area thumb may overhang, so a colour at the gamut boundary reads as fully selected.
+    // The area thumb may overhang, so a color at the gamut boundary reads as fully selected.
     const at = (frac: number) => `${clamp(frac, 0, 1) * 100}%`;
     // The strip thumbs stay inside their track: the centre runs from +w/2 at 0 to −w/2 at 1.
     const inside = (frac: number, w: number) => { const f = clamp(frac, 0, 1); return `calc(${f * 100}% + ${(0.5 - f) * w}px)`; };
@@ -237,7 +237,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     area.setAttribute("aria-description", `lightness ${Math.round(L * 100)}%, chroma ${+C.toFixed(3)}`);
     alphaGrad.style.background = `linear-gradient(to right, oklch(${L} ${C} ${H} / 0), oklch(${L} ${C} ${H}))`;
     // Filled rings: a grabbed thumb scales past its track, so each ring carries its own
-    // colour instead of revealing the dropdown bg in the slivers above and below the strip.
+    // color instead of revealing the dropdown bg in the slivers above and below the strip.
     areaThumb.style.background = `oklch(${L} ${C} ${H})`;
     alphaThumb.style.background = `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), var(--tw-dropdown-bg)`;
     if (H !== hueRingH) { hueRingBg = vividHue(H); hueRingH = H; }
@@ -260,7 +260,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     if (mode === "hex") {
       channels.classList.add("tw-color-channels--hex");
       const wrap = el("div", "tw-color-chan");
-      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp); selectAllOnFocus(inp); // select all: you replace a colour, not a digit
+      const inp = el("input", "tw-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", "Hex color"); quietFocus(inp); selectAllOnFocus(inp); // select all: you replace a color, not a digit
       inp.addEventListener("change", () => { const v = inp.value.trim(); if (HEX_RE.test(v)) { [L, C, H, A] = parseColor(v); commit(true); } });
       // refresh() skips a focused field; catch up on blur (change fires first, so a typed edit is in).
       inp.addEventListener("blur", refresh);
@@ -268,7 +268,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
       escapeReverts(inp, hexText);
       wrap.append(txt("span", "tw-color-chan-label", "HEX"), inp); channels.append(wrap);
     } else {
-      // The same field as Point/Spring, so the grab handle works for colour values too.
+      // The same field as Point/Spring, so the grab handle works for color values too.
       channels.classList.remove("tw-color-channels--hex");
       const vals = channelValues([L, C, H], mode);
       MODE_CHANNELS[mode].forEach((ch, i) => {
@@ -339,9 +339,9 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   };
 }
 
-// ── Colour control — a trigger row (label + swatch + value readout) that opens a picker body in a popover. ──
+// ── Color control — a trigger row (label + swatch + value readout) that opens a picker body in a popover. ──
 function createColor(meta: Meta, onChange: OnChange): Control {
-  const { root, trigger, right } = triggerRow("tw-color", meta.label ?? "Colour"); // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("tw-color", meta.label ?? "Color"); // ??: an explicit "" label renders none
   const swatch = el("span", "tw-trigger-chip tw-color-swatch");
   const valueEl = el("span", "tw-trigger-value");
   right.append(swatch, valueEl);
@@ -366,5 +366,5 @@ const oklchStr = (L: number, C: number, H: number, A: number) => A < 0.999
 export { createPickerBody, parseColor, oklchStr, CHECKER };
 registerControl("color", createColor);
 // Registered beside its control so createColorPicker() (standalone.ts) reaches it through the
-// registry without a static import that would pull the colour engine into the basic bundle.
+// registry without a static import that would pull the color engine into the basic bundle.
 registerControl("colorpicker", createPickerBody);

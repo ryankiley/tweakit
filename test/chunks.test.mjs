@@ -36,7 +36,7 @@ test("every lazy control loads from the split build and registers", async () => 
 
 // esbuild splits per module: a module imported by the core entry AND by a lazy control is
 // hoisted into its own shared chunk. The kit keeps exactly three — shared.ts (core + every
-// control), the colour engine (colour + gradient) and heavy.ts (the helpers only lazy
+// control), the color engine (color + gradient) and heavy.ts (the helpers only lazy
 // controls use) — and core imports only the first, so a basic panel fetches core plus one
 // chunk. A lazy control importing a core-only module (icons, feedback, schema) would
 // mint a fourth, and every basic panel would fetch one more file while the build's size
@@ -97,7 +97,7 @@ test("a basic panel's code-split download stays under 25 KiB gzip", async () => 
 });
 
 // Number is lazy on the split build (no shorthand infers it): the standalone and markup
-// paths must wait for its chunk the way they do for colour, not skip it.
+// paths must wait for its chunk the way they do for color, not skip it.
 test("the split build's number control mounts standalone and from markup once its chunk lands", async () => {
   const host = document.createElement("div");
   document.body.append(host);

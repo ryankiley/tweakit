@@ -112,7 +112,7 @@ export const examples = [
       const text = target.querySelector(".sp-text");
       const when = (style) => (get) => get("style") === style;   // show a row for one fill style
       const start = Math.max(48, Math.round(target.clientWidth / 3.4)); // most of the column
-      const pageColor = () => getComputedStyle(target).color;          // the page's text colour, per theme
+      const pageColor = () => getComputedStyle(target).color;          // the page's text color, per theme
       text.style.fontSize = `${start}px`;                               // the CSS size below, pinned
       const panel = tweaks("Tweakit", {
         text: {
@@ -147,7 +147,7 @@ export const examples = [
           s.fontSize = `${parseFloat(s.fontSize) * text.clientWidth / text.scrollWidth}px`;
         }
         s.backgroundImage = gradient && fill.gradient ? gradientCss(fill.gradient, fill.angle) : "none";
-        s.color = gradient ? "transparent" : fromPage.has(fill.color) ? "" : fill.color; // a colour from the page follows its theme
+        s.color = gradient ? "transparent" : fromPage.has(fill.color) ? "" : fill.color; // a color from the page follows its theme
         // drop-shadow, not text-shadow: a text-shadow paints over the clipped gradient
         s.filter = shadow && !shadow.inset && (shadow.x || shadow.y || shadow.blur)   // a drop-shadow can't be inset
           ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur / 2}px ${shadow.color})`
@@ -204,14 +204,14 @@ export const examples = [
         mount.style.paddingTop = "0px";
         mount.style.paddingTop = `${Math.max(0, (mount.clientHeight - fullHeight) / 2)}px`;
       };
-      const fromPage = new Set();                                     // the page colours the panel has held
+      const fromPage = new Set();                                     // the page colors the panel has held
       panel.ready.then(() => {                                        // the values exist from here
         fromPage.add(panel.params.fill.color);
         apply(panel.params); centre(); hop();
         setTimeout(centre, 400);                                     // again once the folders finish opening
         window.addEventListener("resize", () => { apply(panel.params); centre(); });
-        // the device theme flips: a colour still taken from the page moves to the new one;
-        // a colour you picked stays
+        // the device theme flips: a color still taken from the page moves to the new one;
+        // a color you picked stays
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
           if (!fromPage.has(panel.params.fill.color)) return;
           panel.set("fill.color", pageColor());

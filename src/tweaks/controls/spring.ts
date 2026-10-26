@@ -109,7 +109,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   showMode();
   onReady(draw);
   // The canvas reads theme tokens at draw time: redraw on resize, on a tab page revealing it (tw-reflow; it built at
-  // 0×0 while hidden), on an OS scheme flip and on a host re-theme — CSS re-themes the SVG controls, a canvas keeps a stale colour.
+  // 0×0 while hidden), on an OS scheme flip and on a host re-theme — CSS re-themes the SVG controls, a canvas keeps a stale color.
   onLive(canvas, [[window, "resize"], [window, "tw-reflow"], [matchMedia("(prefers-color-scheme: dark)"), "change"], [window, "tw-retheme"]], draw);
   // A host flipping [data-tw-scheme] re-themes through CSS alone; the canvas needs a redraw. Let go once mounted and removed.
   let schemeObs: MutationObserver | null = null, wasMounted = false;

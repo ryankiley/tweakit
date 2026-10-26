@@ -42,7 +42,7 @@ export function easingSamples(b: Bez): Array<[number, number]> {
 }
 
 /** The blend progress at a position, linear between samples exactly as the browser draws the
- *  stops, so a stop inserted at x takes the colour the ramp really shows. Null is the identity. */
+ *  stops, so a stop inserted at x takes the color the ramp really shows. Null is the identity. */
 export function easingAt(b: Bez | null, x: number): number {
   x = clamp01(x); // outside the segment is its end; never extrapolate
   if (!b) return x;
