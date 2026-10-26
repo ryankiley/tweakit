@@ -209,8 +209,8 @@ function renderScript(page) {
   const runs = page.examples.filter((ex) => ex.run);
   const hasMarkup = page.examples.some((ex) => ex.html);
   if (!runs.length && !hasMarkup && !page.script) return "";
-  // Importing core auto-runs enhance(document), which alone powers the [data-tw] markup examples.
-  let js = `import { tweaks, enhance, gradientCss } from "./tweaks/core.js";\n`;
+  // A page with [data-tw] markup imports the auto entry, whose enhance(document) on load alone powers those examples.
+  let js = `import { tweaks, enhance, gradientCss } from "./tweaks/${hasMarkup ? "auto" : "core"}.js";\n`;
   if (runs.length) {
     js += `const wire = (id, fn) => { const ex = document.getElementById(id); fn({ tweaks, enhance, gradientCss, mount: ex.querySelector(".ex-mount"), target: ex.querySelector(".ex-target") }); };\n`;
     for (const ex of runs) {

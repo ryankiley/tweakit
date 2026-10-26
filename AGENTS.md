@@ -7,9 +7,9 @@ Tweakit is a dependency-free, code-split, real-time parameter panel for the brow
 
 ## Workflow
 
-1. Look at the project first: its bundler or lack of one, its package manager, and the component the person wants to tune.
+1. Look at the project first: its bundler (or none), its package manager, and the component to tune.
 2. Install, then import one build and the stylesheet (below).
-3. Build one panel from values the component already has. Start from their current values with sensible ranges; four to eight controls is plenty.
+3. Build one panel from the component's current values, with sensible ranges; four to eight controls is plenty.
 4. Bind the live values to the component's styles or animation in `panel.on()`, and apply `panel.params` once after `panel.ready`.
 5. Append `panel.el` somewhere visible. Gate the panel behind a development flag; tweakit has no production switch of its own.
 6. Run the project's build or checks and confirm the panel renders with the expected keys on `panel.params`.
@@ -108,7 +108,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 
 `tweaks(name, schema, options?)` returns synchronously.
 
-- `panel.el`: append it. `panel.params`: live values, nested like the schema, updated in place. It holds values only.
+- `panel.el`: append it. `panel.params`: live values only, nested like the schema, updated in place.
 - `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the control's dotted path, as `set()` and `changes()` name it (`size` at the top, `card.size` in a folder), or `undefined` when many changed at once (a restore, `reset()`, `fromJSON`, `setMany`).
 - `panel.ready`: resolves once lazy controls have built and, for a panel persisting an image control, its stored images are back; when they arrive, `on()` fires once more with no changed key.
 - `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; a key no control has is refused with a console warning (and a type error on an inline schema), and a number past a hard range clamps, warning once a key; `{ silent: true }` skips your listeners.
@@ -139,7 +139,7 @@ Tweakit never writes to source files. The person pastes that JSON to you; then:
 
 ## Markup instead of a schema
 
-The core module also upgrades `[data-tw]` elements in place: `<div data-tw="slider" data-label="Blur" data-value="12" data-min="0" data-max="40"></div>`, inside a `.tw-panel` shell for the header and toolbar or bare anywhere in your layout, a control's options as `data-*` attributes. Each host dispatches a bubbling `tw:change` event with `{ key, value }`; `enhance(root)` binds hosts added later. Details: https://ryankiley.github.io/tweakit/markup.md
+`enhance(root = document)` upgrades the `[data-tw]` elements under it in place: `<div data-tw="slider" data-label="Blur" data-value="12" data-min="0" data-max="40"></div>`, in a `.tw-panel` shell for the header and toolbar or bare anywhere, a control's options as `data-*` attributes. Importing the kit binds nothing; `import "tweakit/auto"`, the same API, runs `enhance()` once the page has parsed. Each host dispatches a bubbling `tw:change` event with `{ key, value }`. Details: https://ryankiley.github.io/tweakit/markup.md
 
 ## One control without a panel
 
@@ -153,7 +153,7 @@ The panel is dark by default and follows the system scheme; `data-tw-scheme="lig
 
 - It never edits source files, and it persists only when `persist` is set: values to localStorage, as `{ v: 1, values }` (0.5's bare object is ignored), and uploaded images to IndexedDB, with their refs in localStorage. A panel that persists an image control restores its other values as it builds, and its images by `panel.ready`; an upload with nowhere else to go (no IndexedDB, or the store refused it) saves inline in localStorage when it fits, and otherwise is left out with its row saying "Not saved". Values leave through the clipboard, `panel.changes()` or `panel.toJSON()`.
 - It has no production switch. Gate the panel in your code, for example behind `import.meta.env.DEV`.
-- It is not a framework component. In React, Vue, Svelte or Solid, create the panel once in a mount effect, append `panel.el` to a ref, update state in `panel.on()`, and call `panel.destroy()` on unmount.
+- It is not a framework component. In React, Vue, Svelte or Solid, create the panel once in a mount effect, append `panel.el` to a ref, set state in `panel.on()`, and `panel.destroy()` on unmount.
 - `params` is a plain object updated in place. Subscribe with `on()`; do not poll it.
 
 ## Example requests

@@ -1,5 +1,5 @@
 /* Markup: enhance() and [data-tw] hosts. The examples here are pure HTML: the
- * markup shown IS the markup injected; importing core auto-enhances it on load. */
+ * markup shown IS the markup injected; the page imports tweakit/auto, which enhances it on load. */
 
 export const meta = {
   slug: "markup",
@@ -9,10 +9,11 @@ export const meta = {
 
 export const intro = `
 <p>The second way in: write <code>[data-tw]</code> markup and <code>enhance()</code>
-upgrades each host into a live control in place. Importing the core module runs
-<code>enhance(document)</code> automatically on load; the first three examples on this page are
-plain HTML, no page script at all. Call <code>enhance(root)</code> yourself for DOM
-added later.</p>`;
+upgrades each host into a live control in place. Importing <code>tweakit</code> binds
+nothing by itself. Import <code>tweakit/auto</code> instead, the same API, and it runs
+<code>enhance(document)</code> once the page has parsed; this page does, so the first three
+examples are plain HTML, no page script at all. Or call <code>enhance()</code> yourself, for
+the whole page or for DOM added later.</p>`;
 
 export const examples = [
   {
@@ -113,15 +114,21 @@ export const examples = [
     },
   },
   {
-    title: "Calling enhance() yourself",
-    prose: `<p>Auto-enhance covers the initial document. For markup you inject later
-      (a modal, a CMS block, a partial render), call it on the new root, which counts
-      too when it is itself a <code>[data-tw]</code> host. Hosts that are already live
-      are skipped, so re-running is safe.</p>`,
+    title: "Binding on load, or yourself",
+    prose: `<p><code>tweakit/auto</code> covers the document as it parsed. Without it,
+      call <code>enhance()</code>, which binds the whole document by default. For markup you
+      inject later (a modal, a CMS block, a partial render), call it on the new root, which
+      counts too when it is itself a <code>[data-tw]</code> host. Hosts that are already live
+      are skipped, so re-running is safe. With the single-file build and no bundler, the same
+      call goes in your module script: <code>import { enhance } from "./tweaks.js"; enhance();</code></p>`,
     code: `
+      import "tweakit/auto";   // binds the page's [data-tw] hosts once it has parsed
+
+      // or, from tweakit or tweakit/single:
       import { enhance } from "tweakit";
 
+      await enhance();         // the whole document
       modal.innerHTML = controlsMarkup;
-      await enhance(modal);   // resolves once any lazy modules have loaded`,
+      await enhance(modal);    // resolves once any lazy modules have loaded`,
   },
 ];
