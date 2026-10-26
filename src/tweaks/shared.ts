@@ -104,6 +104,9 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals
   vals = vals.filter(Number.isFinite);
   const d = derivedRange(...vals);
   let min = given(rawMin) ? +rawMin! : d.min, max = given(rawMax) ? +rawMax! : d.max, step = +rawStep!;
+  // One bound written at or past the values' own other end: that end derives from the written bound, as a bare number its
+  // size would, and steps a span past it when that's still no range, so [5, 20] slides 20–60 and [0.5, 1] 1–2, not 15–20 or 1–1.
+  if (given(rawMin) !== given(rawMax) && !(max > min)) { const up = given(rawMin), b = up ? min : max, r = derivedRange(b); if (up) max = r.max > b ? r.max : b + r.max - r.min; else min = r.min < b ? r.min : b - r.max + r.min; }
   if (max < min) { if (label != null) swapNote(label, min, max); const t = min; min = max; max = t; }
   if (!(step > 0) || step > max - min) step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
   return { min, max, step };

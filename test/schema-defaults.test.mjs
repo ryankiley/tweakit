@@ -279,6 +279,25 @@ test("float noise in a bound doesn't cost a step", async () => {
   p.destroy();
 });
 
+// One written bound past the default: the other derived from the value alone and swapped in, so [5, 20] slid 15–20 with a
+// warning about a max nobody wrote, and [10, 30] or { value: 2, min: 10 } couldn't slide at all.
+test("a lone bound past the default derives the other from itself, so the range is never empty or swapped", async () => {
+  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
+  try {
+    const p = tweaks("Lone", { a: [5, 20], b: [0.5, 1], c: [10, 30], d: [100, 300], e: { type: "slider", value: 2, min: 10 }, f: [5, undefined, -3], g: [5, undefined, 0], h: [[20, 80], 500], i: [50, 10], j: [5, 10, 0], k: { type: "point", components: [{ key: "x", value: 0, min: 5 }, { key: "y", value: 0, max: -3 }] } });
+    await p.ready; await new Promise((r) => setTimeout(r, 20)); // a swap notice comes from a lazy chunk
+    const [a, b, c, d, e, f, g, h0, h1, i, j] = sliders(p);
+    assert.deepEqual([a, b, c, d, e, f, g, h0, h1].map(ends), [["20", "60"], ["1", "2"], ["30", "90"], ["300", "900"], ["10", "30"], ["-9", "-3"], ["-1", "0"], ["500", "1500"], ["500", "1500"]]);
+    assert.deepEqual([p.params.a, p.params.c, p.params.e, p.params.f, p.params.h], [20, 30, 10, -3, [500, 500]], "the default clamps to the written bound");
+    press(c); assert.equal(p.params.c, 31, "it slides");
+    assert.deepEqual(p.params.k, { x: 5, y: -3 }, "a point component's lone bound too");
+    p.set("k", { x: 30, y: -15 }); assert.deepEqual(p.params.k, { x: 30, y: -15 });
+    assert.deepEqual([ends(i), ends(j)], [["10", "150"], ["0", "10"]], "a bound the value is past already, and two written ones, as before");
+    assert.equal(msgs.filter((m) => m.includes("swapped")).length, 1, "only the pair written inverted says so");
+    p.destroy();
+  } finally { console.warn = warn; }
+});
+
 // The number control's step defaulted to 1, so 0.5 came back 1 and 3.14159 came back 3, from a schema and from markup.
 test("a number with no step infers one its default sits on, 1 for a whole number", async () => {
   const p = tweaks("Num", { half: { type: "number", value: 0.5 }, pi: { type: "number", value: 3.14159 }, whole: { type: "number", value: 7 }, given: { type: "number", value: 0.5, step: 1 } });
@@ -324,9 +343,9 @@ test("a bound that isn't a number derives, and the step infers after the range i
     const p = tweaks("Hostile", { a: [5, NaN], b: [5, "abc"], c: { type: "slider", value: 5, min: NaN }, d: [5, 20], e: [-5, NaN] });
     assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.e], [5, 5, 5, -5]);
     const hs = sliders(p);
-    assert.deepEqual(hs.map(ends), [["0", "15"], ["0", "15"], ["0", "15"], ["15", "20"], ["-15", "15"]]);
+    assert.deepEqual(hs.map(ends), [["0", "15"], ["0", "15"], ["0", "15"], ["20", "60"], ["-15", "15"]]);
     for (const h of hs) press(h);
-    assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.d, p.params.e], [6, 6, 6, 15.1, -4]);
+    assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.d, p.params.e], [6, 6, 6, 21, -4]);
     p.destroy();
   } finally { console.warn = warn; }
 });
