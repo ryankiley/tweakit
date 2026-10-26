@@ -141,6 +141,44 @@ test("a floating panel follows a header drag, and a click on the header folds it
   await page.close();
 });
 
+// The first drag moves an inline panel under <body>; it must look the same there. The host here themes it three ways the
+// lift used to drop: a token on an ancestor, a token and a font through an ancestor selector on the panel, and text
+// properties the kit leaves to inheritance. The panel's own theme still layers on top afterwards, and falls back to them.
+test("a panel lifted by its first drag keeps the host's tokens and type, under its own theme", async () => {
+  const { page, errors } = await fixture();
+  await page.evaluate(async () => {
+    const style = document.createElement("style");
+    style.textContent = "#lift-host { --tw-accent: rgb(255, 99, 71); font-size: 19px; letter-spacing: 2px; transform: translateZ(0); } #lift-host .tw-panel { --tw-radius: 3px; font-family: Georgia, serif; }";
+    const host = document.createElement("div"); host.id = "lift-host";
+    document.head.append(style); document.body.append(host);
+    const { tweaks } = await import("/tweaks/core.js");
+    const p = tweaks("Lift", { x: [1, 0, 2, 0.1] }, { theme: { "--tw-surface": "rgb(51, 0, 0)" } });
+    host.append(p.el); window.liftPanel = p; await p.ready;
+  });
+  const panel = panelOf(page, "Lift");
+  const look = () => panel.evaluate((p) => {
+    const s = getComputedStyle(p), label = getComputedStyle(p.querySelector(".tw-slider-label"));
+    return { accent: s.getPropertyValue("--tw-accent").trim(), radius: s.getPropertyValue("--tw-radius").trim(), surface: s.getPropertyValue("--tw-surface").trim(),
+      font: label.fontFamily, size: s.fontSize, spacing: label.letterSpacing };
+  });
+  const before = await look();
+  assert.deepEqual(before, { accent: "rgb(255, 99, 71)", radius: "3px", surface: "rgb(51, 0, 0)", font: "Georgia, serif", size: "19px", spacing: "2px" }, "sanity: the host's context reaches the inline panel");
+  const head = await panel.locator(".tw-title").boundingBox();
+  await page.mouse.move(head.x + 10, head.y + head.height / 2);
+  await page.mouse.down(); await page.mouse.move(head.x + 110, head.y + head.height / 2 + 60, { steps: 8 }); await page.mouse.up();
+  assert.equal(await panel.evaluate((p) => p.parentElement === document.body && p.dataset.mode), "floating", "the drag lifted it under <body>");
+  assert.deepEqual(await look(), before, "the lifted panel looks as it did in its slot");
+  await page.evaluate(() => window.liftPanel.setTheme({ "--tw-accent": "#00ff00", "--tw-radius": "12px" }));
+  const themed = await look();
+  assert.deepEqual([themed.accent, themed.radius, themed.font, themed.size], ["#00ff00", "12px", before.font, before.size], "a later setTheme() still wins on the lifted panel, over the carried values");
+  assert.notEqual(themed.surface, before.surface, "and the old theme's surface, which the new one drops, is gone");
+  await page.evaluate(() => window.liftPanel.setTheme(null));
+  const reverted = await look();
+  assert.deepEqual([reverted.accent, reverted.radius], ["rgb(255, 99, 71)", "3px"], "and a key it drops falls back to the host's value, not the kit's");
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
 // Read when the file loads, so the tests below register with the rest and --test-name-pattern can pick them.
 const PAGES = readdirSync(path.join(ROOT, "dist")).filter((f) => f.endsWith(".html")).map((f) => f.slice(0, -5)); // every docs page, a new one included
 for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 }]) {

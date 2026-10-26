@@ -51,6 +51,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let built = -1; // cleanups.length as assemble() enters build()
   const later = (fn: () => void) => { if (destroyed) return; if (failed) return; assembled ? fn() : queue.push(fn); }; // the failed build already said why
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its slot
+  const carried: Record<string, string> = {}; // what the lift carried from the slot's context (lift()), under the panel's own theme
   // The values snapshot: undefined written as null (JSON would drop the key).
   const replacer = (_k: string, v: unknown) => v === undefined ? null : v;
   // params as the schema shapes it, folders and tab pages included: a value the host parks on params is its own, so
@@ -451,8 +452,20 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         panel.before(liftSlot);
       }
       // Portal to <body>: a transformed/filter/contain ancestor would become the fixed panel's containing block. The scheme scope doesn't ride along — carry it.
+      // So does the rest of the slot's context: the text properties the kit leaves to inheritance (a host's font-size,
+      // letter-spacing, color, direction, lang) and every --tw-* token, inherited or matched through an ancestor selector
+      // (`.my-sidebar .tw-panel { --tw-radius: 4px }`, as the theming page shows). Read with the panel's own theme off, so
+      // opts.theme / setTheme() still layer on top and setTheme(null) falls back to the host's values; only what the move
+      // changes is written, inline. A host rule reaching inside through an ancestor (`#app button { … }`) still stops
+      // matching: only a shadow root could keep that.
+      applyThemeVars(panel, null);
+      const cs = getComputedStyle(panel), lang = panel.closest("[lang]")?.getAttribute("lang"), was: Record<string, string> = {};
+      for (const k of ["font-family", "font-size", "font-weight", "font-style", "font-stretch", "font-variant", "font-feature-settings", "font-variation-settings", "font-kerning", "line-height", "letter-spacing", "word-spacing", "text-transform", "text-align", "color", "direction", ...Array.from(cs).filter((k) => k.startsWith("--tw-"))]) was[k] = cs.getPropertyValue(k);
       carryScheme(panel, panel);
       document.body.appendChild(panel);
+      for (const k in was) if (cs.getPropertyValue(k) !== was[k]) panel.style.setProperty(k, carried[k] = was[k]);
+      if (lang && panel.closest("[lang]")?.getAttribute("lang") !== lang) panel.lang = lang;
+      applyThemeVars(panel, themeVars);
       panel.dataset.mode = "floating"; apply();
       // A host that removes its container without destroy() would leave the lifted panel on screen; when the placeholder leaves the document, the panel follows.
       if (liftSlot && typeof MutationObserver === "function") {
@@ -802,7 +815,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     },
     // Live theming clears the prior theme first, so setTheme(null) reverts to the default look.
     setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; landmark(title); }, // a rename never moves saved values or presets
-    setTheme(theme) { if (destroyed) return; if (themeVars) for (const k in themeVars) panel.style.removeProperty(k); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
+    // A lifted panel's carried context sits under the theme: a key the old theme set and the new one drops falls back to it.
+    setTheme(theme) { if (destroyed) return; applyThemeVars(panel, null); for (const k in carried) panel.style.setProperty(k, carried[k]); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("tw-retheme")); },
     // Presets API (no-ops without opts.persist); before ready they queue like set() does.
     savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; let ok = true; later(() => { ok = savePreset(nm); }); return ok; }, // queued before ready counts as saved; once built, whether storage took it
     loadPreset: (nm) => { if (destroyed || failed || !listPresets()[nm]) return false; later(() => loadPreset(nm)); return true; }, // whether it's stored now; a save still queued before ready isn't yet
