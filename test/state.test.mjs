@@ -207,6 +207,36 @@ test("an image the person replaced while the store loaded isn't overwritten by t
   b.destroy();
 });
 
+// A pick in the panel didn't settle the row the way set() does, so picking and clearing back to the default inside the
+// load window read as the row left alone, and the stored image came back over the clear.
+test("an image the person picked and cleared while the store loaded stays cleared", async () => {
+  const S = { im: { type: "image", options: ["/a.png", "/b.png"] } }, one = "data:image/gif;base64," + "F".repeat(2048);
+  const a = tweaks("Clr", S, { persist: "t-idb-clear" }); await a.ready; a.set("im", one); await tick(250); a.destroy();
+  const b = tweaks("Clr", S, { persist: "t-idb-clear" });
+  b.el.querySelector('.tw-image-tile[data-value="/a.png"]').click();
+  b.el.querySelector(".tw-image-clear").click();
+  assert.equal(b.params.im, "");
+  await b.ready; await tick(250);
+  assert.equal(b.params.im, "", "the clear stands");
+  assert.equal(saved("tw:t-idb-clear").im, "", "and is what's saved");
+  b.destroy();
+});
+
+// The same for an image a preset names that this panel fetches: a write meanwhile, even back to the value it held, wins.
+test("a write made while a preset's image is fetched wins over the image", async () => {
+  const S = { im: { type: "image", options: ["/a.png"] } }, one = "data:image/gif;base64," + "G".repeat(2048);
+  const a = tweaks("Fe", S, { persist: "t-idb-fetch" }), b = tweaks("Fe", S, { persist: "t-idb-fetch" });
+  await Promise.all([a.ready, b.ready]);
+  a.set("im", one); a.savePreset("p"); await tick(250);
+  b.loadPreset("p"); b.set("im", ""); await tick(50);
+  assert.equal(b.params.im, "", "set() back to the value it held");
+  b.loadPreset("p"); b.el.querySelector(".tw-image-tile").click(); b.el.querySelector(".tw-image-clear").click(); await tick(50);
+  assert.equal(b.params.im, "", "a pick and a clear in the panel");
+  b.loadPreset("p"); await tick(50);
+  assert.equal(b.params.im, one, "left alone, the row takes the image");
+  a.destroy(); b.destroy();
+});
+
 // The record write ran in the background and its failure was ignored: storage named an image IndexedDB never took.
 test("an image IndexedDB refuses saves inline instead, and a preset holding its ref takes the data URL", async () => {
   const { IDBObjectStore } = await import("fake-indexeddb"), put = IDBObjectStore.prototype.put;

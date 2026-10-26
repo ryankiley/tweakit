@@ -193,3 +193,11 @@ const ref: { current: Panel | null } = { current: null };
 ref.current = tweaks("Ref", { on: true });
 const takesPanel = (p: Panel) => p.set("anything", 1);
 takesPanel(paths); asPanel.reset();
+
+// An annotated Schema holds a nested `type` to the known names too; a known name, a folder and a non-string `type` child pass.
+// @ts-expect-error "slidr" names no control
+const annotated: Schema = { a: { type: "slidr", value: 1 } };
+// @ts-expect-error nor deeper in a folder
+const annotatedDeep: Schema = { f: { g: { type: "chekbox" } } };
+const annotatedOk: Schema = { a: { type: "slider", value: 1 }, f: { inner: 1, type: 3 }, g: { type: "checkbox" } };
+tweaks("Annotated", annotatedOk);

@@ -927,3 +927,11 @@ test("a set() past a derived range, a sides' or a point's warns too, naming the 
   });
   p.destroy();
 });
+
+// A bare 1 slides 0 to 1, so set("count", 2) clamps; its notice used to wait a microtask for the heavy chunk, so code
+// reading the console right after the set() saw nothing. On the single-file build the words are already in.
+test("a clamping set() warns before the next await on the single-file build", async () => {
+  const p = tweaks("Count", { count: 1 }); await p.ready;
+  await warnings(async (warned) => { p.set("count", 2); assert.equal(p.params.count, 1); assert.match(warned[0] ?? "", /set\("count", 2\) clamped to 0–1/); });
+  p.destroy();
+});

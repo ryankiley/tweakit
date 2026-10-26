@@ -128,7 +128,9 @@ export type SchemaObject =
   | { type: "tabs"; pages: { readonly [title: string]: Schema } };
 
 /** A schema value — a shorthand, a verbose `{ type }` object, or a nested folder. */
-export type SchemaValue =
+export type SchemaValue = SchemaValueOf<SchemaNest>;
+// `F` is the nested-folder branch: strict for a schema annotated `Schema`, loose for what tweaks() infers from (HeldSchema).
+type SchemaValueOf<F> =
   | number                                          // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative spans that either side of zero)
   | boolean                                         // → checkbox
   | string                                          // → text input; a hex or color-function string → color picker
@@ -139,12 +141,20 @@ export type SchemaValue =
   | { options: readonly Option[]; value?: string | number }  // a list with a chosen default
   | { action: () => void; label?: string }          // → button
   | (SchemaObject & ControlOptions)                 // verbose form (+ render/disabled/hint)
-  | Schema                                          // nested object → folder
+  | F                                               // nested object → folder
   | SchemaFolder;                                   // a nested folder with its own render / disabled predicate
 
 /** The object you hand to `tweaks(name, schema, opts?)`. No value is a function, so a verbose
  *  form's callbacks (`format`, `fn`) take their parameter types from that form alone. */
 export interface Schema { readonly [key: string]: SchemaValue; }
+// A folder's string `type` names a control (a known name with none of its fields is still a folder), so a name no control
+// has can't pass as a folder: `const s: Schema = { a: { type: "slidr", value: 1 } }` compiled that way.
+type SchemaNest = Schema & { readonly type?: SchemaObject["type"] | Exclude<SchemaValue, string> };
+/** What tweaks() and mountControl() infer from: `Schema` with a folder's `type` left open, since a schema held in a
+ *  variable widens a verbose form's `type` to `string`; their own check then rules on the names it can still see. */
+export interface HeldSchema { readonly [key: string]: HeldValue; }
+/** A single value as mountControl() infers it; see `HeldSchema`. */
+export type HeldValue = SchemaValueOf<HeldSchema>;
 /** A nested folder that carries its own `render` / `disabled` predicate or `hint`: chrome, not
  *  children. Its index admits the predicate, so it gives up a child named `type`: that sets it
  *  apart from a verbose form, whose callbacks would otherwise be typed against the predicate too. */

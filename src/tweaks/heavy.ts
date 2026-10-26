@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, announce } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, announce, sayNow } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -270,7 +270,8 @@ const badGradient = (fn: string, value: unknown, all: unknown, n: number) => {
 const NOTICES: Record<string, (...a: any[]) => string> = {
   clamp: (key, v, min, max, type) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min > -Infinity ? min : "−∞"}–${max < Infinity ? max : "∞"}; widen min/max${type === "slider" || type === "number" ? ", or set soft: true to allow it" : ""}`,
   sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
-  swap: (label, min, max) => `"${label}": min ${min} is above max ${max}, so they were swapped`,
+  pointValue: (key, comps) => `"${key}": a point value that isn't a number starts at 0 (${comps})`,
+  swap: (label, min, max) =>`"${label}": min ${min} is above max ${max}, so they were swapped`,
   theme: (key) => `theme: "${key}" isn't a --tw-* token ("--tw-accent", say) — skipped`,
   ambiguousPath: (key, n) => `set("${key}") is ambiguous — ${n} controls read as that path (a key holding "." beside a folder); rename one`,
   noPath: (key) => `set("${key}") — no control at that path`,
@@ -278,5 +279,6 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
   noControl: (key, group) => (group ? `set("${key}") ignored — it's a folder/tabs group; set its children instead` : `set("${key}") ignored — no control has that key`),
 };
 const notice = (kind: string, args: unknown[]) => { const say = NOTICES[kind]; if (say) console.warn(`[tweaks] ${say(...args)}`); };
+sayNow(notice);
 
 export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring, arrowStep, sayWhenKeysStop };

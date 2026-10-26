@@ -253,7 +253,7 @@ function createRadiogrid(meta: Meta, onChange: OnChange): Control {
   let value = meta.value ?? optValue(options[0]);
   const btns = options.map((o) => { const b = radioButton("tw-radiogrid-btn", o, (v) => set(v)); grid.append(b); return b; }); // lazy `set` — it's declared below
   const reflect = () => setRadioActive(btns, value);
-  const set = (v: unknown, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears the selection; an unknown value is ignored
+  const set = (v: unknown, fire = true) => { if (v != null && v !== meta.value && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
   grid.addEventListener("keydown", (e) => {
     const i = activeIndex(btns, value); if (i < 0) return;
     const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
@@ -289,7 +289,7 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   });
   root.append(trigger, dropdown);
   const reflect = () => { const cur = opts.find((o) => o.value === value); valEl.textContent = cur?.label ?? value; valSwatch.style.display = cur?.color ? "" : "none"; if (cur?.color) valSwatch.style.background = swatchCss(cur.color); optButtons.forEach((b) => { const sel = b.dataset.value === String(value); b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); }; // dataset stringifies, so compare as strings
-  const set = (v: unknown, fire = true) => { if (v != null && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears the selection; an unknown value is ignored
+  const set = (v: unknown, fire = true) => { if (v != null && v !== meta.value && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
   // The shared popover shell: portaled to <body>, closes on outside-press / Esc / scroll-away,
   // and opening it closes any other popover.
   let typed = "", typedAt = 0; // the type-ahead buffer; a fresh open starts it over, as a native popup does
