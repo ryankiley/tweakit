@@ -78,6 +78,14 @@ test("an inferred step fits the default, so a value is never snapped off what wa
   p.destroy();
 });
 
+// 2.3 × 3 is 6.8999… in floating point, and the grid's top trimmed it to 6.8.
+test("a derived range reaches three times the default, float error and all", () => {
+  const p = tweaks("X3", { up: 2.3, down: -2.3, odd: 4.1 });
+  const range = (h) => [h.getAttribute("aria-valuemin"), h.getAttribute("aria-valuemax")];
+  assert.deepEqual([...p.el.querySelectorAll("[role=slider]")].map(range), [["0", "6.9"], ["-6.9", "6.9"], ["0", "12.3"]]);
+  p.destroy();
+});
+
 test("an explicit min/max still wins over the derived range", () => {
   const p = tweaks("E", { s: { type: "slider", value: 50, min: 0, max: 10 }, i: { type: "interval", value: [2, 8], min: 0, max: 10 } });
   assert.equal(p.params.s, 10);
