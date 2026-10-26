@@ -1,42 +1,54 @@
 /* Tweaks — a dependency-free real-time parameter panel. One stylesheet, namespaced
  * under `tw-` / `--tw-`, themed entirely through CSS custom properties. */
-/* Design tokens, for the panel and for every portaled node (all carry .tw-portal). */
+/* Design tokens, for the panel and for every portaled node (all carry .tw-portal). Each
+ * color is one light-dark(light, dark) pair, resolved by the color-scheme of the element that
+ * paints it (see "Scheme resolution" below), so a token keeps one name and one meaning in both
+ * schemes and a theme override wins in both. */
 .tw-panel, .tw-portal {
-  /* Surfaces — faint films over the base. */
-  --tw-surface: rgba(255, 255, 255, 0.04);
-  --tw-surface-hover: rgba(255, 255, 255, 0.075);
-  --tw-surface-active: rgba(255, 255, 255, 0.13);
+  /* Surfaces — faint films over the base. Light: items a step brighter than the off-white
+   * base; hover/active darken for contrast. */
+  --tw-surface: light-dark(rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.04));
+  --tw-surface-hover: light-dark(rgba(0, 0, 0, 0.04), rgba(255, 255, 255, 0.075));
+  --tw-surface-active: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.13));
   /* Text — secondary/tertiary style 10–12px text, so they sit at WCAG 4.5:1 on the base. */
-  --tw-text-root: #fafafa;
-  --tw-text-section: rgba(255, 255, 255, 0.64);
-  --tw-text-label: rgba(255, 255, 255, 0.64);
-  --tw-text-focus: #ffffff;
-  --tw-text-primary: rgba(255, 255, 255, 0.92);
-  --tw-text-secondary: rgba(255, 255, 255, 0.56);
-  --tw-text-tertiary: rgba(255, 255, 255, 0.5);
+  --tw-text-root: light-dark(#1a1a1a, #fafafa);
+  --tw-text-section: light-dark(rgba(0, 0, 0, 0.62), rgba(255, 255, 255, 0.64));
+  --tw-text-label: light-dark(rgba(0, 0, 0, 0.58), rgba(255, 255, 255, 0.64));
+  --tw-text-focus: light-dark(#000000, #ffffff);
+  --tw-text-primary: light-dark(rgba(0, 0, 0, 0.88), rgba(255, 255, 255, 0.92));
+  --tw-text-secondary: light-dark(rgba(0, 0, 0, 0.58), rgba(255, 255, 255, 0.56));
+  --tw-text-tertiary: light-dark(rgba(0, 0, 0, 0.55), rgba(255, 255, 255, 0.5)); /* light .54 sat at 4.48:1 on the base */
   /* Text drawn on the accent; resolveTheme overrides it to black/white by the accent's
    * luminance when a theme sets `accent`. */
   --tw-on-accent: var(--tw-text-primary);
   /* Borders — faint; the panel leans on its shadow for definition. */
-  --tw-border: rgba(255, 255, 255, 0.045);
-  --tw-border-hover: rgba(255, 255, 255, 0.11);
+  --tw-border: light-dark(rgba(0, 0, 0, 0.045), rgba(255, 255, 255, 0.045));
+  --tw-border-hover: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.11));
   /* Text-selection wash, not the browser's blue. */
-  --tw-selection: rgba(255, 255, 255, 0.22);
+  --tw-selection: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.22));
   /* Base — the panel background and recessed insets; opaque, a step brighter than a dark page. */
-  --tw-base: #242424;
+  --tw-base: light-dark(#f3f3f3, #242424);
   --tw-checker: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; /* the alpha checker under swatches and strips */
-  --tw-dropdown-bg: #292929;
+  --tw-dropdown-bg: light-dark(#f6f6f6, #292929);
   --tw-radius: 8px;
   --tw-row-height: 32px;
   --tw-width: 256px; /* the panel's width (theme `width`) */
-  --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
-  /* Elevation — a 1px rim-light, since a black shadow alone can't separate the panel
-   * on dark; -lifted deepens it while floating or dragged. */
-  --tw-shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 28px -8px rgba(0, 0, 0, 0.5), 0 18px 48px -16px rgba(0, 0, 0, 0.38);
-  --tw-shadow-panel-lifted: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px -8px rgba(0, 0, 0, 0.55), 0 28px 64px -16px rgba(0, 0, 0, 0.45);
-  /* Success (the copy check) and danger (the plot's invalid cue); both flip in light. */
-  --tw-success: #86efac;
-  --tw-danger: #ff5f5f;
+  /* A shadow isn't a color, so light-dark() goes on each layer's color. */
+  --tw-shadow-dropdown: 0 12px 32px -8px light-dark(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.6));
+  /* Elevation — on dark a 1px rim-light, since a black shadow alone can't separate the
+   * panel; on light a dark hairline edge, as a bright rim reads oddly there. -lifted deepens
+   * it while floating or dragged. The two schemes' drop layers differ in geometry, not just
+   * color, so each scheme's pair is listed and goes transparent in the other: a transparent
+   * layer paints nothing, and both lists keep one length, so the lift still interpolates. */
+  --tw-shadow-panel: 0 0 0 1px light-dark(var(--tw-border), rgba(255, 255, 255, 0.06)),
+    0 8px 28px -8px light-dark(transparent, rgba(0, 0, 0, 0.5)), 0 18px 48px -16px light-dark(transparent, rgba(0, 0, 0, 0.38)),
+    0 2px 8px -2px light-dark(rgba(0, 0, 0, 0.08), transparent), 0 18px 44px -12px light-dark(rgba(0, 0, 0, 0.16), transparent);
+  --tw-shadow-panel-lifted: 0 0 0 1px light-dark(var(--tw-border-hover), rgba(255, 255, 255, 0.08)),
+    0 12px 32px -8px light-dark(transparent, rgba(0, 0, 0, 0.55)), 0 28px 64px -16px light-dark(transparent, rgba(0, 0, 0, 0.45)),
+    0 6px 16px -3px light-dark(rgba(0, 0, 0, 0.12), transparent), 0 30px 70px -16px light-dark(rgba(0, 0, 0, 0.2), transparent);
+  /* Success (the copy check) and danger (the plot's invalid cue). */
+  --tw-success: light-dark(#15803d, #86efac);
+  --tw-danger: light-dark(#c23232, #ff5f5f);
   /* Type — the system UI font, unbound from host tokens; mono is declared so the fontMono
    * theme lever has a token to land on. */
   --tw-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -60,7 +72,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
-  color-scheme: dark; /* scrollbars and carets follow the kit's palette, not the host's color-scheme */
+  /* Picks every light-dark() token, and the UA internals (scrollbars, carets) with them; set
+   * here, so the host's own color-scheme never reaches the panel. */
+  color-scheme: light dark;
   box-sizing: border-box;
 }
 .tw-panel {
@@ -904,41 +918,19 @@
 .tw-plot.is-invalid .tw-plot-fx { color: color-mix(in srgb, var(--tw-danger) 80%, transparent); }
 
 /* ── Scheme resolution ──────────────────────────────────────────────────────────
- * Dark by default; panels follow the OS to light unless an ancestor pins them with
- * [data-tw-scheme="dark"], and a "light" pin on any ancestor forces light. The forced
- * block carries no dark guard and sits after the dark defaults, so at equal specificity
- * it wins; a dark pin inside a light scope cannot re-darken its subtree. The :where()
- * guards keep every rule at base class specificity. Only the media-driven block is
- * authored: build.mjs generates the attribute-forced twin from it. */
-@media (prefers-color-scheme: light) {
-  .tw-panel:where(:not([data-tw-scheme="dark"]):not([data-tw-scheme="dark"] *)), .tw-portal:where(:not([data-tw-scheme="dark"]):not([data-tw-scheme="dark"] *)) {
-    /* Items a step brighter than the off-white base; hover/active darken for contrast. */
-    --tw-surface: rgba(255, 255, 255, 0.82);
-    --tw-surface-hover: rgba(0, 0, 0, 0.04);
-    --tw-surface-active: rgba(0, 0, 0, 0.1);
-    --tw-text-root: #1a1a1a;
-    --tw-text-section: rgba(0, 0, 0, 0.62);
-    --tw-text-label: rgba(0, 0, 0, 0.58);
-    --tw-text-focus: #000000;
-    --tw-text-primary: rgba(0, 0, 0, 0.88);
-    --tw-text-secondary: rgba(0, 0, 0, 0.58);
-    --tw-text-tertiary: rgba(0, 0, 0, 0.55); /* .54 sat at 4.48:1 on the base */
-    --tw-border: rgba(0, 0, 0, 0.045);
-    --tw-border-hover: rgba(0, 0, 0, 0.1);
-    --tw-selection: rgba(0, 0, 0, 0.14);
-    --tw-base: #f3f3f3;
-    --tw-dropdown-bg: #f6f6f6;
-    --tw-shadow-dropdown: 0 12px 32px -8px rgba(0, 0, 0, 0.14);
-    /* A dark hairline edge, not a lit top; a bright rim reads oddly on a light panel. */
-    --tw-shadow-panel: 0 0 0 1px var(--tw-border), 0 2px 8px -2px rgba(0, 0, 0, 0.08), 0 18px 44px -12px rgba(0, 0, 0, 0.16);
-    --tw-shadow-panel-lifted: 0 0 0 1px var(--tw-border-hover), 0 6px 16px -3px rgba(0, 0, 0, 0.12), 0 30px 70px -16px rgba(0, 0, 0, 0.2);
-    --tw-success: #15803d;
-    --tw-danger: #c23232;
-    color-scheme: light; /* UA internals (scrollbars, carets) flip with the palette */
-  }
-  /* the handle needs a shadow for definition on light */
-  .tw-slider-handle:where(:not([data-tw-scheme="dark"] *)) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08); }
-}
+ * Panels and portals follow the OS (color-scheme: light dark, above), dark when it asks for
+ * dark. A [data-tw-scheme="dark"] or "light" pin on the node or any ancestor sets the scheme
+ * instead, and a light pin outranks a dark one wherever they nest: it comes later at the same
+ * specificity, so a dark pin inside a light scope cannot re-darken its subtree. The pins set
+ * color-scheme on the kit's own nodes only, never on the host element that carries the
+ * attribute. The :where() keeps both rules at base class specificity. */
+.tw-panel:where([data-tw-scheme="dark"], [data-tw-scheme="dark"] *), .tw-portal:where([data-tw-scheme="dark"], [data-tw-scheme="dark"] *) { color-scheme: dark; }
+.tw-panel:where([data-tw-scheme="light"], [data-tw-scheme="light"] *), .tw-portal:where([data-tw-scheme="light"], [data-tw-scheme="light"] *) { color-scheme: light; }
+/* The one rule light-dark() can't carry: on light the slider handle takes an edge for definition, and on dark it has no
+ * shadow at all (a transparent one still moves the antialiasing of its rounded ends). So it picks the scheme the way the
+ * pins above do: light under the OS unless a dark pin covers it, or under a light pin anywhere. */
+@media (prefers-color-scheme: light) { .tw-slider-handle:where(:not([data-tw-scheme="dark"] *)) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08); } }
+.tw-slider-handle:where([data-tw-scheme="light"] *) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08); }
 /* Tabular figures on the readouts. After the control rules: `font: inherit` also clears
  * font-variant-numeric, so this has to win on source order. */
 .tw-slider-value, .tw-slider-input, .tw-fps-val, .tw-num, .tw-grab-bubble,
