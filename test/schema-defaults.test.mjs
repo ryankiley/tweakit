@@ -361,3 +361,13 @@ test("bezier, toggle and switch name the cubicbezier and checkbox controls, in a
   try { await enhance(host); assert.equal(host._tw.ctrl.get(), true); } finally { host.remove(); }
   p.destroy();
 });
+
+// { type: "point", value: { x: 0, y: 0 } } built a folder, though { x, y } is exactly the value the point returns.
+test("a point takes its components from value: { x, y }, and a value beside components sets their defaults", async () => {
+  const p = tweaks("Pt", { at: { type: "point", value: { x: 0.2, y: -0.4 } }, both: { type: "point", components: [{ key: "x", min: -1, max: 1 }, { key: "y" }], value: { x: 0.5 } }, marker: { type: "point", size: 3 } });
+  await p.ready;
+  assert.deepEqual(p.params.at, { x: 0.2, y: -0.4 });
+  assert.deepEqual(p.params.both, { x: 0.5, y: 0 });
+  assert.deepEqual(p.params.marker, { type: "point", size: 3 }, "with neither, still a folder holding a child named type");
+  p.destroy();
+});
