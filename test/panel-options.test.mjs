@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, wait, saved as stored, quiet, warnings } from "./_helpers.mjs";
+import { loadSingle, wait, key, saved as stored, quiet, warnings } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -128,4 +128,34 @@ test("a second live panel on the same persist key warns; one after destroy() doe
     c.destroy();
   });
   localStorage.clear();
+});
+
+// jsdom has no cascade to speak of, so a stand-in getComputedStyle plays the host: inside #slot the panel computes the
+// host's accent and font size, under <body> the kit's own. Inline values win, as they would in a browser.
+test("the first drag's lift carries what the slot's context gave the panel, and the panel's theme stays on top", () => {
+  const real = globalThis.getComputedStyle, host = document.createElement("div"); document.body.append(host);
+  const slot = { "--tw-accent": "tomato", "font-size": "19px" }, bodyCtx = { "--tw-accent": "", "font-size": "13px" };
+  globalThis.getComputedStyle = (node, ...rest) => {
+    if (!node.classList?.contains("tw-panel")) return real(node, ...rest);
+    const ctx = () => (host.contains(node) ? slot : bodyCtx);
+    return Object.assign(["--tw-accent"], { getPropertyValue: (k) => node.style.getPropertyValue(k) || (ctx()[k] ?? "") });
+  };
+  try {
+    const p = tweaks("Carry", { a: [1, 0, 10, 1] }, { theme: { "--tw-radius": "4px" } });
+    host.append(p.el);
+    const title = p.el.querySelector(".tw-header-toggle"); title.focus();
+    key(title, { key: "ArrowRight", altKey: true }); // the keyboard's drag lifts as a pointer drag does
+    assert.equal(p.el.parentElement, document.body, "lifted under <body>");
+    assert.equal(p.el.style.getPropertyValue("--tw-accent"), "tomato", "the host's token rode along, inline");
+    assert.equal(p.el.style.getPropertyValue("font-size"), "19px", "and its font size");
+    assert.equal(p.el.style.getPropertyValue("--tw-radius"), "4px", "the panel's own theme is still applied");
+    p.setTheme({ "--tw-accent": "#00ff00" });
+    assert.equal(p.el.style.getPropertyValue("--tw-accent"), "#00ff00", "a later setTheme() wins over the carried token");
+    assert.equal(p.el.style.getPropertyValue("--tw-radius"), "", "and drops what the old theme set");
+    p.setTheme(null);
+    assert.equal(p.el.style.getPropertyValue("--tw-accent"), "tomato", "a key the theme drops falls back to the host's value");
+    assert.equal(p.el.style.getPropertyValue("--tw-on-accent"), "", "with no derived on-accent left behind");
+    p.destroy();
+    assert.ok(!p.el.isConnected && !host.querySelector(".tw-lift-slot"), "destroy() removes the panel and its placeholder");
+  } finally { globalThis.getComputedStyle = real; host.remove(); }
 });
