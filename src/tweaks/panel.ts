@@ -77,11 +77,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // left out, and its row says so once per value.
   const unsavable = new Map<Entry, unknown>();
   let unsavableWarned = false;
+  // Each row's last data URL and its ref, so a save that didn't touch the image doesn't hash megabytes again.
+  const hashed = new Map<Entry, [string, string]>();
+  const refOf = (e: Entry, v: string) => { const c = hashed.get(e); if (c?.[0] === v) return c[1]; const r = imgs!.refFor(v); hashed.set(e, [v, r]); return r; };
   const toRefs = (snap: Snapshot) => {
     for (const e of imageEntries()) {
       const o: any = atPath(snap, e.path.slice(0, -1)), v = o?.[e.key];
       if (typeof v !== "string" || !v.startsWith("data:")) continue; // a URL is small: it saves as it is
-      if (imgs && savedImages) { const ref = imgs.refFor(v); if (!savedImages.has(ref)) { savedImages.set(ref, v); imgs.put(persistKey!, ref, v); } o[e.key] = ref; continue; }
+      if (imgs && savedImages) { const ref = refOf(e, v); if (!savedImages.has(ref)) { savedImages.set(ref, v); imgs.put(persistKey!, ref, v); } o[e.key] = ref; continue; }
       drop(snap, e);
       if (unsavable.get(e) === v) continue;
       unsavable.set(e, v); e.note?.("Not saved");
@@ -97,13 +100,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     }
     return snap;
   };
-  // Delete the records nothing names any more: not the saved values, not a preset.
+  // Delete the records nothing names any more: not the saved values, not a preset. Only records this panel knows, loaded
+  // or written: another tab's panel on the same key may have just stored one this panel has never seen.
   const pruneImages = () => {
-    if (!imgs || !savedImages) return;
+    if (!imgs || !savedImages?.size) return;
     const keep = new Set<string>();
     for (const snap of [readStore(persistKey!), ...Object.values(listPresets())]) for (const e of imageEntries()) { const v = atPath(snap, e.path); if (imgs.isRef(v)) keep.add(v); }
-    for (const r of [...savedImages.keys()]) if (!keep.has(r)) savedImages.delete(r);
-    imgs.prune(persistKey!, keep);
+    const gone = [...savedImages.keys()].filter((r) => !keep.has(r));
+    for (const r of gone) savedImages.delete(r);
+    if (gone.length) imgs.prune(persistKey!, gone);
   };
   // Debounced save; destroy() flushes a pending write rather than dropping it.
   const persist = persistKey ? (() => {

@@ -1,6 +1,6 @@
 // ── Persisted images. An upload's data URL can outgrow localStorage (~5 MB an origin), so a panel with `persist`
 // keeps each one in IndexedDB and saves a short ref in its place: `tw-image:<hash>`. Records are keyed
-// [storage key, hash], so one panel's images read and prune as a range. Loaded only by a panel that persists
+// [storage key, hash], so one panel's images read as a range. Loaded only by a panel that persists
 // an image control. Every call settles, never rejects: IndexedDB off or refused reads as null. ──
 
 const REF = "tw-image:";
@@ -39,10 +39,7 @@ const load = (key: string) => run("readonly", (s) => {
   return out;
 });
 const put = (key: string, ref: string, dataUrl: string) => run("readwrite", (s) => { s.put(dataUrl, [key, ref.slice(REF.length)]); return true; });
-/** Delete the images under `key` that no ref in `keep` names. */
-const prune = (key: string, keep: Set<string>) => run("readwrite", (s) => {
-  s.openCursor(range(key)).onsuccess = function () { const c = this.result; if (!c) return; if (!keep.has(REF + (c.key as string[])[1])) c.delete(); c.continue(); };
-  return true;
-});
+/** Delete the images under `key` that `refs` name. */
+const prune = (key: string, refs: string[]) => run("readwrite", (s) => { for (const r of refs) s.delete([key, r.slice(REF.length)]); return true; });
 
 export { isRef, refFor, load, put, prune };
