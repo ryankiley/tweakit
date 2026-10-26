@@ -245,12 +245,18 @@ export type ParamsOf<S> = Entries<S, false>;
 // Schema's folder branch takes any object, so `{ type: "slidr", value: 1 }` fit it and compiled. tweaks() and mountControl()
 // intersect their argument with these, which keep a known name, a widened `string` (a schema held in a variable: the
 // runtime decides), and every shorthand as they are, and turn an unknown name into the list of known ones, so it fails
-// right where it's written. A known name without its hinge field is a folder at runtime and isn't checked further.
+// right where it's written. A known name without its hinge field is a folder at runtime and isn't checked further; with it,
+// or for a name with no hinge, the runtime builds that control, so its fields must fit the form: `{ type: "image",
+// options: [1] }` read as a folder of a text and a slider otherwise, and compiled.
 type CheckValue<V> =
-  V extends { readonly type: infer T } ? (string extends T ? V : T extends SchemaObject["type"] ? (V extends { readonly type: "tabs"; readonly pages: infer P } ? { readonly pages: { [K in keyof P]: KnownTypes<P[K]> } } : unknown) : { readonly type: NotAControlType })
+  V extends { readonly type: infer T } ? (string extends T ? V : T extends SchemaObject["type"] ? (V extends { readonly type: "tabs"; readonly pages: infer P } ? { readonly pages: { [K in keyof P]: KnownTypes<P[K]> } }
+    : T extends keyof Hinge ? ([Extract<Hinge[T], keyof V>] extends [never] ? unknown : FitsForm<V, T>) : FitsForm<V, T>) : { readonly type: NotAControlType })
   : V extends readonly unknown[] | ((...a: any[]) => any) ? unknown
   : V extends object ? KnownTypes<V>
   : unknown;
+// The verbose form a known name builds (an alias finds the member that lists it), and V held to it when it doesn't fit.
+type FormOf<O, T> = O extends { readonly type: infer N } ? (T extends N ? O & ControlOptions : never) : never;
+type FitsForm<V, T> = V extends FormOf<SchemaObject, T> ? unknown : FormOf<SchemaObject, T>;
 // A brand, not the list of names: a literal intersected with the list collapses the whole entry to `never`, and the error
 // read "not assignable to type 'never'" on every key. The brand keeps the entry and puts its text in the error.
 type NotAControlType = { readonly "names no control: see the type list in AGENTS.md": true };
@@ -347,9 +353,11 @@ export interface TweaksOptions {
 export type Params = Record<string, any>;
 /** The keys `set()` and `setMany()` take: a typed panel's controls by dotted path (`size`, `card.size`), so a typo is a
  *  compile error; any string for a panel built from a plain `Schema`. An object-valued control's own fields read as
- *  paths too (`drop.blur`): the types can't tell its value from a folder, so they allow what the runtime refuses. */
-export type PanelPath<P> = string extends keyof P ? string
-  : { [K in keyof P & string]: K | (P[K] extends readonly unknown[] ? never : P[K] extends object ? `${K}.${PanelPath<P[K]>}` : never) }[keyof P & string];
+ *  paths too (`drop.blur`): the types can't tell its value from a folder, so they allow what the runtime refuses. Past ten
+ *  folders deep the rest of a path is any string, since spelling every one out overran tsc's depth limit. */
+export type PanelPath<P> = PathsOf<P, []>;
+type PathsOf<P, D extends unknown[]> = string extends keyof P ? string : D["length"] extends 10 ? string
+  : { [K in keyof P & string]: K | (P[K] extends readonly unknown[] ? never : P[K] extends object ? `${K}.${PathsOf<P[K], [...D, 0]>}` : never) }[keyof P & string];
 
 /** The whole-panel state `toJSON()` returns / `fromJSON()` accepts: every control value
  *  (nested to mirror folders/tabs) plus UI state — which folders are collapsed and which

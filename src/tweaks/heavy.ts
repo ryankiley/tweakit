@@ -283,6 +283,7 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
   presetFull: (nm) => `preset "${nm}" didn't fit in storage — not saved`,
   reserved: (key) => `set("${key}") ignored — reserved key`,
   noPath: (key) => `set("${key}") — no control at that path`,
+  noValue: (key, type) => `set("${key}") ignored — a ${type} holds no value to set`,
   ambiguousKey: (key, n, eg) => `set("${key}") is ambiguous — ${n} controls share that key; use a dotted path (e.g. "${eg}")`,
   notAValue: (key, kind) => `set("${key}") ignored — a ${kind} is not a control value`,
   noControl: (key, group) => (group ? `set("${key}") ignored — it's a folder/tabs group; set its children instead` : `set("${key}") ignored — no control has that key`),

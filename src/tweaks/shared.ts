@@ -242,8 +242,9 @@ const THEME_ALIASES: Record<string, string> = Object.assign(Object.create(null),
 const TW_PX_ALIASES = new Set(["radius", "density", "width"]);
 // Font stacks and box-shadows: written as given. Every other friendly key holds a color.
 const TW_FREE_ALIASES = new Set(["font", "fontMono", "shadow", "shadowPanel", "shadowPanelLifted"]);
-// A length: a number with an optional unit, or a function such as calc() or var().
-const TW_LENGTH = /^(-?(\d+\.?\d*|\.\d+)([a-z]+|%)?|[a-z-]+\(.*\))$/i;
+// A length: a number with a length unit or %, a bare 0, a calc()-family or var() expression, or a CSS-wide keyword. A
+// unitless "12" is no length: --tw-radius: 12 breaks every calc() it lands in.
+const TW_LENGTH = /^([+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?(%|px|r?em|r?ex|r?ch|r?cap|r?ic|r?lh|cm|mm|q|in|pt|pc|[sld]?v([whib]|min|max)|cq([whib]|min|max))|[+-]?0*\.?0+|(calc|var|min|max|clamp|env)\(.*\)|inherit|initial|unset|revert|revert-layer)$/i;
 // Can this friendly key's var hold the value? A DOM without CSS.supports (jsdom) can't judge a color, so it passes.
 const themeOk = (k: string, s: string) => TW_PX_ALIASES.has(k) ? TW_LENGTH.test(s.trim())
   : TW_FREE_ALIASES.has(k) || typeof CSS === "undefined" || !CSS.supports || CSS.supports("color", s);
