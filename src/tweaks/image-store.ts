@@ -68,8 +68,8 @@ const swapRef = (presets: unknown, ref: string, withText: string) => {
 };
 
 /** The store bound to one panel: `known` holds the records it has loaded or written (ref → data URL), `refused` runs when
- *  a write fails (the panel saves again, that image inline), and the presets pair reads and writes its presets. */
-const bind = (key: string, known: Map<string, string>, refused: () => void, readPresets: () => unknown, writePresets: (v: unknown) => boolean) => {
+ *  a write fails with its ref (the panel saves again, that image inline), and the presets pair reads and writes its presets. */
+const bind = (key: string, known: Map<string, string>, refused: (ref: string) => void, readPresets: () => unknown, writePresets: (v: unknown) => boolean) => {
   const failed = new Set<string>(), hashed = new WeakMap<object, [string, string]>();
   // Each row's last data URL and its ref, so a save that didn't touch the image doesn't hash megabytes again.
   const refOf = (row: object, v: string) => { const c = hashed.get(row); if (c?.[0] === v) return c[1]; const r = refFor(v); hashed.set(row, [v, r]); return r; };
@@ -88,7 +88,7 @@ const bind = (key: string, known: Map<string, string>, refused: () => void, read
       if (failed.has(ref)) return null;
       if (!known.has(ref) || !refsIn(stored).has(ref)) {
         known.set(ref, v);
-        put(key, ref, v).then((ok) => { if (ok) return; known.delete(ref); failed.add(ref); refused(); inlinePresets(ref, v); });
+        put(key, ref, v).then((ok) => { if (ok) return; known.delete(ref); failed.add(ref); refused(ref); inlinePresets(ref, v); });
       }
       return ref;
     },

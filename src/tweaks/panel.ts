@@ -81,7 +81,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // panel's refs to their data URLs. The build doesn't wait for them: every other value restores as it builds, and a stored
   // image waits in `waiting` until the store answers, then fills in (restoreImages), by `ready`. With no store to hold an
   // upload (not answered yet, unavailable, or it refused that image), the data URL saves inline, as 0.5 saved it, and moves
-  // to the store on a later save; a write storage refuses then leaves the inline images out. ──
+  // to the store on a later save; a write storage refuses then leaves the inline images out. With no store, a stored ref
+  // stays saved as it was until its row is written. ──
   let imgs: ReturnType<typeof import("./image-store.js")["bind"]> | null = null, savedImages: Map<string, string> | null = null; // both null without IndexedDB
   let imagesReady = false; // the store has answered, or failed to load
   const waiting = new Map<Entry, [string, unknown]>(); // a row's stored ref, and the value it held while the store loaded
@@ -94,7 +95,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const stored = imagesReady && imgs ? readStore(persistKey!) : undefined; // undefined: no store to hold an upload
     for (const e of imageEntries()) {
       const o: any = atPath(snap, e.path.slice(0, -1)), v = o?.[e.key], w = waiting.get(e);
-      if (w && o && hasOwn(o, e.key) && !valueChanged(w[1], v)) { o[e.key] = w[0]; continue; } // still loading: keep the stored ref
+      if (w && o && hasOwn(o, e.key)) { if (!valueChanged(w[1], v)) { o[e.key] = w[0]; continue; } waiting.delete(e); } // still loading or no store: keep the stored ref; a write since settles it
       if (!isDataUrl(v) || stored === undefined) continue; // a URL is small, and a data URL with no store saves inline
       const ref = imgs!.save(e, v, stored);
       if (ref) o[e.key] = ref;
@@ -124,8 +125,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const pending: [Entry, string][] = [];
     applySnapshot(fromRefs(snap, pending), silent);
     for (const [e, ref] of pending) {
-      if (!imagesReady) { waiting.set(e, [ref, e.get()]); continue; }
-      if (!imgs || !savedImages) continue;
+      if (!imagesReady || !imgs) { waiting.set(e, [ref, e.get()]); continue; } // no store: the ref stays saved until the row is written
       const held = e.get();
       imgs.fetch(ref).then((url) => { if (url && late(e, held, url)) { last = undefined; notify(); } });
     }
@@ -136,14 +136,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (!assembled || destroyed || failed) { waiting.clear(); return; } // not built yet: the build resolves refs itself
     let changed = false;
     for (const [e, [ref, held]] of [...waiting]) { const url = savedImages?.get(ref); if (url && late(e, held, url)) changed = true; }
-    waiting.clear();
+    if (imgs) waiting.clear(); // no store: each ref stays waiting, so no save writes the default over it and no later session prunes it
     if (changed) { last = undefined; notify(); }
-    else persist(); // an upload saved inline while the store loaded moves to it now
+    else if (imgs) persist(); // an upload saved inline while the store loaded moves to it now
   };
   // Delete the records nothing names any more: not the saved values, not a preset. Only records this panel knows, loaded
   // or written: another tab's panel on the same key may have just stored one this panel has never seen.
   const pruneImages = () => imgs?.prune([readStore(persistKey!), listPresets()]);
-  // Debounced save; destroy() flushes a pending write rather than dropping it.
+  // Debounced save; destroy() flushes a pending write rather than dropping it. saveNow writes at once.
+  let saveNow = () => {};
   const persist = persistKey ? (() => {
     let saveT = 0;
     // A write storage refuses (off, denied, or full of something else) is dropped silently, unless an image saved inline may
@@ -159,7 +160,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       }
       pruneImages();
     };
-    cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
+    saveNow = save; cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
     return () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };
   })() : () => {};
   // Each listener runs isolated: a throwing callback can't break the others or skip persist().
@@ -889,7 +890,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const hasImage = (ms: Meta[]): boolean => ms.some((m) => m.type === "image" || hasImage(m.children || []) || (m.pages || []).some((pg) => hasImage(pg.children)));
   const images = persistKey && hasImage(metas) ? import("./image-store.js").then(async (m) => {
     savedImages = await m.load(persistKey);
-    if (savedImages) imgs = m.bind(persistKey, savedImages, () => { if (!destroyed) persist(); }, listPresets, (v) => !!presetsKey && writePresets(v));
+    // A refused upload saves again, inline; after destroy() no save is armed, so it writes now while storage still names that ref.
+    if (savedImages) imgs = m.bind(persistKey, savedImages, (ref) => { if (!destroyed) persist(); else if (JSON.stringify(readStore(persistKey)).includes(JSON.stringify(ref))) saveNow(); }, listPresets, (v) => !!presetsKey && writePresets(v));
   }, () => {}) : null;
   if (!images) imagesReady = true;
   const imagesIn = images && images.then(restoreImages);

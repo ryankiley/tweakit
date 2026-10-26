@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { window } from "./_setup-dom.mjs";
 import { indexedDB as fakeIDB, IDBKeyRange as FakeKeyRange } from "fake-indexeddb";
-import { loadSingle, tick, saved } from "./_helpers.mjs";
+import { loadSingle, tick, saved, distUrl } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -369,6 +369,45 @@ test("an IndexedDB open that never settles reads as unavailable: ready resolves 
     assert.equal(saved("tw:t-blocked").im, imgY);
     p.destroy();
   } finally { held.close(); await new Promise((r) => { del.onsuccess = del.onerror = r; }); }
+});
+
+// A session without the store dropped a stored ref and saved unasked, writing "" over it; the next session with IndexedDB
+// then pruned the record as unnamed. The ref now stays saved until the row is written.
+test("a session where IndexedDB can't open keeps a stored image's ref, so the next session has the image", async () => {
+  const a = tweaks("NS", IMG_S, { persist: "t-no-store" }); await a.ready; a.set("im", imgX); await tick(250); a.destroy();
+  const ref = saved("tw:t-no-store").im, idb = globalThis.indexedDB;
+  globalThis.indexedDB = { open() { throw new DOMException("blocked", "SecurityError"); } }; // private mode, or denied
+  try {
+    const fresh = (await import(`${distUrl("tweaks.js").href}?no-store`)).tweaks; // its own image store, never opened
+    const b = fresh("NS", IMG_S, { persist: "t-no-store" }); await b.ready; await tick(250);
+    assert.equal(saved("tw:t-no-store").im, ref, "no unasked save writes over it");
+    b.set("x", 4); await tick(250);
+    assert.deepEqual(saved("tw:t-no-store"), { x: 4, im: ref }, "nor does a save of another value");
+    b.destroy();
+    const c = fresh("NS", IMG_S, { persist: "t-no-store" }); await c.ready;
+    c.set("im", ""); await tick(250);
+    assert.equal(saved("tw:t-no-store").im, "", "an explicit write wins");
+    c.destroy();
+  } finally { globalThis.indexedDB = idb; }
+  localStorage.setItem("tw:t-no-store", JSON.stringify({ v: 1, values: { x: 4, im: ref } }));
+  const d = tweaks("NS", IMG_S, { persist: "t-no-store" }); await d.ready; d.set("x", 5); await tick(250); d.destroy();
+  const e = tweaks("NS", IMG_S, { persist: "t-no-store" }); await e.ready;
+  assert.equal(e.params.im, imgX, "the record wasn't pruned");
+  e.destroy();
+});
+
+// destroy() flushed the save that names the ref before the record write settled; its refusal then saved nothing.
+test("an upload IndexedDB refuses after destroy() still saves inline", async () => {
+  const { IDBObjectStore } = await import("fake-indexeddb"), put = IDBObjectStore.prototype.put;
+  IDBObjectStore.prototype.put = function () { throw new DOMException("full", "QuotaExceededError"); };
+  try {
+    const p = tweaks("FD", IMG_S, { persist: "t-full-destroy" }); await p.ready;
+    p.set("im", imgY); p.destroy(); await tick(50);
+    assert.equal(saved("tw:t-full-destroy").im, imgY);
+  } finally { IDBObjectStore.prototype.put = put; }
+  const q = tweaks("FD", IMG_S, { persist: "t-full-destroy" }); await q.ready;
+  assert.equal(q.params.im, imgY);
+  q.destroy();
 });
 
 // Saved values were a bare object, so a change to what's stored (a color's precision, a grey's hue) couldn't tell old data
