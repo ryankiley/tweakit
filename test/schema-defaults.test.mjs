@@ -187,3 +187,17 @@ test("string option labels: camel humps split, capital runs and digits do not", 
   assert.deepEqual([...p.el.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up"]);
   p.destroy();
 });
+
+// set("a.b") reads a folder step, so a key holding a dot could never be set or show in changes(), and with a folder a
+// beside it, set("a.b") reached that folder's b instead.
+test("a key containing a dot is skipped with a console error; its label can carry the dot", () => {
+  const error = console.error, errs = []; console.error = (...a) => errs.push(a.join(" "));
+  try {
+    const p = tweaks("Dots", { "a.b": [5, 0, 10, 1], a: { b: [1, 0, 10, 1] }, v: { type: "slider", value: 2, label: "v1.2" } });
+    assert.ok(!("a.b" in p.params), "the dotted key is skipped");
+    assert.ok(errs.some((m) => m.includes(`"a.b": a key can't contain "."`)));
+    p.set("a.b", 8); assert.equal(p.params.a.b, 8, "so a.b is only ever folder a's b");
+    assert.ok([...p.el.querySelectorAll(".tw-row-label, .tw-slider-label")].some((l) => l.textContent === "v1.2"));
+    p.destroy();
+  } finally { console.error = error; }
+});

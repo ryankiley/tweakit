@@ -47,6 +47,9 @@ type MetaFields = Partial<Meta> | false;
 // (render / disabled / hint / persist) ride on any object-form value, whatever control it infers.
 function metaFor(key: string, value: any, depth = 0): Meta | null {
   if (isReservedKey(key)) return null;
+  // set(), setMany() and changes() read a dot as a folder step, so a key holding one could never be set or reported,
+  // and set("a.b") reached folder a's b instead. Skipped like a malformed value; `label` can carry the dot.
+  if (String(key).includes(".")) { console.error(`[tweaks] "${key}": a key can't contain "." (it reads as a folder path) — control skipped; rename it and put the text in label`); return null; }
   const meta = baseMetaFor(key, value, depth);
   if (meta && value && typeof value === "object") {
     if (typeof value.render === "function") meta.render = value.render;
