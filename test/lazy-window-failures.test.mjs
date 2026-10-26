@@ -7,24 +7,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, loadSplit, tick, ptr } from "./_helpers.mjs";
+import { loadSingle, loadSplit, tick, quiet, warnings, dragHeader } from "./_helpers.mjs";
 
 globalThis.MutationObserver ??= window.MutationObserver; // the lift watchdog feature-detects it by bare identifier
 const { tweaks } = await loadSingle();
 const lazy = await loadSplit();
-const drag = (p, dx) => {
-  const header = p.el.querySelector(".tw-header");
-  header.setPointerCapture = header.releasePointerCapture = () => {};
-  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
-  header.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: 10 }));
-  header.dispatchEvent(ptr("pointerup", { clientX: 100 + dx, clientY: 10, buttons: 0 }));
-};
 
 // A value no control's set() can coerce: `+Object.create(null)` throws (no toString/valueOf),
 // and the number field's set() does exactly that first. Parked on params before `ready`, it
 // reaches build() through `ctrl.set(target[m.key])` — the "build threw" path fail() covers.
 const uncoercible = () => Object.create(null);
-const quiet = async (fn) => { const warn = console.warn; console.warn = () => {}; try { return await fn(); } finally { console.warn = warn; } };
 
 // ── The failure path ──
 test("a failed build's controls release their window listeners once the panel is destroyed", () => quiet(async () => {
@@ -45,16 +37,16 @@ test("a failed build's controls release their window listeners once the panel is
   } finally { window.addEventListener = add; window.removeEventListener = remove; }
 }));
 test("a build that throws at its first control is reported as a build that threw", async () => {
-  const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(String(a[0]));
-  try {
-    const p = lazy.tweaks("R7D", { n: { type: "number", value: 1 }, b: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } });
+  let p;
+  const warns = await warnings(async () => {
+    p = lazy.tweaks("R7D", { n: { type: "number", value: 1 }, b: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } });
     document.body.append(p.el);
     p.params.n = uncoercible();
     await assert.rejects(p.ready, TypeError);
-    const msg = warns.find((m) => m.includes("could not be built")) || "(no warning)";
-    assert.ok(msg.includes("the build threw"), `expected the cause "the build threw", got: ${msg}`);
-    p.destroy();
-  } finally { console.warn = warn; }
+  });
+  const msg = warns.find((m) => m.includes("could not be built")) || "(no warning)";
+  assert.ok(msg.includes("the build threw"), `expected the cause "the build threw", got: ${msg}`);
+  p.destroy();
 });
 // The lift watchdog (the MutationObserver that pulls a dragged-out panel off <body> when its
 // host slot leaves the document) is one of the shell's own cleanups; a failed build must
@@ -64,7 +56,7 @@ test("a failed build keeps the shell's own attachments: a lifted panel still lea
   try {
     const p = lazy.tweaks("R7E", { n: { type: "number", value: 1 }, pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } });
     host.append(p.el);
-    drag(p, 40); // lift before ready: the header is live from the shell
+    dragHeader(p, 40); // lift before ready: the header is live from the shell
     assert.equal(p.el.parentNode, document.body, "lifted to body");
     p.params.n = uncoercible();
     await assert.rejects(p.ready, TypeError);
@@ -83,14 +75,15 @@ test("a destroyed panel says nothing when its chunk later fails", async () => {
   await cp(new URL("../dist/tweaks/", import.meta.url), dir, { recursive: true });
   for (const f of await readdir(dir)) if (/^plot-.*\.js$/.test(f)) await rm(path.join(dir, f));
   const { tweaks: broken } = await import(path.join(dir, "core.js"));
-  const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(String(a[0]));
-  const errs = []; const err = console.error; console.error = (...a) => errs.push(String(a[0]));
+  const err = console.error; console.error = () => {};
   try {
-    const p = broken("Gone", { x: [1, 0, 10, 1], pl: { type: "plot", expr: "x" } });
-    p.destroy();
-    await assert.rejects(p.ready);
+    const warns = await warnings(async () => {
+      const p = broken("Gone", { x: [1, 0, 10, 1], pl: { type: "plot", expr: "x" } });
+      p.destroy();
+      await assert.rejects(p.ready);
+    });
     assert.ok(!warns.some((m) => m.includes("inert")), "no inert warning for a panel the host already tore down");
-  } finally { console.warn = warn; console.error = err; await rm(dir, { recursive: true, force: true }); }
+  } finally { console.error = err; await rm(dir, { recursive: true, force: true }); }
 });
 
 // A color value: a chunk nothing above has loaded.
@@ -122,17 +115,16 @@ test("a resize during the lazy window is applied once the panel is ready", async
 });
 
 test("a value parked on params stays out of every snapshot, so one JSON can't take breaks none", async () => {
-  const warns = []; const warn = console.warn; console.warn = (...a) => warns.push(String(a[0]));
-  try {
+  const warns = await warnings(async () => {
     const p = lazy.tweaks("RFT", { x: [1, 0, 10, 1], im: { type: "image" } }, { undo: true, persist: "rf-t" });
     const loop = {}; loop.self = loop; p.params.loop = loop; // parked before ready; the undo seed, the persist timer and toJSON all snapshot
     await p.ready;
     p.set("x", 5);
     assert.equal(p.params.x, 5, "the panel works");
     assert.deepEqual(Object.keys(p.toJSON().values), ["x", "im"], "toJSON carries the controls' values only");
-    assert.deepEqual(warns, []);
     p.destroy();
-  } finally { console.warn = warn; }
+  });
+  assert.deepEqual(warns, []);
 });
 
 test("a stored key no control has is left alone by a restore", async () => {

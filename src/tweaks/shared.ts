@@ -13,7 +13,7 @@ interface PanelEl extends HTMLElement { _twTheme?: ThemeVars | null; ready?: Pro
 /** A node applyThemeVars has written to; remembers which properties, to clear them next time. */
 interface ThemedEl extends HTMLElement { _twAppliedVars?: string[] | null }
 /** A single-select radio button carrying its option's real value (dataset stringifies). */
-interface RadioBtn extends HTMLButtonElement { _twVal?: string }
+interface RadioBtn extends HTMLButtonElement { _twVal?: string | number }
 /** setAttribute() / style.setProperty() taking a number as well as a string (the DOM
  *  stringifies either). Type-level only. */
 interface Stringifying { setAttribute(name: string, value: string | number): void; style: { setProperty(name: string, value: string | number | null, priority?: string): void } }
@@ -21,7 +21,7 @@ type Built<E extends Element> = E & Stringifying;
 /** The labeled numeric field's spec (numField). */
 interface NumSpec { label: string; value?: unknown; min?: unknown; max?: unknown; step?: unknown; soft?: boolean; row?: boolean; unit?: string } // unit: muted suffix, also in the accessible name
 /** The numeric field's handle: set() coerces and fits, get() reads the fitted number. */
-interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number }
+interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number; range: [number, number] }
 /** The popover shell's handle (popover). */
 interface Popover { open(): void; close(): void; isOpen(): boolean; reflow(): void }
 /** A control constructor: normalized meta in, handle out. The registry holds every one under
@@ -30,8 +30,11 @@ type ControlCtor<M = Meta, C = Control> = (meta: M, onChange?: OnChange) => C;
 
 // ── helpers ──
 // A word starts at a camel hump or where a capital opens a lowercase word ("myURLParser" → "My URL Parser").
-// Lowercase then a run of capitals is a name written as meant ("sRGB", "macOS", not "S RGB"), kept whole.
-const titleCase = (s: string) => (/^[a-z]+[A-Z]{2,}$/.test(s) ? s : s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim());
+// A key opening on one lowercase letter and capitals, or on an Apple OS, is a name written as meant ("sRGB", "iOS",
+// "macOS", not "S RGB"), kept whole and the rest split after it ("sRGBGamut" → "sRGB Gamut"); a word ending in an
+// acronym splits as any other ("showFPS" → "Show FPS").
+const humanize = (s: string) => s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim();
+const titleCase = (s: string) => { const m = /^(?:[a-z][A-Z]{2,}?|(?:mac|tv|watch|iPad|vision)OS)(?=[A-Z][a-z]|[^A-Za-z]|$)/.exec(s); return m ? `${m[0]} ${humanize(s.slice(m[0].length))}`.trim() : humanize(s); };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
 // Hex or any CSS color function: routes a schema string to the color control.
@@ -99,6 +102,9 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals
   vals = vals.filter(Number.isFinite);
   const d = derivedRange(...vals);
   let min = given(rawMin) ? +rawMin! : d.min, max = given(rawMax) ? +rawMax! : d.max, step = +rawStep!;
+  // One bound written at or past the values' own other end: that end derives from the written bound, as a bare number its
+  // size would, and steps a span past it when that's still no range, so [5, 20] slides 20–60 and [0.5, 1] 1–2, not 15–20 or 1–1.
+  if (given(rawMin) !== given(rawMax) && !(max > min)) { const up = given(rawMin), b = up ? min : max, r = derivedRange(b); if (up) max = r.max > b ? r.max : b + r.max - r.min; else min = r.min < b ? r.min : b - r.max + r.min; }
   if (max < min) { if (label != null) notice("swap", label, min, max); const t = min; min = max; max = t; }
   if (!(step > 0) || step > max - min) step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
   return { min, max, step };
@@ -417,7 +423,7 @@ const activeIndex = (btns: RadioBtn[], value: unknown) => { const i = btns.findI
 const setRadioActive = (btns: RadioBtn[], value: unknown) => { const stop = activeIndex(btns, value); btns.forEach((b, k) => { const on = b.dataset.value === String(value); b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = k === stop ? 0 : -1; }); };
 // A single-select radio button. _twVal carries the option's real value — dataset stringifies,
 // so a keyboard pick off dataset.value turned a numeric option into a string.
-const radioButton = (cls: string, o: Option, onPick: (v: string) => void) => { const b: RadioBtn = txt("button", cls, optLabel(o)); b.setAttribute("role", "radio"); b._twVal = optValue(o); b.dataset.value = b._twVal; b.addEventListener("click", () => onPick(b._twVal)); return b; };
+const radioButton = (cls: string, o: Option, onPick: (v: string | number | undefined) => void) => { const b: RadioBtn = txt("button", cls, optLabel(o)); b.setAttribute("role", "radio"); b._twVal = optValue(o); b.dataset.value = String(b._twVal); b.addEventListener("click", () => onPick(b._twVal)); return b; };
 // Arrow-key navigation → the next index, or −1 when the key isn't the group's. cols > 0 jumps
 // ↑/↓ by a row (the radio grid); 0 treats ↑/↓ as ←/→; < 0 leaves ↑/↓ to the page (the tab bar).
 const navIndex = (key: string, i: number, n: number, cols = 0) => {
@@ -447,7 +453,8 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
   seg.addEventListener("keydown", (e) => {
     const i = activeIndex(btns, value); if (i < 0) return;
     if (sw && (e.key === " " || e.key === "Enter")) { e.preventDefault(); set(btns[1 - i]._twVal); return; }
-    const j = navIndex(e.key, i, btns.length); if (j < 0) return;
+    // A switch's arrows point at a side, Off or On, and stop there: wrapping, → on On turned it off.
+    const j = sw ? ({ ArrowRight: 1, ArrowUp: 1, End: 1, ArrowLeft: 0, ArrowDown: 0, Home: 0 } as Record<string, number>)[e.key] ?? -1 : navIndex(e.key, i, btns.length); if (j < 0) return;
     e.preventDefault(); set(btns[j]._twVal); (sw ? seg : btns[j]).focus(); // _twVal: the real, possibly non-string value
   });
   reflect();

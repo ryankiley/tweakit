@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, announce } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -76,6 +76,11 @@ const grabSurface = (surface: HTMLElement, set: (e: PointerEvent) => void) => dr
 });
 // Pointer position inside a box as [x, y] fractions in 0–1.
 const boxFrac = (e: MouseEvent, box: Element): [number, number] => { const r = box.getBoundingClientRect(); return [clamp((e.clientX - r.left) / r.width, 0, 1), clamp((e.clientY - r.top) / r.height, 0, 1)]; };
+// An arrow key as a [dx, dy] step, ↑ positive as on screen; [0, 0] for any other key.
+const arrowStep = (e: KeyboardEvent): [number, number] => [e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0];
+// A 2D surface's readout rides on aria-description, which a screen reader speaks on focus and never again: the returned
+// function says it once a run of keys stops.
+const sayWhenKeysStop = (node: HTMLElement) => { let t = 0; return () => { clearTimeout(t); t = setTimeout(() => { if (node.isConnected) announce(node.getAttribute("aria-description") || ""); }, 250); }; };
 // Size a canvas to its CSS box × devicePixelRatio (capped) and scale the context to CSS pixels; returns [cssW, cssH].
 const fitCanvas = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, maxDpr = Infinity): [number, number] => {
   const r = canvas.getBoundingClientRect();
@@ -168,15 +173,17 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     set((Number.isFinite(n) ? n : value) + d * step * (e.shiftKey ? 10 : 1));
   });
   attachScrub(grab, wrap, step, () => value, set, () => inp.value);
-  return { el: root, set: (val: number | string) => set(val, false), get: () => value };
+  return { el: root, set: (val: number | string) => set(val, false), get: () => value, range: [lo, hi] };
 }
 
 // ── Number — numField in its row chrome. ──
 // The coarsest power of ten a number sits on (0.5 → 0.1, 3.14159 → 0.00001, 1230 → 10), read at 12 significant digits so
 // 0.1 + 0.2 counts as 0.3; Infinity for 0 or a non-number, which constrains nothing. A step no coarser keeps it exactly.
+// Past eight significant digits a number was computed, not written (1/3, Math.PI): it steps at its fourth digit, as a slider
+// rounds it, so an arrow moves it by 0.0001, not by 1e-12.
 const decimalStep = (v: unknown) => {
   const n = Number(Math.abs(+(v as number)).toPrecision(12)); if (!n || !Number.isFinite(n)) return Infinity;
-  const d = stepPrecision(n); if (d) return Number(`1e-${d}`);
+  const d = stepPrecision(n), e = Math.floor(Math.log10(n)); if (d) return Number(`1e${e + d + 1 > 8 ? e - 3 : -d}`);
   let k = 0; while (k < 15 && n % 10 ** (k + 1) === 0) k++;
   return 10 ** k;
 };
@@ -208,7 +215,10 @@ const timeFromSpring = (k: number, d: number, m = 1) => {
   const z = d / (2 * Math.sqrt(k * m));
   return { visualDuration: (CRIT * overdampedScale(z)) / Math.sqrt(k / m), bounce: z > 1 ? 1 / z - 1 : 1 - z };
 };
-const springSpan = (k: number, d: number, m: number) => { const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)); return Math.min(2.2, 9 / Math.max(z * w0, 0.5)); };
+// How fast the slowest mode dies out: ζω₀, or an overdamped spring's slow root (ζω₀ is its fast one, so the preview
+// window shrank to milliseconds and drew a near-flat line).
+const decayRate = (w0: number, z: number) => (z > 1 ? w0 * (z - Math.sqrt(z * z - 1)) : z * w0);
+const springSpan = (k: number, d: number, m: number) => Math.min(2.2, 9 / Math.max(decayRate(Math.sqrt(k / m), d / (2 * Math.sqrt(k * m))), 0.5));
 // Closed-form step response of a damped harmonic oscillator (under/critical/over): position at time t.
 const springAt = (k: number, d: number, m: number) => {
   const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m));
@@ -229,7 +239,7 @@ function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, 
 // 24 a wobble plus one on every peak and trough, each at its own percentage, so the overshoots land where they are.
 const springRun = (k: number, d: number, m: number) => {
   const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)), x = springAt(k, d, m);
-  const rate = z > 1 ? w0 * (z - Math.sqrt(z * z - 1)) : z * w0, span = Math.min(7 / Math.max(rate, 1e-3), 10);
+  const span = Math.min(7 / Math.max(decayRate(w0, z), 1e-3), 10);
   const wd = z < 1 ? w0 * Math.sqrt(1 - z * z) : 0, n = Math.min(Math.max(48, Math.ceil(wd ? (24 * span * wd) / (2 * Math.PI) : span * 40)), 800);
   const ts = Array.from({ length: n }, (_, i) => (i / (n - 1)) * span);
   if (wd) for (let t = Math.PI / wd; t < span; t += Math.PI / wd) ts.push(t); // every extremum of the underdamped response
@@ -239,25 +249,26 @@ const springRun = (k: number, d: number, m: number) => {
 };
 
 // The name a typo is a single edit from (a letter added, dropped or changed). It and the notices below are lazy, as
-// only a mistake needs them. unknownType: a schema or markup `type` no control answers to.
+// only a mistake needs them. unknownType: a schema or markup `type` no control answers to. Its list holds the aliases
+// (toggle, bezier) and not the color module's picker body, which is registered as a control but isn't a type to write.
 const nearest = (s: string, names: string[]) => {
   const a = s.toLowerCase(); // case-blind, so "textmuted" finds "textMuted"
   return names.find((n) => { const k = n.toLowerCase(); let i = 0; while (i < a.length && a[i] === k[i]) i++; return [[1, 1], [0, 1], [1, 0]].some(([x, y]) => a.slice(i + x) === k.slice(i + y)); });
 };
 const unknownType = (where: string, type: string, known: string[], then: string) => {
-  const names = [...new Set(known)].filter((t) => t !== "folder").sort(), near = nearest(type, names);
+  const names = [...new Set(known)].filter((t) => t !== "folder" && t !== "colorpicker").sort(), near = nearest(type, names);
   console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${then}. Types: ${names.join(", ")}`);
 };
 
 const warned = new Set<string>();
 const badGradient = (fn: string, value: unknown, all: unknown, n: number) => {
   const why = !Array.isArray(all) ? `expected { stops: [{ color, pos }] }, got ${value === null ? "null" : typeof value === "object" ? "an object without a stops array" : typeof value}`
-    : n < all.length ? `skipped ${all.length - n} of ${all.length} stops without a color string and a numeric pos` : "the gradient has no stops";
+    : n < all.length ? `skipped ${all.length - n} of ${all.length} stops without a CSS color and a numeric pos` : "the gradient has no stops";
   if (!warned.has(fn + why)) { warned.add(fn + why); console.warn(`[tweaks] ${fn}(): ${why}`); }
 };
 // The words for the core's notices (shared.ts notice()): what went wrong and the way out, downloaded only when one fires.
 const NOTICES: Record<string, (...a: any[]) => string> = {
-  clamp: (key, v, min, max) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min ?? "−∞"}–${max ?? "∞"}; widen min/max, or set soft: true to allow it`,
+  clamp: (key, v, min, max, type) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min > -Infinity ? min : "−∞"}–${max < Infinity ? max : "∞"}; widen min/max${type === "slider" || type === "number" ? ", or set soft: true to allow it" : ""}`,
   sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
   swap: (label, min, max) => `"${label}": min ${min} is above max ${max}, so they were swapped`,
   theme: (key) => `theme: "${key}" isn't a --tw-* token ("--tw-accent", say) — skipped`,
@@ -268,4 +279,4 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
 };
 const notice = (kind: string, args: unknown[]) => { const say = NOTICES[kind]; if (say) console.warn(`[tweaks] ${say(...args)}`); };
 
-export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };
+export { escapeReverts, dragPane, badGradient, notice, decimalStep, unknownType, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring, arrowStep, sayWhenKeysStop };

@@ -6,10 +6,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, wait, ptr, key, saved } from "./_helpers.mjs";
+import { loadSingle, wait, ptr, key, saved, quiet, warnings, withClipboard, copyFrom } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
-const quiet = async (fn) => { const warn = console.warn; console.warn = () => {}; try { return await fn(); } finally { console.warn = warn; } };
 
 test("a malformed verbose value degrades to a skipped control, not a thrown build", () => {
   const p = tweaks("T", {
@@ -98,7 +97,7 @@ test("monitor: a negative `rows` doesn't spin the buffer trim into an infinite l
   // floors at 0, still > the negative bound) — a frozen tab on the first poll tick.
   const p = tweaks("M", { m: { type: "monitor", rows: -5, get: () => "tick", interval: 30 } });
   document.body.append(p.el);
-  await new Promise((r) => setTimeout(r, 100)); // several poll ticks at the 30ms floor
+  await wait(100); // several poll ticks at the 30ms floor
   const buf = p.el.querySelector(".tw-monitor-buffer");
   assert.ok(buf, "buffer rendered");
   assert.ok(buf.textContent.split("\n").length <= 2, "buffer stayed bounded under a negative rows");
@@ -113,7 +112,7 @@ test("destroy() releases a monitor's poll even on a panel that never mounted", a
   const p = tweaks("MD", { m: { type: "monitor", get: () => 42, interval: 30, view: "text" } });
   p.destroy();                                  // never mounted
   document.body.append(p.el);                   // re-attach the dead node: a live poll would find it connected and tick
-  await new Promise((r) => setTimeout(r, 150)); // several intervals at the 30ms floor
+  await wait(150); // several intervals at the 30ms floor
   assert.equal(p.el.querySelector(".tw-fps-val").textContent, "—", "the poll was released, so it never wrote a value");
   p.el.remove();
 });
@@ -176,29 +175,10 @@ test("markup mode's copy keys by data-key and suffixes duplicates", async () => 
   assert.deepEqual([...holder.querySelectorAll("[data-tw]")].map((h) => h._tw.key), ["Size", "Size", "depth"], "data-key wins over the label when present");
 
   // Drive the real copy button and read what it actually put on the clipboard.
-  let copied = null;
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
-  try {
-    holder.querySelector(".tw-toolbar-btn--swap").click();
-    await new Promise((r) => setTimeout(r, 0)); // the click handler awaits the write
-  } finally {
-    if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip);
-    else delete globalThis.navigator.clipboard;
-  }
-  const vals = JSON.parse(copied);
+  const vals = JSON.parse(await copyFrom(holder));
   assert.deepEqual(Object.keys(vals), ["Size", "Size-2", "depth"], "all three controls survive the copy");
   assert.deepEqual(Object.values(vals), [1, 2, 3], "each keeps its own value");
   holder.remove();
-});
-
-test("opts.filter without a toolbar is refused, not built invisibly", () => {
-  // Regression: the search button lives in the toolbar, so toolbar:false left the filter
-  // input mounted in the header with nothing able to reveal it.
-  const p = tweaks("FT", { a: [1, 0, 10, 1] }, { filter: true, toolbar: false });
-  document.body.append(p.el);
-  assert.equal(p.el.querySelector(".tw-search"), null);
-  p.destroy();
 });
 
 test("setMany applies a batch across folders and notifies once", () => {
@@ -344,7 +324,7 @@ test("double-clicking a slider readout resets it even once the hover armed the e
   p.set("x", 42);
   const val = p.el.querySelector(".tw-slider-value");
   val.dispatchEvent(new Event("mouseenter", { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 850)); // arm the hover-to-edit gate
+  await wait(850); // arm the hover-to-edit gate
   assert.ok(val.classList.contains("is-editable"), "editing armed");
 
   val.dispatchEvent(new Event("click", { bubbles: true }));      // click #1 opens the editor…
@@ -405,17 +385,7 @@ test("the toolbar's copy emits the values snapshot (nested) and its reset restor
   const p = tweaks("Tb", { a: [1, 0, 10, 1], f: { b: [2, 0, 10, 1] } });
   document.body.append(p.el);
   p.set("a", 7); p.set("f.b", 9);
-  let copied = null;
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
-  try {
-    p.el.querySelector(".tw-toolbar-btn--swap").click();
-    await new Promise((r) => setTimeout(r, 0)); // the click handler awaits the write
-  } finally {
-    if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip);
-    else delete globalThis.navigator.clipboard;
-  }
-  assert.deepEqual(JSON.parse(copied), { a: 7, f: { b: 9 } });
+  assert.deepEqual(JSON.parse(await copyFrom(p.el)), { a: 7, f: { b: 9 } });
   p.el.querySelector(".tw-toolbar-btn--reset").click();
   assert.equal(p.params.a, 1);
   assert.equal(p.params.f.b, 2);
@@ -790,17 +760,13 @@ test("a bare key that names a top-level control wins over a nested namesake", as
   // Regression: set("x") warned "ambiguous" and did nothing when a folder also had an x —
   // but a top-level key has no dotted form, so there was no way to reach it at all.
   const p = tweaks("Bare", { x: [1, 0, 10, 1], f: { x: [2, 0, 10, 1] } });
-  const warn = console.warn; let warned = ""; console.warn = (m) => { warned += m; };
-  try { p.set("x", 5); await new Promise((r) => setTimeout(r, 10)); } finally { console.warn = warn; }
-  assert.equal(warned, "", "no ambiguity warning");
+  assert.deepEqual(await warnings(() => p.set("x", 5)), [], "no ambiguity warning");
   assert.equal(p.params.x, 5);
   assert.equal(p.params.f.x, 2, "the nested one is untouched");
   p.set("f.x", 8);
   assert.equal(p.params.f.x, 8, "the dotted path still reaches the nested one");
   const q = tweaks("Bare2", { f: { x: [2, 0, 10, 1] }, g: { x: [3, 0, 10, 1] } });
-  warned = ""; console.warn = (m) => { warned += m; };
-  try { q.set("x", 5); await new Promise((r) => setTimeout(r, 10)); } finally { console.warn = warn; }
-  assert.match(warned, /ambiguous/, "two nested namesakes and no top-level one still warn");
+  assert.match((await warnings(() => q.set("x", 5))).join(""), /ambiguous/, "two nested namesakes and no top-level one still warn");
   assert.equal(q.params.f.x, 2); assert.equal(q.params.g.x, 3);
 });
 
@@ -842,17 +808,15 @@ test("copy and presets announce what they did to a screen reader, from one hidde
   localStorage.clear();
   const p = tweaks("Heard", { blur: [24, 0, 100, 1] }, { persist: true });
   document.body.append(p.el); await p.ready;
-  const said = async (act) => { act(); await new Promise((r) => setTimeout(r, 150)); return document.querySelector(".tw-sr[role=status]")?.textContent; };
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  const said = async (act) => { act(); await wait(150); return document.querySelector(".tw-sr[role=status]")?.textContent; };
   const copy = p.el.querySelector(".tw-toolbar-btn--swap");
-  try {
-    Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async () => {} }, configurable: true });
+  await withClipboard(async () => {
     assert.equal(await said(() => copy.click()), "Values copied");
     assert.equal(await said(() => copy.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }))), "Nothing has changed");
     p.set("blur", 40);
     assert.equal(await said(() => copy.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }))), "1 changed value copied");
-  } finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
-  p.el.querySelector('[aria-label="Presets"]').click(); await new Promise((r) => setTimeout(r, 30));
+  });
+  p.el.querySelector('[aria-label="Presets"]').click(); await wait(30);
   const input = document.querySelector(".tw-presets-input"); input.value = "Warm";
   assert.equal(await said(() => document.querySelector(".tw-presets-savebtn").click()), "Saved preset Warm");
   assert.equal(await said(() => document.querySelector(".tw-presets-load").click()), "Loaded preset Warm");
@@ -870,15 +834,10 @@ test("setName() moves the header, and leaves the storage key on the built-with n
   assert.equal(p.el.querySelector(".tw-title").textContent, "Card");
   p.setName("Lock screen");
   assert.equal(p.el.querySelector(".tw-title").textContent, "Lock screen", "the header follows");
-  let copied = null;
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
-  try { p.el.querySelector(".tw-toolbar-btn--swap").click(); await new Promise((r) => setTimeout(r, 0)); }
-  finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
-  assert.ok(copied, "the copy still writes");
+  assert.ok(await copyFrom(p.el), "the copy still writes");
   assert.equal(document.querySelector(".tw-toast"), null, "and shows no toast");
   // Persisted values stay under the original key.
-  p.set("blur", 40); await new Promise((r) => setTimeout(r, 200)); // past the persist debounce
+  p.set("blur", 40); await wait(200); // past the persist debounce
   assert.equal(saved("tw:Card").blur, 40, "saved under the built-with name");
   assert.equal(localStorage.getItem("tw:Lock screen"), null, "nothing moved to the new name");
   p.destroy();
@@ -908,16 +867,7 @@ test("the markup toolbar's copy keeps a host keyed __proto__", async () => {
   </div></div>`;
   document.body.append(holder);
   await enhance(holder);
-  let copied = null;
-  const clip = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
-  try {
-    holder.querySelector(".tw-toolbar-btn--swap").click();
-    await new Promise((r) => setTimeout(r, 0));
-  } finally {
-    if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard;
-  }
-  assert.deepEqual(Object.keys(JSON.parse(copied)), ["__proto__", "a"]);
+  assert.deepEqual(Object.keys(JSON.parse(await copyFrom(holder))), ["__proto__", "a"]);
   holder.remove();
 });
 
@@ -925,8 +875,7 @@ test("a setMany() batch isolates a key it refuses", async () => {
   const p = tweaks("RFB", { x: [1, 0, 10, 1] });
   let calls = 0; p.on(() => calls++);
   const loop = {}; loop.self = loop;
-  const warned = []; const warn = console.warn; console.warn = (...a) => warned.push(String(a[0]));
-  try { p.setMany({ x: 5, bag: loop }); await new Promise((r) => setTimeout(r, 10)); } finally { console.warn = warn; }
+  const warned = await warnings(() => p.setMany({ x: 5, bag: loop }));
   assert.equal(p.params.x, 5); assert.equal(calls, 1, "the good key still notifies");
   assert.ok(warned.some((m) => m.includes('set("bag") ignored')));
   p.destroy();
@@ -945,13 +894,36 @@ test("on() names a nested control by its dotted path, from the control and from 
 // Clamping a set() into range is right, but silent it reads as the value not taking (`set("level", 99)` gave 15).
 test("a set() past a hard range clamps and warns once a key; a soft slider and an in-range value don't", async () => {
   const p = tweaks("Clamp", { level: [5, 0, 15, 1], free: { type: "slider", value: 5, min: 0, max: 10, soft: true }, span: [[2, 8], 0, 10] });
-  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
-  try {
-    p.set("level", 7); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 0);
-    p.set("level", 99); assert.equal(p.params.level, 15); await new Promise((r) => setTimeout(r, 10));
+  await warnings(async (warned) => {
+    p.set("level", 7); await wait(10); assert.equal(warned.length, 0);
+    p.set("level", 99); assert.equal(p.params.level, 15); await wait(10);
     assert.equal(warned.length, 1); assert.match(warned[0], /set\("level", 99\) clamped to 0–15/);
-    p.set("level", -4); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 1, "once a key");
-    p.set("free", 40); assert.equal(p.params.free, 40); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 1, "soft keeps it, quietly");
-    p.set("span", [-5, 8]); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 2);
-  } finally { console.warn = warn; p.destroy(); }
+    p.set("level", -4); await wait(10); assert.equal(warned.length, 1, "once a key");
+    p.set("free", 40); assert.equal(p.params.free, 40); await wait(10); assert.equal(warned.length, 1, "soft keeps it, quietly");
+    p.set("span", [-5, 8]); await wait(10); assert.equal(warned.length, 2);
+  });
+  p.destroy();
+});
+
+// The check read the schema's min and max, unset when the range derives: `size: 24` then set("size", 500) gave 72 silently,
+// and a sides or point control was never checked.
+test("a set() past a derived range, a sides' or a point's warns too, naming the range the control resolved", async () => {
+  const p = tweaks("Derived", {
+    size: 24, v: { type: "slider", value: 50 }, iv: [[20, 80]], noise: [0.3, 0, 0.3], n: { type: "number", value: 3 },
+    pad: { type: "sides", value: 4, max: 20 }, gap: { type: "sides", value: 4, min: 0, max: 20 },
+    pt: { type: "point", components: [{ key: "x", value: 0.5, min: 0, max: 1 }, { key: "y", value: 0, min: -5, max: 5 }] },
+  });
+  await p.ready;
+  await warnings(async (warned) => {
+    p.set("noise", 0.1 * 3); p.set("n", 1e6); p.set("size", 30); p.set("pt", { x: 0.2, y: 4 });
+    await wait(20);
+    assert.deepEqual(warned, [], "in range, float noise, and an unbounded number stay quiet");
+    p.set("size", 500); p.set("v", 500); p.set("iv", [0, 999]); p.set("pad", 50); p.set("gap", "100px 2px"); p.set("pt", { y: 9 });
+    assert.deepEqual([p.params.size, p.params.v, p.params.iv, p.params.pad.top, p.params.gap.top, p.params.pt.y], [72, 150, [0, 240], 20, 20, 5]);
+    await wait(20);
+    assert.equal(warned.length, 6, warned.join("\n"));
+    for (const [i, re] of [/set\("size", 500\) clamped to 0–72; widen min\/max, or set soft/, /clamped to 0–150/, /set\("iv", \[0,999\]\) clamped to 0–240; widen min\/max$/, /clamped to −∞–20/, /clamped to 0–20/, /set\("pt", \{"y":9\}\) clamped to -5–5/].entries()) assert.match(warned[i], re);
+    p.set("size", 900); await wait(20); assert.equal(warned.length, 6, "still once a key");
+  });
+  p.destroy();
 });

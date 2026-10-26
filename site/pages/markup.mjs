@@ -41,14 +41,14 @@ export const examples = [
       <code>data-*</code> attributes, and the lazy ones load on demand exactly as they
       do from a schema. Markup understands <code>slider</code>, <code>number</code>,
       <code>checkbox</code> (with <code>data-options</code> it becomes a radio grid),
-      <code>radiogrid</code>, <code>list</code>, <code>text</code>, <code>color</code>,
+      <code>radiogrid</code> (or <code>segmented</code>), <code>list</code>, <code>text</code>, <code>color</code>,
       <code>image</code>, <code>button</code>, <code>buttongroup</code>,
       <code>separator</code>, <code>interval</code>, <code>spring</code>,
       <code>cubicbezier</code>, <code>motion</code>, <code>shadow</code>, <code>sides</code>, <code>point</code>, <code>plot</code> and
-      <code>fpsgraph</code>, plus the <code>folder</code> wrapper below.
+      <code>fpsgraph</code>, plus the <code>folder</code> wrapper below. As in a schema, <code>toggle</code> and
+      <code>switch</code> name the checkbox and <code>bezier</code> the cubicbezier.
       An <code>image</code> with <code>data-options</code>, a comma list of URLs, is the gallery.
-      <code>gradient</code>, <code>monitor</code>, <code>segmented</code> and
-      <code>tabs</code> are panel-only; a host naming one of those is left untouched.</p>`,
+      <code>tabs</code> is panel-only; a host naming it is left untouched.</p>`,
     html: `
       <div class="tw-panel" data-mode="inline" style="max-width: 300px">
         <div class="tw-header"><span class="tw-title">Heavy</span></div>

@@ -67,13 +67,14 @@ function createMonitor(meta: Meta, perFrame = false) {
     poll((v) => { lines.push(fmt(v)); while (lines.length > rows) lines.shift(); buf.textContent = lines.join("\n"); });
     return blade(wrap, stop);
   }
-  if (!graph) { poll((v) => { val.textContent = fmt(v); }); return blade(wrap, stop); }
+  const readout = (v: unknown) => { val.textContent = fmt(v); };
+  if (!graph) { poll(readout); return blade(wrap, stop); }
 
   const canvas = document.createElement("canvas"); canvas.className = "tw-fps-canvas";
   wrap.append(canvas);
   const ctx = canvas.getContext("2d");
   // No 2D context (a headless DOM, a blocked canvas) degrades to the text readout.
-  if (!ctx) { poll((v) => { val.textContent = fmt(v); }); return blade(wrap, stop); }
+  if (!ctx) { poll(readout); return blade(wrap, stop); }
   const N = 80, samples: number[] = new Array(N).fill(NaN);
   let idx = 0, w = 0, h = 0;
   const onResize = () => { [w, h] = fitCanvas(canvas, ctx, 2); };
@@ -92,7 +93,7 @@ function createMonitor(meta: Meta, perFrame = false) {
     const span = (hi - lo) || 1;
     strokeSeries(ctx, wrap, w, h, samples, idx, (s) => (s - lo) / span);
   };
-  poll((v) => { if (typeof v !== "number" || !Number.isFinite(v)) { val.textContent = fmt(v); return; } samples[idx] = v; idx = (idx + 1) % N; val.textContent = fmt(v); draw(); }); // a non-finite sample shows in the readout, not the graph
+  poll((v) => { readout(v); if (typeof v === "number" && Number.isFinite(v)) { samples[idx] = v; idx = (idx + 1) % N; draw(); } }); // a non-finite sample shows in the readout, not the graph
   return blade(wrap, stop);
 }
 

@@ -3,7 +3,7 @@
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, foldBody,
   applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus,
-  getControl, notice, hasOwn, isReservedKey, valueChanged, restoreDefault,
+  getControl, notice, isObj, hasOwn, isReservedKey, valueChanged, restoreDefault,
 } from "./shared.js";
 import { metaFor, VALUELESS } from "./schema.js";
 import { ensureForMetas, scanTypes } from "./lazy.js";
@@ -19,7 +19,7 @@ import type { TabsControl } from "./controls/tabs.js";
 /** A params object or one of its folder/tabs sub-objects — the holder a control writes into. */
 type Target = Record<string, unknown>;
 /** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def) and its dotted path. */
-export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement; note?: Control["note"] }
+export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement; note?: Control["note"]; range?: Control["range"] }
 /** A values snapshot — params as JSON round-trips it. */
 export type Snapshot = Record<string, any>;
 
@@ -73,8 +73,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
   // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to what's
-  // stored (a color's precision, a grey's hue) can tell old data from new. A bare object is the version before, read as it is.
-  const unwrap = (s: any, k: string) => (s && typeof s === "object" && s.v === 1 && Object.keys(s).length === 2 && s[k] && typeof s[k] === "object" ? s[k] : s);
+  // stored (a color's precision, a gray's hue) can tell old data from new. A bare object is the version before, read as it is.
+  // A schema keyed v and values saves a bare object of that shape too; then only a wrapper's values hold that v.
+  const unwrap = (s: any, k: string, inner?: string) => (s && typeof s === "object" && s.v === 1 && Object.keys(s).length === 2 && s[k] && typeof s[k] === "object" && (!inner || hasOwn(s[k], inner)) ? s[k] : s);
   const writeValues = (snap: Snapshot) => writeStore(persistKey!, { v: 1, values: snap });
   const writePresets = (all: unknown) => writeStore(presetsKey!, { v: 1, presets: all });
   const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj); // own keys only: a control keyed toString must not read Object.prototype's
@@ -388,7 +389,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // A value a host parked on params before assemble ran wins over the schema default.
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el, note: ctrl.note };
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el, note: ctrl.note, range: ctrl.range };
         entries.push(entry); wireReset(ctrl.el, entry); scopes.set(ctrl.el, { kind: "row", entry, label: m.label });
       }
       registerCond(ctrl.el, m);
@@ -719,7 +720,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       import("./fold.js").then((m) => { fold = m.fold; }, () => {}); // a fold chunk that fails to load leaves the rows toggling
     }
     // Restore last session, notifying: on the lazy path a host may already have subscribed.
-    if (persistKey) restore(unsaved(unwrap(readStore(persistKey), "values")));
+    if (persistKey) restore(unsaved(unwrap(readStore(persistKey), "values", entries.some((e) => e.path[0] === "v") ? "v" : undefined)));
     if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm(); watchResize();
     cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); })); // one document listener per panel for its keys
@@ -731,12 +732,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   // A set() past a hard range clamps, which is right, but silent it reads as the value not taking: say so, once a key.
   const clamped = new Set<Entry>();
+  // Each number asked for is held to the range the control resolved (derived bounds, a point's per component), not the
+  // schema's min and max, which a derived range leaves unset; a hair past an end is float noise, not a clamp.
   const clampNote = (e: Entry, key: string, v: unknown) => {
-    const { type, min, max, soft } = e.m;
-    if (soft || clamped.has(e) || !(type === "slider" || type === "number" || type === "interval")) return;
-    const out = (n: unknown) => typeof n === "number" && ((min != null && n < min) || (max != null && n > max));
-    if (!(Array.isArray(v) ? v.some(out) : out(v))) return;
-    clamped.add(e); notice("clamp", key, v, min, max);
+    const r = e.range; if (!r || e.m.soft || clamped.has(e)) return;
+    // [component, number] pairs: one number, a list (interval, sides), a sides string, or an object's sides or components.
+    const asked: [string, unknown][] = typeof v === "string" ? v.trim().split(/\s+/).map((s) => ["", parseFloat(s)]) : Array.isArray(v) ? v.map((n) => ["", n]) : isObj(v) ? Object.entries(v) : [["", v]];
+    for (const [k, n] of asked) {
+      const b = Array.isArray(r) ? r : r[k], eps = 1e-9 * Math.max(1, Math.abs(n as number));
+      if (b && typeof n === "number" && (n < b[0] - eps || n > b[1] + eps)) { clamped.add(e); notice("clamp", key, v, b[0], b[1], e.m.type); return; }
+    }
   };
   // Resolve a (possibly dotted) key, apply, report whether the leaf changed; never notifies, so setMany fires one notify.
   const applySet = (key: string, v: unknown) => {

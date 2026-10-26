@@ -232,7 +232,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   };
   valueEl.addEventListener("click", () => { if (valueEl.classList.contains("is-editable")) openEditor(); });
 
-  return { el: wrap, set: (v: number | string) => set(v, false), get: () => q(value) };
+  return { el: wrap, set: (v: number | string) => set(v, false), get: () => q(value), range: [min, max] };
 }
 
 function createToggle(meta: Meta, onChange: OnChange): Control {
@@ -283,7 +283,7 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   trigger.append(txt("span", "tw-select-label", meta.label), right);
   const dropdown = el("div", "tw-select-dropdown"); dropdown.setAttribute("role", "listbox");
   const optButtons = opts.map((o) => {
-    const b = btn("tw-select-option"); b.setAttribute("role", "option"); if (o.color) b.append(swatch(o.color)); b.append(txt("span", "tw-option-label", o.label)); b.dataset.value = o.value;
+    const b = btn("tw-select-option"); b.setAttribute("role", "option"); if (o.color) b.append(swatch(o.color)); b.append(txt("span", "tw-option-label", o.label)); b.dataset.value = String(o.value);
     b.addEventListener("click", () => { set(o.value); pop.close(); });
     dropdown.append(b); return b;
   });

@@ -1,5 +1,5 @@
 // ── Tabs — group controls into pages; build() fills the page bodies. Lazy.
-import { el, txt, onReady, measurePill, navIndex, registerControl } from "../shared.js";
+import { el, txt, onReady, measurePill, navIndex, requestReflow, registerControl } from "../shared.js";
 import type { Meta } from "../schema.js";
 
 /** The tabs handle: a page body per tab for build() to fill, and the active tab for the panel's UI state. */
@@ -15,10 +15,8 @@ function createTabs(meta: Meta): TabsControl {
   const bodies: HTMLDivElement[] = [];
   const tabs = meta.pages.map((page, i) => {
     const tab = txt("button", "tw-tabs-tab", page.title); tab.setAttribute("role", "tab");
-    tab.dataset.active = String(i === 0); tab.setAttribute("aria-selected", String(i === 0));
-    tab.tabIndex = i === 0 ? 0 : -1; // roving tabindex from build, not just after activate
     tab.id = `${uid}-tab-${i}`; tab.setAttribute("aria-controls", `${uid}-page-${i}`);
-    const body = el("div", "tw-tabs-page tw-controls"); body.dataset.active = String(i === 0);
+    const body = el("div", "tw-tabs-page tw-controls");
     body.setAttribute("role", "tabpanel"); body.id = `${uid}-page-${i}`; body.setAttribute("aria-labelledby", tab.id);
     bodies.push(body); pagesWrap.append(body);
     tab.addEventListener("click", () => activate(i));
@@ -26,12 +24,15 @@ function createTabs(meta: Meta): TabsControl {
   });
   root.append(bar, pagesWrap);
   const measure = (animate?: boolean) => measurePill(bar, pill, animate); // slide the pill to the active tab
-  function activate(i: number) {
+  // The active tab and page; the roving tabindex is set from the build, not only after a switch.
+  const mark = (i: number) => {
     tabs.forEach((b, k) => { b.dataset.active = String(k === i); b.setAttribute("aria-selected", String(k === i)); b.tabIndex = k === i ? 0 : -1; });
     bodies.forEach((b, k) => (b.dataset.active = String(k === i)));
-    measure(true);
-    // Controls built on a display:none page measured 0; let them re-measure. Not "resize": host pages listen to that.
-    requestAnimationFrame(() => window.dispatchEvent(new Event("tw-reflow")));
+  };
+  mark(0);
+  function activate(i: number) {
+    mark(i); measure(true);
+    requestReflow(); // controls built on a display:none page measured 0; let them re-measure
   }
   bar.addEventListener("keydown", (e) => {
     const i = tabs.findIndex((b) => b.dataset.active === "true"); if (i < 0) return;

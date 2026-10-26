@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, distCss } from "./_helpers.mjs";
+import { loadSingle, distCss, wait, quiet, warnings } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const css = distCss();
@@ -206,33 +206,41 @@ test("key labels: camel humps split, capital runs stay together, sRGB and macOS 
   p.destroy();
 });
 
+// Every lowercase word ending in capitals was kept whole, so showFPS and baseURL stayed raw, and a name opening a longer
+// key split inside it ("iOSVersion" read "I OS Version").
+test("key labels: a word ending in an acronym splits, and sRGB or iOS opening a key stays whole", async () => {
+  const keys = { showFPS: 1, useHDR: 1, baseURL: 1, maxDPR: 1, enableGPU: 1, isOK: 1, useSRGB: 1, iOSVersion: 1, sRGBGamut: 1, macOSVersion: 1, tvOS: 1, watchOS: 1, iPadOS: 1, visionOS: 1 };
+  const p = tweaks("K2", keys); document.body.append(p.el); await p.ready;
+  assert.deepEqual([...p.el.querySelectorAll(".tw-slider-label")].map((l) => l.textContent), ["Show FPS", "Use HDR", "Base URL", "Max DPR", "Enable GPU", "Is OK", "Use SRGB", "iOS Version", "sRGB Gamut", "macOS Version", "tvOS", "watchOS", "iPadOS", "visionOS"]);
+  p.destroy();
+});
+
 // A typo in `type` built a folder of `type` and `value` rows without a word.
 test("an unknown type warns, naming the near type and the real ones; it still builds a folder, as a child named type may mean", async () => {
-  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
-  try {
-    const p = tweaks("Types", { typo: { type: "slidr", value: 1 }, font: { type: "Inter", size: [12, 8, 40, 1] } });
-    assert.deepEqual(p.params.font, { type: "Inter", size: 12 });
-    await new Promise((r) => setTimeout(r, 20)); // the message comes from a lazy chunk
-    assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"?') && m.includes("Types: button")));
-    assert.ok(msgs.some((m) => m.includes('"font": "Inter" isn\'t a control type. It builds a folder')));
-    p.destroy();
-  } finally { console.warn = warn; }
+  let p;
+  const msgs = await warnings(() => { p = tweaks("Types", { typo: { type: "slidr", value: 1 }, font: { type: "Inter", size: [12, 8, 40, 1] } }); });
+  assert.deepEqual(p.params.font, { type: "Inter", size: 12 });
+  assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"?') && m.includes("Types: button, buttongroup")));
+  const types = msgs.find((m) => m.includes('"typo"')).split("Types: ")[1].split(", ");
+  for (const t of ["segmented", "checkbox", "cubicbezier", "tabs"]) assert.ok(types.includes(t), `the list names ${t}`);
+  assert.ok(!types.includes("colorpicker") && !types.includes("folder"), "and not the picker body or a folder");
+  assert.ok(msgs.some((m) => m.includes('"font": "Inter" isn\'t a control type. It builds a folder')));
+  p.destroy();
 });
 
 // An inverted pair swaps, which is right, but silently: { min: 10, max: 0 } and data-min="40" data-max="0" built quietly.
 test("a min above max still swaps, and says so", async () => {
-  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
-  try {
+  await warnings(async (msgs) => {
     const p = tweaks("Inv", { s: { type: "slider", value: 5, min: 10, max: 0 }, r: { type: "interval", value: [2, 4], min: 9, max: 1 }, ok: { type: "slider", value: 5, min: 0, max: 10 } });
     await p.ready;
     const h = p.el.querySelector("[role=slider]");
     assert.deepEqual([h.getAttribute("aria-valuemin"), h.getAttribute("aria-valuemax")], ["0", "10"]);
-    await new Promise((r) => setTimeout(r, 10)); // a notice's words come from a lazy chunk
+    await wait(10); // a notice's words come from a lazy chunk
     assert.ok(msgs.some((m) => m.includes('"S": min 10 is above max 0, so they were swapped')));
     assert.ok(msgs.some((m) => m.includes('"R": min 9 is above max 1')));
     assert.equal(msgs.filter((m) => m.includes("swapped")).length, 2, "a pair in order says nothing");
     p.destroy();
-  } finally { console.warn = warn; }
+  });
 });
 
 // ── Ranges and steps: a default the author wrote comes back unchanged, the range holds it, and a key steps the inferred grid. ──
@@ -279,6 +287,24 @@ test("float noise in a bound doesn't cost a step", async () => {
   p.destroy();
 });
 
+// One written bound past the default: the other derived from the value alone and swapped in, so [5, 20] slid 15–20 with a
+// warning about a max nobody wrote, and [10, 30] or { value: 2, min: 10 } couldn't slide at all.
+test("a lone bound past the default derives the other from itself, so the range is never empty or swapped", async () => {
+  await warnings(async (msgs) => {
+    const p = tweaks("Lone", { a: [5, 20], b: [0.5, 1], c: [10, 30], d: [100, 300], e: { type: "slider", value: 2, min: 10 }, f: [5, undefined, -3], g: [5, undefined, 0], h: [[20, 80], 500], i: [50, 10], j: [5, 10, 0], k: { type: "point", components: [{ key: "x", value: 0, min: 5 }, { key: "y", value: 0, max: -3 }] } });
+    await p.ready; await wait(20); // a swap notice comes from a lazy chunk
+    const [a, b, c, d, e, f, g, h0, h1, i, j] = sliders(p);
+    assert.deepEqual([a, b, c, d, e, f, g, h0, h1].map(ends), [["20", "60"], ["1", "2"], ["30", "90"], ["300", "900"], ["10", "30"], ["-9", "-3"], ["-1", "0"], ["500", "1500"], ["500", "1500"]]);
+    assert.deepEqual([p.params.a, p.params.c, p.params.e, p.params.f, p.params.h], [20, 30, 10, -3, [500, 500]], "the default clamps to the written bound");
+    press(c); assert.equal(p.params.c, 31, "it slides");
+    assert.deepEqual(p.params.k, { x: 5, y: -3 }, "a point component's lone bound too");
+    p.set("k", { x: 30, y: -15 }); assert.deepEqual(p.params.k, { x: 30, y: -15 });
+    assert.deepEqual([ends(i), ends(j)], [["10", "150"], ["0", "10"]], "a bound the value is past already, and two written ones, as before");
+    assert.equal(msgs.filter((m) => m.includes("swapped")).length, 1, "only the pair written inverted says so");
+    p.destroy();
+  });
+});
+
 // The number control's step defaulted to 1, so 0.5 came back 1 and 3.14159 came back 3, from a schema and from markup.
 test("a number with no step infers one its default sits on, 1 for a whole number", async () => {
   const p = tweaks("Num", { half: { type: "number", value: 0.5 }, pi: { type: "number", value: 3.14159 }, whole: { type: "number", value: 7 }, given: { type: "number", value: 0.5, step: 1 } });
@@ -293,6 +319,17 @@ test("a number with no step infers one its default sits on, 1 for a whole number
   document.body.append(host); await enhance(host);
   assert.equal(host.querySelector(".tw-num").value, "0.5");
   host.remove();
+});
+
+// A computed default fitted exactly at 12 digits: 1/3 stepped by 1e-12, so an arrow showed "0.333333333334".
+test("a number or point with a computed default steps at its fourth digit, as a slider rounds it", async () => {
+  const p = tweaks("Rep", { third: { type: "number", value: 1 / 3 }, pi: { type: "number", value: Math.PI }, big: { type: "number", value: 200 / 3 }, kept: { type: "number", value: 1234.5678 }, pt: { type: "point", value: { x: 1 / 3, y: 0 } }, s: 1 / 3 });
+  await p.ready;
+  assert.deepEqual([p.params.third, p.params.pi, p.params.big, p.params.kept, p.params.pt.x, p.params.s], [0.3333, 3.142, 66.67, 1234.5678, 0.3333, 0.3333], "eight written digits still fit exactly");
+  const [third, pi, big] = p.el.querySelectorAll(".tw-row .tw-num");
+  press(third, "ArrowUp"); press(pi, "ArrowUp"); press(big, "ArrowUp");
+  assert.deepEqual([p.params.third, p.params.pi, p.params.big, third.value], [0.3334, 3.143, 66.68, "0.3334"]);
+  p.destroy();
 });
 
 // A point's step was the decade at or below range/200, whatever the default: 337 over ±1011 stepped by 10 to 340.
@@ -319,16 +356,15 @@ test("the interval shorthand derives missing bounds as the verbose form does; gi
 
 // [5, NaN] inferred a step of 10 on a NaN span, and 5 rounded to 10 over 0–10; [5, 20] inferred 0.01 over 15–20.
 test("a bound that isn't a number derives, and the step infers after the range is whole", async () => {
-  const warn = console.warn; console.warn = () => {};
-  try {
+  await quiet(async () => {
     const p = tweaks("Hostile", { a: [5, NaN], b: [5, "abc"], c: { type: "slider", value: 5, min: NaN }, d: [5, 20], e: [-5, NaN] });
     assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.e], [5, 5, 5, -5]);
     const hs = sliders(p);
-    assert.deepEqual(hs.map(ends), [["0", "15"], ["0", "15"], ["0", "15"], ["15", "20"], ["-15", "15"]]);
+    assert.deepEqual(hs.map(ends), [["0", "15"], ["0", "15"], ["0", "15"], ["20", "60"], ["-15", "15"]]);
     for (const h of hs) press(h);
-    assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.d, p.params.e], [6, 6, 6, 15.1, -4]);
+    assert.deepEqual([p.params.a, p.params.b, p.params.c, p.params.d, p.params.e], [6, 6, 6, 21, -4]);
     p.destroy();
-  } finally { console.warn = warn; }
+  });
 });
 
 test("the interval takes PageUp and PageDown, a tenth of its range", async () => {
