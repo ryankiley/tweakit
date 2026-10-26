@@ -299,7 +299,7 @@ export interface Theme {
   /** Control corner radius, row height and the panel's width (256px by default), as CSS lengths. */
   "--twk-radius"?: string; "--twk-row-height"?: string; "--twk-width"?: string;
   /** Any other token. */
-  [token: `--${string}`]: string | undefined;
+  [token: `--twk-${string}`]: string | undefined;
 }
 
 /** Options for a programmatic write — `set()`, `setMany()`, `fromJSON()`. */

@@ -290,7 +290,7 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
   sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
   pointValue: (key, comps) => `"${key}": a point value that isn't a number starts at 0 (${comps})`,
   swap: (label, min, max) =>`"${label}": min ${min} is above max ${max}, so they were swapped`,
-  theme: (key) => `theme: "${key}" isn't a --twk-* token ("--twk-accent", say) — skipped`,
+  theme: (key) => `theme: "${key}" isn't a --twk-* token (${key.startsWith("--tw-") ? `renamed "--twk-${key.slice(5)}" in 0.7` : '"--twk-accent", say'}) — skipped`,
   ambiguousPath: (key, n) => `set("${key}") is ambiguous — ${n} controls read as that path (a key holding "." beside a folder); rename one`,
   noPath: (key) => `set("${key}") — no control at that path`,
   noValue: (key, type) => `set("${key}") ignored — a ${type} holds no value to set`,

@@ -229,7 +229,7 @@ const resolveTheme = (theme: Theme | null | undefined): ThemeVars | null => {
   const out: ThemeVars = {};
   for (const [k, v] of Object.entries(theme)) {
     if (v == null) continue; // unset, as an optional spread leaves a key
-    if (k.startsWith("--")) out[k] = String(v); else notice("theme", k);
+    if (k.startsWith("--twk-")) out[k] = String(v); else notice("theme", k);
   }
   return Object.keys(out).length ? out : null;
 };
