@@ -64,9 +64,11 @@ const gridEnds = (min: number, max: number, step: number, anchor = min): [number
 };
 // By the span, then finer, a tenth at a time and at most twice, until each value the range was built around sits on the
 // grid from min: a coarser grid snapped the default off what was written (37 over 0–110 became 40). A value finer still
-// (3.14159) rounds to the last of those.
+// (3.14159) rounds to the last of those. A range across zero counts 0 among them, so -45's -135–135 steps by 1, not by
+// 10 from -135 (…, -5, 5, …), which stepped over 0.
 const inferStep = (min: number, max: number, ...vals: number[]) => {
   const range = max - min;
+  if (min < 0 && max > 0) vals.push(0);
   let step = range <= 1 ? 0.01 : range <= 10 ? 0.1 : range <= 100 ? 1 : 10;
   const off = (v: number) => { const n = (v - min) / step; return Number.isFinite(n) && Math.abs(n - Math.round(n)) > 1e-6; };
   for (let i = 0; i < 2 && vals.some(off); i++) step /= 10;
