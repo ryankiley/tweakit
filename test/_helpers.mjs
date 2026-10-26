@@ -18,6 +18,10 @@ export const distCss = () => readFileSync(distUrl("tweaks.css"), "utf8");
 /** A mount function for one bundle + panel name: builds, appends, awaits `ready`. */
 export const mounter = (tweaks, name) => async (schema, opts) => { const p = tweaks(name, schema, opts); document.body.append(p.el); await p.ready; return p; };
 
+/** Hover a panel's Presets button, as a pointer does before it presses: that downloads the menu's chunk, so the press
+ *  then opens the menu at once. Resolves to the button. */
+export const armPresets = async (p) => { const b = p.el.querySelector('[aria-label="Presets"]'); b.dispatchEvent(new Event("pointerenter")); await wait(10); return b; };
+
 /** A synthetic pointer event; jsdom has no PointerEvent constructor. */
 export const ptr = (type, props) => Object.assign(new Event(type, { bubbles: true, cancelable: true }), { pointerId: 1, button: 0, buttons: 1, pointerType: "mouse", ...props });
 

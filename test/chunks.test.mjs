@@ -65,6 +65,19 @@ test("the markup chunk is lazy and imports only the shared chunk; a page without
   assert.deepEqual(imports, [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]), "only the shared chunk core imports");
 });
 
+// The presets menu is its own chunk too, fetched on the Presets button's first hover, focus or press. Like markup it takes
+// announce() and its icon from core as arguments, so it imports only the shared chunk.
+test("the presets menu chunk is lazy and imports only the shared chunk", async () => {
+  const { readdir, readFile } = await import("node:fs/promises");
+  const dir = new URL("../dist/tweaks/", import.meta.url);
+  const presets = (await readdir(dir)).find((f) => /^presets-[\w-]+\.js$/.test(f));
+  assert.ok(presets, "dist/tweaks has a presets chunk");
+  const core = await readFile(new URL("core.js", dir), "utf8");
+  assert.ok(core.includes(`import("./${presets}")`) && !core.includes("twk-presets-menu"), "core loads it dynamically and holds none of it");
+  const imports = [...(await readFile(new URL(presets, dir), "utf8")).matchAll(/from\s*"\.\/([\w-]+\.js)"/g)].map((m) => m[1]);
+  assert.deepEqual(imports, [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]), "only the shared chunk core imports");
+});
+
 // The budget a basic panel's download is held to: core.js + the shared chunk it statically
 // imports, gzipped — the figure build.mjs reports as the code-split size. It drifted from
 // 19.6 KB to 21.6 KB one small fix at a time with nothing watching; an overrun here means

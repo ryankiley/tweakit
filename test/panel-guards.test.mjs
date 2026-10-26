@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, wait } from "./_helpers.mjs";
+import { loadSingle, wait, armPresets } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 
@@ -17,7 +17,7 @@ test("every field a panel builds is left alone by autofill and password managers
   document.body.append(p.el);
   try {
     // The presets menu's name field is built in a popover on <body>.
-    p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]').click();
+    (await armPresets(p)).click();
     const fields = [...p.el.querySelectorAll("input, textarea"), ...document.querySelectorAll(".twk-portal input, .twk-portal textarea")];
     for (const cls of ["twk-text", "twk-textarea", "twk-presets-input"]) assert.ok(fields.some((f) => f.classList.contains(cls)), `a .${cls} was built`);
     for (const f of fields) {
@@ -39,7 +39,7 @@ test("a press or a click on the panel or its popover never reaches the page", as
   const press = (node) => { for (const t of types) node.dispatchEvent(new window.Event(t, { bubbles: true })); };
   for (const t of types) document.addEventListener(t, onPage);
   try {
-    const presets = p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]');
+    const presets = await armPresets(p);
     press(presets);
     assert.equal(presets.getAttribute("aria-expanded"), "true", "the panel still hears its own click: the menu opened");
     const menu = [...document.querySelectorAll(".twk-portal")].find((n) => n.querySelector(".twk-presets-input"));
