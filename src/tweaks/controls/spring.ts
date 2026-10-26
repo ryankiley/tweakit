@@ -1,6 +1,6 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/bounce) mode, over one settle-curve preview. Lazy. ──
 import { el, txt, onReady, onLive, clamp, createSegmented, registerControl } from "../shared.js";
-import { dragGesture, numField, cssVar, accentColor, springCurve, springFromTime } from "../heavy.js";
+import { dragGesture, numField, cssVar, accentColor, springCurve, springFromTime, boxFrac } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -87,11 +87,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
 
   // Drag the preview to tune by feel: horizontal sets stiffness or duration, vertical sets damping or bounce.
   const ST_MIN = 1, ST_MAX = 500, DA_MIN = 1, DA_MAX = 40;
-  let vizRect: DOMRect | null = null;
   const fromPointer = (e: PointerEvent) => {
-    if (!vizRect) return;
-    const px = clamp((e.clientX - vizRect.left) / vizRect.width, 0, 1);
-    const py = clamp((e.clientY - vizRect.top) / vizRect.height, 0, 1);
+    const [px, py] = boxFrac(e, viz);
     // Set the field (it snaps and clamps), then read back, so readout, value and preview agree.
     if (mode === "time") {
       durFld.set((DUR_MIN + px * (DUR_MAX - DUR_MIN)) * 1000); time.visualDuration = durFld.get() / 1000;
@@ -103,9 +100,9 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     draw(); emit();
   };
   dragGesture(viz, {
-    onDown: (e) => { e.preventDefault(); vizRect = viz.getBoundingClientRect(); viz.classList.add("is-dragging"); fromPointer(e); },
+    onDown: (e) => { e.preventDefault(); viz.classList.add("is-dragging"); fromPointer(e); },
     onMove: fromPointer,
-    onEnd: () => { vizRect = null; viz.classList.remove("is-dragging"); },
+    onEnd: () => viz.classList.remove("is-dragging"),
   });
   showMode();
   onReady(draw);

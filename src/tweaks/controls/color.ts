@@ -1,8 +1,8 @@
 // ── Color — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, rangeStep, popover, quietFocus, escapeReverts, registerControl, announce } from "../shared.js";
-import { numField, grabSurface, boxFrac, triggerRow, selectAllOnFocus } from "../heavy.js";
-import { oklchGamutProbe, chromaCeil, hexByte, oklchToHex, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
+import { el, txt, clamp, rangeStep, popover, quietFocus, escapeReverts, registerControl } from "../shared.js";
+import { numField, grabSurface, boxFrac, arrowStep, sayWhenKeysStop, triggerRow, selectAllOnFocus } from "../heavy.js";
+import { oklchGamutProbe, chromaCeil, hexByte, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 import type { Vec3, Space, Gamut } from "../../wide-gamut.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -100,6 +100,9 @@ const engineFn = (str: string) => {
   if (slash.length === 2) { const a = cssTrim(slash[1]), ak = one(a) ? tokKind(a) : null; if (!ak || ak === "angle") return false; }
   return true;
 };
+// A parsed color as the picker holds it: no NaN, chroma capped at MAX_CHROMA (`oklch(0.5 1e999 0)` parsed to C = Infinity
+// and hung the gamut map's bisection), and the hue in [0,360) so a negative input can't strand the thumb.
+const held = (k: Vec3, A: number): Oklcha => [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A];
 function parseColor(str: string | null | undefined): Oklcha {
   str = String(str == null ? "" : str).trim();
   if (HEX_RE.test(str)) {
@@ -124,16 +127,10 @@ function parseColor(str: string | null | undefined): Oklcha {
       : fn === "color" ? [ch(toks[0], 0.01), ch(toks[1], 0.01), ch(toks[2], 0.01)]
       : fn === "oklab" ? [clamp(ch(toks[0], 0.01), 0, 1), ch(toks[1], 0.004), ch(toks[2], 0.004)]                // L% → 0–1; a/b 100% ↔ ±0.4
       : [clamp(ch(toks[0], 0.01), 0, 1), Math.max(0, ch(toks[1], 0.004)), parseAngle(toks[2] || "0")];           // oklch
-    const k = space === "oklch" ? c : convert(c, space, "oklch");
-    // Chroma is capped at MAX_CHROMA: `oklch(0.5 1e999 0)` parsed to C = Infinity and hung the gamut map's bisection.
-    return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A]; // hue in [0,360) so a negative input can't strand the thumb
+    return held(space === "oklch" ? c : convert(c, space, "oklch"), A);
   }
   // rgb() / hsl() / hwb() by CSS's own grammar; a string it rejects parses as black like any junk.
-  if (SRGB_FN_RE.test(str)) {
-    const sf = srgbFn(str); if (!sf) return [0, 0, 0, 1];
-    const [k, A] = sf;
-    return [num(k[0]), clamp(num(k[1]), 0, MAX_CHROMA), ((num(k[2]) % 360) + 360) % 360, A];
-  }
+  if (SRGB_FN_RE.test(str)) { const sf = srgbFn(str); return sf ? held(...sf) : [0, 0, 0, 1]; }
   // Named colors and `transparent` normalize via a canvas, whose fillStyle getter echoes
   // "#rrggbb" or "rgba(r,g,b,a)". Junk, or no canvas at all (a headless DOM), parses as black.
   const c2d = canvas2d(); if (!c2d) return [0, 0, 0, 1];
@@ -184,10 +181,6 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   areaCanvas.setAttribute("aria-hidden", "true"); hueCanvas.setAttribute("aria-hidden", "true");
   // Keyboard-operable plane: a focusable group (no ARIA role fits a 2D value; the readout rides on aria-description).
   area.tabIndex = 0; area.setAttribute("role", "group"); area.setAttribute("aria-label", "Color plane: chroma across, lightness up");
-  hueBar.tabIndex = 0; hueBar.setAttribute("role", "slider"); hueBar.setAttribute("aria-label", "Hue");
-  hueBar.setAttribute("aria-valuemin", "0"); hueBar.setAttribute("aria-valuemax", "360");
-  alphaBar.tabIndex = 0; alphaBar.setAttribute("role", "slider"); alphaBar.setAttribute("aria-label", "Alpha");
-  alphaBar.setAttribute("aria-valuemin", "0"); alphaBar.setAttribute("aria-valuemax", "1");
   const modeRow = el("div", "tw-color-mode-row");
   const modeSel = el("select", "tw-color-mode"); modeSel.setAttribute("aria-label", "Color mode");
   EDIT_MODES.forEach((m) => { const o = document.createElement("option"); o.value = m; o.textContent = MODE_LABELS[m]; modeSel.append(o); });
@@ -263,7 +256,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     if (H !== hueRingH) { hueRingBg = vividHue(H); hueRingH = H; }
     hueThumb.style.background = hueRingBg;
   };
-  const hexText = () => oklchToHex(L, C, H) + (A < 0.999 ? hexByte(A) : "");
+  const hexText = () => serialize([L, C, H], "hex", A);
   const refresh = () => {
     gamut2.textContent = gamutLabel([L, C, H], mode);
     if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".tw-color-chan-input"); if (hx && document.activeElement !== hx) hx.value = hexText(); }
@@ -306,35 +299,26 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   grabSurface(area, setArea);
   // Arrows move the thumb, not the raw channels: chroma steps as a fraction of its row, so a
   // vertical step stays in gamut. Home/End mean nothing for a 2D point and are swallowed so they don't scroll the page.
-  let sayT = 0;
+  const say = sayWhenKeysStop(area);
   area.addEventListener("keydown", (e) => {
     if (e.key === "Home" || e.key === "End") { e.preventDefault(); return; }
-    const k = e.shiftKey ? 10 : 1;
-    const dx = e.key === "ArrowRight" ? k : e.key === "ArrowLeft" ? -k : 0, dy = e.key === "ArrowUp" ? k : e.key === "ArrowDown" ? -k : e.key === "PageUp" ? 10 : e.key === "PageDown" ? -10 : 0;
+    const k = e.shiftKey ? 10 : 1, [ax, ay] = arrowStep(e);
+    const dx = ax * k, dy = ay ? ay * k : e.key === "PageUp" ? 10 : e.key === "PageDown" ? -10 : 0;
     if (!dx && !dy) return;
     e.preventDefault();
     const c0 = ceilAt(L), fx = clamp((c0 > 0 ? C / c0 : 0) + dx * 0.01, 0, 1);
     L = clamp(L + dy * 0.01, 0, 1); C = fx * ceilAt(L);
-    commit(false);
-    // The readout rides on aria-description, which a screen reader speaks on focus and never again: say where a run of keys stopped.
-    clearTimeout(sayT); sayT = setTimeout(() => { if (area.isConnected) announce(area.getAttribute("aria-description") || ""); }, 250);
+    commit(false); say();
   });
-  const hueAt = (e: PointerEvent) => boxFrac(e, hueBar)[0] * 360;
-  const setHue = (e: PointerEvent) => { H = hueAt(e); commit(true); };
-  grabSurface(hueBar, setHue);
-  hueBar.addEventListener("keydown", (e) => {
-    const nv = rangeStep(e, H, 1, 0, 360);
-    if (nv == null) return;
-    e.preventDefault(); H = clamp(nv, 0, 360); commit(true);
-  });
-  const alphaAt = (e: PointerEvent) => boxFrac(e, alphaBar)[0];
-  const setAlpha = (e: PointerEvent) => { A = alphaAt(e); commit(false); };
-  grabSurface(alphaBar, setAlpha);
-  alphaBar.addEventListener("keydown", (e) => {
-    const nv = rangeStep(e, A, 0.01, 0, 1);
-    if (nv == null) return;
-    e.preventDefault(); A = clamp(nv, 0, 1); commit(false);
-  });
+  // The hue and alpha strips: one slider each, from 0 to `max`, dragged across or stepped by the slider keys.
+  const strip = (bar: HTMLElement, label: string, max: number, step: number, get: () => number, put: (v: number) => void) => {
+    bar.tabIndex = 0; bar.setAttribute("role", "slider"); bar.setAttribute("aria-label", label);
+    bar.setAttribute("aria-valuemin", "0"); bar.setAttribute("aria-valuemax", String(max));
+    grabSurface(bar, (e) => put(boxFrac(e, bar)[0] * max));
+    bar.addEventListener("keydown", (e) => { const nv = rangeStep(e, get(), step, 0, max); if (nv == null) return; e.preventDefault(); put(clamp(nv, 0, max)); });
+  };
+  strip(hueBar, "Hue", 360, 1, () => H, (v) => { H = v; commit(true); });
+  strip(alphaBar, "Alpha", 1, 0.01, () => A, (v) => { A = v; commit(false); });
 
   // A mode switch is formatting-only and never emits: notifying would push a no-op change into
   // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode); setMode is the host pushing a mode in, so it fires neither.

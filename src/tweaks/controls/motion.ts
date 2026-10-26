@@ -2,6 +2,7 @@
 // value carries the CSS it resolves to — `duration` in ms and an `easing` string, cubic-bezier() or a sampled linear(). Lazy. ──
 import { el, txt, clamp, isObj, createSegmented, getControl, popover, registerControl, REDUCE_MOTION } from "../shared.js";
 import { numField, triggerRow, svgEl, springCurve, springRun, timeFromSpring } from "../heavy.js";
+import { KEYWORDS } from "../easing.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, MotionValue, MotionInput } from "../types.js";
@@ -10,12 +11,11 @@ type Mode = "easing" | "spring";
 type Curve = [number, number, number, number];
 interface SpringOut { stiffness: number; damping: number; mass: number; visualDuration?: number; bounce?: number }
 
-const EASES: Record<string, Curve> = { ease: [0.25, 0.1, 0.25, 1], linear: [0, 0, 1, 1], "ease-in": [0.42, 0, 1, 1], "ease-out": [0, 0, 0.58, 1], "ease-in-out": [0.42, 0, 0.58, 1] };
 const DUR_DEF = 300, DUR_MAX = 10000, STAGE_PAD = 16; // ms; the stage's side padding (tweaks.css)
 const BOUNCE_MAX = 1; // Motion's whole range: its damping-ratio floor of 0.05 keeps a bounce of 1 settling
 const has = (x: unknown) => (typeof x === "number" ? Number.isFinite(x) : typeof x === "string" && x.trim() !== "" && Number.isFinite(+x)); // a number, or a numeric string — not `true`, `[]` or " "
 const curveOf = (c: unknown): Curve | null => {
-  if (typeof c === "string") return Object.prototype.hasOwnProperty.call(EASES, c) ? (EASES[c].slice() as Curve) : null; // own key only — "constructor" is not an easing
+  if (typeof c === "string") { const k = c === "linear" ? [0, 0, 1, 1] : KEYWORDS[c]; return k ? (k.slice() as Curve) : null; } // the CSS keywords, linear's identity included; null-prototype, so "constructor" is not one
   if (Array.isArray(c) && c.length === 4) { const m = c.map(Number); return m.every(Number.isFinite) ? (m as Curve) : null; }
   return null;
 };
@@ -35,7 +35,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   if (!Bezier || !Spring) throw new Error("[tweaks] motion: the bezier and spring controls are not loaded");
   const init: MotionInput = isObj(meta.value) ? meta.value : {};
   let mode = modeOf(init, "easing");
-  let curve = curveOf(init.curve) ?? (EASES.ease.slice() as Curve), dur = has(init.duration) ? clamp(+init.duration!, 0, DUR_MAX) : DUR_DEF;
+  let curve = curveOf(init.curve) ?? (KEYWORDS.ease.slice() as Curve), dur = has(init.duration) ? clamp(+init.duration!, 0, DUR_MAX) : DUR_DEF;
 
   // ── Row — label, a mini curve, a summary. ──
   const { root, trigger, right } = triggerRow("tw-motion", meta.label ?? "Motion"); // ??: an explicit "" label renders none

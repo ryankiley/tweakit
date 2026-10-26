@@ -10,7 +10,7 @@ import type { GradientEasing, GradientStop, GradientValue } from "./types.js";
 type Bez = [number, number, number, number];
 
 // The CSS easing keywords as cubic-beziers. Null-prototype, so "constructor" can't read a function off Object.prototype.
-const KEYWORDS: Record<string, Bez> = Object.assign(Object.create(null), {
+export const KEYWORDS: Record<string, Bez> = Object.assign(Object.create(null), {
   ease: [0.25, 0.1, 0.25, 1], "ease-in": [0.42, 0, 1, 1], "ease-out": [0, 0, 0.58, 1], "ease-in-out": [0.42, 0, 0.58, 1],
 });
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));

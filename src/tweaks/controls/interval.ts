@@ -15,9 +15,10 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   [min, max] = gridEnds(min, max, step); // the slider's rule: no value past an off-grid bound
   const decimals = stepPrecision(step);
   const q = (v: number) => roundToStep(v, min, step);
-  // Missing tuple entries fall back to the bounds, as .set does: value:[5] gives [5, max], not [5, NaN].
-  let lo = clamp(q(Number.isFinite(t0) ? t0 : min), min, max), hi = clamp(q(Number.isFinite(t1) ? t1 : max), min, max);
-  if (lo > hi) { const t = lo; lo = hi; hi = t; }
+  let lo = 0, hi = 0;
+  const put = (a: number, b: number) => { lo = clamp(q(Math.min(a, b)), min, max); hi = clamp(q(Math.max(a, b)), min, max); }; // ordered, on the grid, in bounds
+  // Missing tuple entries fall back to the bounds: value:[5] gives [5, max], not [5, NaN].
+  put(Number.isFinite(t0) ? t0 : min, Number.isFinite(t1) ? t1 : max);
 
   const wrap = el("div", "tw-slider-wrap");
   const track = el("div", "tw-slider tw-interval");
@@ -93,7 +94,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
 
   return {
     el: wrap,
-    set: (v: unknown) => { if (Array.isArray(v)) { const a = +v[0], b = +v[1]; if (!Number.isFinite(a) || !Number.isFinite(b)) return; lo = clamp(q(Math.min(a, b)), min, max); hi = clamp(q(Math.max(a, b)), min, max); render(); } },
+    set: (v: unknown) => { if (Array.isArray(v)) { const a = +v[0], b = +v[1]; if (!Number.isFinite(a) || !Number.isFinite(b)) return; put(a, b); render(); } },
     get: () => [lo, hi],
     range: [min, max],
   };

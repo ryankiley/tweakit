@@ -165,16 +165,6 @@ const hueFold = (hue: number, gamut: Gamut) => {
   const F = mulMat(gamut === "p3" ? XYZ_TO_LIN_P3 : gamut === "rec2020" ? XYZ_TO_LIN_REC2020 : XYZ_TO_LIN_SRGB, LMS_TO_XYZ);
   return { d, F, gam: gamut === "rec2020" ? rec2020Gam : srgbGam };
 };
-/** Fast in-gamut probe at a fixed hue: `(L, C) => inside?`. */
-export function oklchGamutProbe(hue: number, gamut: Gamut) {
-  const { d: [d0, d1, d2], F, gam } = hueFold(hue, gamut), lo = -SLACK, hi = 1 + SLACK;
-  return (L: number, C: number) => {
-    const p0 = L + C * d0, p1 = L + C * d1, p2 = L + C * d2, c0 = p0 ** 3, c1 = p1 ** 3, c2 = p2 ** 3;
-    const r = gam(F[0][0] * c0 + F[0][1] * c1 + F[0][2] * c2); if (r < lo || r > hi) return false;
-    const g = gam(F[1][0] * c0 + F[1][1] * c1 + F[1][2] * c2); if (g < lo || g > hi) return false;
-    const b = gam(F[2][0] * c0 + F[2][1] * c1 + F[2][2] * c2); return b >= lo && b <= hi;
-  };
-}
 /** OKLCH→RGB at a fixed hue for per-pixel rasterizing; `(L, C, out)` writes into `out`. */
 export function oklchToRgbFn(hue: number, gamut: Gamut) {
   const { d: [d0, d1, d2], F, gam } = hueFold(hue, gamut);
@@ -184,6 +174,11 @@ export function oklchToRgbFn(hue: number, gamut: Gamut) {
     out[1] = gam(F[1][0] * c0 + F[1][1] * c1 + F[1][2] * c2);
     out[2] = gam(F[2][0] * c0 + F[2][1] * c1 + F[2][2] * c2);
   };
+}
+/** Fast in-gamut probe at a fixed hue: `(L, C) => inside?`. */
+export function oklchGamutProbe(hue: number, gamut: Gamut) {
+  const toRgb = oklchToRgbFn(hue, gamut), rgb = [0, 0, 0], lo = -SLACK, hi = 1 + SLACK, inside = (v: number) => v >= lo && v <= hi;
+  return (L: number, C: number) => { toRgb(L, C, rgb); return rgb.every(inside); };
 }
 /** Bisect the chroma ceiling (highest in-gamut C) at lightness L for an `oklchGamutProbe`. */
 export function chromaCeil(probe: (L: number, C: number) => boolean, L: number, hi = 0.5) {
@@ -263,15 +258,17 @@ export function gamutLabel(oklch: Vec3, mode: ColorMode) {
   if (inGamut(oklch, "p3")) return "P3";
   return "wide";
 }
+// The three channels in `mode`'s own syntax: commas for legacy css, a % on lightness or on the last two of hsl/hwb.
+const joinChannels = (mode: ColorMode, s: (i: number) => string) =>
+  mode === "css" ? `${s(0)}, ${s(1)}, ${s(2)}`
+  : mode === "oklch" || mode === "oklab" || mode === "lch" || mode === "lab" ? `${s(0)}% ${s(1)} ${s(2)}`
+  : mode === "hsl" || mode === "hwb" ? `${s(0)} ${s(1)}% ${s(2)}%`
+  : `${s(0)} ${s(1)} ${s(2)}`; // srgb / p3 / rec2020
 /** The collapsed-row value string for `mode` (bare channels w/ units, or hex). */
 export function readout(oklch: Vec3, mode: ColorMode) {
   if (mode === "hex") return oklchToHex(oklch[0], oklch[1], oklch[2]);
   const chans = MODE_CHANNELS[mode], v = channelValues(oklch, mode);
-  const s = (i: number) => { const t = v[i].toFixed(digitsFor(chans[i].step)); return chans[i].k === "H" && +t === 360 ? (0).toFixed(digitsFor(chans[i].step)) : t; }; // 360 is 0; only 0 reads back as itself
-  if (mode === "css") return `${s(0)}, ${s(1)}, ${s(2)}`;
-  if (mode === "oklch" || mode === "oklab" || mode === "lch" || mode === "lab") return `${s(0)}% ${s(1)} ${s(2)}`;
-  if (mode === "hsl" || mode === "hwb") return `${s(0)} ${s(1)}% ${s(2)}%`;
-  return `${s(0)} ${s(1)} ${s(2)}`; // srgb / p3 / rec2020
+  return joinChannels(mode, (i) => { const t = v[i].toFixed(digitsFor(chans[i].step)); return chans[i].k === "H" && +t === 360 ? (0).toFixed(digitsFor(chans[i].step)) : t; }); // 360 is 0; only 0 reads back as itself
 }
 // css is legacy comma rgba with an explicit alpha slot; the rest take modern space syntax.
 const wrapCss = (t: string, mode: ColorMode) =>
@@ -285,11 +282,7 @@ function precise(oklch: Vec3, mode: ColorMode) {
   const chans = MODE_CHANNELS[mode], c = modeCoords(oklch, modeSpaceId(mode), mode);
   const v = chans.map((ch, i) => { const d = digitsFor(ch.step) + 1, x = +clamp(num(c[i]) * ch.scale, ch.min, ch.max).toFixed(d); return ch.k === "H" && x === 360 ? 0 : x + 0; }); // + 0: no -0
   const grey = mode === "oklch" || mode === "lch" || mode === "hsl" ? v[1] === 0 : mode === "hwb" && v[1] + v[2] >= 100;
-  const s = (i: number) => (grey && chans[i].k === "H" ? "none" : String(v[i]));
-  if (mode === "css") return `${s(0)}, ${s(1)}, ${s(2)}`;
-  if (mode === "oklch" || mode === "oklab" || mode === "lch" || mode === "lab") return `${s(0)}% ${s(1)} ${s(2)}`;
-  if (mode === "hsl" || mode === "hwb") return `${s(0)} ${s(1)}% ${s(2)}%`;
-  return `${s(0)} ${s(1)} ${s(2)}`; // srgb / p3 / rec2020
+  return joinChannels(mode, (i) => (grey && chans[i].k === "H" ? "none" : String(v[i])));
 }
 /** The emitted CSS value in `mode`'s own syntax, a digit finer than the readout, alpha appended. */
 export function serialize(oklch: Vec3, mode: ColorMode, alpha: number) {

@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote, TYPE_ALIASES } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote, TYPE_ALIASES, announce } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -42,6 +42,11 @@ const grabSurface = (surface: HTMLElement, set: (e: PointerEvent) => void) => dr
 });
 // Pointer position inside a box as [x, y] fractions in 0–1.
 const boxFrac = (e: MouseEvent, box: Element): [number, number] => { const r = box.getBoundingClientRect(); return [clamp((e.clientX - r.left) / r.width, 0, 1), clamp((e.clientY - r.top) / r.height, 0, 1)]; };
+// An arrow key as a [dx, dy] step, ↑ positive as on screen; [0, 0] for any other key.
+const arrowStep = (e: KeyboardEvent): [number, number] => [e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0];
+// A 2D surface's readout rides on aria-description, which a screen reader speaks on focus and never again: the returned
+// function says it once a run of keys stops.
+const sayWhenKeysStop = (node: HTMLElement) => { let t = 0; return () => { clearTimeout(t); t = setTimeout(() => { if (node.isConnected) announce(node.getAttribute("aria-description") || ""); }, 250); }; };
 // Size a canvas to its CSS box × devicePixelRatio (capped) and scale the context to CSS pixels; returns [cssW, cssH].
 const fitCanvas = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, maxDpr = Infinity): [number, number] => {
   const r = canvas.getBoundingClientRect();
@@ -243,4 +248,4 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
 };
 const notice = (kind: string, args: unknown[]) => { const say = NOTICES[kind]; if (say) console.warn(`[tweaks] ${say(...args)}`); };
 
-export { notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };
+export { notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, arrowStep, sayWhenKeysStop, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };
