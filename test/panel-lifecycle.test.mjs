@@ -379,3 +379,23 @@ test("a folder's click folds over what's in view too, and a restore mid-fold tur
   calls[1].onfinish(); assert.equal(body.style.gridTemplateRows, ""); assert.equal(body.style.transition, "");
   p.destroy();
 });
+
+// A panel whose build failed never saves again, but it kept its persist key counted until destroy(): a remount on that
+// key, the usual answer to a failed build, warned that another live panel saved there. (shadow: unloaded in this file.)
+test("a failed build lets go of its persist key, so a remount on it is quiet", async () => {
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  const shared = () => warned.filter((m) => m.includes("already saves")).length;
+  try {
+    const p = lazy.tweaks("Broke", { n: [1, 0, 10, 1], s: { type: "shadow", x: 0, y: 4, blur: 8 } }, { persist: true });
+    p.params.n = Object.create(null); // no number: the slider's set() throws out of the build
+    await assert.rejects(p.ready);
+    const q = lazy.tweaks("Broke", { n: [1, 0, 10, 1] }, { persist: true });
+    await tick(20); // a notice's words come from a lazy chunk
+    assert.equal(shared(), 0, warned.join("\n"));
+    p.destroy(); // released already: it mustn't release q's count too
+    const r = lazy.tweaks("Broke", { n: [1, 0, 10, 1] }, { persist: true });
+    await tick(20);
+    assert.equal(shared(), 1, "q is still live, so r warns");
+    q.destroy(); r.destroy();
+  } finally { console.warn = warn; localStorage.clear(); }
+});
