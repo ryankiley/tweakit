@@ -11,6 +11,8 @@ import { loadSingle, wait, key } from "./_helpers.mjs";
 
 const { tweaks, mountControl } = await loadSingle();
 const mount = (schema, opts) => { const p = tweaks("K", schema, opts); document.body.append(p.el); return p; };
+// Focus the color row's trigger and click it, as Enter would, then wait past the open rAF.
+const openPicker = async (p) => { const trigger = p.el.querySelector(".tw-color .tw-trigger"); trigger.focus(); trigger.click(); await wait(40); const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
 
 test("opening the color popover moves focus inside it, and Tab-out closes it", async () => {
   const p = mount({ tint: "#7c5cff" });
@@ -34,10 +36,7 @@ test("opening the color popover moves focus inside it, and Tab-out closes it", a
 
 test("Escape closes the color popover and returns focus to the trigger", async () => {
   const p = mount({ tint: "#7c5cff" });
-  const trigger = p.el.querySelector(".tw-color .tw-trigger");
-  trigger.focus(); trigger.click();
-  await wait(40);
-  const pop = document.body.querySelector(".tw-color-pop.is-open");
+  const trigger = p.el.querySelector(".tw-color .tw-trigger"), pop = await openPicker(p);
   assert.ok(pop.contains(document.activeElement));
   key(document.activeElement, { key: "Escape" });
   assert.equal(trigger.getAttribute("aria-expanded"), "false");
@@ -174,7 +173,6 @@ test("gradient: focusing a stop selects it, and its label carries position + sel
 // otherwise): read L / C / H back out of the string, L as a fraction whether it was
 // written as one or as a percentage.
 const oklch = (s) => { const m = String(s).match(/^oklch\(([\d.]+)(%?) ([\d.]+) ([\d.]+)/); assert.ok(m, `an oklch() string, got ${s}`); return [m[2] ? +m[1] / 100 : +m[1], +m[3], +m[4]]; };
-const openPicker = async (p) => { const trigger = p.el.querySelector(".tw-color .tw-trigger"); trigger.focus(); trigger.click(); await wait(40); const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
 const closePicker = async (p) => { key(document.activeElement, { key: "Escape" }); await wait(220); p.destroy(); };
 
 test("color hue strip: a focusable slider — arrows step 1°, Shift x10, Home/End snap to the ends", async () => {
@@ -365,6 +363,9 @@ test("a boolean toggle is one switch: role, aria-checked, one tab stop, Space an
   assert.ok([...sw.querySelectorAll("button")].every((b) => b.tabIndex === -1 && b.getAttribute("aria-hidden") === "true"), "its segments are the pointer's, not tab stops");
   key(sw, { key: " " }); assert.equal(p.params.on, false); assert.equal(sw.getAttribute("aria-checked"), "false");
   key(sw, { key: "Enter" }); assert.equal(p.params.on, true);
+  key(sw, { key: "ArrowRight" }); assert.equal(p.params.on, true, "→ on On stays On, it doesn't wrap");
+  key(sw, { key: "ArrowLeft" }); key(sw, { key: "ArrowLeft" }); assert.equal(p.params.on, false, "← goes to Off and stays");
+  key(sw, { key: "End" }); assert.equal(p.params.on, true);
   sw.querySelector("button").focus(); assert.equal(document.activeElement, sw, "a segment that takes focus hands it to the switch");
   sw.querySelector("button").click(); assert.equal(p.params.on, false, "a click on Off still sets it");
   assert.ok([...sw.querySelectorAll("button")].every((b) => b.tabIndex === -1), "and leaves no tab stop behind");

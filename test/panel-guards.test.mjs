@@ -5,9 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
+import { loadSingle, wait } from "./_helpers.mjs";
 
-const { tweaks } = await import(new URL("../dist/tweaks.js", import.meta.url));
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const { tweaks } = await loadSingle();
 
 test("every field a panel builds is left alone by autofill and password managers", async () => {
   const p = tweaks("Fields", {

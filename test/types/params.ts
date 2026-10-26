@@ -130,6 +130,27 @@ expect<Equal<typeof clash.params.v, Record<string, Params>>>();
 const hinge = tweaks("Hinge", { marker: { type: "point", size: 3 }, pick: { type: "point", options: ["a", "b"] }, bad: { type: "list", options: 5 } });
 expect<Equal<typeof hinge.params, { marker: { type: string; size: number }; pick: "a" | "b" }>>();
 
+// Numeric choices put the number on params, as the runtime does, bare or as `{ value, label }`.
+const nums = tweaks("Nums", {
+  n: { type: "list", options: [1, 2, 4] },
+  seg: { type: "segmented", options: [8, 16], value: 16 },
+  grid: { type: "radiogrid", options: [{ value: 0.5, label: "Half" }, 1] },
+  sizes: { options: ["s", { value: 2, label: "Two" }], value: 2 },
+});
+expect<Equal<typeof nums.params, { n: 1 | 2 | 4; seg: 8 | 16; grid: 0.5 | 1; sizes: "s" | 2 }>>();
+nums.set("n", 2); nums.setMany({ seg: 8, grid: 1 });
+// A held schema widens them to number, or string | number for a mix.
+const heldNums = { pick: { options: [1, 2], value: 2 }, mixed: { options: ["a", 1] } };
+const hn = tweaks("HeldNums", heldNums);
+expect<Equal<typeof hn.params, { pick: number; mixed: string | number }>>();
+const checkedNums = { n: { type: "list", options: [1, 2, 4] } } satisfies Schema;
+const cn = tweaks("CheckedNums", checkedNums);
+expect<Equal<typeof cn.params, { n: number }>>();
+// A default off the list is kept as given until a pick, so it joins the options.
+const off = tweaks("Off", { a: { options: ["a", "b"], value: "c" }, l: { type: "list", options: ["a", "b"], value: "c" },
+  s: { type: "segmented", options: ["a"], value: "z" }, r: { type: "radiogrid", options: [1, 2], value: 3 } });
+expect<Equal<typeof off.params, { a: "a" | "b" | "c"; l: "a" | "b" | "c"; s: "a" | "z"; r: 1 | 2 | 3 }>>();
+
 // Five numbers or more are a list of them, `[]` an empty list, and reserved keys are skipped.
 const lists = tweaks("Lists", { many: [1, 2, 3, 4, 5], four: [1, 2, 3, 4], none: [], constructor: 1, prototype: 2, ok: 3 });
 expect<Equal<typeof lists.params, { many: 1 | 2 | 3 | 4 | 5; four: number; none: undefined; ok: number }>>();

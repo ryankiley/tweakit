@@ -66,7 +66,8 @@ const spills = (page) => page.evaluate(() => [...document.querySelectorAll(".tw-
 const boxes = (page, sel) => page.evaluate((sel) => [...document.querySelectorAll(sel)].filter((e) => e.offsetHeight)
   .map((e) => ({ cls: e.classList[0], h: e.offsetHeight, lh: getComputedStyle(e).lineHeight })), sel);
 // A height set by `line-height: normal` follows the font: the Linux CI's fonts, an author's on the Mac. A px one doesn't.
-const pinned = (list, h) => { for (const b of list) { assert.equal(b.h, h, `${b.cls} is ${b.h}px tall`); assert.match(b.lh, /px$/, `${b.cls} sizes from line-height ${b.lh}`); } };
+// An empty list passes every check, so a selector that stops matching would turn its check off: it fails instead.
+const pinned = (list, h) => { assert.ok(list.length, `nothing to measure for ${h}px`); for (const b of list) { assert.equal(b.h, h, `${b.cls} is ${b.h}px tall`); assert.match(b.lh, /px$/, `${b.cls} sizes from line-height ${b.lh}`); } };
 
 test("every one-line control is one 32px row, its label 12px in", async () => {
   const { page, errors } = await fixture();

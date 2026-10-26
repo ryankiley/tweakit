@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, key, ptr } from "./_helpers.mjs";
+import { loadSingle, key, wait, pressBeside } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
 // One of each valued type, in two settings: the second differs in every value.
@@ -34,13 +34,6 @@ const all = (b) => ({
 const KEYS = Object.keys(all(false));
 const mount = async () => { const p = tweaks("Types", { A: all(false), B: all(true) }); document.body.append(p.el); await p.ready; return p; };
 const rowOf = (p, folder, k) => p.el.querySelectorAll(".tw-folder")[folder === "A" ? 0 : 1].querySelectorAll(".tw-folder-body > .tw-controls > *")[KEYS.indexOf(k)];
-// A press in the panel's side padding level with `node` (jsdom lays nothing out, so the row or folder header it sits in
-// is given a box at the press's height for the moment of the press).
-const pressBeside = (p, node, props = {}) => {
-  const box = node && (node.closest(".tw-folder-header") || node.closest(".tw-controls > *"));
-  if (box) box.getBoundingClientRect = () => ({ top: 40, bottom: 72, height: 32, left: 0, right: 0, width: 0 });
-  try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { if (box) delete box.getBoundingClientRect; }
-};
 // ⌘C / ⌘V, then what the browser does on the hidden field the keypress focused: copies its selection onto `board`, or
 // pastes `board`. Returns how the picked band flashed for a paste: "ok", "failed" or "none".
 let board = null;
@@ -53,8 +46,8 @@ const press = async (k) => {
     Object.defineProperty(ev, "clipboardData", { value: { getData: () => board, setData: (t, v) => { board = v; } } });
     ta.dispatchEvent(ev);
   }
-  await new Promise((r) => setTimeout(r, 10));
-  for (let i = 0; k === "v" && band && i < 400 && !band.matches(".is-pasted, .is-refused"); i++) await new Promise((r) => setTimeout(r, 5)); // the band answers once the chunk lands (up to 2s on a loaded runner)
+  await wait(10);
+  for (let i = 0; k === "v" && band && i < 400 && !band.matches(".is-pasted, .is-refused"); i++) await wait(5); // the band answers once the chunk lands (up to 2s on a loaded runner)
   return band?.classList.contains("is-pasted") ? "ok" : band?.classList.contains("is-refused") ? "failed" : "none";
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);

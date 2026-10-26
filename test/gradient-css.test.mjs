@@ -109,3 +109,23 @@ test("y overshoot clamps into color-mix's 0–100% and the stops still sort by p
   pos.forEach((p, i) => i && assert.ok(p >= pos[i - 1], "monotonic"));
 });
 
+// A stop's color and the blend space went into the CSS unchecked: `in junk`, `in 5`, and a color holding a comma spliced a
+// url() layer the browser fetches. A stop that isn't one color token is skipped; an unknown space falls to oklch.
+test("a stop that isn't one color token is skipped, and an unknown blend space falls to oklch", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  for (const color of ["red, url(https://x/a.png) 0%", "url(a.png)", "var(--c)", "rgb(1 2 3)) , url(a.png", "#12345", ""]) {
+    assert.equal(gradientCss({ stops: [{ color, pos: 0 }, ...RED_BLUE.stops] }), "linear-gradient(in oklch to right, red 0%, blue 100%)", JSON.stringify(color));
+    assert.equal(gradientStops({ stops: [{ color, pos: 0 }, ...RED_BLUE.stops] }), "red 0%, blue 100%", JSON.stringify(color));
+  }
+  await new Promise((r) => setTimeout(r, 0)); // the warning's words load with the lazy chunk
+  assert.ok(warn.mock.calls.some((c) => /skipped 1 of 3 stops without a CSS color/.test(c.arguments[0])));
+  // Every color the editor's picker writes still passes, legacy commas and color-mix() included.
+  const kept = ["#1E40AF", "#fff8", "rebeccapurple", "rgba(10, 20, 30, 0.5)", "oklch(62% 0.005 none)", "color(display-p3 1 0 0 / 50%)", "color-mix(in oklch, red 40%, blue)"];
+  assert.equal(gradientStops({ stops: kept.map((color, i) => ({ color, pos: i / 10 })) }), kept.map((c, i) => `${c} ${i * 10}%`).join(", "));
+  for (const interpolation of ["junk", 5, "oklch) , url(a.png", "srgb longer hue", null]) {
+    assert.match(gradientCss({ ...RED_BLUE, interpolation }), /^linear-gradient\(in oklch to right, /, JSON.stringify(interpolation));
+    assert.ok(gradientStops({ ...RED_BLUE, interpolation, easing: "ease" }).includes("color-mix(in oklch, red, blue "), JSON.stringify(interpolation));
+  }
+  for (const interpolation of ["srgb", "display-p3", "rec2020", "hsl longer hue", "oklch increasing hue"]) assert.match(gradientCss({ ...RED_BLUE, interpolation }), new RegExp(`^linear-gradient\\(in ${interpolation} to right, `));
+});
+

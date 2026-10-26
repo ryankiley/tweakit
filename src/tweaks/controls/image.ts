@@ -64,8 +64,9 @@ const jpegCut = (b: Bytes) => {
   if (b[0] !== 0xff || b[1] !== 0xd8) return null;
   const out: Bytes[] = []; let i = 2, from = 0, turned = 0;
   for (;;) {
+    while (b[i] === 0xff && b[i + 1] === 0xff) i++; // fill bytes before a marker (T.81 B.1.1.2) stay with what's kept
     const m = b[i + 1], end = i + 2 + ((b[i + 2] << 8) | b[i + 3]);
-    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null; // fill bytes or a marker out of place
+    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null; // a marker out of place
     if (m === 0xda) break; // start of scan: the picture itself, kept to the end
     const exif = m === 0xe1 && ascii(b, i + 4, "Exif\0");
     if (exif || (m === 0xe1 && ascii(b, i + 4, "http://ns.adobe.com/x"))) { // XMP, and its extension
@@ -182,32 +183,27 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     zone.addEventListener("drop", (e) => { over.dataset.over = "false"; if (off()) return; e.preventDefault(); load(e.dataTransfer?.files[0]); });
   };
   input.addEventListener("change", () => { load(input.files?.[0]); input.value = ""; }); // cleared, so the same file picked again fires change
-  let root: HTMLElement;
+  // Both forms are a trigger row with the chosen image's thumb first, as every chip row.
+  const row = triggerRow("tw-image", meta.label), root = row.root;
+  const thumb = el("span", "tw-trigger-chip tw-image-thumb");
+  const paintThumb = () => { thumb.dataset.set = value ? "true" : "false"; thumb.style.backgroundImage = value ? urlCss(value) : ""; };
 
   if (!options.length) {
     // The plain row: the whole trigger is the target, a click opens the file dialog and the row is also the drop zone.
-    const row = triggerRow("tw-image", meta.label); root = row.root;
     row.trigger.removeAttribute("aria-expanded"); // opens a file dialog, not an expandable popover
     row.trigger.setAttribute("aria-label", `${meta.label}: choose an image`);
     const text = el("span", "tw-image-text");
-    const thumb = el("span", "tw-trigger-chip tw-image-thumb");
-    row.right.append(thumb, note, text); // thumb first, as every chip row
+    row.right.append(thumb, note, text);
     root.append(input, live);
-    render = () => {
-      thumb.dataset.set = value ? "true" : "false";
-      thumb.style.backgroundImage = value ? urlCss(value) : "";
-      text.textContent = value ? "Replace" : "Drop or choose";
-    };
+    render = () => { paintThumb(); text.textContent = value ? "Replace" : "Drop or choose"; };
     row.trigger.addEventListener("click", () => input.click());
     dropZone(row.trigger, row.trigger);
   } else {
-    // The gallery: a trigger row with the chosen image's thumb and name opens a pane of the tiles, as one radio group,
-    // over a foot with the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and
-    // the pane both take a dropped file.
-    const row = triggerRow("tw-image", meta.label); root = row.root;
+    // The gallery: the row, with the chosen image's name, opens a pane of the tiles, as one radio group, over a foot with
+    // the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and the pane both
+    // take a dropped file.
     const name = el("span", "tw-trigger-value"), rowNote = el("span", "tw-image-note");
-    const thumb = el("span", "tw-trigger-chip tw-image-thumb");
-    row.right.append(thumb, rowNote, name); // thumb first, as every chip row
+    row.right.append(thumb, rowNote, name);
     notes.push(rowNote);
     // The pane is the gallery, with no wrapper: its padding and the gaps between tiles and foot are its drag edge.
     const pop = el("div", "tw-color-pop tw-image-pop tw-image-gallery");
@@ -221,7 +217,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const n = options.length;
     const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
     grid.style.setProperty("--tw-img-cols", String(cols));
-    const tile = (v: string, label: string) => { const b = radioButton("tw-image-tile", v, (x) => commit(x)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
+    const tile = (v: string, label: string) => { const b = radioButton("tw-image-tile", v, () => commit(v)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
     const names = options.map((o, i) => o.label || stem(o.value) || `Image ${i + 1}`);
     const tiles = options.map((o, i) => { const b = tile(o.value, names[i]); grid.append(b); return b; });
     // A value that is none of the options (an upload, or a host-set URL) shows as a last tile, selected. Its URL rides
@@ -243,8 +239,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       btns.forEach((b, j) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = j === stop ? 0 : -1; });
       slot.dataset.open = String(!!value); slot.inert = !value; // nothing to clear: Clear folds away, out of the tab order
       foot.dataset.open = String(!!upload || (canClear && !!value)); foot.inert = foot.dataset.open === "false"; // an empty foot folds to nothing
-      thumb.dataset.set = value ? "true" : "false";
-      thumb.style.backgroundImage = value ? urlCss(value) : "";
+      paintThumb();
       name.textContent = !value ? "None" : k >= 0 ? names[k] : customName(value);
     };
     grid.addEventListener("keydown", (e) => {
@@ -252,7 +247,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       // Focus moves before the commit: the commit can remove the focused tile (the custom one) or hide Clear.
       if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); tiles[0].focus(); commit(""); return; } // a modifier+Delete is the panel's reset, not a clear
       const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
-      e.preventDefault(); if (j !== i) { btns[j].focus(); commit(btns[j]._twVal!); }
+      e.preventDefault(); if (j !== i) { btns[j].focus(); commit(btns[j]._twVal as string); } // a tile holds its URL
     });
     clear.addEventListener("click", () => { (upload || tiles[0]).focus(); commit(""); }); // Clear hides itself: hand focus on first, not to the body
     pop.append(grid, foot);

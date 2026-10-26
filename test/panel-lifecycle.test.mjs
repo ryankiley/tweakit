@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { window } from "./_setup-dom.mjs";
-import { loadSingle, loadSplit, tick, ptr, distCss } from "./_helpers.mjs";
+import { loadSingle, loadSplit, tick, ptr, distCss, warnings, dragHeader } from "./_helpers.mjs";
 globalThis.MutationObserver = window.MutationObserver; // the kit guards on the global; the shared setup doesn't expose it
 
 const { tweaks } = await loadSingle();
@@ -12,18 +12,11 @@ const lazy = await loadSplit();
 // The floating placement panel.ts writes: the two insets and the height cap, as custom properties.
 const pos = (p) => ["--tw-float-x", "--tw-float-y"].map((v) => p.el.style.getPropertyValue(v));
 const cap = (p) => p.el.style.getPropertyValue("--tw-float-max-h");
-const drag = (p, dx) => {
-  const header = p.el.querySelector(".tw-header");
-  header.setPointerCapture = header.releasePointerCapture = () => {};
-  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
-  header.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: 10 }));
-  header.dispatchEvent(ptr("pointerup", { clientX: 100 + dx, clientY: 10, buttons: 0 }));
-};
 
 test("a lifted panel leaves the document with the host container that held it", async () => {
   const host = document.createElement("div"); document.body.append(host);
   const p = tweaks("Lift", { a: [1, 0, 10, 1] }); host.append(p.el);
-  drag(p, 40);
+  dragHeader(p, 40);
   assert.equal(p.el.dataset.mode, "floating");
   assert.equal(p.el.parentNode, document.body, "lifted to body");
   host.remove();
@@ -61,7 +54,7 @@ test("a flick whose moves land outside the header still drags the panel", () => 
 test("the click that ends a drag is swallowed once; the next title click still collapses", () => {
   const p = tweaks("Click", { a: 1 }); document.body.append(p.el);
   const header = p.el.querySelector(".tw-header"), title = p.el.querySelector(".tw-header-toggle");
-  drag(p, 40);
+  dragHeader(p, 40);
   // With the header holding pointer capture, the browser targets the drag-ending click at
   // the header (the common ancestor of the press on the title and the captured release).
   header.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -104,9 +97,7 @@ test("a floating panel taller than the viewport caps at the viewport below its t
   const h = window.innerHeight; window.innerHeight = 400; // a short window
   const schema = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`folder${i}`, { a: [1, 0, 10, 1], b: [2, 0, 10, 1] }]));
   const p = tweaks("Tall", schema); document.body.append(p.el);
-  const header = p.el.querySelector(".tw-header");
-  header.setPointerCapture = header.releasePointerCapture = () => {};
-  const drag = (dx, dy) => { header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 20 })); header.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: 20 + dy })); header.dispatchEvent(ptr("pointerup", { clientX: 100 + dx, clientY: 20 + dy, buttons: 0 })); };
+  const drag = (dx, dy) => dragHeader(p, dx, dy, 20);
   // jsdom lays nothing out: stand in for the panel's full height (scrollHeight, rounded).
   const full = (v) => Object.defineProperty(p.el, "scrollHeight", { value: v, configurable: true });
   try {
@@ -130,11 +121,7 @@ test("a floating panel taller than the viewport caps at the viewport below its t
 
 test("draggable: false pins a floating panel too", () => {
   const p = tweaks("Pinned", { a: 1 }, { floating: { x: 40, y: 50 }, draggable: false }); document.body.append(p.el);
-  const header = p.el.querySelector(".tw-header");
-  header.setPointerCapture = header.releasePointerCapture = () => {};
-  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
-  header.dispatchEvent(ptr("pointermove", { clientX: 200, clientY: 110 }));
-  header.dispatchEvent(ptr("pointerup", { clientX: 200, clientY: 110, buttons: 0 }));
+  dragHeader(p, 100, 100);
   assert.deepEqual(pos(p), ["40px", "50px"], "the press moved nothing");
   p.el.querySelector(".tw-header-toggle").click();
   assert.ok(p.el.classList.contains("is-collapsed"), "the title still collapses");
@@ -153,23 +140,16 @@ test("a floating panel's far margins are measured inside the page scrollbars", (
   Object.defineProperty(p.el, "offsetWidth", { value: 256, configurable: true });
   Object.defineProperty(p.el, "scrollHeight", { value: 200, configurable: true });
   try {
-    dragBy(p, 2000, 2000);
+    dragHeader(p, 2000, 2000);
     assert.deepEqual(pos(p), [`${1009 - 256 - 8}px`, `${753 - 201 - 8}px`], "the far margins sit 8px inside the scrollbars, not under them");
     // With no doctype the root's client box is the page's content, not the viewport: the inner size stands in.
     Object.defineProperty(document, "compatMode", { value: "BackCompat", configurable: true });
     Object.defineProperty(root, "clientHeight", { value: 90, configurable: true }); // a short page
-    dragBy(p, 2000, 2000);
+    dragHeader(p, 2000, 2000);
     assert.deepEqual(pos(p), [`${1024 - 256 - 8}px`, `${window.innerHeight - 201 - 8}px`], "quirks mode measures the window");
   } finally { delete document.compatMode; delete root.clientWidth; delete root.clientHeight; p.destroy(); }
 });
 
-const dragBy = (p, dx, dy) => {
-  const header = p.el.querySelector(".tw-header");
-  header.setPointerCapture = header.releasePointerCapture = () => {};
-  header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
-  header.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: 10 + dy }));
-  header.dispatchEvent(ptr("pointerup", { clientX: 100 + dx, clientY: 10 + dy, buttons: 0 }));
-};
 // Resize the window for the length of fn, the panel's clamp listening.
 const resized = (w, h, fn) => {
   const w0 = window.innerWidth, h0 = window.innerHeight;
@@ -207,7 +187,7 @@ test("the far gap holds only at the placement: a dragged panel reaches the botto
   Object.defineProperty(p.el, "scrollHeight", { value: 200, configurable: true });
   try {
     assert.equal(cap(p), "calc(100dvh - 240px)", "placed: 120 down, 120 short of the bottom");
-    dragBy(p, 0, 900);
+    dragHeader(p, 0, 900);
     assert.deepEqual([pos(p)[1], cap(p)], [`${600 - 201 - 8}px`, "calc(100dvh - 399px)"], "parked 8px from the bottom, the cap on the margin");
   } finally { window.innerHeight = h; p.destroy(); }
 });
@@ -232,7 +212,7 @@ test("a panel grabbed mid-snap picks up where it visually is, and the snap's tim
   const p = tweaks("Regrab", { a: 1 }, { floating: { x: 16, y: 16 } }); document.body.append(p.el);
   const header = p.el.querySelector(".tw-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};
-  dragBy(p, -10, 0); // dropped near the left edge: snapping
+  dragHeader(p, -10, 0); // dropped near the left edge: snapping
   assert.ok(p.el.classList.contains("is-snapping"));
   p.el.style.left = "50px"; p.el.style.top = "40px"; // stand in for the mid-flight computed left / top
   header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
@@ -243,7 +223,7 @@ test("a panel grabbed mid-snap picks up where it visually is, and the snap's tim
   header.dispatchEvent(ptr("pointerup", { clientX: 110, clientY: 20, buttons: 0 }));
   p.el.style.left = p.el.style.top = "";
   await tick(200);
-  dragBy(p, -50, 0); // a second snap 200ms into the first one's 340
+  dragHeader(p, -50, 0); // a second snap 200ms into the first one's 340
   await tick(200);
   assert.ok(p.el.classList.contains("is-snapping"), "the first drop's timer didn't cut the second snap short");
   await tick(200);
@@ -274,7 +254,7 @@ test("a pinned panel ignores a saved position; a draggable one restores it, and 
   const free = tweaks("Free", { a: 1 }, { persist: "pin", floating: { x: 16, y: 16 } });
   assert.deepEqual(pos(free), ["300px", "200px"], "a draggable panel picks up where it was left");
   document.body.append(free.el);
-  dragBy(free, -100, 100);
+  dragHeader(free, -100, 100);
   assert.deepEqual(JSON.parse(localStorage.getItem("tw:pin:pos")), { x: 200, y: 300 }, "saved where it was dropped");
   free.destroy();
   localStorage.clear();
@@ -283,9 +263,9 @@ test("a pinned panel ignores a saved position; a draggable one restores it, and 
 test("the floating panel touched last sits above the others", () => {
   const a = tweaks("A", { a: 1 }, { floating: true }), b = tweaks("B", { b: 1 }, { floating: true });
   document.body.append(a.el, b.el);
-  drag(a, 30);
+  dragHeader(a, 30);
   assert.ok(a.el.classList.contains("is-raised"));
-  drag(b, 30);
+  dragHeader(b, 30);
   assert.ok(b.el.classList.contains("is-raised"));
   assert.ok(!a.el.classList.contains("is-raised"), "the previous holder gives the stylesheet value back");
   assert.equal(a.el.style.zIndex + b.el.style.zIndex, "", "a class, not an inline z-index a host's own couldn't beat");
@@ -320,18 +300,15 @@ test("presets and undo called before a lazy panel is ready replay in order", asy
 // set() used to write a key no control owned straight onto params, so a typo rode into toJSON() and every save.
 test("set() refuses a key no control has, with a warning, and keeps it out of params and toJSON()", async () => {
   const p = tweaks("Bag", { a: [1, 0, 10, 1] });
-  const warn = console.warn, warned = []; console.warn = (...m) => warned.push(m.join(" "));
   let calls = 0; p.on(() => calls++);
-  try {
-    p.set("nope", 5); p.setMany({ a: 3, typo: 1 });
-    assert.equal(p.params.a, 3);
-    assert.ok(!("nope" in p.params) && !("typo" in p.params));
-    assert.deepEqual(p.toJSON().values, { a: 3 });
-    assert.equal(calls, 1, "the good key still notifies");
-    await new Promise((r) => setTimeout(r, 10)); // a notice's words come from a lazy chunk
-    assert.ok(warned.some((m) => m.includes('set("nope") ignored — no control has that key')));
-    assert.ok(warned.some((m) => m.includes('set("typo") ignored')));
-  } finally { console.warn = warn; p.destroy(); }
+  const warned = await warnings(() => { p.set("nope", 5); p.setMany({ a: 3, typo: 1 }); });
+  assert.equal(p.params.a, 3);
+  assert.ok(!("nope" in p.params) && !("typo" in p.params));
+  assert.deepEqual(p.toJSON().values, { a: 3 });
+  assert.equal(calls, 1, "the good key still notifies");
+  assert.ok(warned.some((m) => m.includes('set("nope") ignored — no control has that key')));
+  assert.ok(warned.some((m) => m.includes('set("typo") ignored')));
+  p.destroy();
 });
 
 test("collapsing folds the body over the height in view, not its whole content, and cleans up after", () => {
