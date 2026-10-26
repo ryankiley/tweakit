@@ -20,10 +20,12 @@ export interface MarkupKit {
 // schema value TYPED_META consumes, then rides metaFor: ONE derivation, so markup defaults can't drift. ──
 let springKeys: readonly string[] = []; // the kit's SPRING_KEYS, set by enhance()
 const springData = (d: DOMStringMap) => ({ ...Object.fromEntries(springKeys.map((k) => [k, num(d[k])])), mode: d.mode }); // the motion control reads the same markup
+const choices = (d: DOMStringMap) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }); // the radio grid, by either name
 const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: HTMLElement, label: string) => object>> = {
   slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft), unit: d.unit }), // absent bounds derive from the value, like the schema
-  checkbox: (d) => (d.options ? { type: "radiogrid", options: splitList(d.options), value: d.value, cols: num(d.cols) } : { value: d.checked === "true" }),
-  radiogrid: (d) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }),
+  checkbox: (d) => (d.options ? { type: "radiogrid", ...choices(d) } : { value: d.checked === "true" }),
+  radiogrid: choices,
+  segmented: choices,
   list: (d) => ({ options: splitList(d.options), value: d.value }),
   // data-options is a comma list, so it takes URLs, not data URLs (they carry a comma).
   image: (d) => ({ value: d.value, options: d.options ? splitList(d.options) : undefined, cols: num(d.cols), maxSize: num(d.maxSize), fit: d.fit === "false" ? false : num(d.fit), quality: num(d.quality), upload: d.upload === "false" ? false : undefined, clear: d.clear === "false" ? false : undefined }),
@@ -52,13 +54,18 @@ const flag = (s: string | undefined) => s === "true" || s === "";    // boolean 
 const splitList = (s: string | undefined) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
 const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
   const d = host.dataset, type = (d.tw && TYPE_ALIASES[d.tw]) || d.tw;
+  // Tabs are panel-only, so a tabs host is left untouched, as the markup page says; built, it fell through to a folder
+  // whose missing get() threw out of enhance() and left every later host claimed but empty.
+  if (type === "tabs") return null;
   const label = d.label ?? titleCase(d.key || type); // data-label="" means no label, like `label: ""`
   // A lazy type with no parser takes the dataset as its fields.
   const v = kit.hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (kit.LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
-  // A typo (`data-tw="slidr"`) rendered nothing and said nothing.
-  if (!v) { import("./heavy.js").then((m) => m.unknownType(`data-tw="${type}"`, String(type), [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()], "is skipped"), () => {}); return null; }
-  // The label rides the verbose value; v spreads after, so a parser's own type or label wins.
-  return kit.metaFor("v", { type, label, ...v });
+  // A typo (`data-tw="slidr"`) rendered nothing and said nothing. The list names what markup builds, so not tabs.
+  if (!v) { import("./heavy.js").then((m) => m.unknownType(`data-tw="${type}"`, String(type), [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()].filter((t) => t !== "tabs"), "is skipped"), () => {}); return null; }
+  // The label rides the verbose value; v spreads after, so a parser's own type or label wins. A form that comes back a
+  // folder (a lazy type's verbose form missing the field it hinges on) is no control either.
+  const m = kit.metaFor("v", { type, label, ...v });
+  return m && m.type !== "folder" ? m : null;
 };
 
 
@@ -126,7 +133,8 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
   hosts.forEach(({ host }) => host.setAttribute("data-tw-bound", ""));
   const pend = ensureForMetas(hosts.map((x) => x.meta));
   if (pend) await pend.catch(() => {}); // a failed chunk skips its controls instead of rejecting
-  for (const { host, meta } of hosts) {
+  // One host that fails to build costs only itself: the rest still bind.
+  for (const { host, meta } of hosts) try {
     const key = host.dataset.key || meta.label;
     // Gated the way the panel gates notify(): a same-value emit announces nothing.
     let last: unknown;
@@ -140,7 +148,7 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
     // The handle's set() runs the change path too, where the bare control's set() is silent.
     const handle = { ...ctrl, set: (v: unknown) => { ctrl.set(v); emit(ctrl.get()); } };
     host._tw = { ctrl: handle, raw: meta.value, def, key, host, reset: () => { restoreDefault(ctrl, meta.value, def); emit(ctrl.get()); } };
-  }
+  } catch (err) { console.error(`[tweaks] data-tw="${host.dataset.tw}" could not be built — skipped:`, err); }
 }
 
 setMarkup(enhance);

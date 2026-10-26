@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote, TYPE_ALIASES } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -207,13 +207,14 @@ const springRun = (k: number, d: number, m: number) => {
 };
 
 // The name a typo is a single edit from (a letter added, dropped or changed). It and the notices below are lazy, as
-// only a mistake needs them. unknownType: a schema or markup `type` no control answers to.
+// only a mistake needs them. unknownType: a schema or markup `type` no control answers to. Its list holds the aliases
+// (toggle, bezier) and not the color module's picker body, which is registered as a control but isn't a type to write.
 const nearest = (s: string, names: string[]) => {
   const a = s.toLowerCase(); // case-blind, so "textmuted" finds "textMuted"
   return names.find((n) => { const k = n.toLowerCase(); let i = 0; while (i < a.length && a[i] === k[i]) i++; return [[1, 1], [0, 1], [1, 0]].some(([x, y]) => a.slice(i + x) === k.slice(i + y)); });
 };
 const unknownType = (where: string, type: string, known: string[], then: string) => {
-  const names = [...new Set(known)].filter((t) => t !== "folder").sort(), near = nearest(type, names);
+  const names = [...new Set([...known, ...Object.keys(TYPE_ALIASES)])].filter((t) => t !== "folder" && t !== "colorpicker").sort(), near = nearest(type, names);
   console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${then}. Types: ${names.join(", ")}`);
 };
 // A theme key resolveTheme skipped: kind is what its value failed to be ("color", "length"), or "" for a key it doesn't know.

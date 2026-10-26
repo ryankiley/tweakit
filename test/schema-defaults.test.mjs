@@ -222,7 +222,10 @@ test("an unknown type warns, naming the near type and the real ones; it still bu
     const p = tweaks("Types", { typo: { type: "slidr", value: 1 }, font: { type: "Inter", size: [12, 8, 40, 1] } });
     assert.deepEqual(p.params.font, { type: "Inter", size: 12 });
     await new Promise((r) => setTimeout(r, 20)); // the message comes from a lazy chunk
-    assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"?') && m.includes("Types: button")));
+    assert.ok(msgs.some((m) => m.includes('"typo": "slidr" isn\'t a control type — did you mean "slider"?') && m.includes("Types: bezier, button")));
+    const types = msgs.find((m) => m.includes('"typo"')).split("Types: ")[1].split(", ");
+    for (const t of ["segmented", "toggle", "switch", "bezier", "tabs"]) assert.ok(types.includes(t), `the list names ${t}`);
+    assert.ok(!types.includes("colorpicker") && !types.includes("folder"), "and not the picker body or a folder");
     assert.ok(msgs.some((m) => m.includes('"font": "Inter" isn\'t a control type. It builds a folder')));
     p.destroy();
   } finally { console.warn = warn; }
