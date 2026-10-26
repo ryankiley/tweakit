@@ -367,7 +367,7 @@ function createColor(meta: Meta, onChange: OnChange): Control {
 
   const pop = el("div", "tw-color-pop");
   const paintTrigger = () => { swatch.style.background = body.swatchCss(); valueEl.textContent = body.valueText(); };
-  const body = createPickerBody({ value: meta.value, onMode: () => paintTrigger() }, (c) => { paintTrigger(); onChange(c); });
+  const body = createPickerBody({ value: meta.value, mode: meta.mode as ColorMode, onMode: () => paintTrigger() }, (c) => { paintTrigger(); onChange(c); });
   pop.append(body.el);
   root.append(pop);
 

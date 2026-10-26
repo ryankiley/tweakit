@@ -9,7 +9,7 @@
   // and a bare one (no toolbar) with a graphless monitor.
   import { tweaks } from "/tweaks/core.js";
   const rows = tweaks("Rows", {
-    slider: [5, 0, 10, 1], number: { type: "number", value: 3 }, check: true, list: ["a", "b"], color: "#7c5cff",
+    slider: [5, 0, 10, 1], number: { type: "number", value: 3 }, check: true, list: ["a", "b"], color: { type: "color", value: "#7c5cff", mode: "oklch" },
     text: "Hi", seg: { type: "segmented", options: ["a", "b", "c"] }, grid: { type: "radiogrid", options: ["a", "b", "c"] }, image: { type: "image" },
     ramp: { type: "gradient", stops: [["#000", 0], ["#fff", 1]] }, drop: { type: "shadow" }, pad: { type: "sides", value: 8 },
     ease: { type: "motion" }, at: { type: "point", components: [{ key: "x" }, { key: "y" }] }, go: { action: () => {} },
