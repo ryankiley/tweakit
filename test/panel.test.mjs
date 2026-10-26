@@ -120,7 +120,7 @@ test("destroy() releases a monitor's poll even on a panel that never mounted", a
 
 test("a hostile color string is skipped, not thrown, and the rest of a restore still lands", () => {
   // Regression, two halves: `color(constructor …)` resolved its space off Object.prototype
-  // — truthy, so it slipped past the unknown-space guard and reached the conversion maths
+  // — truthy, so it slipped past the unknown-space guard and reached the conversion math
   // as a non-space, throwing a TypeError out of set(); and applySnapshot ran its entries
   // unguarded, so that one throw abandoned every later value AND the notify with it.
   const p = tweaks("CX", { a: [1, 0, 10, 1], c: { type: "color", value: "#ff0000" }, z: [1, 0, 10, 1] });
@@ -611,7 +611,7 @@ test("numeric values stay on their step grid: a null bound is unbounded, an off-
     rot: [0, -Math.PI, Math.PI, 0.01],                                          // a computed bound keeps the step's readout
     s: [5, 0, 14.6, 1], iv: [[2, 8], 0, 14.6, 1],
   });
-  assert.equal(p.params.size, 27);      // max: null used to read as 0 and swap in as the floor, clamping to 14.45
+  assert.equal(p.params.size, 27.44);   // max: null used to read as 0 and swap in as the floor, clamping to 14.45; step: null infers one 27.44 sits on
   assert.equal(p.params.cap, 14);       // not 14.45, which the field can't show and its own set() re-rounded
   assert.equal(p.params.half, 3);       // not 4 (and 5, 6, … on every set of its own value)
   assert.ok(p.params.rot === 0);        // on the 0.01 grid, not -0.0016 (the min-anchored point) or -0

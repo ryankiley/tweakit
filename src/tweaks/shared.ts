@@ -58,35 +58,50 @@ const roundToStep = (v: number, min: number, step: number) => {
 const gridEnds = (min: number, max: number, step: number, anchor = min): [number, number] => {
   const r = (v: number) => roundToStep(v, anchor, step);
   let lo = Number.isFinite(min) ? r(min) : -Infinity, hi = Number.isFinite(max) ? r(max) : Infinity;
-  if (lo < min) lo = r(lo + step);
-  if (hi > max) hi = r(hi - step);
+  // A millionth of a step is float noise, not overshoot: 0.1 * 3's min rounds to 0.3, a hair under it, and trimmed to 0.31.
+  const eps = step * 1e-6;
+  if (lo < min - eps) lo = r(lo + step);
+  if (hi > max + eps) hi = r(hi - step);
   return lo > hi ? [min, min] : [lo, hi];
 };
 // By the span, then finer, a tenth at a time and at most twice, until each value the range was built around sits on the
 // grid from min: a coarser grid snapped the default off what was written (37 over 0–110 became 40). A value finer still
 // (3.14159) rounds to the last of those. A range across zero counts 0 among them, so -45's -135–135 steps by 1, not by
-// 10 from -135 (…, -5, 5, …), which stepped over 0.
+// 10 from -135 (…, -5, 5, …), which stepped over 0. roundToStep anchors the grid at min rounded to the step's decimals,
+// so min must keep its own decimals too (0.25 over 0.1 anchored at 0.3, and 1.25 came back 1.2); max joins them when a
+// step within reach fits it, else the grid trims it as before.
 const inferStep = (min: number, max: number, ...vals: number[]) => {
   const range = max - min;
   if (min < 0 && max > 0) vals.push(0);
-  let step = range <= 1 ? 0.01 : range <= 10 ? 0.1 : range <= 100 ? 1 : 10;
-  const off = (v: number) => { const n = (v - min) / step; return Number.isFinite(n) && Math.abs(n - Math.round(n)) > 1e-6; };
-  for (let i = 0; i < 2 && vals.some(off); i++) step /= 10;
-  return step;
+  const base = range <= 1 ? 0.01 : range <= 10 ? 0.1 : range <= 100 ? 1 : 10;
+  const on = (n: number) => !Number.isFinite(n) || Math.abs(n - Math.round(n)) <= 1e-6;
+  const fits = (step: number, vs: number[]) => on(min / Math.min(step, 1)) && vs.every((v) => on((v - min) / step));
+  const finest = (vs: number[]) => { let step = base; for (let i = 0; i < 2 && !fits(step, vs); i++) step /= 10; return step; };
+  const withMax = finest([...vals, max]);
+  return fits(withMax, [...vals, max]) ? withMax : finest(vals);
 };
-// Normalise a slider-style range: non-finite bounds take the defaults (max: min+100), an
-// inverted pair swaps, a degenerate step re-infers. Every range source funnels through here.
+// The range a value implies when no bound is given, widened by each value (defaultRange), and its step. A range mirrored
+// about zero steps like its positive half (-0.5 by 0.01, like 0.5), not by its doubled span, and its ends keep 0 on the grid.
+const derivedRange = (...vals: number[]) => {
+  const rs = (vals.length ? vals : [0]).map(defaultRange);
+  const min = Math.min(...rs.map((r) => r[0])), max = Math.max(...rs.map((r) => r[1]));
+  return { min, max, step: min < 0 && min === -max ? inferStep(0, max, max, ...vals.map(Math.abs)) : inferStep(min, max, ...vals) };
+};
 // Every range swaps an inverted min/max, which is the right recovery, but silent it hides a typo: say so.
 const swapNote = (label: string, min: unknown, max: unknown) => {
   const n = (v: unknown) => (v == null || v === "" ? NaN : +v!);
   if (n(max) < n(min)) console.warn(`[tweaks] "${label}": min ${min} is above max ${max}, so they were swapped`);
 };
-const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, defMin = 0, defMax: number | null = null, ...vals: number[]) => {
-  let min = +rawMin, max = +rawMax, step = +rawStep;
-  if (!Number.isFinite(min)) min = defMin;
-  if (!Number.isFinite(max)) max = defMax != null ? defMax : min + 100;
-  if (max < min) { const t = min; min = max; max = t; }
-  if (!(step > 0) || step > max - min) step = inferStep(min, max, ...vals);
+// Normalize a slider-style range: an absent or non-finite bound derives from the values, an inverted pair swaps (with a
+// note, given the control's label), and only then does an absent or unusable step infer, so a NaN min can't hand it a NaN
+// span. Every range source funnels here.
+const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals: number[] = [], label?: string) => {
+  const given = (n: unknown) => n != null && n !== "" && Number.isFinite(+n!);
+  vals = vals.filter(Number.isFinite);
+  const d = derivedRange(...vals);
+  let min = given(rawMin) ? +rawMin! : d.min, max = given(rawMax) ? +rawMax! : d.max, step = +rawStep!;
+  if (max < min) { if (label != null) swapNote(label, min, max); const t = min; min = max; max = t; }
+  if (!(step > 0) || step > max - min) step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
   return { min, max, step };
 };
 // One keyboard model for every 1-D range surface: arrows step (⇧ = ×10), Home/End snap to
@@ -113,6 +128,7 @@ const overlapsText = (labelEl: HTMLElement, valueEl: HTMLElement, hx: number, hw
 // last resort), and a negative spans that much either side of zero, so it can still cross it
 // (rotate: -45 → −135 to 135).
 const defaultRange = (v: number): [number, number] => {
+  if (!Number.isFinite(v)) return [0, 1]; // NaN spanned NaN–NaN; every entry point now reads it as 0, as a verbose slider did
   const x3 = Number((Math.abs(v) * 3).toPrecision(12)); // 2.3 × 3 is 6.8999…, which the grid trimmed to 6.8
   if (v >= 0) return [0, v <= 1 ? 1 : x3 || 100];
   const m = v >= -1 ? 1 : x3;
