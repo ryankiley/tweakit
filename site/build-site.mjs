@@ -123,6 +123,7 @@ function renderPage(shell, pages, idx, chunks = [], version = "") {
   const values = {
     title: esc(title),
     slug: esc(meta.slug),
+    url: `https://ryankiley.github.io/tweakit/${meta.slug === "index" ? "" : esc(meta.slug) + ".html"}`,
     description: esc(meta.description || "Tweakit — a dependency-free, code-split, real-time parameter panel."),
     styles: css ? `  <style>${css}</style>` : "",
     nav: renderNav(pages, meta.slug),
