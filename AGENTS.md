@@ -109,7 +109,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 `tweaks(name, schema, options?)` returns synchronously.
 
 - `panel.el`: append it. `panel.params`: live values, nested like the schema, updated in place. It holds values only.
-- `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the bare leaf (`blur`, not `shadow.blur`), so read nested values off `params` rather than switching on the key.
+- `panel.on((params, changedKey) => …)`: fires on every change; returns an unsubscribe function. `changedKey` is the control's dotted path, as `set()` and `changes()` name it (`size` at the top, `card.size` in a folder), or `undefined` when many changed at once (a restore, `reset()`, `fromJSON`, `setMany`).
 - `panel.ready`: resolves once lazy controls have built.
 - `panel.set("folder.key", value)` and `panel.setMany({ "folder.key": v, other: w })`: write from code; dotted paths reach nested controls; a key no control has is refused with a console warning, and a number past a hard range clamps, with a console warning once a key; `{ silent: true }` skips your listeners.
 - `panel.changes()`: the values that differ from their defaults, keyed by dotted path. `panel.reset()` restores the defaults.
