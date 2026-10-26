@@ -46,7 +46,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # The browser download is cached by lockfile; the system libraries it needs are installed either way.
+      - id: browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
+        if: steps.browsers.outputs.cache-hit != 'true'
+      - run: npx playwright install-deps chromium
+        if: steps.browsers.outputs.cache-hit == 'true'
       - run: npm run test:browser
 
   deploy:

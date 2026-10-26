@@ -5,7 +5,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -35,12 +35,13 @@ const open = async (url, viewport = { width: 1280, height: 900 }) => {
   return { page, errors };
 };
 const fixture = async () => { const o = await open("/fixture/fixture.html"); await o.page.waitForSelector("body[data-ready]"); return o; };
-// Every row of every panel on the page: its box, its panel's, and its own label's left edge.
+// Every row of every panel on the page: its box, its panel's, and its own label's left edge. A tab page is a
+// .tw-controls too, so its rows count; an inactive page measures 0 wide and drops out.
 const rows = (page) => page.evaluate(() => [...document.querySelectorAll(".tw-panel")].flatMap((p) => {
   const pr = p.getBoundingClientRect(), panel = p.querySelector(".tw-title")?.textContent;
-  return [...p.querySelectorAll(".tw-controls > *, .tw-folder-body > *, .tw-tab-page > *")].map((r) => {
+  return [...p.querySelectorAll(".tw-controls > *, .tw-folder-body > *")].map((r) => {
     const b = r.getBoundingClientRect(), label = r.querySelector(":scope > :is(.tw-row-label, .tw-slider .tw-slider-label, .tw-radiogrid-label), :scope > .tw-slider > .tw-slider-label, :scope > .tw-trigger > .tw-trigger-label, :scope > .tw-select-trigger > :first-child");
-    return { panel, cls: r.classList[0], left: b.left - pr.left, right: pr.right - b.right, height: b.height, width: b.width,
+    return { panel, cls: r.classList[0], inTab: !!r.parentElement.closest(".tw-tabs-page"), left: b.left - pr.left, right: pr.right - b.right, height: b.height, width: b.width,
       labelIn: label && label.getBoundingClientRect().width ? label.getBoundingClientRect().left - b.left : null };
   }).filter((r) => r.width);
 }));
@@ -61,7 +62,9 @@ test("long options, long tab titles, a wide button group and a long label stay i
   const { page, errors } = await fixture();
   const width = await page.evaluate(() => [...document.querySelectorAll(".tw-panel")].map((p) => p.getBoundingClientRect().width));
   assert.deepEqual(width, [256, 256, 256]);
-  for (const r of (await rows(page)).filter((r) => r.panel === "Wide")) {
+  const wide = (await rows(page)).filter((r) => r.panel === "Wide");
+  assert.ok(wide.some((r) => r.inTab), "the open tab page's rows are measured too");
+  for (const r of wide) {
     assert.ok(r.left >= -0.5 && r.right >= -0.5, `${r.cls} spills out of its panel (${r.left.toFixed(1)} left, ${r.right.toFixed(1)} right)`);
   }
   assert.deepEqual(errors, []);
@@ -84,7 +87,7 @@ test("a floating panel follows a header drag, and a click on the header folds it
   await page.close();
 });
 
-const PAGES = ["index", "getting-started", "quick-tour", "numbers", "text-and-choices", "color-and-gradient", "motion", "monitors", "structure", "panel-api", "theming", "markup", "imports"];
+const PAGES = (await readdir(path.join(ROOT, "dist"))).filter((f) => f.endsWith(".html")).map((f) => f.slice(0, -5)); // every docs page, a new one included
 for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 }]) {
   test(`docs pages at ${viewport.width}px: every row inside its panel${viewport.width < 768 ? ", and no sideways scroll" : ""}`, async () => {
     for (const name of PAGES) {
