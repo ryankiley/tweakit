@@ -4,7 +4,8 @@
  *   dist/tweaks.css   minified panel CSS
  *   dist/types/       .d.ts declarations
  *   dist/*.html       the docs site, from site/
- * TW_SPLIT is an esbuild define that picks the code path in core.ts. */
+ * TW_SPLIT is an esbuild define that picks the code path in core.ts. `--sourcemap` adds a linked .map beside each
+ * script, for readable stack traces in the tests; a plain build, the one that publishes, has none. */
 import { mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { execFile } from "node:child_process";
@@ -21,13 +22,14 @@ await rm(p("dist"), { recursive: true, force: true });
 await mkdir(p("dist"), { recursive: true });
 
 const esbuild = await import("esbuild");
+const sourcemap = process.argv.includes("--sourcemap") ? "linked" : false;
 
 // 1) code-split chunks → dist/tweaks/; the metafile finds the shared chunk for the size report
 const splitBuild = await esbuild.build({
   entryPoints: [p("src/tweaks/core.ts")],
   outdir: p("dist/tweaks"),
   bundle: true, splitting: true, format: "esm", minify: true, target: "es2020",
-  legalComments: "none", define: { TW_SPLIT: "true" }, metafile: true,
+  legalComments: "none", define: { TW_SPLIT: "true" }, metafile: true, sourcemap,
 });
 
 // 2) single self-contained file → dist/tweaks.js, the drop-in that needs no bundler
@@ -35,7 +37,7 @@ await esbuild.build({
   entryPoints: [p("src/tweaks/single.ts")],
   outfile: p("dist/tweaks.js"),
   bundle: true, splitting: false, format: "esm", minify: true, target: "es2020",
-  legalComments: "none", define: { TW_SPLIT: "false" },
+  legalComments: "none", define: { TW_SPLIT: "false" }, sourcemap,
   // The copyable file carries the notice the MIT license requires in every copy.
   banner: { js: "/* tweakit — MIT © Ryan Kiley. Toolbar and control icons from Hugeicons (MIT); see THIRD-PARTY-NOTICES.md in the tweakit package. */" },
 });

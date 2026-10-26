@@ -50,6 +50,20 @@ test("a verbose slider / interval without min/max derives its range from the val
   ih.remove();
 });
 
+test("a negative default spans either side of zero, so it can cross it", () => {
+  const p = tweaks("N", { rotate: -45, nudge: -0.5, tilt: [-10], v: { type: "slider", value: -5 }, i: { type: "interval", value: [-20, 10] } });
+  const [rotate, nudge, tilt, v, i0] = p.el.querySelectorAll("[role=slider]");
+  const range = (h) => [h.getAttribute("aria-valuemin"), h.getAttribute("aria-valuemax")];
+  assert.deepEqual(range(rotate), ["-135", "135"]);
+  assert.deepEqual(range(nudge), ["-1", "1"]);
+  assert.deepEqual(range(tilt), ["-30", "30"]);
+  assert.deepEqual(range(v), ["-15", "15"]);
+  assert.deepEqual(range(i0), ["-60", "60"]);
+  p.set("rotate", 45);
+  assert.equal(p.params.rotate, 45, "a positive value is in range now");
+  p.destroy();
+});
+
 test("an explicit min/max still wins over the derived range", () => {
   const p = tweaks("E", { s: { type: "slider", value: 50, min: 0, max: 10 }, i: { type: "interval", value: [2, 8], min: 0, max: 10 } });
   assert.equal(p.params.s, 10);

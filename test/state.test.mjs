@@ -7,6 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { window } from "./_setup-dom.mjs";
+import { indexedDB as fakeIDB, IDBKeyRange as FakeKeyRange } from "fake-indexeddb";
 import { loadSingle, tick } from "./_helpers.mjs";
 
 const { tweaks } = await loadSingle();
@@ -109,70 +110,69 @@ test("gradient normalizes its value: default pair, clamped positions, tuple stop
   assert.deepEqual(pos, [0, 1]); // out-of-range positions clamp into [0,1]
 });
 
-test("a persist write storage refuses is retried without the image values, so the rest still saves", async () => {
+// IndexedDB in memory (on globalThis, where the bundle looks): an uploaded image persists there, and storage holds its ref.
+Object.assign(globalThis, { indexedDB: fakeIDB, IDBKeyRange: FakeKeyRange });
+const records = () => new Promise((done) => { const r = indexedDB.open("tweakit", 1); r.onsuccess = () => { const keys = r.result.transaction("images").objectStore("images").getAllKeys(); keys.onsuccess = () => { r.result.close(); done(keys.result); }; }; });
+
+test("an uploaded image persists through IndexedDB: storage holds its ref, and the next panel has the image by ready", async () => {
   const big = "data:image/gif;base64," + "A".repeat(4096);
-  const setItem = window.Storage.prototype.setItem; // the instance can't be patched: Storage's named setter would store the function as a key
-  let refusals = 0;
-  window.Storage.prototype.setItem = function (k, v) { if (String(v).includes(big)) { refusals++; throw new DOMException("quota", "QuotaExceededError"); } return setItem.call(this, k, v); };
-  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
-  try {
-    const p = tweaks("P", { x: [1, 0, 10, 1], im: { type: "image" } }, { persist: "t-quota" });
-    p.set("x", 7); p.set("im", big);
-    await tick(250);
-    const stored = JSON.parse(localStorage.getItem("tw:t-quota"));
-    assert.equal(stored.x, 7, "the slider value was saved");
-    assert.equal("im" in stored, false, "the image that didn't fit was left out");
-    assert.equal(warned.length, 1, "and the host was told once");
-    assert.equal(p.el.querySelector(".tw-image-note").textContent, "Too big to save", "and the person, on the image's row");
-    assert.equal(refusals, 1);
-    p.set("x", 8); await tick(250);
-    assert.equal(JSON.parse(localStorage.getItem("tw:t-quota")).x, 8);
-    assert.equal(warned.length, 1, "told once, not on every save");
-    assert.equal(refusals, 1, "a value storage refused is not offered again until it changes");
-    p.set("im", big + "B"); await tick(250);
-    assert.equal(refusals, 2, "a new image value is tried once more");
-    assert.equal(p.savePreset("big"), false, "a preset carries its image whole, so storage refuses it and the call says so");
-    assert.equal(localStorage.getItem("tw:t-quota:presets"), null, "nothing claimed to be stored");
-    assert.equal(warned.length, 2, "and the host was told which preset");
-    p.destroy();
-  } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
+  const p = tweaks("P", { x: [1, 0, 10, 1], im: { type: "image" } }, { persist: "t-idb" });
+  await p.ready;
+  p.set("x", 7); p.set("im", big);
+  await tick(250);
+  const stored = JSON.parse(localStorage.getItem("tw:t-idb"));
+  assert.equal(stored.x, 7);
+  assert.match(stored.im, /^tw-image:\w+$/, "storage holds a short ref, not the data URL");
+  assert.equal((await records()).filter(([k]) => k === "tw:t-idb").length, 1, "and IndexedDB the image, once");
+  p.destroy();
+  const q = tweaks("P", { x: [1, 0, 10, 1], im: { type: "image" } }, { persist: "t-idb" });
+  await q.ready;
+  assert.equal(q.params.im, big, "the image is back by ready");
+  assert.equal(q.params.x, 7);
+  q.destroy();
 });
 
-test("only an image storage left out says so on its row: not an empty one, and none when storage is off", async () => {
-  const big = "data:image/gif;base64," + "A".repeat(4096);
-  const setItem = window.Storage.prototype.setItem;
-  let off = false;
-  window.Storage.prototype.setItem = function (k, v) { if (off || String(v).includes(big)) throw new DOMException("quota", "QuotaExceededError"); return setItem.call(this, k, v); };
-  const warn = console.warn; console.warn = () => {};
-  try {
-    const p = tweaks("N", { x: [1, 0, 10, 1], im: { type: "image" }, empty: { type: "image" } }, { persist: "t-note" });
-    const [im, empty] = p.el.querySelectorAll(".tw-image-note");
-    p.set("im", big); await tick(250);
-    assert.equal(im.textContent, "Too big to save");
-    assert.equal(empty.textContent, "", "an empty image row has nothing that went unsaved");
-    im.textContent = ""; off = true; p.set("im", big + "B"); await tick(250);
-    assert.equal(im.textContent, "", "refused without the image too: no note");
-    const q = tweaks("M", { x: [1, 0, 10, 1], im: { type: "image", value: "/a.png" } }, { persist: "t-note-off" });
-    q.set("x", 2); await tick(250);
-    assert.equal(q.el.querySelector(".tw-image-note").textContent, "", "storage is off: the image isn't to blame");
-    p.destroy(); q.destroy();
-  } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
+test("presets carry images by ref, and a record nothing names any more is pruned", async () => {
+  const one = "data:image/gif;base64," + "A".repeat(2048), two = "data:image/gif;base64," + "B".repeat(2048);
+  const ours = async () => (await records()).filter(([k]) => k === "tw:t-idb-pre");
+  const p = tweaks("Pre", { im: { type: "image" } }, { persist: "t-idb-pre" });
+  await p.ready;
+  p.set("im", one); await tick(250);
+  assert.equal(p.savePreset("first"), true);
+  assert.match(JSON.parse(localStorage.getItem("tw:t-idb-pre:presets")).first.im, /^tw-image:/, "the preset holds the ref");
+  p.set("im", two); await tick(250);
+  assert.equal((await ours()).length, 2, "the preset still names the first image, so both are kept");
+  p.loadPreset("first");
+  assert.equal(p.params.im, one, "and loading it brings the image back");
+  p.set("im", two); await tick(250);
+  p.deletePreset("first"); await tick(50);
+  assert.equal((await ours()).length, 1, "deleting the preset prunes the image only it named");
+  p.destroy();
 });
 
-test("storage that can't take two images leaves out the larger one only, and only that row says so", async () => {
-  const big = "data:image/gif;base64," + "A".repeat(8192), small = "data:image/gif;base64," + "B".repeat(1024);
-  const setItem = window.Storage.prototype.setItem;
-  window.Storage.prototype.setItem = function (k, v) { if (String(v).includes(big)) throw new DOMException("quota", "QuotaExceededError"); return setItem.call(this, k, v); };
-  const warn = console.warn; console.warn = () => {};
-  try {
-    const p = tweaks("L", { a: { type: "image" }, b: { type: "image" } }, { persist: "t-largest" });
-    const [a, b] = p.el.querySelectorAll(".tw-image-note");
-    p.setMany({ a: small, b: big }); await tick(250);
-    const stored = JSON.parse(localStorage.getItem("tw:t-largest"));
-    assert.equal(stored.a, small, "the image that fits keeps its place"); assert.equal("b" in stored, false);
-    assert.equal(a.textContent, ""); assert.equal(b.textContent, "Too big to save");
-    p.destroy();
-  } finally { window.Storage.prototype.setItem = setItem; console.warn = warn; }
+test("a ref whose record is gone leaves the image at its schema value", async () => {
+  localStorage.setItem("tw:t-idb-gone", JSON.stringify({ x: 3, im: "tw-image:nothing" }));
+  const p = tweaks("Gone", { x: [1, 0, 10, 1], im: { type: "image", value: "/a.png" } }, { persist: "t-idb-gone" });
+  await p.ready;
+  assert.equal(p.params.im, "/a.png");
+  assert.equal(p.params.x, 3, "the other values still restore");
+  p.destroy();
+});
+
+// Two tabs on one key: the tab without the upload saved, pruned the record it had never seen, and the tab that saved last
+// with the image still held its ref, so the reload came back empty.
+test("a save prunes only the records its own panel knows, so another tab's upload survives it", async () => {
+  const S = { x: [1, 0, 10, 1], im: { type: "image" } }, img = "data:image/gif;base64," + "C".repeat(2048);
+  const a = tweaks("Tabs", S, { persist: "t-idb-tabs" }), b = tweaks("Tabs", S, { persist: "t-idb-tabs" });
+  await Promise.all([a.ready, b.ready]);
+  a.set("im", img); await tick(250);
+  b.set("x", 5); await tick(250);
+  a.set("x", 9); await tick(250);
+  a.destroy(); b.destroy();
+  const c = tweaks("Tabs", S, { persist: "t-idb-tabs" });
+  await c.ready;
+  assert.equal(c.params.im, img, "the last save named the image, so it comes back");
+  c.destroy();
 });
 
 // Each undo step was a deep clone of every value, so after an upload every later step held its own copy of it: a 4 MB image

@@ -52,7 +52,7 @@ export const examples = [
     prose: `<p>Everything the inference understands, in one place:</p>
       <table>
         <tr><th>You write</th><th>You get</th><th><code>params</code> value</th></tr>
-        <tr><td><code>24</code></td><td>slider, 0–1 for a value ≤ 1, else 0–3× the value</td><td>number</td></tr>
+        <tr><td><code>24</code></td><td>slider, 0–1 for a value ≤ 1, else 0–3× the value; a negative spans that either side of 0</td><td>number</td></tr>
         <tr><td><code>[1.2, 0, 3, 0.1]</code></td><td>slider with min / max / step</td><td>number</td></tr>
         <tr><td><code>[[20, 80], 0, 100]</code></td><td>interval (dual-handle range)</td><td><code>[lo, hi]</code></td></tr>
         <tr><td><code>true</code></td><td>checkbox</td><td>boolean</td></tr>

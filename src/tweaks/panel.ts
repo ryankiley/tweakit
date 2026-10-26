@@ -69,33 +69,52 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const drop = (snap: Snapshot | null, e: Entry) => { const o: any = atPath(snap, e.path.slice(0, -1)); if (!o || typeof o !== "object" || !hasOwn(o, e.key)) return false; Reflect.deleteProperty(o, e.key); return true; };
   // A control with `persist: false` stays out of what is saved and out of what is restored.
   const unsaved = (snap: Snapshot | null) => { for (const e of entries) if (!e.persist) drop(snap, e); return snap; };
+  // ── Images in IndexedDB (image-store.ts): what storage holds for an uploaded image is its ref, and `savedImages` maps this
+  // panel's refs to their data URLs, loaded before the build so a restore or a preset resolves them synchronously. ──
+  let imgs: typeof import("./image-store.js") | null = null, savedImages: Map<string, string> | null = null; // null without IndexedDB
+  const imageEntries = () => entries.filter((e) => e.m.type === "image");
+  // A snapshot as storage takes it: each data URL swapped for its ref, the record written once. Without IndexedDB the image is
+  // left out, and its row says so once per value.
+  const unsavable = new Map<Entry, unknown>();
+  let unsavableWarned = false;
+  // Each row's last data URL and its ref, so a save that didn't touch the image doesn't hash megabytes again.
+  const hashed = new Map<Entry, [string, string]>();
+  const refOf = (e: Entry, v: string) => { const c = hashed.get(e); if (c?.[0] === v) return c[1]; const r = imgs!.refFor(v); hashed.set(e, [v, r]); return r; };
+  const toRefs = (snap: Snapshot) => {
+    for (const e of imageEntries()) {
+      const o: any = atPath(snap, e.path.slice(0, -1)), v = o?.[e.key];
+      if (typeof v !== "string" || !v.startsWith("data:")) continue; // a URL is small: it saves as it is
+      if (imgs && savedImages) { const ref = refOf(e, v); if (!savedImages.has(ref)) { savedImages.set(ref, v); imgs.put(persistKey!, ref, v); } o[e.key] = ref; continue; }
+      drop(snap, e);
+      if (unsavable.get(e) === v) continue;
+      unsavable.set(e, v); e.note?.("Not saved");
+      if (!unsavableWarned) { unsavableWarned = true; console.warn("[tweaks] persist: IndexedDB is unavailable here, so uploaded images aren't saved"); }
+    }
+    return snap;
+  };
+  // A stored snapshot back to values: each ref resolved; one whose record is gone is left out, so its control keeps its value.
+  const fromRefs = (snap: Snapshot | null) => {
+    if (imgs && snap && typeof snap === "object") for (const e of imageEntries()) {
+      const v = atPath(snap, e.path), url = imgs.isRef(v) ? savedImages?.get(v) : null;
+      if (url) (atPath(snap, e.path.slice(0, -1)) as any)[e.key] = url; else if (url === undefined) drop(snap, e);
+    }
+    return snap;
+  };
+  // Delete the records nothing names any more: not the saved values, not a preset. Only records this panel knows, loaded
+  // or written: another tab's panel on the same key may have just stored one this panel has never seen.
+  const pruneImages = () => {
+    if (!imgs || !savedImages?.size) return;
+    const keep = new Set<string>();
+    for (const snap of [readStore(persistKey!), ...Object.values(listPresets())]) for (const e of imageEntries()) { const v = atPath(snap, e.path); if (imgs.isRef(v)) keep.add(v); }
+    const gone = [...savedImages.keys()].filter((r) => !keep.has(r));
+    for (const r of gone) savedImages.delete(r);
+    if (gone.length) imgs.prune(persistKey!, gone);
+  };
   // Debounced save; destroy() flushes a pending write rather than dropping it.
   const persist = persistKey ? (() => {
     let saveT = 0;
-    // An image's data URL can outgrow storage (~5 MB an origin), and a refused write would drop every value with it: the write
-    // is retried without the largest images, so the rest still saves; each image left out says so on its row, and a host is
-    // told once why its image comes back empty.
-    // A value storage refused stays out of later saves until it changes, so the serialize-throw-retry runs once per image, not per save.
-    let quotaWarned = false;
-    const refused = new Map<Entry, unknown>();
-    const save = () => {
-      saveT = 0;
-      const snap = unsaved(snapshot());
-      const images = entries.filter((e) => e.persist && e.m.type === "image");
-      const kept = images.filter((e) => !(refused.get(e) === e.get() && drop(snap, e)));
-      if (writeStore(persistKey, snap)) return;
-      // Images leave largest first, only until the rest fits, so a picture that fits keeps its place beside one that doesn't.
-      const left: Entry[] = [];
-      for (const e of kept.filter((e) => e.get()).sort((a, b) => String(b.get()).length - String(a.get()).length)) {
-        if (!drop(snap, e)) continue;
-        left.push(e); refused.set(e, e.get());
-        if (!writeStore(persistKey, snap)) continue;
-        for (const e of left) e.note?.("Too big to save");
-        if (!quotaWarned) { quotaWarned = true; console.warn("[tweaks] persist: the values didn't fit in storage with an image included — saved without it"); }
-        return;
-      }
-      // Refused with every image out too: storage is off, denied or full of something else, and no image is to blame. Silent.
-    };
+    // A write storage refuses (off, denied, or full of something else) is dropped silently; images aren't in it to blame.
+    const save = () => { saveT = 0; if (writeStore(persistKey, toRefs(unsaved(snapshot())))) pruneImages(); };
     cleanups.push(() => { if (saveT) { clearTimeout(saveT); save(); } });
     return () => { clearTimeout(saveT); saveT = setTimeout(save, 150); };
   })() : () => {};
@@ -385,10 +404,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets" ──
   const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? readStore(presetsKey) : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
-  // False when storage refused the write (a preset carries its images whole), so the caller can say so instead of claiming a save.
-  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = snapshot(); const ok = writeStore(presetsKey, all); if (!ok) console.warn(`[tweaks] preset "${nm}" didn't fit in storage — not saved`); return ok; };
-  const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) applySnapshot(all[nm]); }; // re-read at replay: a delete queued ahead of it wins
-  const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; writeStore(presetsKey, all); };
+  // False when storage refused the write, so the caller can say so instead of claiming a save.
+  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); const ok = writeStore(presetsKey, all); if (!ok) console.warn(`[tweaks] preset "${nm}" didn't fit in storage — not saved`); return ok; };
+  const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) applySnapshot(fromRefs(all[nm])); }; // re-read at replay: a delete queued ahead of it wins
+  const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; if (writeStore(presetsKey, all)) pruneImages(); };
 
   // ── Whole-panel UI state (toJSON / fromJSON) — folder open/closed and the active tab, keyed by dotted path ──
   const pathKey = (p: string[]) => p.map((k) => String(k).replace(/~/g, "~1").replace(/\./g, "~0")).join("."); // JSON-pointer escaping, so a literal "." can't collide
@@ -711,7 +730,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       import("./fold.js").then((m) => { fold = m.fold; }, () => {}); // a fold chunk that fails to load leaves the rows toggling
     }
     // Restore last session, notifying: on the lazy path a host may already have subscribed.
-    if (persistKey) applySnapshot(unsaved(readStore(persistKey)));
+    if (persistKey) applySnapshot(unsaved(fromRefs(readStore(persistKey))));
     if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm(); watchResize();
     cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); })); // one document listener per panel for its keys
@@ -797,8 +816,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       panel.remove();
     },
   } as Panel; // `ready` is filled in just below
-  // Assemble once the missing modules resolve, surfacing that on ready; else assemble now.
-  const pending = ensureForMetas(metas);
+  // Assemble once the missing modules resolve, surfacing that on ready; else assemble now. A panel that persists an image
+  // also waits for its stored images, so the restore can resolve them; a store that fails to load just saves no uploads.
+  const hasImage = (ms: Meta[]): boolean => ms.some((m) => m.type === "image" || hasImage(m.children || []) || (m.pages || []).some((pg) => hasImage(pg.children)));
+  const images = persistKey && hasImage(metas) ? import("./image-store.js").then(async (m) => { imgs = m; savedImages = await m.load(persistKey); }, () => {}) : null;
+  const lazy = ensureForMetas(metas);
+  const pending = lazy && images ? Promise.all([lazy, images]) : lazy || images;
   if (pending) {
     // A failed chunk or a throwing build leaves the panel unbuildable: queued calls dropped, later calls refused,
     // ready rejects. A partway build must not leave live controls behind an inert API: release what it wired.

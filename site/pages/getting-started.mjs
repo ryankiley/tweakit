@@ -20,13 +20,13 @@ export const examples = [
   },
   {
     title: "Import a build",
-    prose: `<p>Two entries, one API: the default import is the single-file build, self-contained
-      and fully synchronous; <code>/core</code> is code-split and loads heavy controls on first
-      use. <a href="./imports.html">Sizes and what loads when →</a></p>`,
+    prose: `<p>Two entries, one API: the default import is code-split and loads heavy controls on
+      first use; <code>/single</code> is the single-file build, self-contained and fully
+      synchronous. <a href="./imports.html">Sizes and what loads when →</a></p>`,
     code: `
-      import { tweaks } from "tweakit";        // everything inlined, synchronous
-      // or the code-split entry: heavy controls load on first use
-      import { tweaks } from "tweakit/core";`,
+      import { tweaks } from "tweakit";          // heavy controls load on first use
+      // or the single-file build: everything inlined, synchronous
+      import { tweaks } from "tweakit/single";`,
   },
   {
     title: "Add the styles",
