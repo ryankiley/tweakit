@@ -345,7 +345,7 @@ test("presets and undo called before a lazy panel is ready replay in order", asy
 });
 
 // set() used to write a key no control owned straight onto params, so a typo rode into toJSON() and every save.
-test("set() refuses a key no control has, with a warning, and keeps it out of params and toJSON()", () => {
+test("set() refuses a key no control has, with a warning, and keeps it out of params and toJSON()", async () => {
   const p = tweaks("Bag", { a: [1, 0, 10, 1] });
   const warn = console.warn, warned = []; console.warn = (...m) => warned.push(m.join(" "));
   let calls = 0; p.on(() => calls++);
@@ -355,6 +355,7 @@ test("set() refuses a key no control has, with a warning, and keeps it out of pa
     assert.ok(!("nope" in p.params) && !("typo" in p.params));
     assert.deepEqual(p.toJSON().values, { a: 3 });
     assert.equal(calls, 1, "the good key still notifies");
+    await new Promise((r) => setTimeout(r, 10)); // a notice's words come from a lazy chunk
     assert.ok(warned.some((m) => m.includes('set("nope") ignored — no control has that key')));
     assert.ok(warned.some((m) => m.includes('set("typo") ignored')));
   } finally { console.warn = warn; p.destroy(); }

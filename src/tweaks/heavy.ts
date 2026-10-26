@@ -221,4 +221,20 @@ const badTheme = (key: string, v: unknown, kind: string, keys: string[]) => {
     : `[tweaks] theme: "${key}" isn't a theme key${near ? ` — did you mean "${near}"?` : "."} It is skipped. Keys: ${keys.join(", ")}, or any raw --tw-* token`);
 };
 
-export { decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };
+// The words for the core's notices (shared.ts notice()): what went wrong and the way out, downloaded only when one fires.
+const NOTICES: Record<string, (...a: any[]) => string> = {
+  clamp: (key, v, min, max) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min ?? "−∞"}–${max ?? "∞"}; widen min/max, or set soft: true to allow it`,
+  sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
+  swap: (label, min, max) => `"${label}": min ${min} is above max ${max}, so they were swapped`,
+  ambiguousPath: (key, n) => `set("${key}") is ambiguous — ${n} controls read as that path (a key holding "." beside a folder); rename one`,
+  filter: () => "opts.filter needs the toolbar (its search button lives there) — ignored alongside toolbar:false",
+  presetFull: (nm) => `preset "${nm}" didn't fit in storage — not saved`,
+  reserved: (key) => `set("${key}") ignored — reserved key`,
+  noPath: (key) => `set("${key}") — no control at that path`,
+  ambiguousKey: (key, n, eg) => `set("${key}") is ambiguous — ${n} controls share that key; use a dotted path (e.g. "${eg}")`,
+  notAValue: (key, kind) => `set("${key}") ignored — a ${kind} is not a control value`,
+  noControl: (key, group) => (group ? `set("${key}") ignored — it's a folder/tabs group; set its children instead` : `set("${key}") ignored — no control has that key`),
+};
+const notice = (kind: string, args: unknown[]) => { const say = NOTICES[kind]; if (say) console.warn(`[tweaks] ${say(...args)}`); };
+
+export { notice, decimalStep, unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan, springRun, springFromTime, timeFromSpring };

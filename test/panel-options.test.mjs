@@ -121,11 +121,12 @@ test("a second live panel on the same persist key warns; one after destroy() doe
     const a = tweaks("Twin", { x: [1, 0, 10, 1] }, { persist: true });
     assert.equal(warned.length, 0);
     const b = tweaks("Twin", { y: [1, 0, 10, 1] }, { persist: true });
+    await new Promise((r) => setTimeout(r, 10)); // a notice's words come from a lazy chunk
     assert.equal(warned.length, 1);
     assert.match(warned[0], /another live panel already saves under "Twin"/);
     a.destroy(); b.destroy();
     const c = tweaks("Twin", { x: [1, 0, 10, 1] }, { persist: true });
-    assert.equal(warned.length, 1, "a remount after destroy() is quiet");
+    await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 1, "a remount after destroy() is quiet");
     c.destroy();
   } finally { console.warn = warn; localStorage.clear(); }
 });

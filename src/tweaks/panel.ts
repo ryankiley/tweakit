@@ -3,7 +3,7 @@
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, foldBody,
   applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, fuzzyMatch,
-  getControl,
+  getControl, notice,
 } from "./shared.js";
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
@@ -64,7 +64,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
   // Two live panels on one key overwrite each other's saves, the last write winning: say so. A remount after destroy() is fine.
-  if (persistKey) { const n = liveKeys.get(persistKey) || 0; if (n) console.warn(`[tweaks] persist: another live panel already saves under "${persistKey.slice(3)}", so each overwrites the other's values; give one its own persist key`); liveKeys.set(persistKey, n + 1); }
+  if (persistKey) { const n = liveKeys.get(persistKey) || 0; if (n) notice("sharedKey", persistKey.slice(3)); liveKeys.set(persistKey, n + 1); }
   const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
   const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
   // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to what's
@@ -214,7 +214,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     toolbar.append(presetsBtn);
   }
   // The filter (opts.filter) lives behind a toolbar button, so toolbar:false would leave it unreachable.
-  const filterOn = !!opts.filter && (opts.toolbar !== false || (console.warn("[tweaks] opts.filter needs the toolbar (its search button lives there) — ignored alongside toolbar:false"), false));
+  const filterOn = !!opts.filter && (opts.toolbar !== false || (notice("filter"), false));
   const searchBtn = filterOn ? toolbarBtn("", ICON_SEARCH, "Filter controls") : null;
   const searchInput = filterOn ? el("input", "tw-search") : null;
   if (filterOn) {
@@ -451,7 +451,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets" ──
   const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? unwrap(readStore(presetsKey), "presets") : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
   // False when storage refused the write, so the caller can say so instead of claiming a save.
-  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); const ok = writePresets(all); if (!ok) console.warn(`[tweaks] preset "${nm}" didn't fit in storage — not saved`); return ok; };
+  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); const ok = writePresets(all); if (!ok) notice("presetFull", nm); return ok; };
   const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) restore(all[nm]); }; // re-read at replay: a delete queued ahead of it wins
   const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; if (writePresets(all)) pruneImages(); };
 
@@ -800,16 +800,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (soft || clamped.has(e) || !(type === "slider" || type === "number" || type === "interval")) return;
     const out = (n: unknown) => typeof n === "number" && ((min != null && n < min) || (max != null && n > max));
     if (!(Array.isArray(v) ? v.some(out) : out(v))) return;
-    clamped.add(e); console.warn(`[tweaks] set("${key}", ${JSON.stringify(v)}) clamped to ${min ?? "−∞"}–${max ?? "∞"}; widen min/max, or set soft: true to allow it`);
+    clamped.add(e); notice("clamp", key, v, min, max);
   };
   // Resolve a (possibly dotted) key, apply, report whether the leaf changed; never notifies, so setMany fires one notify.
   const applySet = (key: string, v: unknown) => {
-    if (String(key).split(".").some(isReservedKey)) { console.warn(`[tweaks] set("${key}") ignored — reserved key`); return false; } // never write through to the prototype
+    if (String(key).split(".").some(isReservedKey)) { notice("reserved", key); return false; } // never write through to the prototype
     const parts = String(key).split(".");
     // The path exactly as changes() names it first, so a key holding a dot ("a.b", "f.a.b") is reachable; two controls
     // whose paths read the same (a top-level "a.b" beside folder a's b) are ambiguous, not a guess.
     const exact = entries.filter((x) => x.path.join(".") === key);
-    if (exact.length > 1) { console.warn(`[tweaks] set("${key}") is ambiguous — ${exact.length} controls read as that path (a key holding "." beside a folder); rename one`); return false; }
+    if (exact.length > 1) { notice("ambiguousPath", key, exact.length); return false; }
     let e: Entry | undefined = exact[0];
     if (e) { /* found by its path */ }
     else if (parts.length > 1) {
@@ -817,19 +817,19 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       let t: any = params; // any: the bag's subtrees hold whatever the host parked
       for (let i = 0; i < parts.length - 1 && t; i++) { t = t[parts[i]]; if (!subTrees.has(t)) t = null; }
       e = t && entries.find((x) => x.target === t && x.key === parts[parts.length - 1]);
-      if (!e) { console.warn(`[tweaks] set("${key}") — no control at that path`); return false; }
+      if (!e) { notice("noPath", key); return false; }
     } else {
       // Bare key — a top-level control wins outright; else a unique nested match, and ambiguity warns instead of guessing.
       const matches = entries.filter((x) => x.key === key);
       const top = matches.find((x) => x.target === params);
-      if (!top && matches.length > 1) { console.warn(`[tweaks] set("${key}") is ambiguous — ${matches.length} controls share that key; use a dotted path (e.g. "${matches[0].path.join(".")}")`); return false; }
+      if (!top && matches.length > 1) { notice("ambiguousKey", key, matches.length, matches[0].path.join(".")); return false; }
       e = top || matches[0];
     }
     // A key no control owns is refused: written through, a typo landed on params and in every save after.
-    if (!e) { console.warn(subTrees.has(params[key]) ? `[tweaks] set("${key}") ignored — it's a folder/tabs group; set its children instead` : `[tweaks] set("${key}") ignored — no control has that key`); return false; }
+    if (!e) { notice("noControl", key, subTrees.has(params[key])); return false; }
     const prev = e.target[e.key];
     // Same isolation as applySnapshot: a hostile value costs only that key.
-    if (notAValue(v)) { console.warn(`[tweaks] set("${key}") ignored — a ${typeof v} is not a control value`); return false; } // warns like the API's other refusals
+    if (notAValue(v)) { notice("notAValue", key, typeof v); return false; } // warns like the API's other refusals
     try { assign(e, v); } catch (err) { console.error(`[tweaks] set("${key}") failed — value skipped:`, err); return false; }
     clampNote(e, key, v);
     if (!valueChanged(prev, e.target[e.key])) return false; // keeps a store-sync listener from echoing forever

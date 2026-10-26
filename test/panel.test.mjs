@@ -627,10 +627,10 @@ test("numeric values stay on their step grid: a null bound is unbounded, an off-
   assert.deepEqual(p.toJSON(), s);      // a round trip is a fixed point
 });
 
-test("set() refuses a function as a control value (JSON can't carry it, so every snapshot dropped the key)", () => {
+test("set() refuses a function as a control value (JSON can't carry it, so every snapshot dropped the key)", async () => {
   const p = tweaks("Fn", { sel: ["a", "b"], free: 1 });
   const warn = console.warn; let warned = ""; console.warn = (m) => { warned = m; };
-  try { p.set("sel", () => 1); } finally { console.warn = warn; }
+  try { p.set("sel", () => 1); await new Promise((r) => setTimeout(r, 10)); } finally { console.warn = warn; }
   assert.match(warned, /a function is not a control value/);
   assert.equal(p.params.sel, "a");
   p.params.hook = () => 2;                      // bag keys stay free
@@ -800,12 +800,12 @@ test("a global listener on a panel built before it mounted survives an event in 
   p.destroy();
 });
 
-test("a bare key that names a top-level control wins over a nested namesake", () => {
+test("a bare key that names a top-level control wins over a nested namesake", async () => {
   // Regression: set("x") warned "ambiguous" and did nothing when a folder also had an x —
   // but a top-level key has no dotted form, so there was no way to reach it at all.
   const p = tweaks("Bare", { x: [1, 0, 10, 1], f: { x: [2, 0, 10, 1] } });
   const warn = console.warn; let warned = ""; console.warn = (m) => { warned += m; };
-  try { p.set("x", 5); } finally { console.warn = warn; }
+  try { p.set("x", 5); await new Promise((r) => setTimeout(r, 10)); } finally { console.warn = warn; }
   assert.equal(warned, "", "no ambiguity warning");
   assert.equal(p.params.x, 5);
   assert.equal(p.params.f.x, 2, "the nested one is untouched");
@@ -813,7 +813,7 @@ test("a bare key that names a top-level control wins over a nested namesake", ()
   assert.equal(p.params.f.x, 8, "the dotted path still reaches the nested one");
   const q = tweaks("Bare2", { f: { x: [2, 0, 10, 1] }, g: { x: [3, 0, 10, 1] } });
   warned = ""; console.warn = (m) => { warned += m; };
-  try { q.set("x", 5); } finally { console.warn = warn; }
+  try { q.set("x", 5); await new Promise((r) => setTimeout(r, 10)); } finally { console.warn = warn; }
   assert.match(warned, /ambiguous/, "two nested namesakes and no top-level one still warn");
   assert.equal(q.params.f.x, 2); assert.equal(q.params.g.x, 3);
 });
@@ -935,12 +935,12 @@ test("the markup toolbar's copy keeps a host keyed __proto__", async () => {
   holder.remove();
 });
 
-test("a setMany() batch isolates a key it refuses", () => {
+test("a setMany() batch isolates a key it refuses", async () => {
   const p = tweaks("RFB", { x: [1, 0, 10, 1] });
   let calls = 0; p.on(() => calls++);
   const loop = {}; loop.self = loop;
   const warned = []; const warn = console.warn; console.warn = (...a) => warned.push(String(a[0]));
-  try { p.setMany({ x: 5, bag: loop }); } finally { console.warn = warn; }
+  try { p.setMany({ x: 5, bag: loop }); await new Promise((r) => setTimeout(r, 10)); } finally { console.warn = warn; }
   assert.equal(p.params.x, 5); assert.equal(calls, 1, "the good key still notifies");
   assert.ok(warned.some((m) => m.includes('set("bag") ignored')));
   p.destroy();
@@ -957,15 +957,15 @@ test("on() names a nested control by its dotted path, from the control and from 
 });
 
 // Clamping a set() into range is right, but silent it reads as the value not taking (`set("level", 99)` gave 15).
-test("a set() past a hard range clamps and warns once a key; a soft slider and an in-range value don't", () => {
+test("a set() past a hard range clamps and warns once a key; a soft slider and an in-range value don't", async () => {
   const p = tweaks("Clamp", { level: [5, 0, 15, 1], free: { type: "slider", value: 5, min: 0, max: 10, soft: true }, span: [[2, 8], 0, 10] });
   const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
   try {
-    p.set("level", 7); assert.equal(warned.length, 0);
-    p.set("level", 99); assert.equal(p.params.level, 15);
+    p.set("level", 7); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 0);
+    p.set("level", 99); assert.equal(p.params.level, 15); await new Promise((r) => setTimeout(r, 10));
     assert.equal(warned.length, 1); assert.match(warned[0], /set\("level", 99\) clamped to 0–15/);
-    p.set("level", -4); assert.equal(warned.length, 1, "once a key");
-    p.set("free", 40); assert.equal(p.params.free, 40); assert.equal(warned.length, 1, "soft keeps it, quietly");
-    p.set("span", [-5, 8]); assert.equal(warned.length, 2);
+    p.set("level", -4); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 1, "once a key");
+    p.set("free", 40); assert.equal(p.params.free, 40); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 1, "soft keeps it, quietly");
+    p.set("span", [-5, 8]); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 2);
   } finally { console.warn = warn; p.destroy(); }
 });
