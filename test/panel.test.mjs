@@ -242,7 +242,7 @@ test("spring time mode maps duration/bounce to physics and carries both through"
   const v = p.params.s;
   assert.equal(v.visualDuration, 0.5);
   assert.equal(v.bounce, 0.2);
-  const k = (2 * Math.PI / 0.5) ** 2;                       // perceptual mapping
+  const k = (2 * Math.PI / (0.5 * 1.2)) ** 2;               // Motion's mapping: the period is visualDuration × 1.2
   assert.ok(Math.abs(v.stiffness - k) < 1e-6);             // resolved physics for runtime-agnostic consumers
   assert.ok(Math.abs(v.damping - 2 * (1 - 0.2) * Math.sqrt(k)) < 1e-6);
   assert.equal(v.mass, 1);

@@ -30,9 +30,9 @@ test("a keyword curve and a duration author the easing; spring keys author a spr
   e.destroy();
   const s = await mount({ t: { type: "motion", stiffness: 300, damping: 26, mass: 1 } });
   const v = s.params.t;
-  // Physics keys map to the nearest duration + bounce (exact when mass is 1), and the value carries the resolved physics back out.
+  // Physics keys map to the duration + bounce Motion would resolve them from (its period is visualDuration × 1.2), and the value carries the resolved physics back out.
   assert.equal(v.mode, "spring"); assert.ok(Math.abs(v.stiffness - 300) < 1e-6 && Math.abs(v.damping - 26) < 1e-6 && v.mass === 1, `the physics round-trips (${v.stiffness}, ${v.damping}, ${v.mass})`);
-  assert.ok(Math.abs(v.visualDuration - 2 * Math.PI / Math.sqrt(300)) < 1e-9 && Math.abs(v.bounce - (1 - 26 / (2 * Math.sqrt(300)))) < 1e-9, `as a duration + bounce (${v.visualDuration}, ${v.bounce})`);
+  assert.ok(Math.abs(v.visualDuration - 2 * Math.PI / (1.2 * Math.sqrt(300))) < 1e-9 && Math.abs(v.bounce - (1 - 26 / (2 * Math.sqrt(300)))) < 1e-9, `as a duration + bounce (${v.visualDuration}, ${v.bounce})`);
   const shown = [...s.el.querySelectorAll(".tw-spring .tw-fields")].find((f) => f.style.display !== "none");
   assert.match(shown.textContent, /Duration/); assert.match(shown.textContent, /Bounce/); assert.doesNotMatch(shown.textContent, /Stiffness/, "the spring inside is tuned by feel only — duration + bounce");
   assert.equal(v.duration, Math.round(7 / (26 / 2) * 1000), "the run lasts to within e^-7 of settled: 7 / (ζ·ω₀), uncapped");
@@ -166,4 +166,30 @@ test("a spring's physics round-trips clean: stiffness 300 comes back 300, not 30
   assert.equal(c.stiffness, 500, "changes() carries the stiffness as set");
   assert.equal(c.damping, 25, "and the damping");
   p.destroy();
+});
+
+// Time mode mapped visualDuration to stiffness without Motion's ×1.2, so a spring tuned here played ~18% faster than the same
+// { visualDuration, bounce } in Motion, and it clamped bounce to 0–1 and the result through the physics pad's limits.
+// The expected numbers come from running motion-dom's own spring.ts (bounceToDampingRatio, overdampedFreqScale and the
+// visualDuration branch of getSpringOptions) on each pair, not from this kit's code.
+const MOTION = [[0.3, 0, 304.6174198, 34.90658504], [0.5, 0.2, 109.6622711, 16.75516082], [0.8, 0.4, 42.83682466, 7.853981634],
+  [0.5, 0.97, 109.6622711, 1.047197551], [0.4, -0.5, 1054.319822, 129.8811655], [0.6, -1, 51503.17038, 9077.723977]];
+const near = (a, b) => Math.abs(a - b) <= 1e-6 * Math.abs(b);
+test("a time-mode spring resolves to the stiffness and damping Motion gives the same visualDuration and bounce", async () => {
+  for (const [visualDuration, bounce, k, d] of MOTION) {
+    const p = tweaks("M", { s: { type: "spring", mode: "time", visualDuration, bounce } }); await p.ready;
+    const v = p.params.s;
+    assert.ok(near(v.stiffness, k) && near(v.damping, d) && v.mass === 1, `${visualDuration}s, bounce ${bounce}: got k ${v.stiffness}, d ${v.damping}; Motion ${k}, ${d}`);
+    assert.equal(v.bounce, bounce, "a negative bounce and one near 1 are kept, as Motion takes them");
+    p.destroy();
+  }
+});
+// Past ±0.95 the damping ratio sits at its floor, so a bounce there reads back as ±0.95.
+test("physics keys handed to a motion control read back as the visualDuration and bounce Motion resolves them from", async () => {
+  for (const [visualDuration, bounce, stiffness, damping] of MOTION.filter(([, b]) => Math.abs(b) < 0.95)) {
+    const p = tweaks("M", { m: { type: "motion", mode: "spring", stiffness, damping } }); await p.ready;
+    const v = p.params.m;
+    assert.ok(Math.abs(v.visualDuration - visualDuration) < 1e-6 && Math.abs(v.bounce - bounce) < 1e-6, `k ${stiffness}, d ${damping}: got ${v.visualDuration}s, bounce ${v.bounce}`);
+    p.destroy();
+  }
 });
