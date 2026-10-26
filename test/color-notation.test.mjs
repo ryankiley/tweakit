@@ -42,3 +42,11 @@ test("a hostile number isn't handed back as written: it reads as the picker norm
   assert.ok(!/e999/.test(p.params.c), p.params.c);
   p.destroy();
 });
+
+test("a color row opens in the mode its schema names, and in its notation without one", async () => {
+  const p = tweaks("M", { seeded: { type: "color", value: "#7c5cff", mode: "oklch" }, plain: "#7c5cff" }); await p.ready; document.body.append(p.el);
+  const modes = [...p.el.querySelectorAll(".tw-color-pop .tw-color-mode")].map((sel) => sel.value);
+  assert.deepEqual(modes, ["oklch", "hex"]);
+  assert.equal(p.params.seeded, "#7c5cff", "the mode changes the editor, not the value");
+  p.destroy();
+});

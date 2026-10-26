@@ -193,7 +193,7 @@ export const examples = [
           if (again) { again = false; hop(); }
         }
       }
-      panel.on((p, changed) => { apply(p); if (changed === "bounce") hop(); });
+      panel.on((p, changed) => { apply(p); if (changed === "effects.bounce") hop(); });
       // The pane at the slot's middle, on its fullest height: measured only while it sits open in
       // the slot (not collapsed, not floated out), so a closed folder or a drag can't shift it.
       let fullHeight = 0;
