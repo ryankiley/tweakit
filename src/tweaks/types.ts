@@ -138,10 +138,21 @@ export type SchemaValue =
   | { action: () => void; label?: string }          // → button
   | (SchemaObject & ControlOptions)                 // verbose form (+ render/disabled/hint)
   | Schema                                          // nested object → folder
-  | ((get: Get) => boolean);                        // a folder's own render / disabled predicate
+  | SchemaFolder;                                   // a nested folder with its own render / disabled predicate
 
-/** The object you hand to `tweaks(name, schema, opts?)`. */
+/** The object you hand to `tweaks(name, schema, opts?)`. No value is a function, so a verbose
+ *  form's callbacks (`format`, `fn`) take their parameter types from that form alone. */
 export interface Schema { readonly [key: string]: SchemaValue; }
+/** A nested folder that carries its own `render` / `disabled` predicate or `hint`: chrome, not
+ *  children. Its index admits the predicate, so it gives up a child named `type`: that sets it
+ *  apart from a verbose form, whose callbacks would otherwise be typed against the predicate too. */
+export interface SchemaFolder {
+  readonly type?: undefined;
+  readonly render?: (get: Get) => boolean;
+  readonly disabled?: boolean | ((get: Get) => boolean);
+  readonly hint?: string;
+  readonly [key: string]: SchemaValue | ((get: Get) => boolean) | undefined;
+}
 
 // ── Params inferred from a schema ──
 // tweaks() takes its schema as a const type parameter, so each value keeps its literal shape and
@@ -158,12 +169,19 @@ type TrimDash<S extends string> = S extends `-${infer R}` ? TrimDash<R> : S exte
 /** A tab title's key under `params`: lower-case, each run of other characters a `-`, trimmed
  *  (`"Layout & Grid"` → `"layout-grid"`). Two titles that slug alike are told apart at runtime only. */
 export type TabKey<T extends string> = string extends T ? string : TrimDash<Dashed<Lowercase<T>>> extends infer K extends string ? (K extends "" ? "tab" : K) : never;
+// True when two page titles slug to one key: the runtime suffixes the later one (`a`, `a-2`) in an
+// order a type can't follow, so those pages read as the loose Params rather than merge into one.
+type TabClash<P> = true extends { [T in keyof P & string]: TabKey<T> extends { [U in Exclude<keyof P & string, T>]: TabKey<U> }[Exclude<keyof P & string, T>] ? true : false }[keyof P & string] ? true : false;
 
 type Valueless = "button" | "buttongroup" | "separator" | "fpsgraph" | "monitor";
+// The field each falsy-capable form hinges on (schema.ts REQUIRED): without it the object isn't
+// that control but a shorthand or a folder holding a child named `type`.
+type Hinge = { list: "options"; radiogrid: "options"; segmented: "options"; point: "components"; tabs: "pages" };
+// A hinge field there but unusable skips the control at runtime, so it puts nothing on params.
 type TypedValue<V> =
   V extends { readonly type: "slider" | "number" } ? number
   : V extends { readonly type: "checkbox" } ? boolean
-  : V extends { readonly type: "list" | "radiogrid" | "segmented"; readonly options: readonly (infer O)[] } ? OptionValue<O>
+  : V extends { readonly type: "list" | "radiogrid" | "segmented" } ? (V extends { readonly options: readonly (infer O)[] } ? OptionValue<O> : never)
   : V extends { readonly type: "color" | "text" | "image" | "plot" } ? string
   : V extends { readonly type: "interval" } ? [number, number]
   : V extends { readonly type: "cubicbezier" } ? [number, number, number, number]
@@ -172,28 +190,41 @@ type TypedValue<V> =
   : V extends { readonly type: "shadow" } ? ShadowValue
   : V extends { readonly type: "sides" } ? SidesValue
   : V extends { readonly type: "gradient" } ? GradientValue
-  : V extends { readonly type: "point"; readonly components: readonly (infer C)[] } ? { [K in C extends { readonly key: infer Key extends string } ? Key : never]: number }
-  : V extends { readonly type: "tabs"; readonly pages: infer P } ? { [T in keyof P & string as TabKey<T>]: ParamsOf<P[T]> }
+  : V extends { readonly type: "point" } ? (V extends { readonly components: readonly [] } ? never : V extends { readonly components: readonly (infer C)[] } ? { [K in C extends { readonly key: infer Key extends string } ? Key : never]: number } : never)
+  : V extends { readonly type: "tabs" } ? (V extends { readonly pages: infer P extends object } ? (keyof P extends never ? never : TabClash<P> extends true ? Record<string, Params> : { [T in keyof P & string as TabKey<T>]: ParamsOf<P[T]> }) : never)
   : unknown;
 /** The value a schema entry puts on `params`. */
 export type ValueOf<V> =
-  V extends { readonly type: Valueless } | { readonly action: (...a: any[]) => any } ? never
-  : V extends { readonly type: SchemaObject["type"] } ? TypedValue<V>
-  : V extends readonly [readonly [number, number], ...unknown[]] ? [number, number]
-  : V extends readonly [number, ...number[]] ? number
-  : V extends readonly number[] ? number                     // a tuple widened by a schema held in a variable
+  V extends { readonly type: infer T } ? (
+    string extends T ? any                                   // a `type` widened by a schema held in a variable: the control can't be known
+    : T extends SchemaObject["type"] ? (T extends keyof Hinge ? (Hinge[T] extends keyof V ? VerboseValue<V, T> : ShorthandValue<V>) : VerboseValue<V, T>)
+    : ShorthandValue<V>)
+  : ShorthandValue<V>;
+type VerboseValue<V, T> = T extends Valueless ? never : TypedValue<V>;
+type ShorthandValue<V> =
+  V extends readonly [readonly [number, number], ...unknown[]] ? [number, number]
+  : V extends readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number] ? number
+  : V extends readonly [number, ...number[]] ? V[number]     // five numbers or more are a list of them
+  : V extends readonly [] ? undefined                        // an empty list, with no choice to hold
+  : V extends readonly number[] ? number                     // a tuple widened by a schema held in a variable: a slider, or a list of numbers
   : V extends readonly (number | readonly number[])[] ? [number, number]
   : V extends number ? number
   : V extends boolean ? boolean
   : V extends string ? string
   : V extends readonly (infer O)[] ? OptionValue<O>
+  : V extends { readonly action: (...a: any[]) => any } ? never
   : V extends { readonly options: readonly (infer O)[] } ? OptionValue<O>
-  : V extends object ? ParamsOf<V>
+  : V extends object ? Entries<V, true>
   : unknown;
+// Keys the runtime skips at every level, since they would write through to Object.prototype.
+type Reserved = "__proto__" | "constructor" | "prototype";
+// A nested folder's render / disabled / hint are its chrome, not children; at the root and on a
+// tab page they are controls like any other key.
 type FolderChrome<V, K> = K extends "disabled" | "hint" ? true : K extends "render" ? (V extends (...a: any[]) => any ? true : false) : false;
+type Entries<S, Nested extends boolean> = string extends keyof S ? Params
+  : { -readonly [K in keyof S & string as K extends Reserved ? never : ValueOf<S[K]> extends never ? never : Nested extends true ? (FolderChrome<S[K], K> extends true ? never : K) : K]: ValueOf<S[K]> };
 /** The live values a schema builds, nested like the schema; a plain `Schema` gives the loose `Params`. */
-export type ParamsOf<S> = string extends keyof S ? Params
-  : { -readonly [K in keyof S & string as ValueOf<S[K]> extends never ? never : FolderChrome<S[K], K> extends true ? never : K]: ValueOf<S[K]> };
+export type ParamsOf<S> = Entries<S, false>;
 
 /** A theme — token overrides applied over the default monochrome look. Every key is
  *  optional, so a partial theme only moves what it names; unset tokens keep their default.

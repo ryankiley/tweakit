@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -107,7 +107,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1;
   const bound = (b: unknown) => (b == null ? NaN : +b); // null → NaN → unbounded (a null max coerced to 0)
   let min = bound(spec.min), max = bound(spec.max);
-  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
+  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { swapNote(spec.label ?? "number", min, max); const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
   const anchor = Number.isFinite(min) ? min : 0, decimals = stepPrecision(step); // min-anchored, like the slider
   const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor); // on-grid ends, so fit(fit(x)) === fit(x)
   const fit = (val: number) => { const n = roundToStep(val, anchor, step); return spec.soft ? n : clamp(n, lo, hi); };
@@ -157,12 +157,21 @@ function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, 
   return out;
 }
 
-// A schema or markup `type` no control answers to: name the types, and the one a typo is a single edit from (a letter
-// added, dropped or changed). Lazy, as only a mistake needs it.
+// The name a typo is a single edit from (a letter added, dropped or changed). It and the notices below are lazy, as
+// only a mistake needs them. unknownType: a schema or markup `type` no control answers to.
+const nearest = (s: string, names: string[]) => {
+  const a = s.toLowerCase(); // case-blind, so "textmuted" finds "textMuted"
+  return names.find((n) => { const k = n.toLowerCase(); let i = 0; while (i < a.length && a[i] === k[i]) i++; return [[1, 1], [0, 1], [1, 0]].some(([x, y]) => a.slice(i + x) === k.slice(i + y)); });
+};
 const unknownType = (where: string, type: string, known: string[], then: string) => {
-  const names = [...new Set(known)].filter((t) => t !== "folder").sort(), a = type.toLowerCase();
-  const near = names.find((k) => { let i = 0; while (i < a.length && a[i] === k[i]) i++; return [[1, 1], [0, 1], [1, 0]].some(([x, y]) => a.slice(i + x) === k.slice(i + y)); });
+  const names = [...new Set(known)].filter((t) => t !== "folder").sort(), near = nearest(type, names);
   console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${then}. Types: ${names.join(", ")}`);
 };
+// A theme key resolveTheme skipped: kind is what its value failed to be ("color", "length"), or "" for a key it doesn't know.
+const badTheme = (key: string, v: unknown, kind: string, keys: string[]) => {
+  const near = !kind && nearest(key, keys);
+  console.warn(kind ? `[tweaks] theme: ${key} ${JSON.stringify(v)} isn't a CSS ${kind}${kind === "length" ? " or a number of px" : ""} — skipped`
+    : `[tweaks] theme: "${key}" isn't a theme key${near ? ` — did you mean "${near}"?` : "."} It is skipped. Keys: ${keys.join(", ")}, or any raw --tw-* token`);
+};
 
-export { unknownType, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan };
+export { unknownType, badTheme, numField, dragGesture, svgEl, cssVar, accentColor, selectAllOnFocus, grabSurface, boxFrac, fitCanvas, triggerRow, springCurve, springSpan };

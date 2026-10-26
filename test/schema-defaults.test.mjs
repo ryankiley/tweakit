@@ -200,3 +200,18 @@ test("an unknown type warns, naming the near type and the real ones; it still bu
     p.destroy();
   } finally { console.warn = warn; }
 });
+
+// An inverted pair swaps, which is right, but silently: { min: 10, max: 0 } and data-min="40" data-max="0" built quietly.
+test("a min above max still swaps, and says so", async () => {
+  const warn = console.warn, msgs = []; console.warn = (...a) => msgs.push(a.join(" "));
+  try {
+    const p = tweaks("Inv", { s: { type: "slider", value: 5, min: 10, max: 0 }, r: { type: "interval", value: [2, 4], min: 9, max: 1 }, ok: { type: "slider", value: 5, min: 0, max: 10 } });
+    await p.ready;
+    const h = p.el.querySelector("[role=slider]");
+    assert.deepEqual([h.getAttribute("aria-valuemin"), h.getAttribute("aria-valuemax")], ["0", "10"]);
+    assert.ok(msgs.some((m) => m.includes('"S": min 10 is above max 0, so they were swapped')));
+    assert.ok(msgs.some((m) => m.includes('"R": min 9 is above max 1')));
+    assert.equal(msgs.filter((m) => m.includes("swapped")).length, 2, "a pair in order says nothing");
+    p.destroy();
+  } finally { console.warn = warn; }
+});

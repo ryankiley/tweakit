@@ -106,7 +106,8 @@ export const examples = [
     id: "plot",
     title: "Plot",
     prose: `<p>An expression grapher with a safe evaluator: no <code>eval</code>, just a
-      small parser over <code>x</code>, the usual math functions and constants. The
+      small parser over <code>x</code>, the usual math functions and constants, and calculator
+      shorthand such as <code>2x</code> and <code>sin x</code>. The
       param is the expression string itself; type into the field to regraph. Pass
       <code>fn</code> instead to graph one of your own functions (read-only), or
       <code>editable: false</code> to drop the field and keep a fixed expression, and

@@ -11,7 +11,7 @@ type Expr = (x: number) => number;
 type Tok = { t: "num"; v: number } | { t: "id" | "op"; v: string } | { t: "lp" | "rp" | "comma"; v?: undefined };
 
 // ── A safe expression evaluator: recursive descent, not eval/Function, so a typed formula does only arithmetic and
-// whitelisted Math calls; null on any parse error. Null-prototype tables, so "constructor" can't parse as an identifier. ──
+// whitelisted Math calls. Null-prototype tables, so "constructor" can't parse as an identifier. ──
 const PLOT_FUNCS: Record<string, (...args: number[]) => number> = Object.assign(Object.create(null), {
   sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos,
   atan: Math.atan, atan2: Math.atan2, sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
@@ -20,17 +20,24 @@ const PLOT_FUNCS: Record<string, (...args: number[]) => number> = Object.assign(
   sign: Math.sign, trunc: Math.trunc, min: Math.min, max: Math.max, pow: Math.pow, hypot: Math.hypot,
   mod: (a: number, b: number) => a % b, clamp: (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi),
 });
+const PLOT_VARIADIC = ["min", "max", "hypot"]; // called empty these return a number (Infinity, 0), so a slip drew nothing and flagged nothing
 const PLOT_CONSTS: Record<string, number> = Object.assign(Object.create(null), { pi: Math.PI, e: Math.E, tau: Math.PI * 2, phi: (1 + Math.sqrt(5)) / 2 });
+/** The compiled expression, or null on any parse error. */
 export function compileExpr(src: unknown): Expr | null {
-  if (typeof src !== "string" || !src.trim() || src.length > 512) return null; // also bounds recursion depth, so no RangeError mid-parse
+  const r = parseExpr(src); return typeof r === "function" ? r : null;
+}
+/** The compiled expression, or why it doesn't parse; the reason names the fix where there is one ("write sin(…)"). */
+export function parseExpr(src: unknown): Expr | string {
+  if (typeof src !== "string" || !src.trim()) return "type an expression in x";
+  if (src.length > 512) return "too long: 512 characters at most"; // also bounds recursion depth, so no RangeError mid-parse
   const s = src, toks: Tok[] = [];
-  const numRe = /\d*\.?\d+(?:[eE][+-]?\d+)?/y, idRe = /[A-Za-z_]\w*/y;
+  const numRe = /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y, idRe = /[A-Za-z_]\w*/y; // `5.` reads as 5, as `.5` reads as 0.5
   let i = 0;
   while (i < s.length) {
     const ch = s[i];
     if (ch === " " || ch === "\t" || ch === "\n") { i++; continue; }
     if ((ch >= "0" && ch <= "9") || (ch === "." && s[i + 1] >= "0" && s[i + 1] <= "9")) {
-      numRe.lastIndex = i; const m = numRe.exec(s); if (!m || m.index !== i) return null;
+      numRe.lastIndex = i; const m = numRe.exec(s); if (!m || m.index !== i) return `unexpected "${ch}"`;
       toks.push({ t: "num", v: parseFloat(m[0]) }); i = numRe.lastIndex; continue;
     }
     if ((ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z") || ch === "_") {
@@ -41,10 +48,10 @@ export function compileExpr(src: unknown): Expr | null {
     if (ch === "(") { toks.push({ t: "lp" }); i++; continue; }
     if (ch === ")") { toks.push({ t: "rp" }); i++; continue; }
     if (ch === ",") { toks.push({ t: "comma" }); i++; continue; }
-    return null;
+    return `unexpected "${ch}"`;
   }
-  if (!toks.length) return null;
-  let p = 0;
+  let p = 0, why = "";
+  const fail = (m: string): null => { why = why || m; return null; }; // the innermost reason wins; every caller unwinds on null
   const peek = () => toks[p];
   const eat = (t?: Tok["t"]) => { const tok = toks[p]; if (!tok || (t && tok.t !== t)) return null; p++; return tok; };
   const add = (): Expr | null => {
@@ -57,8 +64,12 @@ export function compileExpr(src: unknown): Expr | null {
   };
   const mul = (): Expr | null => {
     let a = unary(); if (!a) return null;
-    while (peek() && peek().t === "op" && (peek().v === "*" || peek().v === "/" || peek().v === "%")) {
-      const op = eat("op").v, b = unary(); if (!b) return null; const aa = a;
+    for (let t = peek(); t; t = peek()) {
+      // `2x`, `2pi`, `3(x+1)`: a number directly before a name or "(" multiplies, as on paper. Only after a number,
+      // so `xy` stays one (unknown) name and `x(2)` a call, never a product. It binds as `*` does: `2x^2` is 2·x².
+      const implied = toks[p - 1].t === "num" && (t.t === "id" || t.t === "lp");
+      if (!implied && !(t.t === "op" && (t.v === "*" || t.v === "/" || t.v === "%"))) break;
+      const op = implied ? "*" : eat("op").v, b = unary(); if (!b) return null; const aa = a;
       a = op === "*" ? (x) => aa(x) * b(x) : op === "/" ? (x) => aa(x) / b(x) : (x) => aa(x) % b(x);
     }
     return a;
@@ -80,22 +91,36 @@ export function compileExpr(src: unknown): Expr | null {
     if (tok.t === "num") { eat("num"); return () => tok.v; }
     if (tok.t === "lp") { eat("lp"); const e = add(); if (!e || !eat("rp")) return null; return e; }
     if (tok.t === "id") {
-      eat("id"); const name = tok.v.toLowerCase();
+      eat("id"); const name = tok.v.toLowerCase(), fn = PLOT_FUNCS[name];
       if (peek() && peek().t === "lp") {
-        const fn = PLOT_FUNCS[name]; if (!fn) return null;
+        if (!fn) return fail(`unknown function "${tok.v}"`);
         eat("lp"); const argv: Expr[] = [];
         if (peek() && peek().t !== "rp") { do { const a = add(); if (!a) return null; argv.push(a); } while (eat("comma")); }
         if (!eat("rp")) return null;
+        if (!argv.length && PLOT_VARIADIC.includes(name)) return fail(`${name}() needs at least one value`);
         return (x) => fn(...argv.map((a) => a(x)));
+      }
+      if (fn) {
+        // `sin x`, `cos 2x`: a one-argument function takes a bare x, constant or number-times-name, as a calculator does.
+        // Anything longer (`sin x^2`, `sin -x`, `sin 2 cos x`) reads two ways, so it asks for the parentheses instead of guessing.
+        const a = fn.length === 1 ? bare() : null, n = peek();
+        if (!a || (n && (n.t === "op" ? n.v === "^" : n.t !== "rp" && n.t !== "comma"))) return fail(`write ${name}(…)`);
+        return (x) => fn(a(x));
       }
       if (name === "x") return (x) => x;
       if (name in PLOT_CONSTS) { const c = PLOT_CONSTS[name]; return () => c; }
-      return null; // an identifier that isn't x, a constant, or a known function
+      return fail(`unknown name "${tok.v}"`); // an identifier that isn't x, a constant, or a known function
     }
     return null;
   };
+  const named = (t: Tok) => t && t.t === "id" && !PLOT_FUNCS[t.v.toLowerCase()];
+  const bare = (): Expr | null => {
+    const t = peek();
+    if (t && t.t === "num") { eat("num"); if (!named(peek())) return () => t.v; const b = atom(); return b && ((x) => t.v * b(x)); }
+    return named(t) ? atom() : null;
+  };
   const tree = add();
-  return tree && p === toks.length ? tree : null; // leftover tokens ⇒ malformed
+  return tree && p === toks.length ? tree : why || "not a valid expression"; // leftover tokens ⇒ malformed
 }
 
 // ── Plot — y = f(x) across a range with an editable expression, or a fixed `fn`. Y auto-ranges unless yMin/yMax are
@@ -112,7 +137,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   const fn = typeof meta.fn === "function" ? meta.fn : null;
   const editable = meta.editable !== false && !fn;
   let expr = meta.expr != null ? String(meta.expr) : fn ? "" : "sin(x)"; // a sine to start from
-  let compiled = fn || compileExpr(expr);
+  let compiled = fn || parseExpr(expr); // a string is the reason it doesn't parse
 
   const root = el("div", "tw-plot");
   if (meta.label) root.append(txt("div", "tw-plot-label", meta.label));
@@ -132,15 +157,15 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   const PAD = 6;
   const draw = () => {
     // Flag invalid before the size guard, so a hidden tab page still reports a bad expression.
-    const ok = typeof compiled === "function";
+    const f = typeof compiled === "function" ? compiled : null, ok = !!f;
     root.classList.toggle("is-invalid", editable && !ok);
-    if (input) input.setAttribute("aria-invalid", editable && !ok ? "true" : "false");
+    if (input) { input.setAttribute("aria-invalid", ok ? "false" : "true"); input.title = ok ? "" : String(compiled); } // the title says why, and names the fix
     const r = graph.getBoundingClientRect(), W = r.width, H = r.height; if (W < 2) return;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     const ys: number[] = []; let yLo = Infinity, yHi = -Infinity;
     if (ok) for (let k = 0; k < samples; k++) {
       const x = xMin + (xMax - xMin) * (k / (samples - 1));
-      let y: number; try { y = compiled(x); } catch { y = NaN; }
+      let y: number; try { y = f(x); } catch { y = NaN; }
       ys.push(y);
       if (Number.isFinite(y)) { if (y < yLo) yLo = y; if (y > yHi) yHi = y; }
     }
@@ -165,7 +190,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   };
 
   if (editable) input.addEventListener("input", () => {
-    expr = input.value; compiled = compileExpr(expr); // null on a parse error → draw flags is-invalid
+    expr = input.value; compiled = parseExpr(expr); // a reason string on a parse error → draw flags is-invalid
     draw(); onChange(expr);
   });
 
@@ -175,7 +200,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   return {
     el: root,
     get: () => expr,
-    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!fn) compiled = compileExpr(expr); draw(); }, // an invalid expression nulls compiled, as typing does
+    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!fn) compiled = parseExpr(expr); draw(); }, // an invalid expression flags, as typing does
   };
 }
 

@@ -955,3 +955,17 @@ test("on() names a nested control by its dotted path, from the control and from 
   assert.deepEqual(Object.keys(p.changes()), ["size", "card.size", "btn.size"], "the names changes() uses");
   p.destroy();
 });
+
+// Clamping a set() into range is right, but silent it reads as the value not taking (`set("level", 99)` gave 15).
+test("a set() past a hard range clamps and warns once a key; a soft slider and an in-range value don't", () => {
+  const p = tweaks("Clamp", { level: [5, 0, 15, 1], free: { type: "slider", value: 5, min: 0, max: 10, soft: true }, span: [[2, 8], 0, 10] });
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  try {
+    p.set("level", 7); assert.equal(warned.length, 0);
+    p.set("level", 99); assert.equal(p.params.level, 15);
+    assert.equal(warned.length, 1); assert.match(warned[0], /set\("level", 99\) clamped to 0–15/);
+    p.set("level", -4); assert.equal(warned.length, 1, "once a key");
+    p.set("free", 40); assert.equal(p.params.free, 40); assert.equal(warned.length, 1, "soft keeps it, quietly");
+    p.set("span", [-5, 8]); assert.equal(warned.length, 2);
+  } finally { console.warn = warn; p.destroy(); }
+});
