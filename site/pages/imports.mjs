@@ -12,13 +12,13 @@ export const intro = `
 <em>when</em> heavy controls exist.</p>
 <table>
   <tr><th>Entry</th><th>Size</th><th>Loading</th></tr>
-  <tr><td><code>tweakit</code></td><td>{{size-single}} gzip</td><td>the single-file build; every control inlined, fully synchronous</td></tr>
-  <tr><td><code>tweakit/core</code></td><td>{{size-split}} gzip</td><td>code-split; color engine and heavy controls dynamic-import on first use</td></tr>
+  <tr><td><code>tweakit</code></td><td>{{size-split}} gzip</td><td>code-split; color engine and heavy controls dynamic-import on first use</td></tr>
+  <tr><td><code>tweakit/single</code></td><td>{{size-single}} gzip</td><td>the single-file build; every control inlined, fully synchronous</td></tr>
   <tr><td><code>tweakit/css</code></td><td>{{size-css}} gzip</td><td>the stylesheet, the same for both builds; add it to either figure for the full weight on the wire</td></tr>
 </table>
-<p>Pick the single-file build for drop-in simplicity. Pick <code>/core</code> when panels are part of a
-real app and you'd rather not ship the color engine to users who never open a
-picker.</p>`;
+<p>The default suits an app: users who never open a picker never download the color
+engine. Pick <code>/single</code> for one file you can drop in, or when you want every control
+built the moment <code>tweaks()</code> returns.</p>`;
 
 export const examples = [
   {
@@ -71,8 +71,8 @@ export const examples = [
     prose: `<p>Everything the package ships, by import path. Types ride along with both
       entries.</p>`,
     code: `
-      import { tweaks, enhance, mountControl, createColorPicker, gradientCss, gradientStops } from "tweakit";        // single-file build
-      import { tweaks, enhance, mountControl, createColorPicker, gradientCss, gradientStops } from "tweakit/core";   // code-split
+      import { tweaks, enhance, mountControl, createColorPicker, gradientCss, gradientStops } from "tweakit";          // code-split
+      import { tweaks, enhance, mountControl, createColorPicker, gradientCss, gradientStops } from "tweakit/single";   // single-file build
       import "tweakit/css";                                                                                          // panel styles
 
       import type { Schema, Panel, PanelState, Theme, TweaksOptions, GradientValue, MotionValue, ShadowValue } from "tweakit";`,

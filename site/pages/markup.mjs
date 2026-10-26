@@ -120,7 +120,7 @@ export const examples = [
       too when it is itself a <code>[data-tw]</code> host. Hosts that are already live
       are skipped, so re-running is safe.</p>`,
     code: `
-      import { enhance } from "tweakit/core";
+      import { enhance } from "tweakit";
 
       modal.innerHTML = controlsMarkup;
       await enhance(modal);   // resolves once any lazy modules have loaded`,
