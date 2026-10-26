@@ -176,7 +176,10 @@ const timeFromSpring = (k: number, d: number, m = 1) => {
   const z = d / (2 * Math.sqrt(k * m));
   return { visualDuration: (CRIT * overdampedScale(z)) / Math.sqrt(k / m), bounce: z > 1 ? 1 / z - 1 : 1 - z };
 };
-const springSpan = (k: number, d: number, m: number) => { const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)); return Math.min(2.2, 9 / Math.max(z * w0, 0.5)); };
+// How fast the slowest mode dies out: ζω₀, or an overdamped spring's slow root (ζω₀ is its fast one, so the preview
+// window shrank to milliseconds and drew a near-flat line).
+const decayRate = (w0: number, z: number) => (z > 1 ? w0 * (z - Math.sqrt(z * z - 1)) : z * w0);
+const springSpan = (k: number, d: number, m: number) => Math.min(2.2, 9 / Math.max(decayRate(Math.sqrt(k / m), d / (2 * Math.sqrt(k * m))), 0.5));
 // Closed-form step response of a damped harmonic oscillator (under/critical/over): position at time t.
 const springAt = (k: number, d: number, m: number) => {
   const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m));
@@ -197,7 +200,7 @@ function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, 
 // 24 a wobble plus one on every peak and trough, each at its own percentage, so the overshoots land where they are.
 const springRun = (k: number, d: number, m: number) => {
   const w0 = Math.sqrt(k / m), z = d / (2 * Math.sqrt(k * m)), x = springAt(k, d, m);
-  const rate = z > 1 ? w0 * (z - Math.sqrt(z * z - 1)) : z * w0, span = Math.min(7 / Math.max(rate, 1e-3), 10);
+  const span = Math.min(7 / Math.max(decayRate(w0, z), 1e-3), 10);
   const wd = z < 1 ? w0 * Math.sqrt(1 - z * z) : 0, n = Math.min(Math.max(48, Math.ceil(wd ? (24 * span * wd) / (2 * Math.PI) : span * 40)), 800);
   const ts = Array.from({ length: n }, (_, i) => (i / (n - 1)) * span);
   if (wd) for (let t = Math.PI / wd; t < span; t += Math.PI / wd) ts.push(t); // every extremum of the underdamped response

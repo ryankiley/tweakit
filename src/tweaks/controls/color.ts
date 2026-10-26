@@ -147,8 +147,9 @@ function parseColor(str: string | null | undefined): Oklcha {
 }
 
 // Whether a written color is handed back as written: a color in a notation the picker edits, with every number a plain
-// one. Anything else (1e999, a named color) is normalized, as the picker reads it.
-const verbatim = (v: unknown): v is string => typeof v === "string" && isColor(v) && notationOf(v) !== null && (v.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).every((n) => Math.abs(+n) <= 1000);
+// one. Anything else (1e999, a named color) is normalized, as the picker reads it. Only a function's arguments are
+// numbers: a hex's digits read as exponents (#1E40AF as 1e40) and `rec2020` as 2020, so those came back rewritten.
+const verbatim = (v: unknown): v is string => typeof v === "string" && isColor(v) && notationOf(v) !== null && (HEX_RE.test(v.trim()) || (v.replace(/^\s*[a-z]+\(\s*(?:[a-z][\w-]*\s)?/i, "").match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).every((n) => Math.abs(+n) <= 1000));
 // The edit mode a written color's notation maps to; null for one with no mode of its own (a named color, lab() with
 // alpha in a form the picker can't echo), which opens in OKLCH.
 const notationOf = (v: unknown): ColorMode | null => {

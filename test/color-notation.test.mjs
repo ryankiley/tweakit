@@ -50,3 +50,12 @@ test("a color row opens in the mode its schema names, and in its notation withou
   assert.equal(p.params.seeded, "#7c5cff", "the mode changes the editor, not the value");
   p.destroy();
 });
+
+test("a hex's digits and a color() space name aren't read as numbers, so they read back as written too", async () => {
+  // #1E40AF scanned as 1e40 and rec2020 as 2020, both past the hostile-number cut, so each came back rewritten unedited.
+  const written = { a: "#1E40AF", b: "#2E8B57", c: "#9e9", d: "#3e4", e: "color(rec2020 0.12345 0.5 0.25)", f: "#1e5000" };
+  const p = tweaks("D", written); await p.ready;
+  assert.deepEqual({ ...p.params }, written);
+  p.set("a", "color(rec2020 1e999 0 0)"); assert.ok(!/e999/.test(p.params.a), `a hostile argument is still normalized (${p.params.a})`);
+  p.destroy();
+});

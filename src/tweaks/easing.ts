@@ -57,14 +57,23 @@ const pct = (n: number) => +(n * 100).toFixed(2);
 
 const warned = new Set<string>();
 
+// A stop's color is written into the gradient as it is, so it must be one color token: a comma or a stray ")" splices in
+// another layer (a url() the browser fetches), and var() can stand for anything. DOM-free, so by shape: a hex, a keyword,
+// or one function with no nested parens; the editor's picker checks the grammar itself.
+const STOP_COLOR = /^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?!(?:url|var)\()[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
+// The blend spaces CSS takes, and a hue method on the polar ones; anything else (`in junk`, `in 5`) falls to
+// oklch, the default.
+const INTERP = /^(?:(?:hsl|hwb|lch|oklch)(?: (?:shorter|longer|increasing|decreasing) hue)?|srgb(?:-linear)?|oklab|lab|display-p3|rec2020|a98-rgb|prophoto-rgb|xyz(?:-d50|-d65)?)$/i;
+const blend = (v: GradientValue) => (typeof v.interpolation === "string" && INTERP.test(v.interpolation) ? v.interpolation : "oklch");
+
 /** The stops a value can draw, sorted. A hand-built value can hold no stops, or stops without a
- *  color string or a numeric pos, and any of those builds CSS the browser drops whole, silently;
+ *  color or a numeric pos, and any of those builds CSS the browser drops whole, silently;
  *  so they're set aside, with one warning per distinct fault rather than one per frame. */
 function drawable(value: unknown, fn: string): GradientStop[] {
   const all: unknown = value && typeof value === "object" ? (value as GradientValue).stops : null;
-  const ok = Array.isArray(all) ? all.filter((s) => s && typeof s.color === "string" && s.color.trim() && Number.isFinite(s.pos)) : [];
+  const ok = Array.isArray(all) ? all.filter((s) => s && typeof s.color === "string" && STOP_COLOR.test(s.color.trim()) && Number.isFinite(s.pos)) : [];
   const why = !Array.isArray(all) ? `expected { stops: [{ color, pos }] }, got ${value === null ? "null" : typeof value === "object" ? "an object without a stops array" : typeof value}`
-    : ok.length < all.length ? `skipped ${all.length - ok.length} of ${all.length} stops without a color string and a numeric pos`
+    : ok.length < all.length ? `skipped ${all.length - ok.length} of ${all.length} stops without a CSS color and a numeric pos`
     : ok.length ? "" : "the gradient has no stops";
   if (why && !warned.has(fn + why)) { warned.add(fn + why); console.warn(`[tweaks] ${fn}(): ${why}`); }
   return ok.sort((a, b) => a.pos - b.pos);
@@ -82,7 +91,7 @@ function stopList(value: GradientValue, stops: GradientStop[]): string {
   if (stops.length < 2) return `${stops[0].color}, ${stops[0].color}`; // one stop isn't a stop list; doubled, it's a solid fill
   const bez = parseEasing(value.easing);
   if (!bez) return stops.map(plain).join(", ");
-  const samples = easingSamples(bez), space = value.interpolation || "oklch";
+  const samples = easingSamples(bez), space = blend(value);
   const out = [plain(stops[0])];
   for (let i = 1; i < stops.length; i++) {
     const a = stops[i - 1], b = stops[i], span = b.pos - a.pos;
@@ -100,5 +109,5 @@ function stopList(value: GradientValue, stops: GradientStop[]): string {
  *  One stop draws a solid fill and no stops is `none`, both still valid for background-image. */
 export function gradientCss(value: GradientValue, direction: number | string = "to right"): string {
   const stops = drawable(value, "gradientCss");
-  return stops.length ? `linear-gradient(in ${value.interpolation || "oklch"} ${typeof direction === "number" ? `${direction}deg` : direction}, ${stopList(value, stops)})` : "none";
+  return stops.length ? `linear-gradient(in ${blend(value)} ${typeof direction === "number" ? `${direction}deg` : direction}, ${stopList(value, stops)})` : "none";
 }
