@@ -217,7 +217,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const n = options.length;
     const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
     grid.style.setProperty("--tw-img-cols", String(cols));
-    const tile = (v: string, label: string) => { const b = radioButton("tw-image-tile", v, (x) => commit(x)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
+    const tile = (v: string, label: string) => { const b = radioButton("tw-image-tile", v, () => commit(v)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
     const names = options.map((o, i) => o.label || stem(o.value) || `Image ${i + 1}`);
     const tiles = options.map((o, i) => { const b = tile(o.value, names[i]); grid.append(b); return b; });
     // A value that is none of the options (an upload, or a host-set URL) shows as a last tile, selected. Its URL rides
@@ -247,7 +247,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       // Focus moves before the commit: the commit can remove the focused tile (the custom one) or hide Clear.
       if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); tiles[0].focus(); commit(""); return; } // a modifier+Delete is the panel's reset, not a clear
       const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
-      e.preventDefault(); if (j !== i) { btns[j].focus(); commit(btns[j]._twVal!); }
+      e.preventDefault(); if (j !== i) { btns[j].focus(); commit(btns[j]._twVal as string); } // a tile holds its URL
     });
     clear.addEventListener("click", () => { (upload || tiles[0]).focus(); commit(""); }); // Clear hides itself: hand focus on first, not to the body
     pop.append(grid, foot);
