@@ -1,6 +1,6 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/bounce) mode, over one settle-curve preview. Lazy. ──
 import { el, txt, onReady, onLive, clamp, createSegmented, registerControl } from "../shared.js";
-import { dragGesture, numField, cssVar, accentColor, springCurve, springFromTime, boxFrac } from "../heavy.js";
+import { dragGesture, numField, cssVar, accentColor, springCurve, springFromTime, boxFrac, notice, SPRING_DUR } from "../heavy.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -23,8 +23,14 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   // Time mode edits visualDuration + bounce (Motion's spring shorthand), mapped onto the physics the preview and emit share
   // exactly as Motion resolves them (springFromTime): stiffness = (2π / (visualDuration × 1.2))², ζ from bounce floored at
   // 0.05, a negative bounce overdamped. Not through the physics pad's clamps, which would cut a short spring's stiffness.
-  const DUR_MIN = 0.1, DUR_MAX = 1;
-  const clampDur = (v: unknown) => clamp(has(v) ? +v : 0.5, DUR_MIN, DUR_MAX);
+  // An authored duration past the editor's range is clamped, and the console says so once.
+  const [DUR_MIN, DUR_MAX] = SPRING_DUR;
+  let said = false;
+  const clampDur = (v: unknown) => {
+    const n = has(v) ? +v : 0.5, c = clamp(n, DUR_MIN, DUR_MAX);
+    if (c !== n && !said) { said = true; notice("springDur", [meta.key, n, c]); }
+    return c;
+  };
   const clampBounce = (v: unknown) => clamp(has(v) ? +v : 0.2, -1, 1); // Motion takes a negative bounce: overdamped
   // Ten significant figures: the trig round trip otherwise hands back 300.00000000000006 for a stiffness of 300.
   const sig = (x: number) => +x.toPrecision(10);
@@ -72,7 +78,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     physFields.append(flds[key].el);
   });
   // The field shows ms; the value stays Motion's visualDuration in seconds.
-  const durFld = numField({ label: "Duration", value: time.visualDuration * 1000, step: 50, min: DUR_MIN * 1000, max: DUR_MAX * 1000, unit: "ms" }, (v) => { time.visualDuration = clampDur(v / 1000); draw(); emit(); });
+  const durFld = numField({ label: "Duration", value: time.visualDuration * 1000, step: 10, min: DUR_MIN * 1000, max: DUR_MAX * 1000, unit: "ms" }, (v) => { time.visualDuration = clampDur(v / 1000); draw(); emit(); });
   const bounceFld = numField({ label: "Bounce", value: time.bounce * 100, step: 5, min: -100, max: 100, unit: "%" }, (v) => { time.bounce = clampBounce(v / 100); draw(); emit(); }); // shown as a percentage; the value stays Motion's −1–1
   timeFields.append(durFld.el, bounceFld.el);
 
@@ -86,12 +92,12 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   root.append(viz, modeRow, physFields, timeFields);
 
   // Drag the preview to tune by feel: horizontal sets stiffness or duration, vertical sets damping or bounce.
-  const ST_MIN = 1, ST_MAX = 500, DA_MIN = 1, DA_MAX = 40;
+  const ST_MIN = 1, ST_MAX = 500, DA_MIN = 1, DA_MAX = 40, DRAG_DUR_MIN = 0.1, DRAG_DUR_MAX = 1; // the feel-tuning span; the fields reach further
   const fromPointer = (e: PointerEvent) => {
     const [px, py] = boxFrac(e, viz);
     // Set the field (it snaps and clamps), then read back, so readout, value and preview agree.
     if (mode === "time") {
-      durFld.set((DUR_MIN + px * (DUR_MAX - DUR_MIN)) * 1000); time.visualDuration = durFld.get() / 1000;
+      durFld.set((DRAG_DUR_MIN + px * (DRAG_DUR_MAX - DRAG_DUR_MIN)) * 1000); time.visualDuration = durFld.get() / 1000;
       bounceFld.set((1 - py) * 100); time.bounce = bounceFld.get() / 100; // top = bouncier
     } else {
       flds.stiffness.set(ST_MIN + px * (ST_MAX - ST_MIN)); phys.stiffness = flds.stiffness.get();

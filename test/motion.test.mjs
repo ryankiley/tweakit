@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, wait, mounter } from "./_helpers.mjs";
+import { loadSingle, wait, mounter, warnings } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 let runs = [];
@@ -219,4 +219,38 @@ test("an overdamped spring's preview curve runs until it settles, as a criticall
     assert.ok(end < 11, `bounce ${bounce}: the curve ends at y ${end}, short of rest`);
     p.destroy();
   }
+});
+
+// The editor clamped visualDuration to 0.1–1 s, so a motion's physics came back rewritten (stiffness 15 as 27.4, 5000 as
+// 2741) and a spring's visualDuration 2 as 1, without a word.
+test("authored springs survive: physics a host wrote come back as written, and a visualDuration up to 10 s is kept", async () => {
+  const w = await warnings(async () => {
+    for (const [stiffness, damping, mass] of [[15, 3, 1], [5000, 100, 1], [300, 20, 2], [100, 0.5, 1], [0.1, 0.2, 1]]) {
+      const p = await mount({ m: { type: "motion", stiffness, damping, mass } });
+      const v = p.params.m;
+      assert.deepEqual([v.stiffness, v.damping, v.mass], [stiffness, damping, mass], `k ${stiffness}, d ${damping}, m ${mass}`);
+      p.set("m", JSON.parse(JSON.stringify(v))); // its own value back, as a restore hands it
+      assert.deepEqual([p.params.m.stiffness, p.params.m.damping, p.params.m.mass], [stiffness, damping, mass], "and after a round trip");
+      p.destroy();
+    }
+  });
+  assert.equal(w.length, 2, `one notice each for the two the editor can't draw: ${w.join(" | ")}`);
+  assert.match(w[0], /"m": a spring of stiffness 100, damping 0\.5, mass 1 is past what the editor draws.*keeps it as written/);
+  for (const visualDuration of [2, 9.5]) {
+    const p = await mount({ m: { type: "motion", visualDuration, bounce: 0.2 }, s: { type: "spring", visualDuration } });
+    assert.equal(p.params.m.visualDuration, visualDuration); assert.equal(p.params.s.visualDuration, visualDuration);
+    assert.ok(Math.abs(p.params.s.stiffness - (2 * Math.PI / (1.2 * visualDuration)) ** 2) < 1e-6, "resolved from the duration as written");
+    p.destroy();
+  }
+  let p;
+  const past = await warnings(async () => { p = await mount({ s: { type: "spring", visualDuration: 20 } }); });
+  assert.equal(p.params.s.visualDuration, 10); assert.equal(past.length, 1); assert.match(past[0], /"s": a spring visualDuration of 20 s is past the editor's 0\.01–10 s, so it uses 10 s/);
+  p.destroy();
+  // An edit in the editor tunes from what it shows, dropping the kept physics.
+  p = await mount({ m: { type: "motion", stiffness: 15, damping: 3 } });
+  const bounce = p.el.querySelector('.tw-spring input[aria-label="Bounce (%)"]');
+  bounce.value = "10"; bounce.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(p.params.m.bounce, 0.1); assert.ok(Math.abs(p.params.m.visualDuration - 1.3519262) < 1e-6, "at the kept spring's duration");
+  p.reset(); assert.equal(p.params.m.stiffness, 15, "reset brings the written physics back");
+  p.destroy();
 });
