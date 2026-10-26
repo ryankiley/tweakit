@@ -100,8 +100,13 @@ const overlapsText = (labelEl: HTMLElement, valueEl: HTMLElement, hx: number, hw
   return (hx < lr && hx + hw > ll) || (hx < vr + m && hx + hw > vl - m);
 };
 // Default range for a number with no bounds: 0–1 keeps 0–1, a positive spans 0–3× (100 as a
-// last resort), a negative mirrors that below zero.
-const defaultRange = (v: number): [number, number] => (v >= 0 ? [0, v <= 1 ? 1 : v * 3 || 100] : [v >= -1 ? -1 : v * 3, 0]);
+// last resort), and a negative spans that much either side of zero, so it can still cross it
+// (rotate: -45 → −135 to 135).
+const defaultRange = (v: number): [number, number] => {
+  if (v >= 0) return [0, v <= 1 ? 1 : v * 3 || 100];
+  const m = v >= -1 ? 1 : v * -3;
+  return [-m, m];
+};
 
 // An option is a string, a { value, label } object, or a bare primitive that is its own value.
 const optValue = (o: Option) => (o == null ? undefined : typeof o === "object" ? o.value : o);
