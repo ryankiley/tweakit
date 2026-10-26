@@ -159,6 +159,22 @@ test("a ref whose record is gone leaves the image at its schema value", async ()
   p.destroy();
 });
 
+// Two tabs on one key: the tab without the upload saved, pruned the record it had never seen, and the tab that saved last
+// with the image still held its ref, so the reload came back empty.
+test("a save prunes only the records its own panel knows, so another tab's upload survives it", async () => {
+  const S = { x: [1, 0, 10, 1], im: { type: "image" } }, img = "data:image/gif;base64," + "C".repeat(2048);
+  const a = tweaks("Tabs", S, { persist: "t-idb-tabs" }), b = tweaks("Tabs", S, { persist: "t-idb-tabs" });
+  await Promise.all([a.ready, b.ready]);
+  a.set("im", img); await tick(250);
+  b.set("x", 5); await tick(250);
+  a.set("x", 9); await tick(250);
+  a.destroy(); b.destroy();
+  const c = tweaks("Tabs", S, { persist: "t-idb-tabs" });
+  await c.ready;
+  assert.equal(c.params.im, img, "the last save named the image, so it comes back");
+  c.destroy();
+});
+
 // Each undo step was a deep clone of every value, so after an upload every later step held its own copy of it: a 4 MB image
 // and 20 slider edits grew the heap by ~80 MB, and history keeps 200 steps. A step now shares what didn't change with the one before.
 test("undo history keeps one copy of an unchanged big value, not one per step", () => {
