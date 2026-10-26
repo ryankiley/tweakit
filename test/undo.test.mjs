@@ -8,10 +8,12 @@ import { key, wait } from "./_helpers.mjs";
 const { createUndo } = await bundle("src/tweaks/undo.ts");
 const atPath = (o, path) => path.reduce((x, k) => (x == null ? undefined : x[k]), o);
 // A state the history reads and writes, and the change hook a panel would call after each write.
-const rig = (state) => {
+// applySnapshot announces its write, as the panel's does, and `react` stands in for a host listener that changes another
+// value when it hears one: the history has to tell its own writes, and what they set off, from edits.
+const rig = (state, react = () => {}) => {
   let fire = () => {};
   const panel = document.createElement("div"); document.body.append(panel);
-  const h = createUndo(panel, () => JSON.parse(JSON.stringify(state)), (s) => { for (const k in s) state[k] = s[k]; }, atPath, (t) => !!t?.matches?.("input"), (fn) => { fire = fn; });
+  const h = createUndo(panel, () => JSON.parse(JSON.stringify(state)), (s) => { for (const k in s) state[k] = s[k]; react(); fire(); }, atPath, (t) => !!t?.matches?.("input"), (fn) => { fire = fn; });
   h.arm();
   return { h, panel, edit: (k, v) => { state[k] = v; fire(); } };
 };
@@ -27,12 +29,17 @@ test("undo and redo walk the steps; an edit right before undo is its own step; a
   h.redo(); assert.deepEqual(state, { x: 2, y: "b" }, "the edit dropped the redo of x = 3");
 });
 
-test("a write the history makes itself isn't a step, and an unchanged state commits none", async () => {
-  const state = { x: 1 }, { h, edit } = rig(state);
+test("a write the history makes itself, and what it sets off, isn't a step", async () => {
+  const state = { x: 1, heard: 0 }, { h, edit } = rig(state, () => { state.heard++; });
   edit("x", 2); h.flush(); h.undo();
-  await wait(400); // past the debounce: the undo's own write must not have queued a step
+  await wait(400); // past the debounce: a step queued here would drop the redo branch
   h.redo(); assert.equal(state.x, 2, "redo still reaches 2");
-  edit("x", 2); h.flush(); h.undo(); assert.equal(state.x, 1, "rewriting the same value was no new step");
+});
+
+test("rewriting a value it already holds commits no step", () => {
+  const state = { x: 1 }, { h, edit } = rig(state);
+  edit("x", 2); h.flush(); edit("x", 2); h.flush();
+  h.undo(); assert.equal(state.x, 1, "one undo reaches the base");
 });
 
 test("patch writes a late restore into every step that still held the row's old value", () => {

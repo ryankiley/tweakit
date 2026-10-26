@@ -764,6 +764,21 @@ test("the presets menu opens on a press that came with no hover, and not on a pa
   p.destroy(); await wait(220);
 });
 
+// Each press before the chunk landed queued an open, and the second stacked observers close() couldn't release; a press
+// couldn't be taken back either.
+test("two presses before the presets chunk lands open the menu once, and Escape before it lands opens nothing", async () => {
+  const p = tweaks("Twice", { a: 1 }, { persist: "t-presets-twice" }), q = tweaks("Never", { a: 1 }, { persist: "t-presets-never" });
+  document.body.append(p.el, q.el);
+  const btn = (x) => x.el.querySelector('[aria-label="Presets"]');
+  btn(p).click(); btn(p).click(); await wait(40);
+  assert.equal(btn(p).getAttribute("aria-expanded"), "true", "open once, not toggled shut");
+  assert.equal(document.querySelectorAll(".twk-presets-menu.is-open").length, 1);
+  btn(p).click(); await wait(10);
+  btn(q).click(); document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(40);
+  assert.equal(btn(q).getAttribute("aria-expanded"), "false", "the Escape took the press back");
+  p.destroy(); q.destroy(); await wait(220);
+});
+
 test("destroy() closes its own popover and hint, not another panel's", async () => {
   // Regression: popovers are single-open page-wide, and destroy() closed whichever was up.
   const a = tweaks("A", { a: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "a hint" } }, { persist: "t-popover-a" });

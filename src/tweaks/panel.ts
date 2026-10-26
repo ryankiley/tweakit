@@ -568,12 +568,20 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   };
 
   // The menu is presets.ts, downloaded on the button's first hover, focus or press. A press before it lands opens it once it
-  // does; after that the menu's popover owns the clicks. A chunk that fails to load is tried again on the next press.
+  // does, unless Escape, or a press or focus elsewhere, came first, and a second press doesn't queue a second open; after that the
+  // menu's popover owns the clicks. A chunk that fails to load is tried again on the next press.
   if (presetsBtn) {
     const b = presetsBtn; let menu: Promise<ReturnType<typeof import("./presets.js")["presetsMenu"]>> | undefined, made = false;
     const load = () => (menu ||= import("./presets.js").then((m) => { if (destroyed) throw 0; made = true; return m.presetsMenu(b, () => Object.keys(listPresets()), savePreset, loadPreset, deletePreset, announce, ICON_X); }, (e) => { menu = undefined; if (e !== 0) console.error("[tweaks] the presets menu failed to load:", e); throw e; }));
     for (const t of ["pointerenter", "focus"]) b.addEventListener(t, () => { load().catch(() => {}); }, { once: true });
-    b.addEventListener("click", () => { if (!made && !b.disabled) load().then((pop) => pop.open(), () => {}); });
+    let want = false;
+    const cancel = (e: Event) => { if (e.type === "keydown" ? (e as KeyboardEvent).key === "Escape" : !e.composedPath().includes(b)) want = false; }; // Escape, or a press or focus elsewhere
+    const watch = (on: boolean) => { for (const t of ["pointerdown", "focusin", "keydown"]) (on ? document.addEventListener : document.removeEventListener).call(document, t, cancel, true); };
+    b.addEventListener("click", () => {
+      if (made || b.disabled || want) return;
+      want = true; watch(true);
+      load().then((pop) => { if (want) pop.open(); }, () => {}).finally(() => { want = false; watch(false); });
+    });
   }
 
   // ── Undo / redo (opts.undo): undo.ts. inEditable is declared below, and only read on a keypress. ──
