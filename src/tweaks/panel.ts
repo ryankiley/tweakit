@@ -3,7 +3,7 @@
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, foldBody,
   applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, fuzzyMatch,
-  getControl, notice,
+  getControl, notice, isObj,
 } from "./shared.js";
 import { metaFor, valueChanged, restoreDefault, hasOwn, isReservedKey, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
@@ -19,7 +19,7 @@ import type { TabsControl } from "./controls/tabs.js";
 /** A params object or one of its folder/tabs sub-objects — the holder a control writes into. */
 type Target = Record<string, unknown>;
 /** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def) and its dotted path. */
-export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement; note?: Control["note"] }
+export interface Entry { target: Target; key: string; set: Control["set"]; get: Control["get"]; raw: unknown; def: unknown; path: string[]; persist: boolean; m: Meta; el: HTMLElement; note?: Control["note"]; range?: Control["range"] }
 /** A values snapshot — params as JSON round-trips it. */
 export type Snapshot = Record<string, any>;
 /** A folder in the filter index: its node, label and body (for the child scan). */
@@ -399,7 +399,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         // A value a host parked on params before assemble ran wins over the schema default.
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
         target[m.key] = ctrl.get();
-        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el, note: ctrl.note };
+        const entry = { target, key: m.key, set: ctrl.set, get: ctrl.get, raw: m.value, def, path: [...basePath, m.key], persist: m.persist !== false, m, el: ctrl.el, note: ctrl.note, range: ctrl.range };
         entries.push(entry); wireReset(ctrl.el, entry); scopes.set(ctrl.el, { kind: "row", entry, label: m.label });
       }
       registerCond(ctrl.el, m);
@@ -796,12 +796,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   // A set() past a hard range clamps, which is right, but silent it reads as the value not taking: say so, once a key.
   const clamped = new Set<Entry>();
+  // Each number asked for is held to the range the control resolved (derived bounds, a point's per component), not the
+  // schema's min and max, which a derived range leaves unset; a hair past an end is float noise, not a clamp.
   const clampNote = (e: Entry, key: string, v: unknown) => {
-    const { type, min, max, soft } = e.m;
-    if (soft || clamped.has(e) || !(type === "slider" || type === "number" || type === "interval")) return;
-    const out = (n: unknown) => typeof n === "number" && ((min != null && n < min) || (max != null && n > max));
-    if (!(Array.isArray(v) ? v.some(out) : out(v))) return;
-    clamped.add(e); notice("clamp", key, v, min, max);
+    const r = e.range; if (!r || e.m.soft || clamped.has(e)) return;
+    // [component, number] pairs: one number, a list (interval, sides), a sides string, or an object's sides or components.
+    const asked: [string, unknown][] = typeof v === "string" ? v.trim().split(/\s+/).map((s) => ["", parseFloat(s)]) : Array.isArray(v) ? v.map((n) => ["", n]) : isObj(v) ? Object.entries(v) : [["", v]];
+    for (const [k, n] of asked) {
+      const b = Array.isArray(r) ? r : r[k], eps = 1e-9 * Math.max(1, Math.abs(n as number));
+      if (b && typeof n === "number" && (n < b[0] - eps || n > b[1] + eps)) { clamped.add(e); notice("clamp", key, v, b[0], b[1], e.m.type); return; }
+    }
   };
   // Resolve a (possibly dotted) key, apply, report whether the leaf changed; never notifies, so setMany fires one notify.
   const applySet = (key: string, v: unknown) => {

@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, quietFocus, escapeReverts, stepPrecision, gridEnds, roundToStep, icon, registerControl, swapNote, TYPE_ALIASES } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -134,15 +134,17 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     set((Number.isFinite(n) ? n : value) + d * step * (e.shiftKey ? 10 : 1));
   });
   attachScrub(grab, wrap, step, () => value, set, () => inp.value);
-  return { el: root, set: (val: number | string) => set(val, false), get: () => value };
+  return { el: root, set: (val: number | string) => set(val, false), get: () => value, range: [lo, hi] };
 }
 
 // ── Number — numField in its row chrome. ──
 // The coarsest power of ten a number sits on (0.5 → 0.1, 3.14159 → 0.00001, 1230 → 10), read at 12 significant digits so
 // 0.1 + 0.2 counts as 0.3; Infinity for 0 or a non-number, which constrains nothing. A step no coarser keeps it exactly.
+// Past eight significant digits a number was computed, not written (1/3, Math.PI): it steps at its fourth digit, as a slider
+// rounds it, so an arrow moves it by 0.0001, not by 1e-12.
 const decimalStep = (v: unknown) => {
   const n = Number(Math.abs(+(v as number)).toPrecision(12)); if (!n || !Number.isFinite(n)) return Infinity;
-  const d = stepPrecision(n); if (d) return Number(`1e-${d}`);
+  const d = stepPrecision(n), e = Math.floor(Math.log10(n)); if (d) return Number(`1e${e + d + 1 > 8 ? e - 3 : -d}`);
   let k = 0; while (k < 15 && n % 10 ** (k + 1) === 0) k++;
   return 10 ** k;
 };
@@ -205,13 +207,14 @@ const springRun = (k: number, d: number, m: number) => {
 };
 
 // The name a typo is a single edit from (a letter added, dropped or changed). It and the notices below are lazy, as
-// only a mistake needs them. unknownType: a schema or markup `type` no control answers to.
+// only a mistake needs them. unknownType: a schema or markup `type` no control answers to. Its list holds the aliases
+// (toggle, bezier) and not the color module's picker body, which is registered as a control but isn't a type to write.
 const nearest = (s: string, names: string[]) => {
   const a = s.toLowerCase(); // case-blind, so "textmuted" finds "textMuted"
   return names.find((n) => { const k = n.toLowerCase(); let i = 0; while (i < a.length && a[i] === k[i]) i++; return [[1, 1], [0, 1], [1, 0]].some(([x, y]) => a.slice(i + x) === k.slice(i + y)); });
 };
 const unknownType = (where: string, type: string, known: string[], then: string) => {
-  const names = [...new Set(known)].filter((t) => t !== "folder").sort(), near = nearest(type, names);
+  const names = [...new Set([...known, ...Object.keys(TYPE_ALIASES)])].filter((t) => t !== "folder" && t !== "colorpicker").sort(), near = nearest(type, names);
   console.warn(`[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${then}. Types: ${names.join(", ")}`);
 };
 // A theme key resolveTheme skipped: kind is what its value failed to be ("color", "length"), or "" for a key it doesn't know.
@@ -223,7 +226,7 @@ const badTheme = (key: string, v: unknown, kind: string, keys: string[]) => {
 
 // The words for the core's notices (shared.ts notice()): what went wrong and the way out, downloaded only when one fires.
 const NOTICES: Record<string, (...a: any[]) => string> = {
-  clamp: (key, v, min, max) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min ?? "−∞"}–${max ?? "∞"}; widen min/max, or set soft: true to allow it`,
+  clamp: (key, v, min, max, type) => `set("${key}", ${JSON.stringify(v)}) clamped to ${min > -Infinity ? min : "−∞"}–${max < Infinity ? max : "∞"}; widen min/max${type === "slider" || type === "number" ? ", or set soft: true to allow it" : ""}`,
   sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
   swap: (label, min, max) => `"${label}": min ${min} is above max ${max}, so they were swapped`,
   ambiguousPath: (key, n) => `set("${key}") is ambiguous — ${n} controls read as that path (a key holding "." beside a folder); rename one`,

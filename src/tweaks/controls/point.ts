@@ -29,7 +29,9 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   // its steps (337 over ±1011 stepped by 10 to 340), as the slider's step fits its default.
   const rangeOf = (c: PointComponent) => {
     const half = defaultRange(Math.abs(Number.isFinite(+c.value) ? +c.value : 0))[1];
-    const lo = c.min ?? -half, hi = c.max ?? half;
+    let lo = c.min ?? -half, hi = c.max ?? half;
+    // A lone bound at or past the other end spans from itself instead, as the slider's does (min 5 over 0 spans 5–35, not 5–1, swapped).
+    if ((c.min == null) !== (c.max == null) && !(hi > lo)) { const w = 2 * defaultRange(Math.abs(+(c.min ?? c.max)!))[1]; if (c.min == null) lo = hi - w; else hi = lo + w; }
     const fine = 10 ** Math.floor(Math.log10((hi - lo) / 200)), nudge = c.step ?? (fine > 0 && Number.isFinite(fine) ? fine : 1); // a degenerate range (hi ≤ lo, NaN) keeps a step of 1
     return { lo, hi, nudge, step: c.step ?? Math.min(nudge, decimalStep(c.value), decimalStep(c.min)) }; // the pad's arrows keep the decade: 3.14159's 0.00001 would crawl
   };
@@ -112,6 +114,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     el: root,
     set: (v: Record<string, number | string>) => { if (v) comps.forEach((c, k) => { if (v[c.key] != null) flds[k].set(v[c.key]); }); sync(); },
     get: read,
+    range: Object.fromEntries(comps.map((c, k) => [c.key, flds[k].range])),
   };
 }
 

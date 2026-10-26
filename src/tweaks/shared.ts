@@ -21,7 +21,7 @@ type Built<E extends Element> = E & Stringifying;
 /** The labeled numeric field's spec (numField). */
 interface NumSpec { label: string; value?: unknown; min?: unknown; max?: unknown; step?: unknown; soft?: boolean; row?: boolean; unit?: string } // unit: muted suffix, also in the accessible name
 /** The numeric field's handle: set() coerces and fits, get() reads the fitted number. */
-interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number }
+interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number; range: [number, number] }
 /** The popover shell's handle (popover). */
 interface Popover { open(): void; close(): void; isOpen(): boolean; reflow(): void }
 /** A control constructor: normalized meta in, handle out. The registry holds every one under
@@ -30,8 +30,11 @@ type ControlCtor<M = Meta, C = Control> = (meta: M, onChange?: OnChange) => C;
 
 // ── helpers ──
 // A word starts at a camel hump or where a capital opens a lowercase word ("myURLParser" → "My URL Parser").
-// Lowercase then a run of capitals is a name written as meant ("sRGB", "macOS", not "S RGB"), kept whole.
-const titleCase = (s: string) => (/^[a-z]+[A-Z]{2,}$/.test(s) ? s : s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim());
+// A key opening on one lowercase letter and capitals, or on an Apple OS, is a name written as meant ("sRGB", "iOS",
+// "macOS", not "S RGB"), kept whole and the rest split after it ("sRGBGamut" → "sRGB Gamut"); a word ending in an
+// acronym splits as any other ("showFPS" → "Show FPS").
+const humanize = (s: string) => s.replace(/([a-z])(?=[A-Z])|([A-Z\d])(?=[A-Z][a-z])/g, "$1$2 ").replace(/^./, (c) => c.toUpperCase()).trim();
+const titleCase = (s: string) => { const m = /^(?:[a-z][A-Z]{2,}?|(?:mac|tv|watch|iPad|vision)OS)(?=[A-Z][a-z]|[^A-Za-z]|$)/.exec(s); return m ? `${m[0]} ${humanize(s.slice(m[0].length))}`.trim() : humanize(s); };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
 // Hex or any CSS color function: routes a schema string to the color control.
@@ -104,6 +107,9 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals
   vals = vals.filter(Number.isFinite);
   const d = derivedRange(...vals);
   let min = given(rawMin) ? +rawMin! : d.min, max = given(rawMax) ? +rawMax! : d.max, step = +rawStep!;
+  // One bound written at or past the values' own other end: that end derives from the written bound, as a bare number its
+  // size would, and steps a span past it when that's still no range, so [5, 20] slides 20–60 and [0.5, 1] 1–2, not 15–20 or 1–1.
+  if (given(rawMin) !== given(rawMax) && !(max > min)) { const up = given(rawMin), b = up ? min : max, r = derivedRange(b); if (up) max = r.max > b ? r.max : b + r.max - r.min; else min = r.min < b ? r.min : b - r.max + r.min; }
   if (max < min) { if (label != null) swapNote(label, min, max); const t = min; min = max; max = t; }
   if (!(step > 0) || step > max - min) step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
   return { min, max, step };

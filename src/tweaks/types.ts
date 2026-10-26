@@ -435,6 +435,9 @@ export interface Control {
   /** Show a short message on the control for a moment. Only the image control supplies it; the panel calls it when
    *  storage refuses the control's value. */
   note?(message: string): void;
+  /** The hard range set() fits a number into, as the control resolved it (derived bounds too); a point's per component.
+   *  Only the numeric controls supply it; the panel's clamp notice reads it. */
+  range?: [number, number] | Record<string, [number, number]>;
 }
 
 /** Options for `mountControl(host, value, opts?)` — one control, no panel. */

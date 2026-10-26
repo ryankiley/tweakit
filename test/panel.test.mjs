@@ -969,3 +969,26 @@ test("a set() past a hard range clamps and warns once a key; a soft slider and a
     p.set("span", [-5, 8]); await new Promise((r) => setTimeout(r, 10)); assert.equal(warned.length, 2);
   } finally { console.warn = warn; p.destroy(); }
 });
+
+// The check read the schema's min and max, unset when the range derives: `size: 24` then set("size", 500) gave 72 silently,
+// and a sides or point control was never checked.
+test("a set() past a derived range, a sides' or a point's warns too, naming the range the control resolved", async () => {
+  const p = tweaks("Derived", {
+    size: 24, v: { type: "slider", value: 50 }, iv: [[20, 80]], noise: [0.3, 0, 0.3], n: { type: "number", value: 3 },
+    pad: { type: "sides", value: 4, max: 20 }, gap: { type: "sides", value: 4, min: 0, max: 20 },
+    pt: { type: "point", components: [{ key: "x", value: 0.5, min: 0, max: 1 }, { key: "y", value: 0, min: -5, max: 5 }] },
+  });
+  await p.ready;
+  const warn = console.warn, warned = []; console.warn = (...a) => warned.push(a.join(" "));
+  try {
+    p.set("noise", 0.1 * 3); p.set("n", 1e6); p.set("size", 30); p.set("pt", { x: 0.2, y: 4 });
+    await new Promise((r) => setTimeout(r, 20));
+    assert.deepEqual(warned, [], "in range, float noise, and an unbounded number stay quiet");
+    p.set("size", 500); p.set("v", 500); p.set("iv", [0, 999]); p.set("pad", 50); p.set("gap", "100px 2px"); p.set("pt", { y: 9 });
+    assert.deepEqual([p.params.size, p.params.v, p.params.iv, p.params.pad.top, p.params.gap.top, p.params.pt.y], [72, 150, [0, 240], 20, 20, 5]);
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(warned.length, 6, warned.join("\n"));
+    for (const [i, re] of [/set\("size", 500\) clamped to 0–72; widen min\/max, or set soft/, /clamped to 0–150/, /set\("iv", \[0,999\]\) clamped to 0–240; widen min\/max$/, /clamped to −∞–20/, /clamped to 0–20/, /set\("pt", \{"y":9\}\) clamped to -5–5/].entries()) assert.match(warned[i], re);
+    p.set("size", 900); await new Promise((r) => setTimeout(r, 20)); assert.equal(warned.length, 6, "still once a key");
+  } finally { console.warn = warn; p.destroy(); }
+});

@@ -95,6 +95,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     el: wrap,
     set: (v: unknown) => { if (Array.isArray(v)) { const a = +v[0], b = +v[1]; if (!Number.isFinite(a) || !Number.isFinite(b)) return; lo = clamp(q(Math.min(a, b)), min, max); hi = clamp(q(Math.max(a, b)), min, max); render(); } },
     get: () => [lo, hi],
+    range: [min, max],
   };
 }
 
