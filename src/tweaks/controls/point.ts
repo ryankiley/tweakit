@@ -1,5 +1,5 @@
 // ── Point — 2D/3D/4D vector. Lazy.
-import { el, clamp, stepPrecision, defaultRange, popover, registerControl, announce } from "../shared.js";
+import { el, clamp, stepPrecision, defaultRange, decimalStep, popover, registerControl, announce } from "../shared.js";
 import { numField, svgEl, grabSurface, boxFrac, triggerRow } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta, PointComponent } from "../schema.js";
@@ -25,12 +25,13 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
 
   const hasPad = meta.pad !== false && comps.length >= 2;
   // An absent bound is the unit range widened to hold the value, mirrored about the origin (5 spans ±15); an absent
-  // step is the decade at or below range/200, so the pad is continuous.
+  // step is the decade at or below range/200, so the pad is continuous, and finer when the default or min sits between
+  // its steps (337 over ±1011 stepped by 10 to 340), as the slider's step fits its default.
   const rangeOf = (c: PointComponent) => {
     const half = defaultRange(Math.abs(Number.isFinite(+c.value) ? +c.value : 0))[1];
     const lo = c.min ?? -half, hi = c.max ?? half;
-    const fine = 10 ** Math.floor(Math.log10((hi - lo) / 200));
-    return { lo, hi, step: c.step ?? (fine > 0 && Number.isFinite(fine) ? fine : 1) }; // a degenerate range (hi ≤ lo, NaN) keeps a step of 1
+    const fine = 10 ** Math.floor(Math.log10((hi - lo) / 200)), nudge = c.step ?? (fine > 0 && Number.isFinite(fine) ? fine : 1); // a degenerate range (hi ≤ lo, NaN) keeps a step of 1
+    return { lo, hi, nudge, step: c.step ?? Math.min(nudge, decimalStep(c.value), decimalStep(c.min)) }; // the pad's arrows keep the decade: 3.14159's 0.00001 would crawl
   };
   const ranges = comps.map(rangeOf);
   const rx = ranges[0], ry = ranges[1];
@@ -97,8 +98,8 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
       if (!dx && !dy) return;
       e.preventDefault();
       const k = e.shiftKey ? 10 : 1;
-      if (dx) flds[0].set(clamp(flds[0].get() + dx * rx.step * k, minX, maxX));
-      if (dy) flds[1].set(clamp(flds[1].get() + (meta.invertY ? -dy : dy) * ry.step * k, minY, maxY));
+      if (dx) flds[0].set(clamp(flds[0].get() + dx * rx.nudge * k, minX, maxX));
+      if (dy) flds[1].set(clamp(flds[1].get() + (meta.invertY ? -dy : dy) * ry.nudge * k, minY, maxY));
       sync(); emit(); say();
     });
   }
