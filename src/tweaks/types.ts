@@ -337,6 +337,10 @@ export interface TweaksOptions {
   undo?: boolean;
   /** Custom reset handler (e.g. restore real app defaults + rebuild). */
   onReset?: () => void;
+  /** Mount the panel in a shadow root, so page CSS can't restyle it (`#app button { … }`, a `.prose` wrapper). `el` is
+   *  then its host: theme it with `--twk-*` on the host or an ancestor, or with `theme`. The styles come from the page's
+   *  `tweakit/css` when that's loaded, else from `href` (by default `tweaks.css` beside the module). */
+  shadow?: boolean | { href?: string };
 }
 
 /** The live values bag, loosely typed — `params[key]` for each control. A schema literal passed
@@ -375,7 +379,7 @@ export interface PanelState {
 /** The panel object `tweaks()` returns; `P` is its values' shape. A bare `Panel` takes any panel, typed or not (its
  *  default is `any`, not `Params`: `set()`'s typed paths would make a typed panel unassignable to `Panel<Params>`). */
 export interface Panel<P = any> {
-  /** The panel root element — append it to the DOM. */
+  /** The panel root element — append it to the DOM. With `shadow`, the host the panel lives in. */
   el: HTMLElement;
   /** Live values, updated in place as controls change. */
   params: P;
@@ -460,13 +464,16 @@ export interface MountOptions {
   label?: string;
   /** Fired with the new value whenever the control changes — by hand or through `set()`. */
   onChange?: (value: unknown, key: string) => void;
+  /** Mount it in a shadow root, as `tweaks()`'s `shadow` does a panel; `el` is then the host. */
+  shadow?: boolean | { href?: string };
 }
 
 /** The handle `mountControl()` returns. */
 export interface MountedControl {
   /** The wrapper (`.twk-control`) the control lives in, already appended to the host and
    *  stable from creation — it carries the kit's tokens, so the control renders outside a
-   *  panel. On the code-split build a lazily-loaded control fills it in once `ready` resolves. */
+   *  panel. On the code-split build a lazily-loaded control fills it in once `ready` resolves. With `shadow`, the host
+   *  the wrapper lives in. */
   el: HTMLElement;
   /** Apply a value — the control updates AND `onChange` fires (when the value actually
    *  changed). Before `ready`, the value is queued and applied once the control builds. */
@@ -492,6 +499,8 @@ export interface ColorPickerOptions {
   mode?: ColorMode;
   /** Fired with the new color string whenever it changes — by hand or through `set()`. */
   onChange?: (value: string) => void;
+  /** Build it in a shadow root, as `tweaks()`'s `shadow` does a panel; `el` is then the host. */
+  shadow?: boolean | { href?: string };
 }
 
 /** The handle `createColorPicker()` returns. Bring your own trigger: append `el` to a popover
@@ -499,7 +508,7 @@ export interface ColorPickerOptions {
 export interface ColorPicker {
   /** The picker's root (`.twk-color-picker`), stable from creation; it carries the kit's tokens,
    *  so the picker renders anywhere. On the code-split build the editor fills it in once the
-   *  color chunk has loaded. */
+   *  color chunk has loaded. With `shadow`, the host the root lives in. */
   el: HTMLElement;
   /** Apply a color — the picker updates AND `onChange` fires (when the color actually changed). */
   set(value: string): void;

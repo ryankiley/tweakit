@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bleed fixture</title>
+<link rel="stylesheet" href="/tweaks.css">
+<style>
+  body { margin: 24px; display: flex; gap: 24px; align-items: flex-start; font: 13px system-ui, sans-serif; }
+  /* A host page's styles aimed through a wrapper, as #root / #app shells, Tailwind's .prose and CMS content do. Both
+   * wrappers pass down the same text styles, which a panel inherits either way; only #app aims rules at its elements. */
+  #calm, #app { line-height: 3; letter-spacing: 2px; }
+  #app button { padding: 20px; text-transform: uppercase; }
+  #app input { height: 48px; }
+  #app span { display: block; }
+  #app { --twk-accent: rgb(255, 0, 0); }
+</style>
+<div id="calm"></div>
+<div id="app"></div>
+<script type="module">
+  // The same panel three times: in #calm (the reference), inside #app in light DOM, and inside #app in a shadow root.
+  import { tweaks } from "/tweaks/core.js";
+  const schema = () => ({ size: [12, 0, 40, 1], on: true, fruit: ["Apple", "Banana"], label: "Hi", go: { action: () => {} } });
+  const ref = tweaks("Panel", schema(), { draggable: false });
+  const light = tweaks("Panel", schema(), { draggable: false });
+  const shadow = tweaks("Panel", schema(), { draggable: false, shadow: true });
+  document.getElementById("calm").append(ref.el);
+  document.getElementById("app").append(light.el, shadow.el);
+  window.panels = { ref, light, shadow };
+  Promise.all([ref.ready, light.ready, shadow.ready]).then(() => { document.body.dataset.ready = ""; });
+</script>

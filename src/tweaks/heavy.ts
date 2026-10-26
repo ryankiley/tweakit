@@ -1,7 +1,7 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
  * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
-import { el, btn, txt, clamp, carrySkin, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, announce, sayNow } from "./shared.js";
+import { el, btn, txt, clamp, carrySkin, portalTo, activeIn, quietFocus, stepPrecision, gridEnds, roundToStep, icon, registerControl, announce, sayNow } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
 import type { Meta } from "./schema.js";
 
@@ -29,12 +29,12 @@ const accentColor = (node: Element) => { const r = getComputedStyle(node); const
 // mouseup after a pointer-initiated focus is swallowed while the whole value is still selected.
 const selectAllOnFocus = (input: HTMLInputElement) => {
   let swallowUp = false;
-  input.addEventListener("pointerdown", (e) => { swallowUp = e.button === 0 && document.activeElement !== input; });
+  input.addEventListener("pointerdown", (e) => { swallowUp = e.button === 0 && activeIn(input) !== input; });
   input.addEventListener("focus", () => input.select());
   input.addEventListener("mouseup", (e) => {
     if (!swallowUp) return;
     swallowUp = false;
-    if (e.button === 0 && document.activeElement === input && input.selectionStart === 0 && input.selectionEnd === input.value.length) e.preventDefault();
+    if (e.button === 0 && activeIn(input) === input && input.selectionStart === 0 && input.selectionEnd === input.value.length) e.preventDefault();
   });
 };
 // Escape in an edited field restores `kept` and stops; otherwise it passes on and closes the pane. Without this,
@@ -127,7 +127,7 @@ function makeGrabGuide() {
       y = atY; x0 = x; bx = bubbleX ?? x; // bubble anchors over the field center, not the cursor
       g.children[1].style.cssText = `left:${x}px;top:${y}px`;
       carrySkin(g, anchor); // the anchor panel's theme + scheme, like every portal
-      document.body.appendChild(g);
+      portalTo(g, anchor);
     },
     move(x: number, text: string) {
       if (!g) return;

@@ -1,6 +1,6 @@
 // ── Color — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
-import { el, txt, clamp, rangeStep, popover, quietFocus, registerControl } from "../shared.js";
+import { el, txt, clamp, rangeStep, popover, quietFocus, activeIn, registerControl } from "../shared.js";
 import { escapeReverts, numField, grabSurface, boxFrac, arrowStep, sayWhenKeysStop, triggerRow, selectAllOnFocus } from "../heavy.js";
 import { oklchGamutProbe, chromaCeil, toGamut, hexByte, hexToOklch, channelValues, withChannel, gamutLabel, showsGamutBoundary, readout, serialize, EDIT_MODES, MODE_LABELS, MODE_CHANNELS, MAX_CHROMA, convert, oklchToRgbFn, num } from "../../wide-gamut.js";
 import type { Vec3, Space, Gamut } from "../../wide-gamut.js";
@@ -297,8 +297,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const hexText = () => serialize([L, C, H], "hex", A);
   const refresh = () => {
     gamut2.textContent = gamutLabel([L, C, H], mode);
-    if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".twk-color-chan-input"); if (hx && document.activeElement !== hx) hx.value = hexText(); }
-    else { const vals = channelValues([L, C, H], mode); chanFields.forEach((f, i) => { if (!f.el.contains(document.activeElement)) f.set(vals[i]); }); }
+    if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".twk-color-chan-input"); if (hx && activeIn(hx) !== hx) hx.value = hexText(); }
+    else { const vals = channelValues([L, C, H], mode); chanFields.forEach((f, i) => { if (!f.el.contains(activeIn(f.el))) f.set(vals[i]); }); }
   };
   const reflow = () => { renderHue(); renderArea(); positionThumbs(); }; // mounted at real size → rasterize + place the thumbs
   const emit = () => onChange(colorStr());
@@ -369,7 +369,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     el: root,
     // Blur a focused text field before re-pointing: its change handler commits typed text against
     // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as focus leaving the popover, which closes it.
-    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = document.activeElement as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; showMode(); raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
+    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = activeIn(root) as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; showMode(); raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
     get: () => colorStr(),
     // The gradient reads the mode to choose its blend space and re-points it on a stored ramp.
     mode: () => mode,

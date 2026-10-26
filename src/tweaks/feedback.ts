@@ -1,7 +1,7 @@
 /* Panel feedback chrome — the toolbar button factories (copy / reset and their one-shot
  * animations), the hint tooltip and the clipboard helper. The screen-reader announcer they
  * speak through lives in shared.ts, where the lazy controls reach it too. */
-import { el, btn, carrySkin, placeBelow, announce } from "./shared.js";
+import { el, btn, carrySkin, placeBelow, announce, portalTo } from "./shared.js";
 import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 
 /** A toolbar button with its one-shot animation state: timer, spin settle hook, last click time. */
@@ -56,14 +56,15 @@ const spinReset = (btn: ToolbarBtn) => {
   btn._t = setTimeout(fallback, 600);
 };
 
-// Hint tooltip — one shared bubble, portaled to <body> so it clears the panel's overflow clip.
+// Hint tooltip — one shared bubble, portaled where its panel's portals go (<body>, or a shadow panel's portal root) so
+// it clears the panel's overflow clip.
 let hintTip: HTMLDivElement | null = null, hintTimer = 0, hintAnchor: Element | null = null;
 const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); hideHintNow(); } }; // bound only while open; WCAG 1.4.13 (dismissable)
 /** Hide the tip now; with `owner` (panel.destroy()), only a tip anchored inside it — the node is shared. */
 const hideHintNow = (owner?: Element) => { if (owner && hintAnchor && !owner.contains(hintAnchor)) return; clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
 function showHint(anchor: Element, text: string) {
   if (!hintTip) { hintTip = el("div", "twk-tip twk-portal"); hintTip.setAttribute("role", "tooltip"); }
-  if (!hintTip.isConnected) document.body.appendChild(hintTip); // re-home after a host replaced <body>'s content
+  portalTo(hintTip, anchor); // each show: the last hint may have been another root's, or a host replaced <body>'s content
   clearTimeout(hintTimer);
   hintTip.textContent = text;
   carrySkin(hintTip, anchor); // resolved at show time: setTheme may have run since build

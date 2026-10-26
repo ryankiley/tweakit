@@ -3,7 +3,7 @@
 import {
   el, btn, txt, clamp, stepPrecision, gridEnds, roundToStep, normalizeRange, rangeStep, overlapsText, optValue, optLabel, json,
   popover, radioButton, setRadioActive, activeIndex, navIndex, createSegmented, blade, foldBody,
-  quietFocus, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
+  quietFocus, activeIn, wireHoverClass, onReady, onLive, registerControl, getControl, rubberBand, rubberRelease,
   EASE_SPRING, EASE_GLIDE, REDUCE_MOTION,
 } from "../shared.js";
 import { ICON_CHEVRON, chevronIcon } from "../icons.js";
@@ -302,7 +302,7 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
     if (!pop.isOpen() && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); pop.open(); }
   });
   dropdown.addEventListener("keydown", (e) => {
-    const i = optButtons.indexOf(document.activeElement as HTMLButtonElement); let j = i;
+    const i = optButtons.indexOf(activeIn(dropdown) as HTMLButtonElement); let j = i;
     const inBeat = !!typed && performance.now() - typedAt < 600; // monotonic, so a wall-clock step can't pin the beat open
     if (e.key === "ArrowDown") j = i < 0 ? 0 : Math.min(optButtons.length - 1, i + 1);
     else if (e.key === "ArrowUp") j = i < 0 ? optButtons.length - 1 : Math.max(0, i - 1);

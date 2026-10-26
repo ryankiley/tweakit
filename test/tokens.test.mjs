@@ -11,7 +11,7 @@ const css = distCss();
 const tokensFor = (cls) => {
   const out = new Set();
   for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    const sels = m[1].split(",").map((x) => x.trim());
+    const sels = m[1].replace(/:where\(([^)]*)\):not\(\.twk-in-shadow\)/, "$1").split(",").map((x) => x.trim()); // the token rule, shadow panels aside
     if (!sels.some((x) => x === cls || x.startsWith(cls + ":"))) continue;
     for (const d of m[2].matchAll(/--twk-[\w-]+(?=\s*:)/g)) out.add(d[0]);
   }

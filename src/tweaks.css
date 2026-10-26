@@ -3,8 +3,10 @@
 /* Design tokens, for the panel and for every portaled node (all carry .twk-portal). Each
  * color is one light-dark(light, dark) pair, resolved by the color-scheme of the element that
  * paints it (see "Scheme resolution" below), so a token keeps one name and one meaning in both
- * schemes and a theme override wins in both. */
-.twk-panel, .twk-portal {
+ * schemes and a theme override wins in both. A shadow panel (opts.shadow) and its portals carry .twk-in-shadow and skip
+ * this rule: there the build copies it onto :host, where the page's rules on the host or an ancestor override it. Keep
+ * the selector as written; build.mjs finds the rule by it. */
+:where(.twk-panel, .twk-portal):not(.twk-in-shadow) {
   /* Surfaces — faint films over the base. Light: items a step brighter than the off-white
    * base; hover/active darken for contrast. */
   --twk-surface: light-dark(rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.04));
@@ -64,7 +66,8 @@
   --twk-ease-fold: linear(0, 0.077, 0.237, 0.411, 0.570, 0.699, 0.797, 0.869, 0.918, 0.952, 0.973, 0.986, 0.994, 0.998, 1);
   /* Press: a dip in three tiers by size, so every control's edge moves about 1.5–2px. */
   --twk-press-icon: 0.88; --twk-press-chip: 0.95; --twk-press-row: 0.985;
-
+}
+.twk-panel, .twk-portal {
   font-family: var(--twk-font-sans);
   /* Buttons use `font: inherit`, so a host's global line-height would ride into every
    * control; pin it. */

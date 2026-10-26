@@ -1,6 +1,6 @@
 /* Standalone controls — the kit's controls without the panel: mountControl() builds one control
  * into a host of your own, createColorPicker() hands out the color editor surface alone. */
-import { el, getControl, onReady, setDisabled, valueChanged } from "./shared.js";
+import { el, getControl, onReady, setDisabled, valueChanged, isolate } from "./shared.js";
 import { metaFor, VALUELESS } from "./schema.js";
 import { ensureForMetas } from "./lazy.js";
 import { createControl } from "./controls/basic.js";
@@ -29,7 +29,8 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
   if (opts.label != null) meta.label = String(opts.label); // the option wins over the derived label; "" = no label
   const valued = !VALUELESS.has(meta.type); // display/action controls carry no value: set/get are inert
   const root = scope("twk-control"); // the control fills it in on ready
-  host.append(root);
+  const iso = isolate(root, opts.shadow);
+  host.append(iso.box);
   let ctrl: Control | null = null, destroyed = false, last: unknown = meta.value, parked: unknown, queued = false;
   // Gated the way the panel gates notify(): a same-value set() stays silent instead of echoing.
   const emit = (v: unknown) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v, key); };
@@ -48,19 +49,20 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     if (queued) { ctrl.set(parked); emit(ctrl.get()); } // a set() from the lazy window applies and announces now
   };
   const handle: MountedControl = {
-    el: root,
+    el: iso.box,
     set: (v) => { if (destroyed || !valued) return; if (ctrl) { ctrl.set(v); emit(ctrl.get()); } else { parked = v; queued = true; } },
     get: () => (!valued ? undefined : ctrl ? ctrl.get() : queued ? parked : meta.value),
-    destroy: () => { destroyed = true; if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy(); root.dataset.twkDestroyed = ""; root.remove(); }, // onLive listeners release on their next event by this mark
+    destroy: () => { destroyed = true; if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy(); root.dataset.twkDestroyed = ""; root.remove(); iso.end(); }, // onLive listeners release on their next event by this mark
     ready: null,
   };
   handle.ready = whenLoaded([meta], build, handle);
+  if (iso.dressed) handle.ready = Promise.all([handle.ready, iso.dressed]).then(() => handle);
   return handle;
 }
 
 /** The color editor surface alone, for a host page that brings its own swatch. */
 export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
-  const root = scope("twk-color-picker");
+  const root = scope("twk-color-picker"), iso = isolate(root, opts.shadow);
   let body: PickerBody | null = null, destroyed = false, last = opts.value, parked: string, queued = false, parkedMode: ColorMode = null;
   const emit = (v: string) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v); };
   const build = () => {
@@ -75,15 +77,16 @@ export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
     onReady(body.reflow); // next frame: the thumbs need a real box
   };
   const picker: ColorPicker = {
-    el: root,
+    el: iso.box,
     set: (v) => { if (destroyed) return; if (body) { body.set(v); emit(body.get()); } else { parked = v; queued = true; } },
     get: () => (body ? body.get() : queued ? parked : opts.value),
     mode: () => (body ? body.mode() : parkedMode || opts.mode || "oklch"),
     setMode: (m) => { if (body) body.setMode(m); else parkedMode = m; },
     reflow: () => { if (body) body.reflow(); },
-    destroy: () => { destroyed = true; root.remove(); },
+    destroy: () => { destroyed = true; root.remove(); iso.end(); },
     ready: null,
   };
   picker.ready = whenLoaded([{ type: "color" }], build, picker);
+  if (iso.dressed) picker.ready = Promise.all([picker.ready, iso.dressed]).then(() => picker);
   return picker;
 }

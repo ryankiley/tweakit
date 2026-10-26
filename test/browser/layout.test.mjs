@@ -197,3 +197,42 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 
     }
   });
 }
+
+// The reviewer's bleed: #app button / input / span rules restyle a light panel mounted in #app. The same panel built with
+// shadow: true matches one under a wrapper that passes down the same inherited text styles without those rules, while a
+// --twk-accent set on #app still themes it, and its list pane opens styled in its own root.
+test("a shadow panel inside a styled #app matches an unstyled one; a light panel there doesn't; #app's tokens still reach it", async () => {
+  const { page, errors } = await open("/fixture/bleed.html");
+  await page.waitForSelector("body[data-ready]");
+  await page.waitForFunction(() => window.panels.shadow.el.style.visibility === ""); // its stylesheet applied
+  const looks = await page.evaluate(() => {
+    const props = ["padding-top", "text-transform", "height", "display", "line-height", "letter-spacing", "font-size", "width"];
+    const panelOf = (p) => p.el.shadowRoot?.querySelector(".twk-panel") || p.el;
+    const of = (p) => [...panelOf(p).querySelectorAll("button, input, span")].map((n) => props.map((k) => getComputedStyle(n).getPropertyValue(k)).join(" "));
+    const { ref, light, shadow } = window.panels;
+    return { ref: of(ref), light: of(light), shadow: of(shadow), accent: getComputedStyle(panelOf(shadow)).getPropertyValue("--twk-accent").trim(), refAccent: getComputedStyle(panelOf(ref)).getPropertyValue("--twk-accent").trim() };
+  });
+  assert.ok(looks.ref.length > 10, "sanity: the panel has buttons, inputs and spans");
+  assert.notDeepEqual(looks.light, looks.ref, "the light panel in #app is restyled: the bleed reproduces");
+  assert.deepEqual(looks.shadow, looks.ref, "the shadow panel in #app looks like the clean one");
+  assert.equal(looks.accent, "rgb(255, 0, 0)", "#app's --twk-accent themes the shadow panel");
+  assert.notEqual(looks.refAccent, "rgb(255, 0, 0)");
+  // Its list pane opens in the portal root on <body>, styled like the clean panel's, in #app's accent.
+  const pane = async (name) => {
+    await page.evaluate((n) => { const p = window.panels[n]; (p.el.shadowRoot || p.el).querySelector(".twk-select-trigger").click(); }, name);
+    await page.waitForTimeout(300);
+    const out = await page.evaluate(() => {
+      const dd = document.querySelector(".twk-select-dropdown.is-open") || document.querySelector(".twk-portal-host")?.shadowRoot.querySelector(".twk-select-dropdown.is-open");
+      const r = dd.getBoundingClientRect(), b = dd.querySelector("button"), cs = getComputedStyle(b);
+      return { inShadow: dd.getRootNode() !== document, w: r.width, h: r.height, btn: [cs.height, cs.paddingTop, cs.textTransform, cs.fontSize].join(" "), bg: getComputedStyle(dd).backgroundColor, accent: getComputedStyle(dd).getPropertyValue("--twk-accent").trim() };
+    });
+    await page.mouse.click(5, 5); await page.waitForTimeout(250);
+    return out;
+  };
+  const refPane = await pane("ref"), shadowPane = await pane("shadow");
+  assert.equal(shadowPane.inShadow, true, "the shadow panel's pane lives in a shadow root");
+  assert.deepEqual([shadowPane.w, shadowPane.h, shadowPane.btn, shadowPane.bg], [refPane.w, refPane.h, refPane.btn, refPane.bg], "and is styled like the clean panel's");
+  assert.equal(shadowPane.accent, "rgb(255, 0, 0)", "carrying #app's accent across");
+  assert.deepEqual(errors, []);
+});
+

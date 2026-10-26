@@ -22,11 +22,11 @@ export const mounter = (tweaks, name) => async (schema, opts) => { const p = twe
  *  then opens the menu at once. Resolves to the button. */
 export const armPresets = async (p) => { const b = p.el.querySelector('[aria-label="Presets"]'); b.dispatchEvent(new Event("pointerenter")); await wait(10); return b; };
 
-/** A synthetic pointer event; jsdom has no PointerEvent constructor. */
-export const ptr = (type, props) => Object.assign(new Event(type, { bubbles: true, cancelable: true }), { pointerId: 1, button: 0, buttons: 1, pointerType: "mouse", ...props });
+/** A synthetic pointer event; jsdom has no PointerEvent constructor. Composed, as a real one is, so it leaves a shadow root. */
+export const ptr = (type, props) => Object.assign(new Event(type, { bubbles: true, cancelable: true, composed: true }), { pointerId: 1, button: 0, buttons: 1, pointerType: "mouse", ...props });
 
-/** Dispatch a keydown on `target`; returns the event. */
-export const key = (target, props) => { const e = new window.KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...props }); target.dispatchEvent(e); return e; };
+/** Dispatch a keydown on `target`, composed as a real one is; returns the event. */
+export const key = (target, props) => { const e = new window.KeyboardEvent("keydown", { bubbles: true, cancelable: true, composed: true, ...props }); target.dispatchEvent(e); return e; };
 
 /** Two number arrays agree to 1e-9, element by element. */
 export const near = (a, b, msg) => { assert.equal(a.length, b.length, msg); a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-9, `${msg}: [${i}] ${v} vs ${b[i]}`)); };

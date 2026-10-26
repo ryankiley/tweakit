@@ -55,7 +55,13 @@ await esbuild.build({
 
 // 3) panel CSS → dist/tweaks.css, minified. Both schemes live in one token block as light-dark() pairs.
 {
-  const { code } = await esbuild.transform(await readFile(p("src/tweaks.css"), "utf8"), { minify: true, loader: "css" });
+  // A shadow root (opts.shadow) takes the token rule again on :host, where a page's --twk-* on the host or an ancestor
+  // overrides it; the panel and portals inside skip the original. What inherits is what a light panel inherits.
+  const src = await readFile(p("src/tweaks.css"), "utf8"), TOKENS = ":where(.twk-panel, .twk-portal):not(.twk-in-shadow) {";
+  const at = src.indexOf(TOKENS), end = src.indexOf("\n}", at);
+  if (at < 0 || end < 0) throw new Error("tweaks.css: the token rule's selector changed; build.mjs copies that rule onto :host");
+  const css = `${src.slice(0, end + 2)}\n:host { display: block;${src.slice(at + TOKENS.length, end)}\n}${src.slice(end + 2)}`;
+  const { code } = await esbuild.transform(css, { minify: true, loader: "css" });
   await writeFile(p("dist/tweaks.css"), code);
   // So a TS consumer can `import "tweakit/css"` without TS2307; a subpath isn't matched by a *.css ambient.
   await writeFile(
