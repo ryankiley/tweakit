@@ -27,5 +27,7 @@ try {
     "--virtual-time-budget=3000", `--screenshot=${OUT}`,
     `http://127.0.0.1:${server.address().port}/site/og/card.html`,
   ]);
-  console.log(`og → ${path.relative(ROOT, OUT)}`);
 } finally { server.close(); }
+// oxipng, when it's installed, shaves about a quarter off losslessly
+const squeezed = await promisify(execFile)("oxipng", ["-o", "max", "--strip", "safe", OUT]).then(() => true, () => false);
+console.log(`og → ${path.relative(ROOT, OUT)}${squeezed ? " (oxipng)" : ""}`);
