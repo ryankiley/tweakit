@@ -1,6 +1,6 @@
 /* A color keeps the notation it was written in and the precision it needs. "#ff0000" read back as oklch(63% 0.26 29):
  * code expecting hex broke, pasted values drifted, and the rounding changed 98% of colors (#939796's faint green read as
- * grey). A grey's hue came out as float noise (white as hue 180, cyan), which bends every oklch gradient through it. */
+ * gray). A gray's hue came out as float noise (white as hue 180, cyan), which bends every oklch gradient through it. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
@@ -28,7 +28,7 @@ test("an edit writes the color's own notation, a digit finer than the readout", 
   picker.el.remove(); hex.el.remove();
 });
 
-test("a grey's hue is written none, so a gradient through it doesn't bend", async () => {
+test("a gray's hue is written none, so a gradient through it doesn't bend", async () => {
   const picker = createColorPicker({ value: "#ffffff", mode: "oklch", onChange: () => {} }); document.body.append(picker.el); await picker.ready;
   key(picker.el.querySelector(".tw-wg-hue"), { key: "ArrowRight" });
   assert.equal(picker.get(), "oklch(100% 0 none)");

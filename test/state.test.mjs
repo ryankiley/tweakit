@@ -410,7 +410,7 @@ test("an upload IndexedDB refuses after destroy() still saves inline", async () 
   q.destroy();
 });
 
-// Saved values were a bare object, so a change to what's stored (a color's precision, a grey's hue) couldn't tell old data
+// Saved values were a bare object, so a change to what's stored (a color's precision, a gray's hue) couldn't tell old data
 // from new. They and presets are now wrapped with a format version; a bare object is the version before, read as it is.
 test("values and presets save as { v: 1, … }, and a bare object from before still restores", async () => {
   localStorage.setItem("tw:t-v0", JSON.stringify({ x: 3 }));
