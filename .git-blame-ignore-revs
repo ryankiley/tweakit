@@ -1,0 +1,3 @@
+# The Prettier reformat (#284), so blame looks past it to the line's real author. Set up once with
+# git config blame.ignoreRevsFile .git-blame-ignore-revs (GitHub reads it on its own).
+c8a72575aa0603c27ab88094fee2a97e7bed4fd3
