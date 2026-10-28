@@ -42,7 +42,8 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     // Resolved once at mount: with no siblings for a predicate to read, `get` answers undefined.
     const none: Get = () => undefined;
     try { if (meta.render && !meta.render(none)) ctrl.el.classList.add("twk-cond-hidden"); } catch {}
-    try { const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled; if (d) setDisabled(ctrl.el, true); } catch {} // each predicate fails on its own
+    // each predicate fails on its own
+    try { const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled; if (d) setDisabled(ctrl.el, true); } catch {}
     root.append(ctrl.el);
     if (!valued) return;
     last = ctrl.get(); // the form the control opened on
@@ -52,11 +53,13 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     el: iso.box,
     set: (v) => { if (destroyed || !valued) return; if (ctrl) { ctrl.set(v); emit(ctrl.get()); } else { parked = v; queued = true; } },
     get: () => (!valued ? undefined : ctrl ? ctrl.get() : queued ? parked : meta.value),
-    destroy: () => { destroyed = true; if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy(); root.dataset.twkDestroyed = ""; root.remove(); iso.end(); }, // onLive listeners release on their next event by this mark
+    // onLive listeners release on their next event by this mark
+    destroy: () => { destroyed = true; if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy(); root.dataset.twkDestroyed = ""; root.remove(); iso.end(); },
     ready: null,
   };
   handle.ready = whenLoaded([meta], build, handle);
-  if (iso.dressed) (handle.ready = Promise.all([handle.ready, iso.dressed]).then(() => handle)).catch(() => {}); // the handled fork whenLoaded keeps
+  // the handled fork whenLoaded keeps
+  if (iso.dressed) (handle.ready = Promise.all([handle.ready, iso.dressed]).then(() => handle)).catch(() => {});
   return handle;
 }
 
@@ -67,7 +70,8 @@ export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
   const emit = (v: string) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v); };
   const build = () => {
     if (destroyed) return;
-    const make = getControl<PickerBody, PickerOptions>("colorpicker"); // registered by the color module beside its control
+    // registered by the color module beside its control
+    const make = getControl<PickerBody, PickerOptions>("colorpicker");
     if (!make) return;
     body = using(opts.strings, () => make({ value: opts.value, mode: opts.mode }, emit));
     last = body.get();

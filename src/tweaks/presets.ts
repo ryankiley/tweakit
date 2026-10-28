@@ -27,7 +27,8 @@ export const presetsMenu = (trigger: HTMLButtonElement, names: () => string[], s
       row.append(loadBtn, del); list.append(row);
     }
   };
-  const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } if (!save(nm)) { announce(tr("presetFull", "Preset {name} not saved: storage is full", { name: nm })); return; } input.value = ""; renderList(); announce(tr("presetSaved", "Saved preset {name}", { name: nm })); }; // a refused save keeps the typed name
+  // a refused save keeps the typed name
+  const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } if (!save(nm)) { announce(tr("presetFull", "Preset {name} not saved: storage is full", { name: nm })); return; } input.value = ""; renderList(); announce(tr("presetSaved", "Saved preset {name}", { name: nm })); };
   // The shared popover shell; align:"end" hangs it off the button's right edge.
   const menuPop = popover(trigger, trigger, menu, {
     width: 208, fallbackH: 160, align: "end",

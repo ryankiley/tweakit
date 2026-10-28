@@ -27,7 +27,8 @@ test("a failed build's controls release their window listeners once the panel is
   try {
     const p = lazy.tweaks("R7C", { s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } }, n: { type: "number", value: 1 } });
     document.body.append(p.el);
-    p.params.n = uncoercible(); // the spring builds and registers its window listener; the number field's set() then throws out of build()
+    // the spring builds and registers its window listener; the number field's set() then throws out of build()
+    p.params.n = uncoercible();
     await assert.rejects(p.ready, TypeError);
     assert.ok(added.size >= 1, "the spring registered a resize listener before the build threw");
     p.destroy();
@@ -97,7 +98,8 @@ test("a listener that destroys the panel on the persisted restore leaves no list
     document.body.append(p.el);
     p.on(() => p.destroy());
     await p.ready;
-    assert.equal(counts.add, 0, "the undo listener never registered on the panel the restore's listener had destroyed"); // (the hint teardown removes a keydown listener unconditionally, so removes are not a usable count)
+    // (the hint teardown removes a keydown listener unconditionally, so removes are not a usable count)
+    assert.equal(counts.add, 0, "the undo listener never registered on the panel the restore's listener had destroyed");
   } finally { document.addEventListener = add; document.removeEventListener = remove; }
 });
 
@@ -116,7 +118,8 @@ test("a resize during the lazy window is applied once the panel is ready", async
 test("a value parked on params stays out of every snapshot, so one JSON can't take breaks none", async () => {
   const warns = await warnings(async () => {
     const p = lazy.tweaks("RFT", { x: [1, 0, 10, 1], im: { type: "image" } }, { undo: true, persist: "rf-t" });
-    const loop = {}; loop.self = loop; p.params.loop = loop; // parked before ready; the undo seed, the persist timer and toJSON all snapshot
+    // parked before ready; the undo seed, the persist timer and toJSON all snapshot
+    const loop = {}; loop.self = loop; p.params.loop = loop;
     await p.ready;
     p.set("x", 5);
     assert.equal(p.params.x, 5, "the panel works");

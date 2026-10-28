@@ -24,7 +24,8 @@ const parseShadow = (s: string): ShadowInput | null => {
   return { inset, x: n[0], y: n[1], blur: n[2] ?? 0, spread: n[3] ?? 0, color: m[0] };
 };
 
-const CHEVRON = icon('<path d="M18 9s-4.4 6-6 6-6-6-6-6"/>', "twk-shadow-chevron", 2.5); // the kit's chevron; importing icons.ts splits a 4th chunk
+// the kit's chevron; importing icons.ts splits a 4th chunk
+const CHEVRON = icon('<path d="M18 9s-4.4 6-6 6-6-6-6-6"/>', "twk-shadow-chevron", 2.5);
 function createShadow(meta: Meta, onChange: OnChange): Control {
   const tr = words();
   const read = (v: unknown): ShadowInput | null => (typeof v === "string" ? parseShadow(v) : isObj(v) ? v : null);
@@ -32,7 +33,8 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   let inset = !!init.inset;
 
   // ── Row — label, chip, summary. ──
-  const { root, trigger, right } = triggerRow("twk-shadow", meta.label ?? tr("shadow", "Shadow")); // ??: an explicit "" label renders none
+  // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-shadow", meta.label ?? tr("shadow", "Shadow"));
   const chip = el("span", "twk-trigger-chip twk-shadow-chip"), chipTile = el("span", "twk-shadow-chip-tile"); chip.append(chipTile);
   const valueEl = el("span", "twk-trigger-value");
   right.append(chip, valueEl);
@@ -54,7 +56,8 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   cRight.append(cSwatch, cText); cRight.insertAdjacentHTML("beforeend", CHEVRON); colorRow.append(txt("span", "twk-trigger-label", tr("color", "Color")), cRight);
   const body = createPickerBody({ value: typeof init.color === "string" && isColor(init.color) ? init.color : DEF.color, onMode: () => update() }, () => { update(); emit(); });
   body.el.hidden = true;
-  colorRow.addEventListener("click", () => { const show = body.el.hidden; body.el.hidden = !show; colorRow.setAttribute("aria-expanded", String(show)); pop_.reflow(); }); // re-place for the new height; the picker lays out now
+  // re-place for the new height; the picker lays out now
+  colorRow.addEventListener("click", () => { const show = body.el.hidden; body.el.hidden = !show; colorRow.setAttribute("aria-expanded", String(show)); pop_.reflow(); });
   pop.append(stage, insetRow, fields, colorRow, body.el);
   root.append(pop);
 

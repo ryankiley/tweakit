@@ -61,7 +61,8 @@
       btn.setAttribute("aria-expanded", String(open));
       if (open) body.removeAttribute("hidden"); else body.setAttribute("hidden", "until-found");
     };
-    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true")); // the page never scrolls on its own
+    // the page never scrolls on its own
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
     body.addEventListener("beforematch", () => set(true));
   });
 

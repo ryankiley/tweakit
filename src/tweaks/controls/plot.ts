@@ -20,7 +20,8 @@ const PLOT_FUNCS: Record<string, (...args: number[]) => number> = Object.assign(
   sign: Math.sign, trunc: Math.trunc, min: Math.min, max: Math.max, pow: Math.pow, hypot: Math.hypot,
   mod: (a: number, b: number) => a % b, clamp: (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi),
 });
-const PLOT_VARIADIC = ["min", "max", "hypot"]; // called empty these return a number (Infinity, 0), so a slip drew nothing and flagged nothing
+// called empty these return a number (Infinity, 0), so a slip drew nothing and flagged nothing
+const PLOT_VARIADIC = ["min", "max", "hypot"];
 const PLOT_CONSTS: Record<string, number> = Object.assign(Object.create(null), { pi: Math.PI, e: Math.E, tau: Math.PI * 2, phi: (1 + Math.sqrt(5)) / 2 });
 /** The compiled expression, or null on any parse error. */
 export function compileExpr(src: unknown): Expr | null {
@@ -29,7 +30,8 @@ export function compileExpr(src: unknown): Expr | null {
 /** The compiled expression, or why it doesn't parse; the reason names the fix where there is one ("write sin(…)"). */
 export function parseExpr(src: unknown): Expr | string {
   if (typeof src !== "string" || !src.trim()) return "type an expression in x";
-  if (src.length > 512) return "too long: 512 characters at most"; // also bounds recursion depth, so no RangeError mid-parse
+  // also bounds recursion depth, so no RangeError mid-parse
+  if (src.length > 512) return "too long: 512 characters at most";
   const s = src, toks: Tok[] = [];
   // `5.` reads as 5, as `.5` reads as 0.5. An e is an exponent only with a digit right after it (and its sign): `2e+1` is
   // 20, while `2e+x` is the constant, 2·e + x, as `2e` alone is 2·e. Scientific notation never has a name for its power.
@@ -53,7 +55,8 @@ export function parseExpr(src: unknown): Expr | string {
     return `unexpected "${ch}"`;
   }
   let p = 0, why = "";
-  const fail = (m: string): null => { why = why || m; return null; }; // the innermost reason wins; every caller unwinds on null
+  // the innermost reason wins; every caller unwinds on null
+  const fail = (m: string): null => { why = why || m; return null; };
   const peek = () => toks[p];
   const eat = (t?: Tok["t"]) => { const tok = toks[p]; if (!tok || (t && tok.t !== t)) return null; p++; return tok; };
   const add = (): Expr | null => {
@@ -95,7 +98,8 @@ export function parseExpr(src: unknown): Expr | string {
     if (tok.t === "lp") { eat("lp"); const e = add(); if (!e || !eat("rp")) return null; return e; }
     if (tok.t === "id") {
       eat("id"); const name = tok.v.toLowerCase(), fn = PLOT_FUNCS[name];
-      if (peek() && peek().t === "lp" && (fn || (name !== "x" && !(name in PLOT_CONSTS)))) { // `x(2)`: a product, in mul()
+      // `x(2)`: a product, in mul()
+      if (peek() && peek().t === "lp" && (fn || (name !== "x" && !(name in PLOT_CONSTS)))) {
         if (!fn) return fail(`unknown function "${tok.v}"`);
         eat("lp"); const argv: Expr[] = [];
         if (peek() && peek().t !== "rp") { do { const a = add(); if (!a) return null; argv.push(a); } while (eat("comma")); }
@@ -140,12 +144,14 @@ export function parseExpr(src: unknown): Expr | string {
 function createPlot(meta: Meta, onChange: OnChange): Control {
   const tr = words();
   // Non-finite bounds take the defaults, an inverted pair swaps, an equal pair pads out (÷0 drew nothing); a degenerate y-range falls back to auto.
-  let xMin = Number(meta.xMin ?? meta.min), xMax = Number(meta.xMax ?? meta.max); // min/max are the verbose form's aliases
+  // min/max are the verbose form's aliases
+  let xMin = Number(meta.xMin ?? meta.min), xMax = Number(meta.xMax ?? meta.max);
   if (!Number.isFinite(xMin)) xMin = -10;
   if (!Number.isFinite(xMax)) xMax = 10;
   if (xMax < xMin) { const t = xMin; xMin = xMax; xMax = t; }
   if (xMax === xMin) { xMin -= 1; xMax += 1; }
-  const samples = Math.max(2, Math.min(4096, (meta.samples | 0) || 256)); // capped: 1e8 samples per keystroke froze the tab
+  // capped: 1e8 samples per keystroke froze the tab
+  const samples = Math.max(2, Math.min(4096, (meta.samples | 0) || 256));
   const fixedY = Number.isFinite(meta.yMin) && Number.isFinite(meta.yMax) && +meta.yMax > +meta.yMin;
   const fn = typeof meta.fn === "function" ? meta.fn : null;
   const editable = meta.editable !== false && !fn;
@@ -164,7 +170,8 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
     const field = el("div", "twk-plot-field");
     input = el("input", "twk-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
     input.autocapitalize = "off"; quietFocus(input); /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute("aria-label", tr("expression", "{label} — expression in x", { label: meta.label || tr("plot", "Plot") })); input.setAttribute("aria-invalid", "false");
-    field.append(txt("span", "twk-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML
+    // txt, not el(…, html): el's third arg is innerHTML
+    field.append(txt("span", "twk-plot-fx", "y ="), input); root.append(field);
   }
 
   const PAD = 6;
@@ -172,7 +179,8 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
     // Flag invalid before the size guard, so a hidden tab page still reports a bad expression.
     const f = typeof compiled === "function" ? compiled : null, ok = !!f;
     root.classList.toggle("is-invalid", editable && !ok);
-    if (input) { input.setAttribute("aria-invalid", ok ? "false" : "true"); input.title = ok ? "" : String(compiled); } // the title says why, and names the fix
+    // the title says why, and names the fix
+    if (input) { input.setAttribute("aria-invalid", ok ? "false" : "true"); input.title = ok ? "" : String(compiled); }
     const r = graph.getBoundingClientRect(), W = r.width, H = r.height; if (W < 2) return;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     const ys: number[] = []; let yLo = Infinity, yHi = -Infinity;
@@ -208,12 +216,14 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   });
 
   onReady(draw);
-  onLive(root, [[window, "resize"], [window, "twk-reflow"]], draw); // twk-reflow: a tab page revealing this re-measures it
+  // twk-reflow: a tab page revealing this re-measures it
+  onLive(root, [[window, "resize"], [window, "twk-reflow"]], draw);
 
   return {
     el: root,
     get: () => expr,
-    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!fn) compiled = parseExpr(expr); draw(); }, // an invalid expression flags, as typing does
+    // an invalid expression flags, as typing does
+    set: (v: unknown) => { if (v == null) return; expr = String(v); if (input) input.value = expr; if (!fn) compiled = parseExpr(expr); draw(); },
   };
 }
 

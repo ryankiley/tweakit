@@ -43,7 +43,8 @@ const field = (value: any, key: string): string | null => (value && !Array.isArr
 const parseInterp = (value: any) => field(value, "interpolation");
 const parseEase = (value: any) => field(value, "easing");
 // The easing menu; a stored cubic-bezier() not among them shows as a "Custom" option while it's the value.
-const EASINGS: Array<[GradientEasing, string, string]> = [["linear", "easeLinear", "Linear"], ["ease", "ease", "Ease"], ["ease-in", "easeIn", "Ease in"], ["ease-out", "easeOut", "Ease out"], ["ease-in-out", "easeInOut", "Ease in-out"]]; // value, strings key, word
+// value, strings key, word
+const EASINGS: Array<[GradientEasing, string, string]> = [["linear", "easeLinear", "Linear"], ["ease", "ease", "Ease"], ["ease-in", "easeIn", "Ease in"], ["ease-out", "easeOut", "Ease out"], ["ease-in-out", "easeInOut", "Ease in-out"]];
 function normalizeStops(value: any): GradientStop[] {
   const DEF: GradientStop[] = [{ color: "oklch(0.72 0.19 25)", pos: 0 }, { color: "oklch(0.72 0.16 280)", pos: 1 }];
   const arr = Array.isArray(value) ? value : (value && Array.isArray(value.stops) ? value.stops : null);
@@ -69,7 +70,8 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   let easing = easingName(ease0); // unrecognized reads as linear
 
   // ── Trigger row — the strip is the readout; the stop count rides along for the accessibility tree. ──
-  const { root, trigger, right } = triggerRow("twk-gradient", meta.label ?? tr("gradient", "Gradient")); // ??: an explicit "" label renders none
+  // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-gradient", meta.label ?? tr("gradient", "Gradient"));
   const preview = el("span", "twk-trigger-chip twk-gradient-preview"); preview.setAttribute("role", "img");
   right.append(preview);
 
@@ -93,9 +95,11 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const reflectCount = () => { preview.setAttribute("aria-label", tr("stops", (v) => `${v.n} stop${v.n === 1 ? "" : "s"}`, { n: stops.length })); };
   const emit = () => onChange(value());
 
-  const handleFor = (s: GradientStop) => [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s); // the rail holds only stop handles
+  // the rail holds only stop handles
+  const handleFor = (s: GradientStop) => [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s);
   // Unlike the standalone color control, a mode switch here IS a change to the gradient's output, so it repaints and re-emits.
-  const body = createPickerBody({ value: selStop.color, mode: interpolationMode(interp0 || "oklch"), onMode: () => { paint(); emit(); } }, (c) => { // oklch: the documented default and colorAt's blend space
+  // oklch: the documented default and colorAt's blend space
+  const body = createPickerBody({ value: selStop.color, mode: interpolationMode(interp0 || "oklch"), onMode: () => { paint(); emit(); } }, (c) => {
     selStop.color = c;
     handleFor(selStop)?.style.setProperty("--stop", c);
     paint(); emit();
@@ -109,7 +113,8 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     else { if (!custom) { custom = document.createElement("option"); custom.dataset.custom = ""; custom.textContent = tr("custom", "Custom"); easeSel.append(custom); } custom.value = easing; }
     easeSel.value = easing;
   };
-  easeSel.addEventListener("change", () => { easing = easeSel.value as GradientEasing; reflectEase(); paint(); emit(); }); // reflect: picking a keyword retires the Custom option
+  // reflect: picking a keyword retires the Custom option
+  easeSel.addEventListener("change", () => { easing = easeSel.value as GradientEasing; reflectEase(); paint(); emit(); });
   body.el.querySelector(".twk-color-mode")!.after(easeSel); // after the mode select, before the gamut tag
   reflectEase();
   pop.append(barRow, body.el);
@@ -162,13 +167,15 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const colorAt = (pos: number) => {
     const ss = sorted(); let lo = ss[0], hi = ss[ss.length - 1];
     for (let k = 0; k < ss.length - 1; k++) if (pos >= ss[k].pos && pos <= ss[k + 1].pos) { lo = ss[k]; hi = ss[k + 1]; break; }
-    const t = easingAt(parseEasing(easing), hi.pos > lo.pos ? clamp((pos - lo.pos) / (hi.pos - lo.pos), 0, 1) : 0); // a pos outside the outermost stops never extrapolates
+    // a pos outside the outermost stops never extrapolates
+    const t = easingAt(parseEasing(easing), hi.pos > lo.pos ? clamp((pos - lo.pos) / (hi.pos - lo.pos), 0, 1) : 0);
     const a = parseColor(lo.color), b = parseColor(hi.color);
     // CSS missing-hue: a ~zero-chroma stop carries no hue, so the other's holds (white→red stays red).
     const ach = (c: Oklcha) => c[1] < 1e-4;
     let dh = b[2] - a[2]; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
     if (ach(a) || ach(b)) dh = 0;
-    const H = ((((ach(a) && !ach(b) ? b[2] : a[2]) + dh * t) % 360) + 360) % 360; // normalize to [0,360) so the picker reads it cleanly
+    // normalize to [0,360) so the picker reads it cleanly
+    const H = ((((ach(a) && !ach(b) ? b[2] : a[2]) + dh * t) % 360) + 360) % 360;
     return oklchStr(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, H, a[3] + (b[3] - a[3]) * t);
   };
   const removeStop = (s: GradientStop) => {
@@ -226,7 +233,8 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
       } else {
         const selPos = selStop.pos;
         stops = next;
-        selStop = stops.reduce((b, s) => (Math.abs(s.pos - selPos) < Math.abs(b.pos - selPos) ? s : b), stops[0]); // re-select the nearest position, not index 0
+        // re-select the nearest position, not index 0
+        selStop = stops.reduce((b, s) => (Math.abs(s.pos - selPos) < Math.abs(b.pos - selPos) ? s : b), stops[0]);
         renderHandles();
       }
       paint(); reflectCount(); body.set(selStop.color);

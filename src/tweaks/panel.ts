@@ -35,12 +35,15 @@ let catchEl: HTMLTextAreaElement | null = null, onCatch: ((e: ClipboardEvent) =>
  *  A schema written inline (or `as const`) types `params` from its shape. */
 export function tweaks<const S extends HeldSchema>(name: string, schema: S & KnownTypes<S>, opts?: TweaksOptions): Panel<ParamsOf<S>>;
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
-  const metas = using(opts.strings, () => Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean)); // an untitled tab page's name is a word too
+  // an untitled tab page's name is a word too
+  const metas = using(opts.strings, () => Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean));
   const tr = words(opts.strings); // the panel's own words; its controls take them as assemble() builds them
   const params: Params = {};
-  let last: string | undefined; // the dotted path the latest change touched (`card.size`), as set() and changes() name it: on()'s second argument
+  // the dotted path the latest change touched (`card.size`), as set() and changes() name it: on()'s second argument
+  let last: string | undefined;
   const entries: Entry[] = []; // flattened across folders, for reset + persist
-  const valueless = new Map<string, string>(); // dotted path → type of each button, monitor, separator: set() says it holds no value
+  // dotted path → type of each button, monitor, separator: set() says it holds no value
+  const valueless = new Map<string, string>();
   const listeners = new Set<(p: Params, last?: string) => void>();
   const own = new Set<(p: Params, last?: string) => void>(); // undo + conditionals: all a silent write calls
   const cleanups: Array<() => void> = []; // releases for destroy(): document/window listeners, timers
@@ -50,9 +53,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const queue: Array<() => void> = [];
   let failed = false; // the chunks failed: the panel can never be built
   let built = -1; // cleanups.length as assemble() enters build()
-  const later = (fn: () => void) => { if (destroyed) return; if (failed) return; assembled ? fn() : queue.push(fn); }; // the failed build already said why
+  // the failed build already said why
+  const later = (fn: () => void) => { if (destroyed) return; if (failed) return; assembled ? fn() : queue.push(fn); };
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its slot
-  const carried: Record<string, string> = {}; // what the lift carried from the slot's context (lift()), under the panel's own theme
+  // what the lift carried from the slot's context (lift()), under the panel's own theme
+  const carried: Record<string, string> = {};
   // The values snapshot: undefined written as null (JSON would drop the key).
   const replacer = (_k: string, v: unknown) => v === undefined ? null : v;
   // params as the schema shapes it, folders and tab pages included: a value the host parks on params is its own, so
@@ -76,15 +81,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let holdsKey = !!persistKey;
   if (persistKey) { const n = liveKeys.get(persistKey) || 0; if (n) notice("sharedKey", persistKey.slice(3)); liveKeys.set(persistKey, n + 1); }
   const releaseKey = () => { if (!holdsKey) return; holdsKey = false; const n = (liveKeys.get(persistKey!) || 1) - 1; if (n) liveKeys.set(persistKey!, n); else liveKeys.delete(persistKey!); };
-  const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }; // any: a parsed JSON blob, whatever the store holds
-  const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }; // false: storage off, full or denied
+  // any: a parsed JSON blob, whatever the store holds
+  const readStore = (k: string): any => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
+  // false: storage off, full or denied
+  const writeStore = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
   // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to what's
   // stored (a color's precision, a gray's hue) can tell old data from new. Anything else (0.5's bare object) reads as
   // nothing, and the panel opens on its defaults.
   const unwrap = (s: any, k: string) => (s?.v === 1 ? s[k] : null);
   const writeValues = (snap: Snapshot) => writeStore(persistKey!, { v: 1, values: snap });
   const writePresets = (all: unknown) => writeStore(presetsKey!, { v: 1, presets: all });
-  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj); // own keys only: a control keyed toString must not read Object.prototype's
+  // own keys only: a control keyed toString must not read Object.prototype's
+  const atPath = (obj: Snapshot | null, path: string[]): unknown => path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj);
   // Take one entry's value out of a snapshot; true when it was there. Reflect: an undeletable key is left, not thrown.
   const drop = (snap: Snapshot | null, e: Entry) => { const o: any = atPath(snap, e.path.slice(0, -1)); if (!o || typeof o !== "object" || !hasOwn(o, e.key)) return false; Reflect.deleteProperty(o, e.key); return true; };
   // A control with `persist: false` stays out of what is saved and out of what is restored.
@@ -95,10 +103,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // upload (not answered yet, unavailable, or it refused that image), the data URL saves inline, as 0.5 saved it, and moves
   // to the store on a later save; a write storage refuses then leaves the inline images out. With no store, a stored ref
   // stays saved as it was until its row is written. ──
-  let imgs: ReturnType<typeof import("./image-store.js")["bind"]> | null = null, savedImages: Map<string, string> | null = null; // both null without IndexedDB
+  // both null without IndexedDB
+  let imgs: ReturnType<typeof import("./image-store.js")["bind"]> | null = null, savedImages: Map<string, string> | null = null;
   let imagesReady = false; // the store has answered, or failed to load
-  const waiting = new Map<Entry, [string, unknown]>(); // a row's stored ref, and the value it held while the store loaded or the image was fetched
-  const isRef = (v: unknown): v is string => typeof v === "string" && v.startsWith("tw-image:"); // image-store.ts's ref, readable before that chunk loads
+  // a row's stored ref, and the value it held while the store loaded or the image was fetched
+  const waiting = new Map<Entry, [string, unknown]>();
+  // image-store.ts's ref, readable before that chunk loads
+  const isRef = (v: unknown): v is string => typeof v === "string" && v.startsWith("tw-image:");
   const isDataUrl = (v: unknown): v is string => typeof v === "string" && v.startsWith("data:");
   const imageEntries = () => entries.filter((e) => e.m.type === "image");
   const unsavable = new Map<Entry, unknown>();
@@ -107,7 +118,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const stored = imagesReady && imgs ? readStore(persistKey!) : undefined; // undefined: no store to hold an upload
     for (const e of imageEntries()) {
       const o: any = atPath(snap, e.path.slice(0, -1)), v = o?.[e.key], w = waiting.get(e);
-      if (w && o && hasOwn(o, e.key)) { if (!valueChanged(w[1], v)) { o[e.key] = w[0]; continue; } waiting.delete(e); } // still loading or no store: keep the stored ref; a write since settles it
+      // still loading or no store: keep the stored ref; a write since settles it
+      if (w && o && hasOwn(o, e.key)) { if (!valueChanged(w[1], v)) { o[e.key] = w[0]; continue; } waiting.delete(e); }
       if (!isDataUrl(v) || stored === undefined) continue; // a URL is small, and a data URL with no store saves inline
       const ref = imgs!.save(e, v, stored);
       if (ref) o[e.key] = ref;
@@ -136,7 +148,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const pending: [Entry, string][] = [];
     applySnapshot(fromRefs(snap, pending), silent);
     for (const [e, ref] of pending) {
-      const w: [string, unknown] = [ref, e.get()]; waiting.set(e, w); // a write meanwhile settles it, even back to the value held
+      // a write meanwhile settles it, even back to the value held
+      const w: [string, unknown] = [ref, e.get()]; waiting.set(e, w);
       if (!imagesReady || !imgs) continue; // no store: the ref stays saved until the row is written
       imgs.fetch(ref).then((url) => { if (waiting.get(e) !== w) return; waiting.delete(e); if (url && late(e, w[1], url)) { last = undefined; notify(); } });
     }
@@ -147,7 +160,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (!assembled || destroyed || failed) { waiting.clear(); return; } // not built yet: the build resolves refs itself
     let changed = false;
     for (const [e, [ref, held]] of [...waiting]) { const url = savedImages?.get(ref); if (url && late(e, held, url)) changed = true; }
-    if (imgs) waiting.clear(); // no store: each ref stays waiting, so no save writes the default over it and no later session prunes it
+    // no store: each ref stays waiting, so no save writes the default over it and no later session prunes it
+    if (imgs) waiting.clear();
     if (changed) { last = undefined; notify(); }
     else if (imgs) persist(); // an upload saved inline while the store loaded moves to it now
   };
@@ -176,7 +190,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   })() : () => {};
   // Each listener runs isolated: a throwing callback can't break the others or skip persist().
   // `last` is read once, so a write one listener makes can't change the key the rest are told.
-  const notify = (silent?: boolean, changed = last) => { (silent ? own : listeners).forEach((fn) => { try { fn(params, changed); } catch (e) { console.error("[tweaks] listener threw:", e); } }); if (!destroyed) persist(); }; // a listener may destroy() the panel: arm no save behind it
+  // a listener may destroy() the panel: arm no save behind it
+  const notify = (silent?: boolean, changed = last) => { (silent ? own : listeners).forEach((fn) => { try { fn(params, changed); } catch (e) { console.error("[tweaks] listener threw:", e); } }); if (!destroyed) persist(); };
   // The one write path behind restores and set(). A function/symbol/bigint is no control value (JSON can't carry those).
   const notAValue = (v: unknown) => typeof v === "function" || typeof v === "symbol" || typeof v === "bigint";
   // An explicit write also settles a row still waiting for its stored image: the host's or the person's value wins.
@@ -275,7 +290,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const stored = draggable && posKey ? readStore(posKey) : null;
   const saved = stored && typeof stored === "object" ? stored : null;
   const start = saved || place || { x: 16, y: 16 };
-  const inset = (v: unknown) => { const n = parseFloat(v as string); return n >= 0 ? n : 16; }; // 0 is an inset, not a missing one
+  // 0 is an inset, not a missing one
+  const inset = (v: unknown) => { const n = parseFloat(v as string); return n >= 0 ? n : 16; };
   const x0 = inset(start.x), y0 = inset(start.y);
   let px = x0, py = y0;
   // The gap a capped panel keeps from the far edge: while it sits at its opts.floating placement, the inset that gave the
@@ -325,10 +341,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     t.addEventListener("pointerup", cancelHold);
     t.addEventListener("pointercancel", cancelHold);
     t.addEventListener("pointerleave", cancelHold);
-    t.addEventListener("contextmenu", (e) => { if (held) e.preventDefault(); }); // a long-press mustn't raise the text callout
-    t.addEventListener("click", (e) => { if (held) { e.preventDefault(); e.stopImmediatePropagation(); held = false; } }, true); // a completed hold-reset swallows the trailing tap-to-edit
+    // a long-press mustn't raise the text callout
+    t.addEventListener("contextmenu", (e) => { if (held) e.preventDefault(); });
+    // a completed hold-reset swallows the trailing tap-to-edit
+    t.addEventListener("click", (e) => { if (held) { e.preventDefault(); e.stopImmediatePropagation(); held = false; } }, true);
     t.addEventListener("dblclick", (e) => {
-      if (t === root && (e.target as Element).closest?.("input, textarea")) return; // a double-click in a text field is a word-select
+      // a double-click in a text field is a word-select
+      if (t === root && (e.target as Element).closest?.("input, textarea")) return;
       e.preventDefault(); e.stopPropagation(); resetEntry(entry);
     });
     // Click #1 can swap the readout for the inline input, so the dblclick lands there; delegated on the root.
@@ -343,7 +362,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     root.addEventListener("keydown", (e) => {
       if (!e.altKey || e.metaKey || e.ctrlKey || (e.key !== "Backspace" && e.key !== "Delete")) return;
       e.preventDefault(); e.stopPropagation();
-      if ((e.target as HTMLElement).classList?.contains("twk-slider-input")) (e.target as HTMLElement).blur(); // an open inline editor commits + closes first
+      // an open inline editor commits + closes first
+      if ((e.target as HTMLElement).classList?.contains("twk-slider-input")) (e.target as HTMLElement).blur();
       resetEntry(entry);
     });
   };
@@ -362,7 +382,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (m.hint) addHintMarker(node, m.hint);
     if (m.render || m.disabled != null) conditionals.push({ node, m });
   };
-  const folderEls: Array<{ path: string[]; el: HTMLElement; setCollapsed: (c: boolean) => void }> = [], tabsCtrls: Array<{ path: string[]; ctrl: TabsControl; pageKeys: string[] }> = []; // UI state for toJSON/fromJSON, keyed by path
+  // UI state for toJSON/fromJSON, keyed by path
+  const folderEls: Array<{ path: string[]; el: HTMLElement; setCollapsed: (c: boolean) => void }> = [], tabsCtrls: Array<{ path: string[]; ctrl: TabsControl; pageKeys: string[] }> = [];
 
   // A control's own loop (the monitor, the FPS graph) hands back a `destroy`; a panel destroyed before it ever connected would run it forever.
   const adopt = (ctrl: Control) => { if (typeof ctrl.destroy === "function") cleanups.push(ctrl.destroy); };
@@ -389,8 +410,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       }
       const valued = !VALUELESS.has(m.type);
       const dotted = [...basePath, m.key].join("."); // a bare leaf couldn't tell size from card.size
-      let entry: Entry | undefined; // a change made in the panel settles a row waiting for its stored image, as assign does
-      const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; if (entry) waiting.delete(entry); target[m.key] = v; last = dotted; notify(); } : () => {}); // same-value emits (a re-entrant echo) don't notify
+      // a change made in the panel settles a row waiting for its stored image, as assign does
+      let entry: Entry | undefined;
+      // same-value emits (a re-entrant echo) don't notify
+      const ctrl = createControl(m, valued ? (v: unknown) => { if (!valueChanged(target[m.key], v)) return; if (entry) waiting.delete(entry); target[m.key] = v; last = dotted; notify(); } : () => {});
       if (!ctrl) continue;
       adopt(ctrl);
       if (!valued) valueless.set(dotted, m.type);
@@ -419,14 +442,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     last = undefined; notify(silent);
   };
   // ── Named presets (opt-in via opts.persist) — snapshots under "<key>:presets" ──
-  const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? unwrap(readStore(presetsKey), "presets") : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); }; // null-proto: a preset named "__proto__" is an ordinary key
+  // null-proto: a preset named "__proto__" is an ordinary key
+  const listPresets = (): Record<string, Snapshot> => { const p = presetsKey ? unwrap(readStore(presetsKey), "presets") : null; return Object.assign(Object.create(null), p && typeof p === "object" ? p : {}); };
   // False when storage refused the write, so the caller can say so instead of claiming a save.
-  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); return writePresets(all); }; // the menu announces a refusal
-  const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) restore(all[nm]); }; // re-read at replay: a delete queued ahead of it wins
+  // the menu announces a refusal
+  const savePreset = (nm: string) => { const all = listPresets(); all[nm] = toRefs(snapshot()); return writePresets(all); };
+  // re-read at replay: a delete queued ahead of it wins
+  const loadPreset = (nm: string) => { const all = listPresets(); if (all[nm]) restore(all[nm]); };
   const deletePreset = (nm: string) => { const all = listPresets(); delete all[nm]; if (writePresets(all)) pruneImages(); };
 
   // ── Whole-panel UI state (toJSON / fromJSON) — folder open/closed and the active tab, keyed by dotted path ──
-  const pathKey = (p: string[]) => p.map((k) => String(k).replace(/~/g, "~1").replace(/\./g, "~0")).join("."); // JSON-pointer escaping, so a literal "." can't collide
+  // JSON-pointer escaping, so a literal "." can't collide
+  const pathKey = (p: string[]) => p.map((k) => String(k).replace(/~/g, "~1").replace(/\./g, "~0")).join(".");
   const collectUI = () => {
     const ui: NonNullable<PanelState["ui"]> = {};
     if (folderEls.length) { const f: Record<string, boolean> = {}; for (const fe of folderEls) f[pathKey(fe.path)] = fe.el.classList.contains("is-collapsed"); ui.folders = f; }
@@ -436,7 +463,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const applyUI = (ui: PanelState["ui"]) => {
     if (!ui || typeof ui !== "object") return;
     if (ui.folders) for (const fe of folderEls) { const c = ui.folders[pathKey(fe.path)]; if (typeof c === "boolean") fe.setCollapsed(c); }
-    if (ui.tabs) for (const tc of tabsCtrls) { const i = tc.pageKeys.indexOf(ui.tabs[pathKey(tc.path)]); if (i >= 0 && i !== tc.ctrl.active()) tc.ctrl.activate(i); } // a re-activate would fire a spurious twk-reflow
+    // a re-activate would fire a spurious twk-reflow
+    if (ui.tabs) for (const tc of tabsCtrls) { const i = tc.pageKeys.indexOf(ui.tabs[pathKey(tc.path)]); if (i >= 0 && i !== tc.ctrl.active()) tc.ctrl.activate(i); }
   };
 
   // ── Repositioning — drag the header to move the panel ──
@@ -453,7 +481,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         liftSlot = el("span", "twk-lift-slot");
         liftSlot.style.width = r.width + "px"; liftSlot.style.height = r.height + "px";
         liftSlot.setAttribute("aria-hidden", "true");
-        box.before(liftSlot); (box as any)._twSlot = liftSlot; // a shadow panel's scheme pin is read at its slot from here on
+        // a shadow panel's scheme pin is read at its slot from here on
+        box.before(liftSlot); (box as any)._twSlot = liftSlot;
       }
       // Portal to <body>: a transformed/filter/contain ancestor would become the fixed panel's containing block. The scheme scope doesn't ride along — carry it.
       // So does the rest of the slot's context: the text properties the kit leaves to inheritance (a host's font-size,
@@ -497,7 +526,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const onDragKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || dragId === null) return;
       e.preventDefault(); e.stopPropagation();
-      const id = dragId; dragId = null; listen(false); // before the release, so a lostpointercapture finds no drag to end
+      // before the release, so a lostpointercapture finds no drag to end
+      const id = dragId; dragId = null; listen(false);
       try { header.releasePointerCapture(id); } catch {}
       if (dragMoved) { px = ox; py = oy; apply(); }
       panel.classList.remove("is-dragging");
@@ -524,7 +554,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       e.preventDefault(); e.stopPropagation();
       const lifting = panel.dataset.mode !== "floating";
       grab();
-      if (lifting) titleBtn.focus({ preventScroll: true }); // the lift moves the panel to <body>, which drops focus; the next step needs it back
+      // the lift moves the panel to <body>, which drops focus; the next step needs it back
+      if (lifting) titleBtn.focus({ preventScroll: true });
       moveTo(px, py, dx, dy); savePos();
     });
     const onMove = (e: PointerEvent) => {
@@ -579,7 +610,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const load = () => (menu ||= import("./presets.js").then((m) => { if (destroyed) throw 0; made = true; return m.presetsMenu(b, () => Object.keys(listPresets()), savePreset, loadPreset, deletePreset, announce, ICON_X, tr); }, (e) => { menu = undefined; if (e !== 0) console.error("[tweaks] presets:", e); throw e; }));
     for (const t of ["pointerenter", "focus"]) b.addEventListener(t, () => { load().catch(() => {}); }, { once: true });
     let want = false;
-    const cancel = (e: Event) => { if (e.type === "keydown" ? (e as KeyboardEvent).key === "Escape" : !e.composedPath().includes(b)) want = false; }; // Escape, or a press or focus elsewhere
+    // Escape, or a press or focus elsewhere
+    const cancel = (e: Event) => { if (e.type === "keydown" ? (e as KeyboardEvent).key === "Escape" : !e.composedPath().includes(b)) want = false; };
     const watch = (on: boolean) => { for (const t of ["pointerdown", "focusin", "keydown"]) (on ? document.addEventListener : document.removeEventListener).call(document, t, cancel, true); };
     b.addEventListener("click", () => {
       if (made || b.disabled || want) return;
@@ -602,7 +634,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Out of sight: hidden by its condition, on a tab page not showing, or inside a collapsed folder or panel.
   const hidden = (el: Element) => !!(el.closest(".twk-cond-hidden, .twk-tabs-page:not([data-active=true])") || el.parentElement?.closest(".is-collapsed"));
   let pick: [Element, Scope] | undefined;
-  const away = (e: Event) => { const t = e.composedPath()[0] as Element; if (!panel.contains(t) && !t.closest?.(".twk-portal")) unpick(); }; // the path: a shadow host retargets e.target
+  // the path: a shadow host retargets e.target
+  const away = (e: Event) => { const t = e.composedPath()[0] as Element; if (!panel.contains(t) && !t.closest?.(".twk-portal")) unpick(); };
   const unpick = () => { if (!pick) return; pick[0].classList.remove("is-picked"); pick = undefined; document.removeEventListener("pointerdown", away, true); if (picked?.[0] === panel) picked = null; };
   const choose = (el: Element, s: Scope) => {
     if (picked && picked[0] !== panel) picked[1](); // one pick on the page
@@ -610,7 +643,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     document.addEventListener("pointerdown", away, true); // only while something is picked
     // Focus moves to what was picked (a folder's header, a row's control), so its keys work and a screen reader names
     // it; a press shows no ring. A text field isn't focused, or ⌘V would paste into it as text, and any selection goes.
-    const f = [...el.querySelectorAll<HTMLElement>('button:not(:disabled):not([tabindex="-1"]), [tabindex="0"]')].find((n) => !n.closest(".twk-hint, .twk-portal, [inert]")); // its tab stop, not a hint or a closed pop's
+    // its tab stop, not a hint or a closed pop's
+    const f = [...el.querySelectorAll<HTMLElement>('button:not(:disabled):not([tabindex="-1"]), [tabindex="0"]')].find((n) => !n.closest(".twk-hint, .twk-portal, [inert]"));
     if (f) f.focus({ preventScroll: true, focusVisible: false } as FocusOptions); else (activeIn(panel) as HTMLElement | null)?.blur?.();
     document.getSelection?.()?.removeAllRanges();
   };
@@ -639,13 +673,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (e.key === "Escape") { if (pick) { e.stopPropagation(); unpick(); } return; }
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.composedPath()[0] as Element)) return;
     const k = e.key.toLowerCase(); if (k !== "c" && k !== "v") return;
-    if (picked && !picked[0].isConnected) picked[1](); // the picking panel left the page without destroy(): free the slot
+    // the picking panel left the page without destroy(): free the slot
+    if (picked && !picked[0].isConnected) picked[1]();
     if (pick && hidden(pick[0])) unpick(); // a pick out of sight takes nothing
-    const fe = activeIn(panel), s = pick ? pick[1] : picked || !fe || hidden(fe) ? undefined : scopeAt(fe); // focus on a hidden row takes nothing either
-    const rn: any = panel.getRootNode(); // a shadow root's own selection where it has one (Chrome); else the document's holds it
-    if (!s || (k === "c" && String((rn.getSelection ? rn : document).getSelection?.() || ""))) return; // selected text: the browser copies that
+    // focus on a hidden row takes nothing either
+    const fe = activeIn(panel), s = pick ? pick[1] : picked || !fe || hidden(fe) ? undefined : scopeAt(fe);
+    // a shadow root's own selection where it has one (Chrome); else the document's holds it
+    const rn: any = panel.getRootNode();
+    // selected text: the browser copies that
+    if (!s || (k === "c" && String((rn.getSelection ? rn : document).getSelection?.() || ""))) return;
     const json = k === "c" ? JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2) : "";
-    const copied = (ok: boolean) => { if (!destroyed) announce(ok ? tr("rowCopied", "{label} copied", { label: s.label }) : tr("copyFailed", "Copy failed")); }; // words for a screen reader; the toolbar's copy button stays as it is
+    // words for a screen reader; the toolbar's copy button stays as it is
+    const copied = (ok: boolean) => { if (!destroyed) announce(ok ? tr("rowCopied", "{label} copied", { label: s.label }) : tr("copyFailed", "Copy failed")); };
     const band = pick?.[0], back = activeIn(panel) as HTMLElement | null, ring = !!back?.matches(":focus-visible");
     // The browser's copy or paste can land some milliseconds after this keydown (an app's menu passes it on), so focus
     // steps back only when it lands, or after a second with none; it's caught page-wide, wherever focus is by then.
@@ -660,7 +699,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     };
     if (!ta.isConnected) document.body.appendChild(ta);
     ta.value = json; ta.focus({ preventScroll: true }); ta.select();
-    setTimeout(() => { if (onCatch === h) { done(); if (json) copyText(json).then(copied); } }, 1000); // none came: write the copy directly
+    // none came: write the copy directly
+    setTimeout(() => { if (onCatch === h) { done(); if (json) copyText(json).then(copied); } }, 1000);
   };
 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,
@@ -669,7 +709,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (destroyed) return; // destroy() before the chunks landed: nothing to build
     built = cleanups.length; using(opts.strings, () => build(controls, metas, params));
     if (conditionals.length) {
-      const byKey = new Map<string, Entry>(); for (const e of entries) if (!byKey.has(e.key)) byKey.set(e.key, e); // first wins
+      // first wins
+      const byKey = new Map<string, Entry>(); for (const e of entries) if (!byKey.has(e.key)) byKey.set(e.key, e);
       const getVal = (k: string) => { const e = byKey.get(k); return e ? e.target[e.key] : params[k]; };
       const applyConditionals = () => {
         let revealed = false;
@@ -683,13 +724,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         if (revealed) requestReflow(); // built hidden it measured 0×0; shown, let it re-measure
       };
       listeners.add(applyConditionals); own.add(applyConditionals); applyConditionals();
-      import("./fold.js").then((m) => { fold = m.fold; }, () => {}); // a fold chunk that fails to load leaves the rows toggling
+      // a fold chunk that fails to load leaves the rows toggling
+      import("./fold.js").then((m) => { fold = m.fold; }, () => {});
     }
     // Restore last session, notifying: on the lazy path a host may already have subscribed.
     if (persistKey) restore(unsaved(unwrap(readStore(persistKey), "values")));
     if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm(); watchResize();
-    cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); })); // one document listener per panel for its keys
+    // one document listener per panel for its keys
+    cleanups.push(onLive(panel, [[document, "keydown"]], (e: KeyboardEvent) => { undoApi?.onKey(e); onClipKey(e); }));
     assembled = true;
     // Replay after the restore, so an explicit host set() wins over a stored value; a destroy() mid-replay drops the rest.
     for (const fn of queue.splice(0)) { if (destroyed) break; try { fn(); } catch (e) { console.error("[tweaks] a call queued before ready failed:", e); } }
@@ -742,12 +785,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const api = {
     el: box, params,
     on(fn) { if (destroyed) return () => {}; listeners.add(fn); return () => listeners.delete(fn); },
-    set(key, v, o) { const k = String(key), silent = o?.silent; later(() => { if (applySet(k, v)) notify(silent); }); }, // a key that can't stringify throws here, not in the replay
+    // a key that can't stringify throws here, not in the replay
+    set(key, v, o) { const k = String(key), silent = o?.silent; later(() => { if (applySet(k, v)) notify(silent); }); },
     // Batch write: listeners + persist fire once for the whole batch.
     setMany(values, o) {
       if (values == null || typeof values !== "object") return;
       const batch = Object.entries(values), silent = o?.silent; // read now, so a later mutation can't reach the replay
-      later(() => { let changed = 0; for (const [k, v] of batch) { try { if (applySet(k, v)) changed++; } catch (e) { console.error(`[tweaks] setMany("${k}") failed — key skipped:`, e); } } if (changed > 1) last = undefined; if (changed) notify(silent); }); // per-key isolation: a bad value costs only its key; one changed key is named, many aren't
+      // per-key isolation: a bad value costs only its key; one changed key is named, many aren't
+      later(() => { let changed = 0; for (const [k, v] of batch) { try { if (applySet(k, v)) changed++; } catch (e) { console.error(`[tweaks] setMany("${k}") failed — key skipped:`, e); } } if (changed > 1) last = undefined; if (changed) notify(silent); });
     },
     reset() { if (assembled && !destroyed) spinReset(resetBtn); later(resetAll); },
     // Whole-panel state — values + UI as a JSON-safe object (the standard toJSON hook). Before ready there
@@ -757,19 +802,24 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     fromJSON(state, o) {
       if (!state || typeof state !== "object") return;
       const silent = o?.silent;
-      const values = state.values && typeof state.values === "object" ? { ...state.values } : state.values, ui = state.ui && typeof state.ui === "object" ? { ...state.ui } : state.ui; // read now (one level), like setMany
+      // read now (one level), like setMany
+      const values = state.values && typeof state.values === "object" ? { ...state.values } : state.values, ui = state.ui && typeof state.ui === "object" ? { ...state.ui } : state.ui;
       later(() => { if (values) applySnapshot(values, silent); applyUI(ui); });
     },
     // Live theming clears the prior theme first, so setTheme(null) reverts to the default look.
-    setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; landmark(title); }, // a rename never moves saved values or presets
+    // a rename never moves saved values or presets
+    setName(n) { if (destroyed) return; title = String(n); titleEl.textContent = title; landmark(title); },
     // A lifted panel's carried context sits under the theme: a key the old theme set and the new one drops falls back to it.
     setTheme(theme) { if (destroyed) return; applyThemeVars(panel, null); for (const k in carried) panel.style.setProperty(k, carried[k]); themeVars = resolveTheme(theme); panel._twTheme = themeVars; applyThemeVars(panel, themeVars); window.dispatchEvent(new Event("twk-retheme")); },
     // Presets API (no-ops without opts.persist); before ready they queue like set() does.
-    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; let ok = true; later(() => { ok = savePreset(nm); }); return ok; }, // queued before ready counts as saved; once built, whether storage took it
-    loadPreset: (nm) => { if (destroyed || failed || !listPresets()[nm]) return false; later(() => loadPreset(nm)); return true; }, // whether it's stored now; a save still queued before ready isn't yet
+    // queued before ready counts as saved; once built, whether storage took it
+    savePreset: (nm) => { if (destroyed || failed || !presetsKey || !nm) return false; let ok = true; later(() => { ok = savePreset(nm); }); return ok; },
+    // whether it's stored now; a save still queued before ready isn't yet
+    loadPreset: (nm) => { if (destroyed || failed || !listPresets()[nm]) return false; later(() => loadPreset(nm)); return true; },
     deletePreset: (nm) => { if (presetsKey) later(() => deletePreset(nm)); },
     presets: () => (destroyed ? [] : Object.keys(listPresets())),
-    undo: () => { if (undoApi) later(undoApi.undo); }, redo: () => { if (undoApi) later(undoApi.redo); }, // no-ops without opts.undo; queued before ready, in order
+    // no-ops without opts.undo; queued before ready, in order
+    undo: () => { if (undoApi) later(undoApi.undo); }, redo: () => { if (undoApi) later(undoApi.redo); },
     // Teardown. Safe to call before ready resolves — assemble() sees the flag and bails.
     destroy() {
       if (destroyed) return;
@@ -803,14 +853,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // ready rejects. A partway build must not leave live controls behind an inert API: release what it wired.
     const fail = (e: unknown) => {
       failed = true; queue.length = 0; releaseKey();
-      if (built >= 0) for (const fn of cleanups.splice(built)) { try { fn(); } catch {} } // only what the build wired; the shell's stay for destroy()
-      for (const c of controls.children) (c as HTMLElement).dataset.twkDestroyed = ""; // detached below, they'd never see the panel's own mark
+      // only what the build wired; the shell's stay for destroy()
+      if (built >= 0) for (const fn of cleanups.splice(built)) { try { fn(); } catch {} }
+      // detached below, they'd never see the panel's own mark
+      for (const c of controls.children) (c as HTMLElement).dataset.twkDestroyed = "";
       listeners.clear(); entries.length = 0; controls.replaceChildren();
-      if (!destroyed) console.warn(`[tweaks] "${name}": the panel could not be built — ${built >= 0 ? "the build threw" : "its lazy controls failed to load"}; the API is inert`); // the chunk's own error is logged in lazy.ts
+      // the chunk's own error is logged in lazy.ts
+      if (!destroyed) console.warn(`[tweaks] "${name}": the panel could not be built — ${built >= 0 ? "the build threw" : "its lazy controls failed to load"}; the API is inert`);
       throw e;
     };
     const building = lazy.then(assemble);
-    api.ready = panel.ready = (imagesIn || shadowIn ? Promise.all([building, imagesIn, shadowIn]) : building).then(() => api, fail); // fail covers both the chunk and a build that throws
+    // fail covers both the chunk and a build that throws
+    api.ready = panel.ready = (imagesIn || shadowIn ? Promise.all([building, imagesIn, shadowIn]) : building).then(() => api, fail);
     api.ready.catch(() => {}); // a handled fork: no unhandled-rejection noise
   }
   else { assemble(); api.ready = panel.ready = imagesIn || shadowIn ? Promise.all([imagesIn, shadowIn]).then(() => api) : Promise.resolve(api); }

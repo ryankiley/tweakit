@@ -47,7 +47,8 @@ test("set(): infers the mode from the keys, takes a bare keyword, ignores derive
   p.set("t", { visualDuration: 0.3, bounce: 0.6 });
   assert.equal(p.params.t.mode, "spring");
   assert.ok(Math.max(...p.params.t.easing.match(/^linear\((.+)\)$/)[1].split(", ").map(parseFloat)) > 1.1, "bounce 0.6 overshoots");
-  p.set("t", p.params.t); // the full value, derived fields included, back in — a toJSON/fromJSON or changes() round-trip
+  // the full value, derived fields included, back in — a toJSON/fromJSON or changes() round-trip
+  p.set("t", p.params.t);
   assert.equal(p.params.t.mode, "spring");
   p.set("t", "ease-in-out");
   assert.deepEqual(p.params.t, { mode: "easing", curve: [0.42, 0, 0.58, 1], duration: 500, easing: "cubic-bezier(0.42, 0, 0.58, 1)" }, "back to easing with the authored 500 ms, not the spring's derived duration");
@@ -59,7 +60,8 @@ test("set(): infers the mode from the keys, takes a bare keyword, ignores derive
 test("the popover: Easing | Spring switches the editor and the mode; the preview box runs the value's easing on open and on every edit; reset restores the mode", async () => {
   const p = await mount({ t: { type: "motion", curve: "ease", duration: 300 } });
   const pop = await open(p);
-  const seg = [...pop.querySelector(".twk-motion-body").children[0].querySelectorAll(".twk-seg-btn")]; // the mode switch is the body's first child (the spring editor below has its own Time | Physics pill)
+  // the mode switch is the body's first child (the spring editor below has its own Time | Physics pill)
+  const seg = [...pop.querySelector(".twk-motion-body").children[0].querySelectorAll(".twk-seg-btn")];
   assert.deepEqual(seg.map((b) => b.textContent.trim()), ["Easing", "Spring"]);
   assert.equal(pop.querySelector(".twk-spring").closest(".twk-motion-pane").style.display, "none", "only the easing editor shows");
   const opened = runs.at(-1);
@@ -104,7 +106,8 @@ test("review follow-ups: a set() while the popover is closed shows on reopen, an
   const p = await mount({ t: { type: "motion", curve: "ease", duration: 300 } });
   let reflows = 0; const count = () => reflows++; window.addEventListener("twk-reflow", count);
   let pop = await open(p);
-  document.activeElement.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(230); // closed, node detached
+  // closed, node detached
+  document.activeElement.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(230);
   p.set("t", { curve: "ease-in", duration: 500 });
   assert.equal(reflows, 0, "no page-wide reflow on a set()");
   pop = await open(p);
@@ -137,7 +140,8 @@ test("review follow-ups: the preview keeps its direction and finishes a run on e
   p.set("t", { bounce: 0.5 }); p.set("t", { bounce: 0.4 });
   assert.equal(runs.length, n, "edits don't restart a run in flight");
   const stage = pop.querySelector(".twk-motion-stage");
-  Object.defineProperty(stage, "clientWidth", { value: 200 }); // jsdom lays out nothing: give the stage a width so the two directions differ
+  // jsdom lays out nothing: give the stage a width so the two directions differ
+  Object.defineProperty(stage, "clientWidth", { value: 200 });
   assert.equal(stage.getAttribute("role"), "button"); assert.equal(stage.tabIndex, 0);
   stage.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
   assert.equal(runs.length, n + 1, "Enter on the stage replays"); assert.notEqual(runs.at(-1).frames[0].transform, lastFrom, "and flips the direction");

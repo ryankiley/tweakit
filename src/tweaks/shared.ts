@@ -19,7 +19,8 @@ interface RadioBtn extends HTMLButtonElement { _twVal?: string | number }
 interface Stringifying { setAttribute(name: string, value: string | number): void; style: { setProperty(name: string, value: string | number | null, priority?: string): void } }
 type Built<E extends Element> = E & Stringifying;
 /** The labeled numeric field's spec (numField). */
-interface NumSpec { label: string; value?: unknown; min?: unknown; max?: unknown; step?: unknown; soft?: boolean; row?: boolean; unit?: string } // unit: muted suffix, also in the accessible name
+// unit: muted suffix, also in the accessible name
+interface NumSpec { label: string; value?: unknown; min?: unknown; max?: unknown; step?: unknown; soft?: boolean; row?: boolean; unit?: string }
 /** The numeric field's handle: set() coerces and fits, get() reads the fitted number. */
 interface NumField { el: HTMLDivElement; set(v: number | string): void; get(): number; range: [number, number] }
 /** The popover shell's handle (popover). */
@@ -54,7 +55,8 @@ const stepPrecision = (step: number) => {
 const roundToStep = (v: number, min: number, step: number) => {
   if (!(step > 0)) return v;
   const p = stepPrecision(step), a = Number((+min).toFixed(p));
-  const n = Math.round((v - a) / step); if (!Number.isFinite(n)) return v; // a huge value over a tiny step overflows; keep the raw
+  // a huge value over a tiny step overflows; keep the raw
+  const n = Math.round((v - a) / step); if (!Number.isFinite(n)) return v;
   return Number((a + n * step).toFixed(p));
 };
 // The reachable ends of a [min, max] step grid, so a clamp never lands off-grid; a range too
@@ -138,7 +140,8 @@ const overlapsText = (labelEl: HTMLElement, valueEl: HTMLElement, hx: number, hw
 // last resort), and a negative spans that much either side of zero, so it can still cross it
 // (rotate: -45 → −135 to 135).
 const defaultRange = (v: number): [number, number] => {
-  if (!Number.isFinite(v)) return [0, 1]; // NaN would span NaN–NaN; every entry point reads it as 0, as a verbose slider does
+  // NaN would span NaN–NaN; every entry point reads it as 0, as a verbose slider does
+  if (!Number.isFinite(v)) return [0, 1];
   const x3 = Number((Math.abs(v) * 3).toPrecision(12)); // 2.3 × 3 is 6.8999…, which the grid trimmed to 6.8
   if (v >= 0) return [0, v <= 1 ? 1 : x3 || 100];
   const m = v >= -1 ? 1 : x3;
@@ -176,7 +179,8 @@ const onLive = (owner: Element, targets: Array<[EventTarget, string]>, fn: (e?: 
   // A host appends right after building, before any event can arrive: note that mount next
   // frame, so an unmount with no event in between still releases on the first event after.
   if (!mounted) requestAnimationFrame(() => { if (owner.isConnected) mounted = true; });
-  const h = (e: Event) => { if (!owner.isConnected) { if (mounted || owner.closest("[data-twk-destroyed]")) off(); return; } mounted = true; fn(e); }; // destroy() marks the owner; release even if never mounted
+  // destroy() marks the owner; release even if never mounted
+  const h = (e: Event) => { if (!owner.isConnected) { if (mounted || owner.closest("[data-twk-destroyed]")) off(); return; } mounted = true; fn(e); };
   const off = () => targets.forEach(([t, ev]) => t.removeEventListener(ev, h));
   targets.forEach(([t, ev]) => t.addEventListener(ev, h));
   return off;
@@ -206,7 +210,8 @@ const quietFocus = (input: HTMLElement) => {
 export const placeBelow = (trigger: Element, pop: HTMLElement, { width, fallbackH = 300, gap = 6, align = "start", prefer = "below" }: { width?: number | "match"; fallbackH?: number; gap?: number; align?: "start" | "end" | "center"; prefer?: "above" | "below" } = {}) => {
   const r = trigger.getBoundingClientRect();
   if (width === "match") pop.style.width = r.width + "px";
-  const w = pop.offsetWidth || (width === "match" ? r.width : width || 0); // drawn width, which min-width may hold above a match
+  // drawn width, which min-width may hold above a match
+  const w = pop.offsetWidth || (width === "match" ? r.width : width || 0);
   // A match held wider by min-width grows left from the trigger's right edge, so in a nested folder it spans the panel's row.
   const end = align === "end" || (width === "match" && w > r.width + 0.5);
   const x = end ? r.right - w : align === "center" ? r.left + r.width / 2 - w / 2 : r.left;
@@ -301,11 +306,14 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   const follow = () => {
     if (!open) return; if (!root.isConnected) return close();
     const r = trigger.getBoundingClientRect();
-    const sr = trigger.closest(".twk-panel")?.getBoundingClientRect(); // a floating panel scrolls, and clips its rows (an inline one holds them all)
-    if (!(r.width || r.height) || r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth || (sr?.height && (r.bottom < sr.top || r.top > sr.bottom))) return close(); // hidden, or scrolled out
+    // a floating panel scrolls, and clips its rows (an inline one holds them all)
+    const sr = trigger.closest(".twk-panel")?.getBoundingClientRect();
+    // hidden, or scrolled out
+    if (!(r.width || r.height) || r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth || (sr?.height && (r.bottom < sr.top || r.top > sr.bottom))) return close();
     pop.style.left = r.left + dx + "px"; pop.style.top = r.top + dy + "px";
   };
-  const onOutside = (e: PointerEvent) => { const p = e.composedPath(); if (!p.includes(root) && !p.includes(pop)) close(); }; // the path, as a shadow host retargets e.target
+  // the path, as a shadow host retargets e.target
+  const onOutside = (e: PointerEvent) => { const p = e.composedPath(); if (!p.includes(root) && !p.includes(pop)) close(); };
   // Escape closes and stops propagation, so a host dialog doesn't close too. A field reverting an edit stops it first.
   const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && open && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); close(); refocus(); } };
   // Focus leaving both the pop and its trigger closes. A blur with no relatedTarget is
@@ -332,12 +340,14 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     activePopoverClose = close; activePopoverTrigger = trigger;
     open = st.open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
     // Reopened mid-fade, it's still in the page; re-appending would kill the transition, so it reverses in place.
-    clearTimeout(removeTimer); const fading = pop.parentNode === home(root); st.moved = false; byPointer = pointerModality; // a pop parked in its row isn't fading
+    // a pop parked in its row isn't fading
+    clearTimeout(removeTimer); const fading = pop.parentNode === home(root); st.moved = false; byPointer = pointerModality;
     pop.inert = false; if (!fading) portalTo(pop, root);
     if (!dragBound && opts.movable !== false) { dragBound = true; import("./heavy.js").then((m) => m.dragPane(pop, st, place), () => {}); }
     carrySkin(pop, root);
     window.addEventListener("twk-retheme", recarry); // setTheme() while open
-    if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-twk-scheme"] }); } // host scheme flip while open
+    // host scheme flip while open
+    if (typeof MutationObserver === "function") { schemeObs = new MutationObserver(onScheme); schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-twk-scheme"] }); }
     // Place with transitions off: the recorded side and height set the closed state the entrance starts from.
     if (fading) place(); else { pop.style.transition = "none"; place(); void pop.offsetWidth; pop.style.transition = ""; }
     // A pane that changes size while open (a mode switch, a disclosed picker) stays on its row and inside the window.
@@ -353,9 +363,11 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     // otherwise strand the portaled pop on screen.
     requestAnimationFrame(function watch() { if (!open) return; if (!root.isConnected) return close(); requestAnimationFrame(watch); });
     // Capture phase: the panel's own stopPointerLeak would swallow the event before it bubbles.
-    setTimeout(() => { if (open) document.addEventListener("pointerdown", onOutside, true); }, 0); // skip the opening click
+    // skip the opening click
+    setTimeout(() => { if (open) document.addEventListener("pointerdown", onOutside, true); }, 0);
     document.addEventListener("keydown", onKey); // Esc closes from anywhere while open
-    window.addEventListener("scroll", follow, true); window.addEventListener("resize", reflow); // capture: inner scrollers move the row too
+    // capture: inner scrollers move the row too
+    window.addEventListener("scroll", follow, true); window.addEventListener("resize", reflow);
   };
   const close = () => {
     if (activePopoverClose === close) { activePopoverClose = null; activePopoverTrigger = null; }
@@ -367,7 +379,8 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     window.removeEventListener("twk-retheme", recarry); if (schemeObs) { schemeObs.disconnect(); schemeObs = null; } sizeObs?.disconnect(); sizeObs = null;
     removeTimer = setTimeout(() => { if (!open) pop.remove(); }, 200); // remove the portaled node once it's faded out
   };
-  trigger.addEventListener("click", () => { if (trigger.disabled) return; open ? close() : openPop(); }); // a disabled trigger stays inert to a synthetic click
+  // a disabled trigger stays inert to a synthetic click
+  trigger.addEventListener("click", () => { if (trigger.disabled) return; open ? close() : openPop(); });
   return { open: openPop, close, isOpen: () => open, reflow };
 }
 
@@ -413,8 +426,10 @@ const rubberRelease = (track: HTMLElement) => {
 // Disable a row: `inert` goes on the children, not the row — an inert element hit-tests like
 // pointer-events:none, so an inert row would never show its not-allowed cursor.
 const setDisabled = (node: HTMLElement, d: boolean) => {
-  node.classList.toggle("is-disabled", d); for (const c of node.children) if (!c.classList.contains("twk-portal")) (c as HTMLElement).inert = d; // a closed popover child keeps its own inert
-  if (d) closeActivePopover(node); // an open pane is portaled out of reach of inert: a control disabled mid-edit closes it
+  // a closed popover child keeps its own inert
+  node.classList.toggle("is-disabled", d); for (const c of node.children) if (!c.classList.contains("twk-portal")) (c as HTMLElement).inert = d;
+  // an open pane is portaled out of reach of inert: a control disabled mid-edit closes it
+  if (d) closeActivePopover(node);
 };
 // Collapse a section: the fold class, aria-expanded, and `inert` on the body so hidden controls leave the tab order.
 const setCollapsed = (root: Element, toggle: Element, body: HTMLElement, c: boolean) => { root.classList.toggle("is-collapsed", c); toggle.setAttribute("aria-expanded", String(!c)); body.inert = c; };
@@ -425,7 +440,8 @@ const foldBody = (root: Element, toggle: Element, body: Folding, c: boolean, don
   if (REDUCE_MOTION.matches || typeof body.animate !== "function") { setCollapsed(root, toggle, body, c); if (done) setTimeout(done, 370); return; }
   // Everything read before the class flips, so a collapse forces no layout after it.
   const r = body.getBoundingClientRect(), from = r.height; // mid-fold, the height it's drawn at
-  const panel = root.closest<HTMLElement>(".twk-panel"), cs = panel && getComputedStyle(panel), maxH = cs ? parseFloat(cs.maxHeight) : NaN; // border-box, so the cap includes the padding
+  // border-box, so the cap includes the padding
+  const panel = root.closest<HTMLElement>(".twk-panel"), cs = panel && getComputedStyle(panel), maxH = cs ? parseFloat(cs.maxHeight) : NaN;
   const capBottom = cs && panel.dataset.mode === "floating" && maxH >= 0 ? panel.getBoundingClientRect().top + maxH - parseFloat(cs.paddingBottom) - parseFloat(cs.borderBottomWidth) : Infinity;
   const room = Math.max(0, Math.min(window.innerHeight, capBottom) - r.top), easing = getComputedStyle(body).getPropertyValue("--twk-ease-fold").trim();
   body._twFold?.cancel(); body._twFold = null;
@@ -476,16 +492,19 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
   if (sw) seg.tabIndex = 0;
   const pill = el("div", "twk-seg-pill");
   seg.append(pill);
-  const btns = options.map((o) => { const b = radioButton("twk-seg-btn", o, (v) => set(v)); if (sw) { b.setAttribute("aria-hidden", "true"); b.addEventListener("focus", () => seg.focus()); } seg.append(b); return b; }); // lazy `set` — it's declared below; a clicked segment hands focus to the switch, never parks it hidden
+  // lazy `set` — it's declared below; a clicked segment hands focus to the switch, never parks it hidden
+  const btns = options.map((o) => { const b = radioButton("twk-seg-btn", o, (v) => set(v)); if (sw) { b.setAttribute("aria-hidden", "true"); b.addEventListener("focus", () => seg.focus()); } seg.append(b); return b; });
   const measure = (animate?: boolean) => measurePill(seg, pill, animate);
   const reflect = () => { setRadioActive(btns, value); if (sw) { seg.setAttribute("aria-checked", String(value === onIs)); btns.forEach((b) => (b.tabIndex = -1)); } measure(true); };
-  const set = (v: unknown, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears; a value matching no segment is ignored
+  // null clears; a value matching no segment is ignored
+  const set = (v: unknown, fire = true) => { if (v != null && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); };
   seg.addEventListener("keydown", (e) => {
     const i = activeIndex(btns, value); if (i < 0) return;
     if (sw && (e.key === " " || e.key === "Enter")) { e.preventDefault(); set(btns[1 - i]._twVal); return; }
     // A switch's arrows point at a side, Off or On, and stop there: wrapping, → on On turned it off.
     const j = sw ? ({ ArrowRight: 1, ArrowUp: 1, End: 1, ArrowLeft: 0, ArrowDown: 0, Home: 0 } as Record<string, number>)[e.key] ?? -1 : navIndex(e.key, i, btns.length); if (j < 0) return;
-    e.preventDefault(); set(btns[j]._twVal); (sw ? seg : btns[j]).focus(); // _twVal: the real, possibly non-string value
+    // _twVal: the real, possibly non-string value
+    e.preventDefault(); set(btns[j]._twVal); (sw ? seg : btns[j]).focus();
   });
   reflect();
   onReady(() => { measure(); seg.classList.add("is-ready"); }); // once laid out, again when fonts land
@@ -512,16 +531,20 @@ const isReservedKey = (k: string) => k === "__proto__" || k === "constructor" ||
 const valueChanged = (a: unknown, b: unknown) => a !== b && !(isObj(a) && isObj(b) && JSON.stringify(a) === JSON.stringify(b));
 // Reset: the form the control OPENED on first (it covers a value set() can't take as-is),
 // then the authored value on top, so whatever the control CAN take lands exactly.
-const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) => { ctrl.set(def); ctrl.set(raw); }; // a control, or the panel's entry for one
-const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"]; // read by the spring and motion controls, and their markup
+// a control, or the panel's entry for one
+const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) => { ctrl.set(def); ctrl.set(raw); };
+// read by the spring and motion controls, and their markup
+const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"];
 // ── Control registry — type → constructor. Core controls register on load; a lazy one when
 // its module is imported, so the loaded set drives what can be built. ──
-const REGISTRY: Record<string, ControlCtor<any, any>> = Object.create(null); // heterogeneous by design — see ControlCtor; null-prototype, so a type named "toString" finds nothing
+// heterogeneous by design — see ControlCtor; null-prototype, so a type named "toString" finds nothing
+const REGISTRY: Record<string, ControlCtor<any, any>> = Object.create(null);
 export const registerControl = (type: string, ctor: ControlCtor<any, any>) => { REGISTRY[type] = ctor; };
 export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, C> | undefined => REGISTRY[type];
 export const controlTypes = () => Object.keys(REGISTRY);
 // The markup chunk's enhance(), registered when markup.ts loads (enhance.ts fetches it, or single.ts imports it).
-let MARKUP: ((root: Document | Element, kit: any, strings?: Words) => Promise<void>) | null = null; // any: the kit's type lives in markup.ts, which imports this
+// any: the kit's type lives in markup.ts, which imports this
+let MARKUP: ((root: Document | Element, kit: any, strings?: Words) => Promise<void>) | null = null;
 export const setMarkup = (fn: typeof MARKUP) => { MARKUP = fn; };
 export const getMarkup = <K>() => MARKUP as ((root: Document | Element, kit: K, strings?: Words) => Promise<void>) | null;
 

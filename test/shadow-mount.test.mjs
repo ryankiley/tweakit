@@ -4,7 +4,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { window } from "./_setup-dom.mjs";
 import { loadSingle, wait, ptr, key, dragHeader } from "./_helpers.mjs";
-globalThis.MutationObserver = window.MutationObserver; // the kit guards on these globals; the shared setup doesn't expose them
+// the kit guards on these globals; the shared setup doesn't expose them
+globalThis.MutationObserver = window.MutationObserver;
 globalThis.customElements = window.customElements;
 
 const { tweaks, mountControl, createColorPicker } = await loadSingle();
@@ -41,7 +42,8 @@ test("a pane opens in the portal root, a press inside it or the panel keeps it, 
     assert.ok(dd?.classList.contains("is-open"), "the dropdown opened in the portal root");
     assert.ok(dd.classList.contains("twk-in-shadow"), "taking its tokens from that root's host");
     assert.equal(document.querySelector("body > .twk-select-dropdown"), null, "not on <body>");
-    dd.querySelector(".twk-select-option").dispatchEvent(ptr("pointerdown")); // e.target reads as the portal host out here
+    // e.target reads as the portal host out here
+    dd.querySelector(".twk-select-option").dispatchEvent(ptr("pointerdown"));
     inner(p).querySelector(".twk-select-label").dispatchEvent(ptr("pointerdown"));
     assert.ok(dd.classList.contains("is-open"), "presses inside the pane and its row keep it open");
     document.body.dispatchEvent(ptr("pointerdown"));
@@ -145,7 +147,8 @@ test("a shadow host lets go when the page drops it, comes back when re-added, an
   const dark = document.createElement("div"); dark.dataset.twkScheme = "dark";
   const light = document.createElement("div"); light.dataset.twkScheme = "light";
   document.body.append(dark, light);
-  const p = tweaks("Life", { fruit: ["Apple", "Banana"] }, { shadow: true }); await p.ready; // dressed before it's in the page
+  // dressed before it's in the page
+  const p = tweaks("Life", { fruit: ["Apple", "Banana"] }, { shadow: true }); await p.ready;
   try {
     assert.equal(p.el.localName, "twk-host");
     dark.append(p.el); await wait(0);

@@ -68,7 +68,8 @@ const dragPane = (pop: HTMLElement, st: { open: boolean; moved: boolean }, place
     pop.removeEventListener("pointermove", move); pop.removeEventListener("pointerup", end); pop.removeEventListener("pointercancel", end); pop.removeEventListener("lostpointercapture", end);
     document.removeEventListener("keydown", key, true); pop.classList.remove("is-moving");
   };
-  pop.addEventListener("pointermove", move); pop.addEventListener("pointerup", end); pop.addEventListener("pointercancel", end); pop.addEventListener("lostpointercapture", end); // lost: the node left mid-press
+  // lost: the node left mid-press
+  pop.addEventListener("pointermove", move); pop.addEventListener("pointerup", end); pop.addEventListener("pointercancel", end); pop.addEventListener("lostpointercapture", end);
   document.addEventListener("keydown", key, true);
 });
 // Press-drag on a node: onDown on pointerdown (pointer captured), onMove per move, onEnd on
@@ -132,7 +133,8 @@ function makeGrabGuide() {
     move(x: number, text: string) {
       if (!g) return;
       g.children[0].style.cssText = `left:${Math.min(x0, x)}px;top:${y}px;width:${Math.abs(x - x0)}px`;
-      g.children[2].style.cssText = `left:${x}px;top:${y}px;transform:translate(-50%,-50%) scaleX(${x >= x0 ? 1 : -1})`; // arrowhead at the cursor, pointing in the drag direction
+      // arrowhead at the cursor, pointing in the drag direction
+      g.children[2].style.cssText = `left:${x}px;top:${y}px;transform:translate(-50%,-50%) scaleX(${x >= x0 ? 1 : -1})`;
       g.children[3].style.cssText = `left:${bx}px;top:${y - 16}px`; g.children[3].textContent = text;
     },
     hide() { if (g) { g.remove(); g = null; } },
@@ -159,9 +161,11 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   const step = Number.isFinite(+spec.step) && +spec.step > 0 ? +spec.step : 1;
   const bound = (b: unknown) => (b == null ? NaN : +b); // null → NaN → unbounded (a null max coerced to 0)
   let min = bound(spec.min), max = bound(spec.max);
-  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { notice("swap", [spec.label ?? "number", min, max]); const t = min; min = max; max = t; } // an inverted pair would clamp every value to one end
+  // an inverted pair would clamp every value to one end
+  if (Number.isFinite(min) && Number.isFinite(max) && max < min) { notice("swap", [spec.label ?? "number", min, max]); const t = min; min = max; max = t; }
   const anchor = Number.isFinite(min) ? min : 0, decimals = stepPrecision(step); // min-anchored, like the slider
-  const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor); // on-grid ends, so fit(fit(x)) === fit(x)
+  // on-grid ends, so fit(fit(x)) === fit(x)
+  const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor);
   const fit = (val: number) => { const n = roundToStep(val, anchor, step); return spec.soft ? n : clamp(n, lo, hi); };
   let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
   const root = el("div", spec.row ? "twk-row" : "twk-field");
@@ -257,7 +261,8 @@ const springRun = (k: number, d: number, m: number) => {
   const span = Math.min(7 / Math.max(decayRate(w0, z), 1e-3), 10);
   const wd = z < 1 ? w0 * Math.sqrt(1 - z * z) : 0, n = Math.min(Math.max(48, Math.ceil(wd ? (24 * span * wd) / (2 * Math.PI) : span * 40)), 800);
   const ts = Array.from({ length: n }, (_, i) => (i / (n - 1)) * span);
-  if (wd) for (let t = Math.PI / wd; t < span; t += Math.PI / wd) ts.push(t); // every extremum of the underdamped response
+  // every extremum of the underdamped response
+  if (wd) for (let t = Math.PI / wd; t < span; t += Math.PI / wd) ts.push(t);
   ts.sort((a, b) => a - b);
   const stops = ts.filter((t, i) => i === 0 || t - ts[i - 1] > 1e-6).map((t, i, a) => `${i === a.length - 1 ? 1 : +x(t).toFixed(3)} ${+((t / span) * 100).toFixed(2)}%`);
   return { duration: Math.round(span * 1000), easing: `linear(${stops.join(", ")})` };

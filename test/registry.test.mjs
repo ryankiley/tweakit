@@ -42,7 +42,8 @@ const FIXTURES = {
   tabs: { type: "tabs", pages: { A: { x: 1 } } },
 };
 
-const declared = new Set([...Object.keys(TYPED_META), ...Object.keys(DATA_VALUE), ...Object.keys(LAZY_IMPORT), "button"]); // a lazy control may have no table entry: its verbose form passes through
+// a lazy control may have no table entry: its verbose form passes through
+const declared = new Set([...Object.keys(TYPED_META), ...Object.keys(DATA_VALUE), ...Object.keys(LAZY_IMPORT), "button"]);
 
 test("every declared control type has a fixture here", () => {
   for (const t of declared) assert.ok(t in FIXTURES, `add a minimal fixture for new control type "${t}"`);

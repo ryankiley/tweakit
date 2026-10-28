@@ -314,7 +314,8 @@ test("clear: false leaves Clear out and Delete keeps the value; cols reaches 6",
 
 // ── The gallery's review fixes: each failed on the first cut of the gallery. ──
 const dropOn = (el, file) => { const e = new Event("drop", { bubbles: true, cancelable: true }); e.dataTransfer = { files: file ? [file] : [] }; el.dispatchEvent(e); };
-globalThis.FileReader ??= window.FileReader; // the kit reads files through the page's FileReader; jsdom's is on window only
+// the kit reads files through the page's FileReader; jsdom's is on window only
+globalThis.FileReader ??= window.FileReader;
 
 test("a disabled gallery takes no dropped file", async () => {
   const p = tweaks("I", { pic: { type: "image", options: ["/a.png"], disabled: true } });

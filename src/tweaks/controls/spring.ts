@@ -80,7 +80,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   });
   // The field shows ms; the value stays Motion's visualDuration in seconds.
   const durFld = numField({ label: tr("duration", "Duration"), value: time.visualDuration * 1000, step: 10, min: DUR_MIN * 1000, max: DUR_MAX * 1000, unit: "ms" }, (v) => { time.visualDuration = clampDur(v / 1000); draw(); emit(); });
-  const bounceFld = numField({ label: tr("bounce", "Bounce"), value: time.bounce * 100, step: 5, min: -100, max: 100, unit: "%" }, (v) => { time.bounce = clampBounce(v / 100); draw(); emit(); }); // shown as a percentage; the value stays Motion's −1–1
+  // shown as a percentage; the value stays Motion's −1–1
+  const bounceFld = numField({ label: tr("bounce", "Bounce"), value: time.bounce * 100, step: 5, min: -100, max: 100, unit: "%" }, (v) => { time.bounce = clampBounce(v / 100); draw(); emit(); });
   timeFields.append(durFld.el, bounceFld.el);
 
   const showMode = () => { timeFields.style.display = mode === "time" ? "" : "none"; physFields.style.display = mode === "physics" ? "" : "none"; };
@@ -93,13 +94,15 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   root.append(viz, modeRow, physFields, timeFields);
 
   // Drag the preview to tune by feel: horizontal sets stiffness or duration, vertical sets damping or bounce.
-  const ST_MIN = 1, ST_MAX = 500, DA_MIN = 1, DA_MAX = 40, DRAG_DUR_MIN = 0.1, DRAG_DUR_MAX = 1; // the feel-tuning span; the fields reach further
+  // the feel-tuning span; the fields reach further
+  const ST_MIN = 1, ST_MAX = 500, DA_MIN = 1, DA_MAX = 40, DRAG_DUR_MIN = 0.1, DRAG_DUR_MAX = 1;
   const fromPointer = (e: PointerEvent) => {
     const [px, py] = boxFrac(e, viz);
     // Set the field (it snaps and clamps), then read back, so readout, value and preview agree.
     if (mode === "time") {
       durFld.set((DRAG_DUR_MIN + px * (DRAG_DUR_MAX - DRAG_DUR_MIN)) * 1000); time.visualDuration = durFld.get() / 1000;
-      bounceFld.set((1 - 2 * py) * 100); time.bounce = bounceFld.get() / 100; // top = bounce 100%, the middle 0, the bottom −100% (overdamped)
+      // top = bounce 100%, the middle 0, the bottom −100% (overdamped)
+      bounceFld.set((1 - 2 * py) * 100); time.bounce = bounceFld.get() / 100;
     } else {
       flds.stiffness.set(ST_MIN + px * (ST_MAX - ST_MIN)); phys.stiffness = flds.stiffness.get();
       flds.damping.set(DA_MIN + py * (DA_MAX - DA_MIN)); phys.damping = flds.damping.get(); // top = low damping

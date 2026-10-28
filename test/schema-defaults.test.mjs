@@ -133,7 +133,8 @@ test("every verbose form honors `label`, and `label: \"\"` shows no label text",
     gradient: { type: "gradient" },
     image: { type: "image" },
     plot: { type: "plot", expr: "x" },
-    monitor: { type: "monitor", value: 1, view: "text" }, // text view: the sparkline's first-frame measure outlives destroy() and jsdom has no 2D context to give it
+    // text view: the sparkline's first-frame measure outlives destroy() and jsdom has no 2D context to give it
+    monitor: { type: "monitor", value: 1, view: "text" },
     fpsgraph: { type: "fpsgraph" },
     buttongroup: { type: "buttongroup", buttons: { Go() {} } },
   };
@@ -149,7 +150,8 @@ test("every verbose form honors `label`, and `label: \"\"` shows no label text",
 
   const blank = tweaks("B", withLabel(""));
   try {
-    const leaked = labelText(blank.el).filter((t) => t.trim() && t !== "Mode"); // the spring's mode row is the control's own caption, not its label
+    // the spring's mode row is the control's own caption, not its label
+    const leaked = labelText(blank.el).filter((t) => t.trim() && t !== "Mode");
     assert.deepEqual(leaked, [], "an explicit empty label must not fall back to the title-cased key");
     // The empty label element takes no space: the stylesheet hides it, and the control it
     // sat beside keeps the row's right edge.

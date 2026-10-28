@@ -151,7 +151,8 @@ export function convert(coords: Vec3, from: Space, to: Space): Vec3 {
 const SLACK = 0.000075;
 const inRange = (rgb: Vec3) => rgb.every((c) => c >= -SLACK && c <= 1 + SLACK);
 const inGamut = (oklch: Vec3, gamut: Gamut) => inRange(convert(oklch, "oklch", gamut));
-const clip = (rgb: Vec3) => rgb.map((c) => Math.min(1, Math.max(0, c))) as Vec3; // map() on a tuple reads back as an array
+// map() on a tuple reads back as an array
+const clip = (rgb: Vec3) => rgb.map((c) => Math.min(1, Math.max(0, c))) as Vec3;
 const deltaEOK = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 /** Map OKLCH into an RGB gamut (CSS Color 4 chroma reduction + local clip). */
 export function toGamut(oklch: Vec3, dest: Gamut): Vec3 {
@@ -281,7 +282,8 @@ const joinChannels = (mode: ColorMode, s: (i: number) => string) =>
 export function readout(oklch: Vec3, mode: ColorMode) {
   if (mode === "hex") return oklchToHex(oklch[0], oklch[1], oklch[2]);
   const chans = MODE_CHANNELS[mode], v = channelValues(oklch, mode);
-  return joinChannels(mode, (i) => { const t = v[i].toFixed(digitsFor(chans[i].step)); return chans[i].k === "H" && +t === 360 ? (0).toFixed(digitsFor(chans[i].step)) : t; }); // 360 is 0; only 0 reads back as itself
+  // 360 is 0; only 0 reads back as itself
+  return joinChannels(mode, (i) => { const t = v[i].toFixed(digitsFor(chans[i].step)); return chans[i].k === "H" && +t === 360 ? (0).toFixed(digitsFor(chans[i].step)) : t; });
 }
 // css is legacy comma rgba with an explicit alpha slot; the rest take modern space syntax.
 const wrapCss = (t: string, mode: ColorMode) =>
@@ -294,7 +296,8 @@ const wrapCss = (t: string, mode: ColorMode) =>
 // white are written S 0 and hue none: S divides by min(L, 1 - L), so next to either end it read noise as 100% and a hue.
 function precise(oklch: Vec3, mode: ColorMode) {
   const chans = MODE_CHANNELS[mode], c = modeCoords(oklch, modeSpaceId(mode), mode);
-  const v = chans.map((ch, i) => { const d = digitsFor(ch.step) + 1, x = +clamp(num(c[i]) * ch.scale, ch.min, ch.max).toFixed(d); return ch.k === "H" && x === 360 ? 0 : x + 0; }); // + 0: no -0
+  // + 0: no -0
+  const v = chans.map((ch, i) => { const d = digitsFor(ch.step) + 1, x = +clamp(num(c[i]) * ch.scale, ch.min, ch.max).toFixed(d); return ch.k === "H" && x === 360 ? 0 : x + 0; });
   if (mode === "hsl" && (v[2] === 0 || v[2] === 100)) v[1] = 0;
   const gray = mode === "oklch" || mode === "lch" || mode === "hsl" ? v[1] === 0 : mode === "hwb" && v[1] + v[2] >= 100;
   return joinChannels(mode, (i) => (gray && chans[i].k === "H" ? "none" : String(v[i])));
@@ -306,5 +309,6 @@ export function serialize(oklch: Vec3, mode: ColorMode, alpha: number) {
   const t = precise(oklch, mode);
   if (a >= 0.999) return wrapCss(t, mode);
   const av = +a.toFixed(3);
-  return mode === "css" ? `rgba(${t}, ${av})` : wrapCss(`${t} / ${av}`, mode); // comma alpha for legacy rgba, slash otherwise
+  // comma alpha for legacy rgba, slash otherwise
+  return mode === "css" ? `rgba(${t}, ${av})` : wrapCss(`${t} / ${av}`, mode);
 }

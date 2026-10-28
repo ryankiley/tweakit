@@ -54,7 +54,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
 
   // value stays continuous; only the readout + emitted value round to step.
   const render = () => {
-    const pct = clamp(((value - min) / ((max - min) || 1)) * 100, 0, 100); // clamp the visual; a soft readout shows its real number
+    // clamp the visual; a soft readout shows its real number
+    const pct = clamp(((value - min) / ((max - min) || 1)) * 100, 0, 100);
     const off = pull ? ` + ${pull.toFixed(1)}px` : "";
     const edge = `${pct}%${off}`;
     fill.style.width = pull ? `calc(${edge})` : pct + "%";
@@ -86,7 +87,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     const pct = clamp((clientX - rect.left) / scale / native, 0, 1);
     return clamp(min + pct * (max - min), min, max);
   };
-  const set = (v: number | string, fire = true) => { v = +v; if (!Number.isFinite(v)) return; value = snap ? clamp(q(v), min, max) : (meta.soft ? v : clamp(v, min, max)); render(); if (fire) onChange(q(value)); }; // a non-finite value is ignored; soft may exceed the range
+  // a non-finite value is ignored; soft may exceed the range
+  const set = (v: number | string, fire = true) => { v = +v; if (!Number.isFinite(v)) return; value = snap ? clamp(q(v), min, max) : (meta.soft ? v : clamp(v, min, max)); render(); if (fire) onChange(q(value)); };
 
   // ── Spring-commit detent (snap sliders) ──
   // Physics in step-index space (notches at integers).
@@ -190,7 +192,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     const nv = rangeStep(e, value, step, min, max, (max - min) / 10 || step * 10);
     if (nv == null) return;
     e.preventDefault();
-    if (snap) { springStop(); pull = 0; track.classList.remove("is-active"); } // instant step: cancel an in-flight settle + its styling
+    // instant step: cancel an in-flight settle + its styling
+    if (snap) { springStop(); pull = 0; track.classList.remove("is-active"); }
     set(clamp(nv, min, max));
   });
 
@@ -208,8 +211,10 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   const openEditor = () => {
     if (valueEl.classList.contains("is-editing")) return;
     const input = el("input", "twk-slider-input"); input.type = "text"; input.inputMode = parse ? "text" : "decimal"; quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */
-    input.value = parse ? show(q(value)) : q(value).toFixed(decimals); // with a parse, the field edits the formatted text
-    const opened = input.value; input.style.width = opened.length + 1 + "ch"; // read back: a text field drops line breaks
+    // with a parse, the field edits the formatted text
+    input.value = parse ? show(q(value)) : q(value).toFixed(decimals);
+    // read back: a text field drops line breaks
+    const opened = input.value; input.style.width = opened.length + 1 + "ch";
     valueEl.classList.add("is-editing"); valueEl.replaceWith(input); input.focus(); input.select();
     const restore = () => { input.replaceWith(valueEl); valueEl.classList.remove("is-editing", "is-editable"); };
     // Typed text is read by `parse`, or else strictly as a whole number (not parseFloat, which reads
@@ -227,7 +232,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     // twice): removing a focused node first lands focus on <body>, and a focus() in the same task was dropped.
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { input.removeEventListener("blur", commit); track.focus(); commit(); }
-      else if (e.key === "Escape") { e.stopPropagation(); input.removeEventListener("blur", commit); track.focus(); restore(); } // an Escape here mustn't also close a hosting popover
+      // an Escape here mustn't also close a hosting popover
+      else if (e.key === "Escape") { e.stopPropagation(); input.removeEventListener("blur", commit); track.focus(); restore(); }
     });
   };
   valueEl.addEventListener("click", () => { if (valueEl.classList.contains("is-editable")) openEditor(); });
@@ -247,17 +253,21 @@ function createToggle(meta: Meta, onChange: OnChange): Control {
 function createRadiogrid(meta: Meta, onChange: OnChange): Control {
   const options: Option[] = meta.options || [];
   const cols = Math.min(3, Math.max(2, meta.cols || (options.length <= 3 ? options.length : options.length === 4 ? 2 : 3)));
-  const row = el("div", options.length > cols ? "twk-radiogrid is-grid" : "twk-radiogrid"); // several rows keep equal columns
+  // several rows keep equal columns
+  const row = el("div", options.length > cols ? "twk-radiogrid is-grid" : "twk-radiogrid");
   const grid = el("div", "twk-radiogrid-grid"); grid.style.setProperty("--twk-rg-cols", cols);
   grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
   let value = meta.value ?? optValue(options[0]);
-  const btns = options.map((o) => { const b = radioButton("twk-radiogrid-btn", o, (v) => set(v)); grid.append(b); return b; }); // lazy `set` — it's declared below
+  // lazy `set` — it's declared below
+  const btns = options.map((o) => { const b = radioButton("twk-radiogrid-btn", o, (v) => set(v)); grid.append(b); return b; });
   const reflect = () => setRadioActive(btns, value);
-  const set = (v: unknown, fire = true) => { if (v != null && v !== meta.value && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
+  // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
+  const set = (v: unknown, fire = true) => { if (v != null && v !== meta.value && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); };
   grid.addEventListener("keydown", (e) => {
     const i = activeIndex(btns, value); if (i < 0) return;
     const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
-    e.preventDefault(); if (j !== i) { set(btns[j]._twVal); btns[j].focus(); } // _twVal, not dataset.value (which stringifies)
+    // _twVal, not dataset.value (which stringifies)
+    e.preventDefault(); if (j !== i) { set(btns[j]._twVal); btns[j].focus(); }
   });
   reflect();
   row.append(txt("span", "twk-radiogrid-label", meta.label), grid);
@@ -288,8 +298,10 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
     dropdown.append(b); return b;
   });
   root.append(trigger, dropdown);
-  const reflect = () => { const cur = opts.find((o) => o.value === value); valEl.textContent = cur?.label ?? value; valSwatch.style.display = cur?.color ? "" : "none"; if (cur?.color) valSwatch.style.background = swatchCss(cur.color); optButtons.forEach((b) => { const sel = b.dataset.value === String(value); b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); }; // dataset stringifies, so compare as strings
-  const set = (v: unknown, fire = true) => { if (v != null && v !== meta.value && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
+  // dataset stringifies, so compare as strings
+  const reflect = () => { const cur = opts.find((o) => o.value === value); valEl.textContent = cur?.label ?? value; valSwatch.style.display = cur?.color ? "" : "none"; if (cur?.color) valSwatch.style.background = swatchCss(cur.color); optButtons.forEach((b) => { const sel = b.dataset.value === String(value); b.dataset.selected = String(sel); b.setAttribute("aria-selected", String(sel)); }); };
+  // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
+  const set = (v: unknown, fire = true) => { if (v != null && v !== meta.value && !opts.some((o) => o.value === v)) return; value = v; reflect(); if (fire) onChange(v); };
   // The shared popover shell: portaled to <body>, closes on outside-press / Esc / scroll-away,
   // and opening it closes any other popover.
   let typed = "", typedAt = 0; // the type-ahead buffer; a fresh open starts it over, as a native popup does
@@ -303,7 +315,8 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
   });
   dropdown.addEventListener("keydown", (e) => {
     const i = optButtons.indexOf(activeIn(dropdown) as HTMLButtonElement); let j = i;
-    const inBeat = !!typed && performance.now() - typedAt < 600; // monotonic, so a wall-clock step can't pin the beat open
+    // monotonic, so a wall-clock step can't pin the beat open
+    const inBeat = !!typed && performance.now() - typedAt < 600;
     if (e.key === "ArrowDown") j = i < 0 ? 0 : Math.min(optButtons.length - 1, i + 1);
     else if (e.key === "ArrowUp") j = i < 0 ? optButtons.length - 1 : Math.max(0, i - 1);
     else if (e.key === "Home") j = 0;
@@ -313,9 +326,11 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
       // the same key over and over cycles its matches, and no match leaves focus where it is. A space joins a prefix under way
       // and is never also the option's activation; on its own it stays the option's.
       const k = e.key.toLowerCase(); typed = (inBeat ? typed : "") + k; typedAt = performance.now();
-      const one = typed === k.repeat(typed.length / k.length), needle = one ? k : typed; // compared per key, since "İ" lowercases to two code units
+      // compared per key, since "İ" lowercases to two code units
+      const one = typed === k.repeat(typed.length / k.length), needle = one ? k : typed;
       const hit = (lo: number) => opts.findIndex((o, n) => n >= lo && String(o.label).toLowerCase().trimStart().startsWith(needle));
-      j = hit(one ? i + 1 : i); if (j < 0) j = hit(0); // a lone key moves past the focused option, a growing prefix re-tests it; the second pass wraps
+      // a lone key moves past the focused option, a growing prefix re-tests it; the second pass wraps
+      j = hit(one ? i + 1 : i); if (j < 0) j = hit(0);
       if (j < 0 && e.key !== " ") return; // a prefix's space is swallowed even unmatched, so it never also picks
     }
     else return;
@@ -327,7 +342,8 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
 
 function createButton(meta: Meta) {
   const b = txt("button", "twk-button", meta.label);
-  b.addEventListener("click", () => typeof meta.action === "function" && meta.action()); // a verbose form can carry a non-function action; as the group does, ignore it
+  // a verbose form can carry a non-function action; as the group does, ignore it
+  b.addEventListener("click", () => typeof meta.action === "function" && meta.action());
   return blade(b);
 }
 
@@ -336,7 +352,8 @@ function createButtonGroup(meta: Meta) {
   const row = el("div", "twk-row twk-buttongroup");
   if (meta.label) row.append(txt("span", "twk-row-label", meta.label));
   const group = el("div", "twk-buttongroup-btns");
-  const list: [string, () => void][] = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label ?? words()("button", "Button"), b.action]) : Object.entries(meta.buttons || {}); // an entry with no label is still a button, not an empty pill
+  // an entry with no label is still a button, not an empty pill
+  const list: [string, () => void][] = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label ?? words()("button", "Button"), b.action]) : Object.entries(meta.buttons || {});
   for (const [lab, fn] of list) {
     const b = txt("button", "twk-buttongroup-btn", lab);
     b.addEventListener("click", () => typeof fn === "function" && fn());
@@ -366,7 +383,8 @@ function createString(meta: Meta, onChange: OnChange): Control {
   const clip = () => { const more = input.scrollHeight - input.clientHeight > 1; input.classList.toggle("is-clip-top", more && input.scrollTop > 1); input.classList.toggle("is-clip-bottom", more && input.scrollTop + input.clientHeight < input.scrollHeight - 1); };
   if (multi) { input.addEventListener("scroll", clip); input.addEventListener("input", clip); if (typeof ResizeObserver === "function") new ResizeObserver(clip).observe(input); }
   row.append(txt("span", "twk-row-label", meta.label), input);
-  return { el: row, set: (v: unknown) => { value = str(v); input.value = value; if (multi) clip(); }, get: () => value }; // null → "", not the literal "undefined"
+  // null → "", not the literal "undefined"
+  return { el: row, set: (v: unknown) => { value = str(v); input.value = value; if (multi) clip(); }, get: () => value };
 }
 
 // ── Folder — a collapsible titled group; `body` is the inner container the caller fills. ──
@@ -378,7 +396,8 @@ function createFolder(meta: { label: string }) {
   const body = el("div", "twk-folder-body");
   const inner = el("div", "twk-controls"); body.append(inner);
   root.append(header, body);
-  const collapse = (c: boolean) => foldBody(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
+  // the shared fold: class + aria-expanded + inert on the body
+  const collapse = (c: boolean) => foldBody(root, header, body, c);
   header.addEventListener("click", () => collapse(!root.classList.contains("is-collapsed")));
   return { el: root, body: inner, setCollapsed: collapse };
 }

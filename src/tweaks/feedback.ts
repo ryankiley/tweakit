@@ -60,12 +60,14 @@ const spinReset = (btn: ToolbarBtn) => {
 // Hint tooltip — one shared bubble, portaled where its panel's portals go (<body>, or a shadow panel's portal root) so
 // it clears the panel's overflow clip.
 let hintTip: HTMLDivElement | null = null, hintTimer = 0, hintAnchor: Element | null = null;
-const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); hideHintNow(); } }; // bound only while open; WCAG 1.4.13 (dismissable)
+// bound only while open; WCAG 1.4.13 (dismissable)
+const onHintKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); hideHintNow(); } };
 /** Hide the tip now; with `owner` (panel.destroy()), only a tip anchored inside it — the node is shared. */
 const hideHintNow = (owner?: Element) => { if (owner && hintAnchor && !owner.contains(hintAnchor)) return; clearTimeout(hintTimer); document.removeEventListener("keydown", onHintKey); if (hintTip) hintTip.classList.remove("is-open"); };
 function showHint(anchor: Element, text: string) {
   if (!hintTip) { hintTip = el("div", "twk-tip twk-portal"); hintTip.setAttribute("role", "tooltip"); }
-  portalTo(hintTip, anchor); // each show: the last hint may have been another root's, or a host replaced <body>'s content
+  // each show: the last hint may have been another root's, or a host replaced <body>'s content
+  portalTo(hintTip, anchor);
   clearTimeout(hintTimer);
   hintTip.textContent = text;
   carrySkin(hintTip, anchor); // resolved at show time: setTheme may have run since build
@@ -78,7 +80,8 @@ function showHint(anchor: Element, text: string) {
   // Unmount watchdog: a host removing the panel mid-hover would strand the open tip. One rAF per frame while open.
   if (!wasOpen) requestAnimationFrame(function watch() { if (!hintTip.classList.contains("is-open")) return; if (!hintAnchor.isConnected) return hideHintNow(); requestAnimationFrame(watch); });
 }
-function hideHint() { if (hintTip) { clearTimeout(hintTimer); hintTimer = setTimeout(hideHintNow, 80); } } // a short grace, so crossing marker → tip doesn't flicker
+// a short grace, so crossing marker → tip doesn't flicker
+function hideHint() { if (hintTip) { clearTimeout(hintTimer); hintTimer = setTimeout(hideHintNow, 80); } }
 /** Every control's label element — the one list behind the hint marker's home and the per-control
  *  reset target (panel.ts wireReset), so the two can't drift. */
 const LABEL_SEL = ".twk-slider-label, .twk-row-label, .twk-select-label, .twk-trigger-label, .twk-radiogrid-label, .twk-field-label, .twk-folder-title, .twk-fps-label, .twk-plot-label, .twk-spring-label, .twk-bezier-label";
@@ -99,12 +102,14 @@ function addHintMarker(node: Element, hint: string) {
     mark.setAttribute("aria-label", hint);
     mark.addEventListener("focus", show);
     mark.addEventListener("blur", hideHint);
-    mark.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }); // keyboard activation stays on the marker
+    // keyboard activation stays on the marker
+    mark.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); });
   }
   mark.addEventListener("pointerenter", show);
   mark.addEventListener("pointerleave", hideHint);
   mark.addEventListener("pointerdown", (e) => e.stopPropagation()); // mustn't start a slider scrub or panel drag
-  mark.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }); // and (inside a control button) mustn't toggle the parent
+  // and (inside a control button) mustn't toggle the parent
+  mark.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); });
   label.appendChild(mark);
 }
 async function copyText(text: string) {

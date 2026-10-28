@@ -47,7 +47,8 @@ const press = async (k) => {
     ta.dispatchEvent(ev);
   }
   await wait(10);
-  for (let i = 0; k === "v" && band && i < 400 && !band.matches(".is-pasted, .is-refused"); i++) await wait(5); // the band answers once the chunk lands (up to 2s on a loaded runner)
+  // the band answers once the chunk lands (up to 2s on a loaded runner)
+  for (let i = 0; k === "v" && band && i < 400 && !band.matches(".is-pasted, .is-refused"); i++) await wait(5);
   return band?.classList.contains("is-pasted") ? "ok" : band?.classList.contains("is-refused") ? "failed" : "none";
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);

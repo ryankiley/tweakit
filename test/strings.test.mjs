@@ -16,11 +16,15 @@ test("the catalog and the source agree: every key the source asks for is in Stri
   const src = ["src/tweaks", "src/tweaks/controls"].flatMap((d) => readdirSync(new URL(`../${d}`, import.meta.url)).filter((f) => f.endsWith(".ts")).map((f) => read(`${d}/${f}`))).join("\n");
   const asked = new Map([...src.matchAll(/(?:\btr|words\(\))\(\s*"(\w+)",\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => [m[1], m[2]]));
   const easings = read("src/tweaks/controls/gradient.ts").match(/const EASINGS[\s\S]*?\];/)[0];
-  for (const m of easings.matchAll(/\["[\w-]+", "(\w+)", "([^"]+)"\]/g)) asked.set(m[1], m[2]); // gradient's easing table
-  for (const m of src.matchAll(/\["(\w+)", "([A-Z][a-z]+)", [\d.]+\]/g)) asked.set(m[1], m[2]); // spring's physics fields
+  // gradient's easing table
+  for (const m of easings.matchAll(/\["[\w-]+", "(\w+)", "([^"]+)"\]/g)) asked.set(m[1], m[2]);
+  // spring's physics fields
+  for (const m of src.matchAll(/\["(\w+)", "([A-Z][a-z]+)", [\d.]+\]/g)) asked.set(m[1], m[2]);
   for (const m of src.matchAll(/\["(interval\w+)", "([^"]+)", h\w+\]/g)) asked.set(m[1], m[2]);
-  for (const n of ["Top-left", "Top-right", "Bottom-right", "Bottom-left", "Top", "Right", "Bottom", "Left"]) asked.set(n.toLowerCase().replace(/-(\w)/, (_, c) => c.toUpperCase()), n); // sides: keys from the names
-  for (const k of ["copiedChanged", "pasted", "stops", "stopAt", "stopAtSelected"]) asked.set(k, KEYS.get(k)); // a plural function or a ternary
+  // sides: keys from the names
+  for (const n of ["Top-left", "Top-right", "Bottom-right", "Bottom-left", "Top", "Right", "Bottom", "Left"]) asked.set(n.toLowerCase().replace(/-(\w)/, (_, c) => c.toUpperCase()), n);
+  // a plural function or a ternary
+  for (const k of ["copiedChanged", "pasted", "stops", "stopAt", "stopAtSelected"]) asked.set(k, KEYS.get(k));
   for (const [k, d] of asked) { assert.ok(KEYS.has(k), `"${k}" is asked for but missing from Strings`); assert.equal(KEYS.get(k), d, `"${k}"'s default`); }
   for (const k of KEYS.keys()) assert.ok(asked.has(k), `Strings lists "${k}", which nothing asks for`);
 });

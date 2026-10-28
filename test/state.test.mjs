@@ -58,10 +58,12 @@ test("undo/redo step through edits; a new edit drops the redo branch", async () 
 
 test("toJSON escapes dotted folder keys injectively; fromJSON restores values + UI", () => {
   const p = tweaks("J", { "a.b": { x: [1, 0, 10, 1] } });
-  p.set("x", 4); // the folder key contains a literal dot, so a dotted path can't reach x — the unambiguous bare key does
+  // the folder key contains a literal dot, so a dotted path can't reach x — the unambiguous bare key does
+  p.set("x", 4);
   const state = p.toJSON();
   assert.equal(state.values["a.b"].x, 4);
-  assert.deepEqual(Object.keys(state.ui.folders), ["a~0b"]); // "." -> ~0, so a literal dot can't collide with the separator
+  // "." -> ~0, so a literal dot can't collide with the separator
+  assert.deepEqual(Object.keys(state.ui.folders), ["a~0b"]);
   const q = tweaks("J", { "a.b": { x: [1, 0, 10, 1] } });
   q.fromJSON({ values: { "a.b": { x: 6 } }, ui: { folders: { "a~0b": true } } });
   assert.equal(q.params["a.b"].x, 6);

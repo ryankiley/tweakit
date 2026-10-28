@@ -8,9 +8,12 @@ import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, SidesValue } from "../types.js";
 
-const ICON_SPLIT = icon('<path d="M3 9V7a4 4 0 0 1 4-4h2M15 3h2a4 4 0 0 1 4 4v2M21 15v2a4 4 0 0 1-4 4h-2M9 21H7a4 4 0 0 1-4-4v-2"/>'); // original: the four corner arcs of a rounded box, apart
-const ICON_CORNER = icon('<path d="M3 13V8a5 5 0 0 1 5-5h5"/>', "", 1.5, 16); // original: the top-left quarter of a rounded box, turned per corner in CSS
-const ICON_EDGE = icon('<path d="M3 10V8a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2"/>', "", 1.5, 16); // original: the top of that box, two of its corners joined, turned per side
+// original: the four corner arcs of a rounded box, apart
+const ICON_SPLIT = icon('<path d="M3 9V7a4 4 0 0 1 4-4h2M15 3h2a4 4 0 0 1 4 4v2M21 15v2a4 4 0 0 1-4 4h-2M9 21H7a4 4 0 0 1-4-4v-2"/>');
+// original: the top-left quarter of a rounded box, turned per corner in CSS
+const ICON_CORNER = icon('<path d="M3 13V8a5 5 0 0 1 5-5h5"/>', "", 1.5, 16);
+// original: the top of that box, two of its corners joined, turned per side
+const ICON_EDGE = icon('<path d="M3 10V8a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2"/>', "", 1.5, 16);
 const LEN_RE = /^(-?\d*\.?\d+)([a-z%]*)$/i;
 const num = (v: unknown) => (v != null && v !== "" && Number.isFinite(+v) ? +v : null);
 const expand = (n: number[]) => (n.length === 1 ? [n[0], n[0], n[0], n[0]] : n.length === 2 ? [n[0], n[1], n[0], n[1]] : n.length === 3 ? [n[0], n[1], n[2], n[1]] : n.slice(0, 4));
@@ -38,13 +41,17 @@ const saidUnit = (v: unknown, name: string, sides: string[]) => {
 
 function createSides(meta: Meta, onChange: OnChange): Control {
   const corners = !!meta.corners, names = corners ? ["Top-left", "Top-right", "Bottom-right", "Bottom-left"] : ["Top", "Right", "Bottom", "Left"];
-  const tr = words(), shown = names.map((n) => tr(n.toLowerCase().replace(/-(\w)/, (_, c) => c.toUpperCase()), n)); // topLeft …; `names` stays the glyph's data-at
+  // topLeft …; `names` stays the glyph's data-at
+  const tr = words(), shown = names.map((n) => tr(n.toLowerCase().replace(/-(\w)/, (_, c) => c.toUpperCase()), n));
   const name = meta.label || meta.key, init = meta.value ?? meta;
-  const unit = (typeof meta.unit === "string" && meta.unit.trim()) || saidUnit(init, name, names) || "px"; // an explicit unit wins over the string's
+  // an explicit unit wins over the string's
+  const unit = (typeof meta.unit === "string" && meta.unit.trim()) || saidUnit(init, name, names) || "px";
   let v = read(init, [0, 0, 0, 0]);
   // No step: 1, or finer when a side has decimals, so "0.5rem 1.25rem" keeps its quarter rem (decimalStep, as the number's).
-  const spec = { step: meta.step ?? Math.min(1, ...(v || []).map(decimalStep)), min: meta.min ?? (corners ? 0 : undefined), max: meta.max, unit }; // a radius can't go negative; a margin can
-  const fmt = (n: number) => String(+n.toFixed(Math.max(2, stepPrecision(+spec.step)))); // the readout and css at the step's decimals, so 0.125rem isn't 0.13rem
+  // a radius can't go negative; a margin can
+  const spec = { step: meta.step ?? Math.min(1, ...(v || []).map(decimalStep)), min: meta.min ?? (corners ? 0 : undefined), max: meta.max, unit };
+  // the readout and css at the step's decimals, so 0.125rem isn't 0.13rem
+  const fmt = (n: number) => String(+n.toFixed(Math.max(2, stepPrecision(+spec.step))));
   // A default it can't read still starts at 0, but says so: a padding that quietly lost its value looks like the page's bug.
   // An object naming no side stays quiet, as markup hands its whole dataset over when there's no data-value.
   if (!v && meta.value != null && (typeof meta.value !== "object" || Array.isArray(meta.value))) console.warn(`[tweaks] sides "${name}": can't read ${JSON.stringify(meta.value)?.slice(0, 60)}, so it starts at 0; it takes one to four numbers or plain lengths, like "8px 16px"`);

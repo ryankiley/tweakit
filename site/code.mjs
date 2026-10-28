@@ -17,7 +17,8 @@ export const codeBlock = (html, lang, attrs = "") => `<div class="ex-codewrap"${
 
 /** The text of a { lang, text } block. A "text" block is prose (a prompt): single newlines are
  *  source wrapping, so they join; blank lines stay. */
-export const codeText = (c) => (c.lang === "text" ? dedent(c.text).trim().replace(/(\S)\n(?=(?![-*+] |\d+\. )\S)/g, "$1 ") : dedent(c.text).trim()); // a list item keeps its line
+// a list item keeps its line
+export const codeText = (c) => (c.lang === "text" ? dedent(c.text).trim().replace(/(\S)\n(?=(?![-*+] |\d+\. )\S)/g, "$1 ") : dedent(c.text).trim());
 
 /** One block from { lang, text }. */
 export function renderCode(c, attrs = "") {

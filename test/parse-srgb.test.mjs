@@ -69,7 +69,8 @@ test("hsl and hwb readouts are fixed points, grays and hue 360 included", () => 
       const once = serialize(parseColor(s).slice(0, 3), mode, 1);
       const twice = serialize(parseColor(once).slice(0, 3), mode, 1);
       if (twice !== once) idemFails.push(`${s} → ${once} → ${twice}`);
-      const gray = mode === "hsl" ? a === 0 || b === 0 || b === 100 : a + b >= 100; // a gray carries no hue, so only its normalized form can read back as itself
+      // a gray carries no hue, so only its normalized form can read back as itself
+      const gray = mode === "hsl" ? a === 0 || b === 0 || b === 100 : a + b >= 100;
       if (!gray) { chromatic++; if (once !== s) exactFails.push(`${s} → ${once}`); }
     }
   }

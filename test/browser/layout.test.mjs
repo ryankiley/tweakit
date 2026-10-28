@@ -136,7 +136,8 @@ test("a floating panel follows a header drag, and a click on the header folds it
   const body = panel.locator(".twk-body");
   assert.ok((await body.boundingBox()).height > 0, "the body starts open");
   await panel.locator(".twk-title").click();
-  await body.evaluate((b) => new Promise((done) => { const check = () => (b.getBoundingClientRect().height < 1 ? done() : requestAnimationFrame(check)); check(); })); // the body folds away
+  // the body folds away
+  await body.evaluate((b) => new Promise((done) => { const check = () => (b.getBoundingClientRect().height < 1 ? done() : requestAnimationFrame(check)); check(); }));
   assert.deepEqual(errors, []);
   await page.close();
 });
@@ -180,7 +181,8 @@ test("a panel lifted by its first drag keeps the host's tokens and type, under i
 });
 
 // Read when the file loads, so the tests below register with the rest and --test-name-pattern can pick them.
-const PAGES = readdirSync(path.join(ROOT, "dist")).filter((f) => f.endsWith(".html")).map((f) => f.slice(0, -5)); // every docs page, a new one included
+// every docs page, a new one included
+const PAGES = readdirSync(path.join(ROOT, "dist")).filter((f) => f.endsWith(".html")).map((f) => f.slice(0, -5));
 for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 }]) {
   test(`docs pages at ${viewport.width}px: everything inside its panel${viewport.width < 768 ? ", and no sideways scroll" : ""}`, async () => {
     for (const name of PAGES) {
@@ -254,7 +256,8 @@ test("hidden hides a shadow panel, a page's component keeps its own :host, and a
     holder("my-tuner", "<style>:host { display: inline-flex }</style>"); holder("my-plain", "");
     const tuner = document.createElement("my-tuner"), plain = document.createElement("my-plain");
     const tabs = tweaks("Tabs", { t: { type: "tabs", pages: { One: { a: 1 }, Two: { b: 2 } } } }, { shadow: true });
-    const wrap = document.createElement("div"); wrap.append(tuner, plain); document.body.append(wrap, tabs.el); await tabs.ready; // out of <body>'s flex, which blockifies
+    // out of <body>'s flex, which blockifies
+    const wrap = document.createElement("div"); wrap.append(tuner, plain); document.body.append(wrap, tabs.el); await tabs.ready;
     await new Promise((f) => setTimeout(f, 300));
     const display = (n) => getComputedStyle(n).display, shadow = window.panels.shadow.el;
     const before = [display(tuner), display(plain), display(shadow)];

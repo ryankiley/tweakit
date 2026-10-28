@@ -30,14 +30,16 @@ export const createUndo = (panel: HTMLElement, snapshot: () => Snapshot, applySn
     histIdx = history.length - 1;
   };
   const record = () => { if (applyingHistory) return; clearTimeout(histTimer); histTimer = setTimeout(commit, 350); };
-  const flush = () => { if (histTimer) { clearTimeout(histTimer); commit(); } }; // so ⌘Z right after a change still undoes that change
+  // so ⌘Z right after a change still undoes that change
+  const flush = () => { if (histTimer) { clearTimeout(histTimer); commit(); } };
   watch(record);
   const restore = (idx: number) => { applyingHistory = true; applySnapshot(history[idx]); applyingHistory = false; histIdx = idx; };
   const undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
   const redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
   const focused = () => panel.matches(":hover") || panel.contains(activeIn(panel));
   const onKey = (e: KeyboardEvent) => {
-    if (!focused() || !(e.metaKey || e.ctrlKey) || inEditable(e.composedPath()[0] as Element)) return; // the path: a shadow host retargets e.target
+    // the path: a shadow host retargets e.target
+    if (!focused() || !(e.metaKey || e.ctrlKey) || inEditable(e.composedPath()[0] as Element)) return;
     const k = e.key.toLowerCase();
     if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     else if (k === "y") { e.preventDefault(); redo(); }

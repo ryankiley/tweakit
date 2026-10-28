@@ -136,7 +136,8 @@ function renderPage(shell, pages, idx, chunks = [], version = "") {
     footnav: renderFootnav(pages, idx),
     script: renderScript(page),
   };
-  values.preload = values.script ? chunks.map((f) => `  <link rel="modulepreload" href="./tweaks/${f}" />`).join("\n") : ""; // only pages that run the kit
+  // only pages that run the kit
+  values.preload = values.script ? chunks.map((f) => `  <link rel="modulepreload" href="./tweaks/${f}" />`).join("\n") : "";
   return shell.replace(/\{\{(\w+)\}\}/g, (m, k) => (Object.hasOwn(values, k) ? values[k] : m));
 }
 
@@ -165,7 +166,8 @@ function renderFootnav(pages, idx) {
 
 function renderExample(ex, ids, captioned) {
   if ((ex.run || ex.html) && !ex.id) throw new Error(`example "${ex.title || "?"}": run/html examples need an id`);
-  if (ex.id) {                                     // every id is a page id (ex-*, tab-*, fold-*), so each must be unique
+  // every id is a page id (ex-*, tab-*, fold-*), so each must be unique
+  if (ex.id) {
     if (ids.has(ex.id)) throw new Error(`duplicate example id "${ex.id}"`);
     ids.add(ex.id);
   }

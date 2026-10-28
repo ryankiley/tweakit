@@ -38,7 +38,8 @@ export const animated = async (file: Blob) => {
     const type = String.fromCharCode(...c.subarray(webp ? 0 : 4, webp ? 4 : 8));
     if (type === (webp ? "ANIM" : "acTL")) return true;
     if (webp ? /^(VP8 |VP8L|ANMF)$/.test(type) : type === "IDAT") return false; // the picture has begun
-    const n = new DataView(c.buffer).getUint32(webp ? 4 : 0, webp); // a WebP chunk's size is little-endian and padded to even
+    // a WebP chunk's size is little-endian and padded to even
+    const n = new DataView(c.buffer).getUint32(webp ? 4 : 0, webp);
     i += webp ? 8 + n + (n & 1) : 12 + n; // at least a header on, so the end of the file comes
   }
 };
@@ -80,7 +81,8 @@ const mpfShift = (seg: Uint8Array, by: number) => {
   try {
     const ifd = v.getUint32(4, le);
     for (let k = 0, n = v.getUint16(ifd, le); k < n; k++) {
-      const e = ifd + 2 + k * 12; if (v.getUint16(e, le) !== 0xb002) continue; // MPEntry: 16 bytes an image, its offset at 8
+      // MPEntry: 16 bytes an image, its offset at 8
+      const e = ifd + 2 + k * 12; if (v.getUint16(e, le) !== 0xb002) continue;
       const list = v.getUint32(e + 8, le), count = v.getUint32(e + 4, le) >>> 4;
       if (count) v.getUint32(list + count * 16 - 4, le); // the whole list is in the segment, or nothing is written
       for (let j = 0; j < count; j++) { const o = list + j * 16 + 8, off = v.getUint32(o, le); if (off > by) v.setUint32(o, off - by, le); }
@@ -93,11 +95,13 @@ const jpegCut = (b: Bytes) => {
   for (;;) {
     while (b[i] === 0xff && b[i + 1] === 0xff) i++; // fill bytes before a marker (T.81 B.1.1.2) stay with what's kept
     const m = b[i + 1], end = i + 2 + ((b[i + 2] << 8) | b[i + 3]);
-    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null; // a marker out of place
+    // a marker out of place
+    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null;
     if (m === 0xda) break; // start of scan: the picture itself, kept to the end
     if (m === 0xe2 && ascii(b, i + 4, "MPF\0")) mpf = b.subarray(i + 8, end);
     const exif = m === 0xe1 && ascii(b, i + 4, "Exif\0");
-    if (exif || (m === 0xe1 && ascii(b, i + 4, "http://ns.adobe.com/x") && !(ascii(b, i + 4, XMP) && gainMapOnly(b.subarray(i + 4 + XMP.length, end))))) { // XMP, and its extension
+    // XMP, and its extension
+    if (exif || (m === 0xe1 && ascii(b, i + 4, "http://ns.adobe.com/x") && !(ascii(b, i + 4, XMP) && gainMapOnly(b.subarray(i + 4 + XMP.length, end))))) {
       const o = exif ? orientation(b.subarray(i + 10, end)) : 1; if (o === null) return null;
       out.push(b.subarray(from, i)); from = end;
       const bare = o > 1 && !turned++; if (bare) out.push(new Uint8Array([0xff, 0xe1, 0, 34, 69, 120, 105, 102, 0, 0, ...bareExif(o)]));
@@ -149,7 +153,8 @@ const shrink = async (file: File, fit: number, quality: number): Promise<string>
     src = URL.createObjectURL(file);
     const img = new Image(); img.src = src; await img.decode();
     const iw = img.naturalWidth, ih = img.naturalHeight, k = Math.min(1, fit / Math.max(iw, ih));
-    if (!(iw > 0 && ih > 0) || (k === 1 && file.size <= PNG_BUDGET)) return ""; // within fit and light: a picture already shrunk is never redrawn
+    // within fit and light: a picture already shrunk is never redrawn
+    if (!(iw > 0 && ih > 0) || (k === 1 && file.size <= PNG_BUDGET)) return "";
     const c = document.createElement("canvas"), w = (c.width = Math.max(1, Math.round(iw * k))), h = (c.height = Math.max(1, Math.round(ih * k)));
     const ctx = context(c); if (!ctx) return "";
     ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, 0, 0, w, h);
@@ -170,11 +175,13 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   // Options: URLs, or { value, label }; anything but a non-empty string value is skipped, and a repeated URL keeps its first.
   const seen = new Set<string>();
   const options = (Array.isArray(meta.options) ? meta.options : []).map((o) => ({ value: optValue(o), label: o && typeof o === "object" && o.label != null ? String(o.label) : "" })).filter((o): o is { value: string; label: string } => typeof o.value === "string" && !!o.value && !seen.has(o.value) && !!seen.add(o.value));
-  const canUpload = meta.upload !== false || !options.length; // the plain row is the upload: there is nothing else to leave
+  // the plain row is the upload: there is nothing else to leave
+  const canUpload = meta.upload !== false || !options.length;
   const canClear = meta.clear !== false; // false: a required choice, with no Clear and no Delete to empty it
   const maxSize = +meta.maxSize! > 0 ? +meta.maxSize! : 10 * MB;
   // A number only: `fit: true` would read as 1 and draw every upload as one pixel.
-  const fit = meta.fit === false || meta.fit === 0 ? 0 : typeof meta.fit === "number" && meta.fit >= 1 ? Math.round(meta.fit) : 2560; // false or 0: uploads as they are
+  // false or 0: uploads as they are
+  const fit = meta.fit === false || meta.fit === 0 ? 0 : typeof meta.fit === "number" && meta.fit >= 1 ? Math.round(meta.fit) : 2560;
   const quality = typeof meta.quality === "number" && meta.quality > 0 && meta.quality <= 1 ? meta.quality : 0.85;
   const input = el("input", "twk-image-input"); input.type = "file"; input.accept = "image/*";
   // A refused file's reason takes the button text's place for a moment. It is spoken from a status region beside the
@@ -213,7 +220,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     zone.addEventListener("dragleave", () => { over.dataset.over = "false"; });
     zone.addEventListener("drop", (e) => { over.dataset.over = "false"; if (off()) return; e.preventDefault(); load(e.dataTransfer?.files[0]); });
   };
-  input.addEventListener("change", () => { load(input.files?.[0]); input.value = ""; }); // cleared, so the same file picked again fires change
+  // cleared, so the same file picked again fires change
+  input.addEventListener("change", () => { load(input.files?.[0]); input.value = ""; });
   // Both forms are a trigger row with the chosen image's thumb first, as every chip row.
   const row = triggerRow("twk-image", meta.label), root = row.root;
   const thumb = el("span", "twk-trigger-chip twk-image-thumb");
@@ -254,7 +262,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     // A value that is none of the options (an upload, or a host-set URL) shows as a last tile, selected. Its URL rides
     // on _twVal, not data-value: the inline style already holds one copy of a data URL, and data-value would be a second.
     const custom: RadioBtn = btn("twk-image-tile twk-image-custom"); custom.setAttribute("role", "radio");
-    const all = () => (custom.parentNode ? [...tiles, custom] : tiles); // parentNode, not isConnected: a panel not yet in the document has no connected nodes
+    // parentNode, not isConnected: a panel not yet in the document has no connected nodes
+    const all = () => (custom.parentNode ? [...tiles, custom] : tiles);
     render = () => {
       const k = tiles.findIndex((b) => b._twVal === value);
       if (value && k < 0) {
@@ -266,21 +275,26 @@ function createImage(meta: Meta, onChange: OnChange): Control {
         if (custom.matches(":focus")) tiles[Math.max(0, k)].focus();
         custom.remove();
       }
-      const btns = all(), stop = Math.max(0, btns.findIndex((b) => b._twVal === value)); // the roving tab stop: the chosen tile, else the first
+      // the roving tab stop: the chosen tile, else the first
+      const btns = all(), stop = Math.max(0, btns.findIndex((b) => b._twVal === value));
       btns.forEach((b, j) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = j === stop ? 0 : -1; });
-      slot.dataset.open = String(!!value); slot.inert = !value; // nothing to clear: Clear folds away, out of the tab order
-      foot.dataset.open = String(!!upload || (canClear && !!value)); foot.inert = foot.dataset.open === "false"; // an empty foot folds to nothing
+      // nothing to clear: Clear folds away, out of the tab order
+      slot.dataset.open = String(!!value); slot.inert = !value;
+      // an empty foot folds to nothing
+      foot.dataset.open = String(!!upload || (canClear && !!value)); foot.inert = foot.dataset.open === "false";
       paintThumb();
       name.textContent = !value ? tr("none", "None") : k >= 0 ? names[k] : customName(value);
     };
     grid.addEventListener("keydown", (e) => {
       const btns = all(), i = btns.indexOf(e.target as RadioBtn); if (i < 0) return;
       // Focus moves before the commit: the commit can remove the focused tile (the custom one) or hide Clear.
-      if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); tiles[0].focus(); commit(""); return; } // a modifier+Delete is the panel's reset, not a clear
+      // a modifier+Delete is the panel's reset, not a clear
+      if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); tiles[0].focus(); commit(""); return; }
       const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
       e.preventDefault(); if (j !== i) { btns[j].focus(); commit(btns[j]._twVal as string); } // a tile holds its URL
     });
-    clear.addEventListener("click", () => { (upload || tiles[0]).focus(); commit(""); }); // Clear hides itself: hand focus on first, not to the body
+    // Clear hides itself: hand focus on first, not to the body
+    clear.addEventListener("click", () => { (upload || tiles[0]).focus(); commit(""); });
     pop.append(grid, foot);
     root.append(pop, live);
     if (upload) {

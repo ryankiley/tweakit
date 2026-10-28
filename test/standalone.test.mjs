@@ -98,7 +98,8 @@ test("a [data-twk] host dispatches twk:change and writes data-value on an edit, 
     </div>`;
   document.body.append(wrap);
   const events = [];
-  wrap.addEventListener("twk:change", (e) => events.push([e.target.dataset.twk, e.detail.key, e.detail.value])); // listened on an ancestor: the event bubbles
+  // listened on an ancestor: the event bubbles
+  wrap.addEventListener("twk:change", (e) => events.push([e.target.dataset.twk, e.detail.key, e.detail.value]));
   await enhance(wrap);
   const host = wrap.querySelector("[data-twk]");
   key(host.querySelector(".twk-slider"), { key: "ArrowRight" });

@@ -118,7 +118,8 @@ test("a hostile color string is skipped, not thrown, and the rest of a restore s
   const p = tweaks("CX", { a: [1, 0, 10, 1], c: { type: "color", value: "#ff0000" }, z: [1, 0, 10, 1] });
   p.set("c", "color(constructor 1 0 0)");       // must not throw…
   p.set("c", "color(__proto__ 1 0 0)");         // …nor this: an unknown color() space
-  const neutral = p.params.c;                   // degrades to the picker's neutral default, like any other unsupported space
+  // degrades to the picker's neutral default, like any other unsupported space
+  const neutral = p.params.c;
   assert.equal(neutral, "#ff0000", "an unrecognized space is refused, and the color keeps its value");
 
   let calls = 0;
@@ -145,7 +146,8 @@ test("markup mode echoes an object-valued control as its components, not [object
   await enhance(holder);
   const host = holder.querySelector('[data-twk="point"]');
   host._tw.ctrl.set({ x: 7, y: 9 });
-  host._tw.ctrl.el.querySelector(".twk-num").dispatchEvent(new Event("change", { bubbles: true })); // nudge a field so the control emits
+  // nudge a field so the control emits
+  host._tw.ctrl.el.querySelector(".twk-num").dispatchEvent(new Event("change", { bubbles: true }));
   assert.ok(!/object Object/.test(host.dataset.value), `data-value stayed parseable, got "${host.dataset.value}"`);
   assert.match(host.dataset.value, /^[\d.,-]+$/, "components, comma-joined — the form the point parser reads");
   holder.remove();
@@ -257,7 +259,8 @@ test("toJSON captures values + folder/tab UI; fromJSON restores them; JSON.strin
   assert.equal(state.values.shadow.radius, 4);
   assert.equal(state.ui.folders["shadow"], true);
   assert.equal(state.ui.tabs["pages"], "second");
-  assert.equal(JSON.parse(JSON.stringify(p)).values.blur, 42);          // the standard toJSON hook fires through stringify
+  // the standard toJSON hook fires through stringify
+  assert.equal(JSON.parse(JSON.stringify(p)).values.blur, 42);
 
   // drift away from the saved state, then restore
   p.set("blur", 0);
@@ -352,8 +355,10 @@ test("destroy() in the same tick as opening a popover leaves no stray menu, focu
   assert.ok(menu && menu.isConnected, "the menu portaled to <body>");
   p.destroy(); // same tick as the open
   const added = [];
-  document.addEventListener = function (type, ...rest) { added.push(type); return Object.getPrototypeOf(this).addEventListener.call(this, type, ...rest); }; // spy on listeners added behind the close
-  try { await wait(40); } finally { delete document.addEventListener; } // past the rAF (16ms here) and the setTimeout(0)
+  // spy on listeners added behind the close
+  document.addEventListener = function (type, ...rest) { added.push(type); return Object.getPrototypeOf(this).addEventListener.call(this, type, ...rest); };
+  // past the rAF (16ms here) and the setTimeout(0)
+  try { await wait(40); } finally { delete document.addEventListener; }
   assert.ok(!menu.classList.contains("is-open"), "the dead menu did not re-open");
   assert.ok(!menu.contains(document.activeElement), "focus was not stolen into it");
   assert.ok(!added.includes("pointerdown"), "no outside-press listener was added after the close");
@@ -392,7 +397,8 @@ test("a keyboard step during a snap slider's settle doesn't leave it lit", async
   document.body.append(p.el);
   const track = p.el.querySelector(".twk-slider");
   track.setPointerCapture = () => {};
-  track.parentNode.getBoundingClientRect = () => ({ left: 0, top: 0, right: 200, bottom: 32, width: 200, height: 32 }); // jsdom lays out nothing; a press needs a real track width
+  // jsdom lays out nothing; a press needs a real track width
+  track.parentNode.getBoundingClientRect = () => ({ left: 0, top: 0, right: 200, bottom: 32, width: 200, height: 32 });
   track.dispatchEvent(ptr("pointerdown", { clientX: 120 }));
   track.dispatchEvent(ptr("pointerup", { clientX: 120, buttons: 0 }));
   await wait(20); // mid-settle
@@ -418,7 +424,8 @@ test("reset() restores the value a control opened on, not the raw schema value i
   const p = tweaks("Def", {
     label: { type: "text", value: 5 },                 // a numeric text default
     n: { type: "number", value: "abc" },               // an unusable number default → 0
-    s: { type: "spring", mode: "physics", value: { stiffness: 85, damping: 12, mass: 2, visualDuration: 0.4, bounce: 0.3 } }, // explicit physics over a time pair
+    // explicit physics over a time pair
+    s: { type: "spring", mode: "physics", value: { stiffness: 85, damping: 12, mass: 2, visualDuration: 0.4, bounce: 0.3 } },
   });
   const opened = p.toJSON().values;
   assert.equal(opened.label, "5");
@@ -430,7 +437,8 @@ test("reset() restores the value a control opened on, not the raw schema value i
   assert.deepEqual(p.toJSON().values, opened);
   document.body.append(p.el);
   const timeBtn = [...p.el.querySelectorAll(".twk-spring .twk-seg-btn")].find((b) => b.textContent.trim() === "Time");
-  timeBtn.click();                                      // the time cache is the schema's pair again, not the 0.6/0.1 edit
+  // the time cache is the schema's pair again, not the 0.6/0.1 edit
+  timeBtn.click();
   assert.equal(p.params.s.visualDuration, 0.4);
   assert.equal(p.params.s.bounce, 0.3);
   p.destroy();
@@ -442,7 +450,8 @@ test("reset() re-parses the authored color exactly, whatever mode the picker is 
   document.body.append(p.el);
   const mode = p.el.querySelector(".twk-color-mode");
   mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
-  assert.equal(p.el.querySelector(".twk-color-chan-input").value, "#00FF00"); // (params keep the last emitted string until a value changes)
+  // (params keep the last emitted string until a value changes)
+  assert.equal(p.el.querySelector(".twk-color-chan-input").value, "#00FF00");
   p.set("c", "#123456");
   p.reset();
   assert.equal(p.params.c, "#00ff00");                  // not #29ff0e, the re-parse of the rounded readout string
@@ -450,7 +459,8 @@ test("reset() re-parses the authored color exactly, whatever mode the picker is 
 });
 
 test("reset() restores both of a spring's caches from the schema", () => {
-  const p = tweaks("Sc", { s: { type: "spring", value: { stiffness: 85, damping: 12, mass: 2, visualDuration: 0.4, bounce: 0.3 } } }); // time inferred
+  // time inferred
+  const p = tweaks("Sc", { s: { type: "spring", value: { stiffness: 85, damping: 12, mass: 2, visualDuration: 0.4, bounce: 0.3 } } });
   document.body.append(p.el);
   const btn = (t) => [...p.el.querySelectorAll(".twk-spring .twk-seg-btn")].find((b) => b.textContent.trim() === t);
   btn("Physics").click();
@@ -459,7 +469,8 @@ test("reset() restores both of a spring's caches from the schema", () => {
   p.set("s", { visualDuration: 0.6, bounce: 0.1 });
   p.reset();
   assert.equal(p.params.s.visualDuration, 0.4);
-  btn("Physics").click();                               // the physics cache used to hold the time-derived spring after a reset
+  // the physics cache used to hold the time-derived spring after a reset
+  btn("Physics").click();
   assert.deepEqual(p.params.s, { stiffness: 85, damping: 12, mass: 2 });
   p.destroy();
 });
@@ -472,9 +483,11 @@ test("a hard slider's range is its reachable grid, so its ends, keys and value a
   track(0).dispatchEvent(Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), { key: "End" }));
   assert.equal(p.params.x, 14);
   track(0).dispatchEvent(Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), { key: "ArrowLeft" }));
-  assert.equal(p.params.x, 13);                         // End landed on max (14.6, reported 14): the first ArrowLeft used to be a dead press
+  // End landed on max (14.6, reported 14): the first ArrowLeft used to be a dead press
+  assert.equal(p.params.x, 13);
   track(1).dispatchEvent(Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), { key: "End" }));
-  assert.equal(p.params.s, 10);                         // the snap slider's last notch is 10, not a phantom 14.6 that also reported 10
+  // the snap slider's last notch is 10, not a phantom 14.6 that also reported 10
+  assert.equal(p.params.s, 10);
   assert.equal(track(1).getAttribute("aria-valuemax"), "10");
   assert.equal(track(2).getAttribute("aria-valuemax"), "14.6"); // a soft slider keeps its authored range
   p.destroy();
@@ -505,7 +518,8 @@ test("a hint survives a leave and a blur queued within its grace, then a re-ente
   const tip = document.querySelector(".twk-tip");
   assert.ok(tip.classList.contains("is-open"));
   mark.dispatchEvent(new Event("pointerleave"));
-  mark.dispatchEvent(new Event("blur"));                // a second pending hide, which the re-enter below used to leave ticking
+  // a second pending hide, which the re-enter below used to leave ticking
+  mark.dispatchEvent(new Event("blur"));
   mark.dispatchEvent(new Event("pointerenter"));
   await wait(120);
   assert.ok(tip.classList.contains("is-open"), "still open after the grace");
@@ -541,7 +555,8 @@ test("the hex field catches up on blur after a plane tap while it was focused", 
   hue.dispatchEvent(ptr("pointerdown", { clientX: 50, clientY: 5 }));
   hue.dispatchEvent(ptr("pointerup", { clientX: 50, clientY: 5, buttons: 0 }));
   assert.notEqual(p.params.c, "#ff0000");
-  assert.equal(inp.value, "#FF0000");                   // refresh() skips the focused field (a typed edit must not be clobbered)
+  // refresh() skips the focused field (a typed edit must not be clobbered)
+  assert.equal(inp.value, "#FF0000");
   inp.blur();
   assert.equal(inp.value, p.params.c);                  // used to stay stale until the next edit
   p.destroy();
@@ -551,11 +566,14 @@ test("numeric values stay on their step grid: a null bound is unbounded, an off-
   const p = tweaks("Grid", {
     size: { type: "number", value: 27.44, min: 14.45, max: null, step: null }, // a JSON'd schema — null is absent
     cap: { type: "number", value: 20, min: 0, max: 14.45, step: 1 },
-    half: { type: "number", value: 3, min: 0.5, step: 1 },                     // a min half a step off the readout's rounding
-    rot: [0, -Math.PI, Math.PI, 0.01],                                          // a computed bound keeps the step's readout
+    // a min half a step off the readout's rounding
+    half: { type: "number", value: 3, min: 0.5, step: 1 },
+    // a computed bound keeps the step's readout
+    rot: [0, -Math.PI, Math.PI, 0.01],
     s: [5, 0, 14.6, 1], iv: [[2, 8], 0, 14.6, 1],
   });
-  assert.equal(p.params.size, 27.44);   // max: null used to read as 0 and swap in as the floor, clamping to 14.45; step: null infers one 27.44 sits on
+  // max: null used to read as 0 and swap in as the floor, clamping to 14.45; step: null infers one 27.44 sits on
+  assert.equal(p.params.size, 27.44);
   assert.equal(p.params.cap, 14);       // not 14.45, which the field can't show and its own set() re-rounded
   assert.equal(p.params.half, 3);       // not 4 (and 5, 6, … on every set of its own value)
   assert.ok(p.params.rot === 0);        // on the 0.01 grid, not -0.0016 (the min-anchored point) or -0
@@ -565,7 +583,8 @@ test("numeric values stay on their step grid: a null bound is unbounded, an off-
   assert.equal(p.params.s, 14);         // the track's end reported 15, past max
   assert.deepEqual(p.params.iv, [0, 14]);
   p.set("half", 0); p.set("s", -1);
-  assert.equal(p.params.half, 1);       // the first grid point at or above min, not 0.5 (which its own set() then moved to 1)
+  // the first grid point at or above min, not 0.5 (which its own set() then moved to 1)
+  assert.equal(p.params.half, 1);
   assert.equal(p.params.s, 0);
   const s = p.toJSON(); p.fromJSON(s);
   assert.deepEqual(p.toJSON(), s);      // a round trip is a fixed point
@@ -583,7 +602,8 @@ test("a control holding undefined serializes as null, so undo/redo and the copy 
   const p = tweaks("Undef", { sel: ["a", "b"] }, { undo: true });
   document.body.append(p.el);
   p.set("sel", null); await wait(400);          // one history step: null
-  p.set("sel", undefined); await wait(400);     // the next: undefined — JSON dropped the key, so undo had no step to return to
+  // the next: undefined — JSON dropped the key, so undo had no step to return to
+  p.set("sel", undefined); await wait(400);
   assert.equal(p.toJSON().values.sel, null);
   assert.ok("sel" in JSON.parse(JSON.stringify(p)).values); // the key is present, not dropped
   const cur = p.toJSON().values;
@@ -600,7 +620,8 @@ test("a click into the color picker's hex field selects the whole value", () => 
   const inp = p.el.querySelector(".twk-color-chan-input");
   assert.equal(inp.value, "#FF0000");
   const mid = ptr("mouseup", { button: 1 });
-  inp.dispatchEvent(ptr("pointerdown", { button: 1 }));                    // a middle click into the unfocused field: its mouseup carries the X11 paste
+  // a middle click into the unfocused field: its mouseup carries the X11 paste
+  inp.dispatchEvent(ptr("pointerdown", { button: 1 }));
   inp.focus(); inp.dispatchEvent(mid);
   assert.ok(!mid.defaultPrevented, "a middle button's mouseup is left alone");
   inp.blur();
@@ -612,7 +633,8 @@ test("a click into the color picker's hex field selects the whole value", () => 
   assert.equal(inp.selectionEnd, inp.value.length);
   assert.ok(up.defaultPrevented, "the click's own mouseup can't collapse the selection");
   const again = new window.MouseEvent("mouseup", { bubbles: true, cancelable: true });
-  inp.dispatchEvent(ptr("pointerdown")); inp.dispatchEvent(again);         // a second click inside the focused field places the caret as usual
+  // a second click inside the focused field places the caret as usual
+  inp.dispatchEvent(ptr("pointerdown")); inp.dispatchEvent(again);
   assert.ok(!again.defaultPrevented);
   p.destroy();
 });

@@ -13,9 +13,11 @@ interface SpringOut { stiffness: number; damping: number; mass: number; visualDu
 
 const DUR_DEF = 300, DUR_MAX = 10000, STAGE_PAD = 16; // ms; the stage's side padding (tweaks.css)
 const BOUNCE_MAX = 1; // Motion's whole range: its damping-ratio floor of 0.05 keeps a bounce of 1 settling
-const has = (x: unknown) => (typeof x === "number" ? Number.isFinite(x) : typeof x === "string" && x.trim() !== "" && Number.isFinite(+x)); // a number, or a numeric string — not `true`, `[]` or " "
+// a number, or a numeric string — not `true`, `[]` or " "
+const has = (x: unknown) => (typeof x === "number" ? Number.isFinite(x) : typeof x === "string" && x.trim() !== "" && Number.isFinite(+x));
 const curveOf = (c: unknown): Curve | null => {
-  if (typeof c === "string") { const k = c === "linear" ? [0, 0, 1, 1] : KEYWORDS[c]; return k ? (k.slice() as Curve) : null; } // the CSS keywords, linear's identity included; null-prototype, so "constructor" is not one
+  // the CSS keywords, linear's identity included; null-prototype, so "constructor" is not one
+  if (typeof c === "string") { const k = c === "linear" ? [0, 0, 1, 1] : KEYWORDS[c]; return k ? (k.slice() as Curve) : null; }
   if (Array.isArray(c) && c.length === 4) { const m = c.map(Number); return m.every(Number.isFinite) ? (m as Curve) : null; }
   return null;
 };
@@ -37,7 +39,8 @@ const exactSpring = (v: MotionInput): SpringOut | null => {
   const t = timeFromSpring(k, d, m), off = (a: unknown, b: number) => has(a) && Math.abs(+a! - b) > 1e-6 * Math.max(1, Math.abs(b));
   return off(v.visualDuration, t.visualDuration) || off(v.bounce, t.bounce) ? null : { stiffness: k, damping: d, mass: m, ...t };
 };
-const modeOf = (v: MotionInput, keep: Mode): Mode => (v.mode === "spring" || v.mode === "easing" ? v.mode : springKeys(v) ? "spring" : curveOf(v.curve) ? "easing" : keep); // a curve that doesn't parse is no reason to switch
+// a curve that doesn't parse is no reason to switch
+const modeOf = (v: MotionInput, keep: Mode): Mode => (v.mode === "spring" || v.mode === "easing" ? v.mode : springKeys(v) ? "spring" : curveOf(v.curve) ? "easing" : keep);
 
 function createMotion(meta: Meta, onChange: OnChange): Control {
   const tr = words();
@@ -48,7 +51,8 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   let curve = curveOf(init.curve) ?? (KEYWORDS.ease.slice() as Curve), dur = has(init.duration) ? clamp(+init.duration!, 0, DUR_MAX) : DUR_DEF;
 
   // ── Row — label, a mini curve, a summary. ──
-  const { root, trigger, right } = triggerRow("twk-motion", meta.label ?? tr("motion", "Motion")); // ??: an explicit "" label renders none
+  // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-motion", meta.label ?? tr("motion", "Motion"));
   const chip = el("span", "twk-trigger-chip twk-motion-chip");
   const chipSvg = svgEl("svg"); chipSvg.setAttribute("viewBox", "0 0 100 100"); chipSvg.setAttribute("preserveAspectRatio", "none");
   const chipPath = svgEl("path"); chipSvg.append(chipPath); chip.append(chipSvg);
@@ -95,13 +99,15 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const replay = (flip: boolean) => {
     if (flip) far = !far; else if (anim && anim.playState === "running") return;
     const v = value();
-    const travel = Math.max(0, stage.clientWidth - box.offsetWidth - 2 * STAGE_PAD); // measured now: the stage is 0 wide until the pop opens
+    // measured now: the stage is 0 wide until the pop opens
+    const travel = Math.max(0, stage.clientWidth - box.offsetWidth - 2 * STAGE_PAD);
     const from = `translateX(${far ? 0 : travel}px)`, to = `translateX(${far ? travel : 0}px)`;
     if (REDUCE_MOTION.matches || typeof box.animate !== "function") { box.style.transform = to; return; }
     anim?.cancel();
     const frames = [{ transform: from }, { transform: to }];
     try { anim = box.animate(frames, { duration: v.duration, easing: v.easing, fill: "forwards" }); }
-    catch { anim = box.animate(frames, { duration: v.duration, fill: "forwards" }); } // no linear() support: a plain run rather than nothing
+    // no linear() support: a plain run rather than nothing
+    catch { anim = box.animate(frames, { duration: v.duration, fill: "forwards" }); }
   };
   stage.addEventListener("click", () => replay(true));
   stage.tabIndex = 0; stage.setAttribute("role", "button"); stage.setAttribute("aria-label", tr("replay", "Replay the motion"));
@@ -123,16 +129,19 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const summary = () => (mode === "easing" ? tr("easingSummary", "Easing · {ms} ms", { ms: dur }) : tr("springSummary", "Spring · {ms} ms", { ms: Math.round((springNow().visualDuration ?? 0) * 1000) }));
   const update = () => { chipPath.setAttribute("d", curvePath()); valueEl.textContent = summary(); replay(false); };
 
-  popover(root, trigger, pop, { fallbackH: 380, onOpen: () => { modeSeg.set(mode); resync(); replay(true); }, initialFocus: () => modeSeg.el.querySelector<HTMLElement>('[tabindex="0"]') }); // hidden until open: measure now; focus the checked option
+  // hidden until open: measure now; focus the checked option
+  popover(root, trigger, pop, { fallbackH: 380, onOpen: () => { modeSeg.set(mode); resync(); replay(true); }, initialFocus: () => modeSeg.el.querySelector<HTMLElement>('[tabindex="0"]') });
   showMode(); update();
 
   // Set/restore: either mode's shape or a bare keyword; derived fields (easing, a spring's duration) are ignored.
   const set = (v: unknown) => {
-    const inp: MotionInput | null = typeof v === "string" ? { curve: v } : Array.isArray(v) && v.length === 4 ? { curve: v as Curve } : isObj(v) ? v : null; // a bare 4-array is the bezier's own shape
+    // a bare 4-array is the bezier's own shape
+    const inp: MotionInput | null = typeof v === "string" ? { curve: v } : Array.isArray(v) && v.length === 4 ? { curve: v as Curve } : isObj(v) ? v : null;
     if (!inp) return;
     mode = modeOf(inp, mode);
     const c = curveOf(inp.curve); if (c) { bezier.set(c.slice()); curve = bezier.get() as Curve; } // read back fitted
-    if (mode === "easing" && has(inp.duration)) { durFld.set(clamp(+inp.duration!, 0, DUR_MAX)); dur = durFld.get(); } // read back snapped
+    // read back snapped
+    if (mode === "easing" && has(inp.duration)) { durFld.set(clamp(+inp.duration!, 0, DUR_MAX)); dur = durFld.get(); }
     if (springKeys(inp)) spring.set(editorTime(inp));
     modeSeg.set(mode); showMode(); update();
   };

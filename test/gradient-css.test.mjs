@@ -8,7 +8,8 @@ import { bundle } from "./_bundle.mjs";
 import { close } from "./_helpers.mjs";
 
 const { parseEasing, easingSamples, gradientStops, gradientCss } = await bundle("src/tweaks/easing.ts");
-const { easingName, easingAt } = await bundle("src/tweaks/controls/gradient.ts"); // the editor's own, beside the parser they read
+// the editor's own, beside the parser they read
+const { easingName, easingAt } = await bundle("src/tweaks/controls/gradient.ts");
 
 const LARSEN = [[0, 0], [.081, .013], [.155, .049], [.225, .104], [.29, .175], [.353, .259], [.412, .352], [.471, .45], [.529, .55], [.588, .648], [.647, .741], [.71, .825], [.775, .896], [.845, .951], [.919, .987], [1, 1]];
 const RED_BLUE = { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], interpolation: "oklch" };
@@ -51,7 +52,8 @@ test("linear (or no) easing gives today's plain stop list, byte for byte", () =>
   assert.equal(gradientStops({ ...RED_BLUE, easing: "garbage" }), "red 0%, blue 100%");
   assert.equal(gradientCss(RED_BLUE), "linear-gradient(in oklch to right, red 0%, blue 100%)");
   assert.equal(gradientCss(RED_BLUE, 135), "linear-gradient(in oklch 135deg, red 0%, blue 100%)");
-  assert.equal(gradientCss({ stops: RED_BLUE.stops }, "to bottom"), "linear-gradient(in oklch to bottom, red 0%, blue 100%)"); // no interpolation → oklch, the editor's default
+  // no interpolation → oklch, the editor's default
+  assert.equal(gradientCss({ stops: RED_BLUE.stops }, "to bottom"), "linear-gradient(in oklch to bottom, red 0%, blue 100%)");
 });
 
 test("a value that can't make a gradient still makes valid CSS, and says why once", async (t) => {

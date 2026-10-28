@@ -29,7 +29,8 @@ const watchReflow = (fn: () => void) => {
 // or, `perFrame` (the FPS graph), once per animation frame. ──
 function createMonitor(meta: Meta, perFrame = false) {
   const get: (now?: number) => unknown = typeof meta.get === "function" ? meta.get : () => meta.value;
-  const interval = Math.max(30, Number.isFinite(+meta.interval) ? +meta.interval : 200); // NaN would make setInterval a 0 ms busy-poll
+  // NaN would make setInterval a 0 ms busy-poll
+  const interval = Math.max(30, Number.isFinite(+meta.interval) ? +meta.interval : 200);
   let probe: unknown; try { probe = get(); } catch {}
   const isNum = typeof probe === "number";
   const graph = meta.view === "graph" || (isNum && meta.graph !== false && meta.view !== "text" && meta.rows == null);
@@ -85,7 +86,8 @@ function createMonitor(meta: Meta, perFrame = false) {
     let lo = meta.min, hi = meta.max;
     if (lo == null || hi == null) {
       let mn = Infinity, mx = -Infinity;
-      for (const s of samples) if (Number.isFinite(s)) { if (s < mn) mn = s; if (s > mx) mx = s; } // an Infinity sample would blank the auto-range
+      // an Infinity sample would blank the auto-range
+      for (const s of samples) if (Number.isFinite(s)) { if (s < mn) mn = s; if (s > mx) mx = s; }
       if (mn === Infinity) { mn = 0; mx = 1; } else if (mn === mx) { mn -= 0.5; mx += 0.5; }
       const pad = (mx - mn) * 0.1;
       if (lo == null) lo = mn - pad; if (hi == null) hi = mx + pad;
@@ -93,13 +95,15 @@ function createMonitor(meta: Meta, perFrame = false) {
     const span = (hi - lo) || 1;
     strokeSeries(ctx, wrap, w, h, samples, idx, (s) => (s - lo) / span);
   };
-  poll((v) => { readout(v); if (typeof v === "number" && Number.isFinite(v)) { samples[idx] = v; idx = (idx + 1) % N; draw(); } }); // a non-finite sample shows in the readout, not the graph
+  // a non-finite sample shows in the readout, not the graph
+  poll((v) => { readout(v); if (typeof v === "number" && Number.isFinite(v)) { samples[idx] = v; idx = (idx + 1) % N; draw(); } });
   return blade(wrap, stop);
 }
 
 // ── FPS graph — each frame's timestamp becomes the rate since the last (none on the first or for the probe), 0–120. ──
 const frameRate = () => { let last = 0; return (now?: number) => { if (!(now! > 0)) return undefined; const fps = last ? 1000 / (now! - last) : undefined; last = now!; return fps; }; };
-const createFps = (meta: Meta) => createMonitor({ ...meta, label: meta.label ?? words()("fps", "FPS"), get: frameRate(), view: "graph", min: 0, max: 120, decimals: 0 }, true); // ??: an explicit "" label renders none
+// ??: an explicit "" label renders none
+const createFps = (meta: Meta) => createMonitor({ ...meta, label: meta.label ?? words()("fps", "FPS"), get: frameRate(), view: "graph", min: 0, max: 120, decimals: 0 }, true);
 
 registerControl("fpsgraph", createFps);
 registerControl("monitor", (meta: Meta) => createMonitor(meta)); // the registry passes (meta, onChange), not perFrame

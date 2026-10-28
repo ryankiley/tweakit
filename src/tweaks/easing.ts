@@ -68,7 +68,8 @@ export function gradientStops(value: GradientValue): string {
 
 function stopList(value: GradientValue, stops: GradientStop[]): string {
   const plain = (s: GradientStop) => `${s.color} ${pct(s.pos)}%`;
-  if (stops.length < 2) return `${stops[0].color}, ${stops[0].color}`; // one stop isn't a stop list; doubled, it's a solid fill
+  // one stop isn't a stop list; doubled, it's a solid fill
+  if (stops.length < 2) return `${stops[0].color}, ${stops[0].color}`;
   const bez = parseEasing(value.easing);
   if (!bez) return stops.map(plain).join(", ");
   const samples = easingSamples(bez), space = blend(value);

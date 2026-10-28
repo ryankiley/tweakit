@@ -19,13 +19,15 @@ const guide = read(root("AGENTS.md"));
 const { TYPED_META, DATA_VALUE, LAZY_IMPORT } = await bundle("test/_registry-entry.mjs", { TW_SPLIT: "true" });
 // The registry is module-private, so read its registrations from source: every call names its type literally.
 const srcFiles = readdirSync(root("src/tweaks"), { recursive: true }).filter((f) => f.endsWith(".ts")).map((f) => read(root(`src/tweaks/${f}`)));
-const calls = srcFiles.flatMap((s) => s.match(/\bregisterControl\(/g) || []).length; // its definition reads "registerControl = (", so only calls count
+// its definition reads "registerControl = (", so only calls count
+const calls = srcFiles.flatMap((s) => s.match(/\bregisterControl\(/g) || []).length;
 const registered = srcFiles.flatMap((s) => [...s.matchAll(/\bregisterControl\("([a-z0-9-]+)"/g)].map((m) => m[1]));
 const INTERNAL = new Set(["folder", "colorpicker"]); // registered, but built by the kit itself, never named in a schema
 const declared = new Set([...Object.keys(TYPED_META), ...Object.keys(DATA_VALUE), ...Object.keys(LAZY_IMPORT), ...registered].filter((t) => !INTERNAL.has(t)));
 // The control table: rows of "| `type` | options | value |" under its heading.
 const table = guide.slice(guide.indexOf("## Every control"), guide.indexOf("## The panel"));
-const tableTypes = [...table.matchAll(/^\| `([a-z0-9-]+)` \|/gm)].map((m) => m[1]).filter((t) => t !== "type"); // minus the header row
+// minus the header row
+const tableTypes = [...table.matchAll(/^\| `([a-z0-9-]+)` \|/gm)].map((m) => m[1]).filter((t) => t !== "type");
 const slugs = readdirSync(root("site/pages")).filter((f) => f.endsWith(".mjs")).map((f) => f.slice(0, -4));
 
 test("every control registration names its type literally, so this file can read it", () => {

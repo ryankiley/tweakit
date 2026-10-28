@@ -46,7 +46,8 @@ test("a color is one token; a string that would splice layers into the backgroun
 });
 
 const focused = () => document.activeElement.textContent;
-const open = async (p) => { p.el.querySelector(".twk-select-trigger").click(); await wait(40); return document.querySelector(".twk-select-dropdown.is-open"); }; // the shell focuses an option a frame after opening
+// the shell focuses an option a frame after opening
+const open = async (p) => { p.el.querySelector(".twk-select-trigger").click(); await wait(40); return document.querySelector(".twk-select-dropdown.is-open"); };
 
 test("type-ahead in an open list", async () => {
   const p = await mounter(tweaks, "L")({ fruit: ["Apple", "Avocado", "Avalon", "Banana", "Blueberry", "Cherry", { value: "n7", label: 7 }] });

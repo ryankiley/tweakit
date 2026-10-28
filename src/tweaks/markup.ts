@@ -19,10 +19,13 @@ export interface MarkupKit {
 
 // ── The markup forms — each [data-twk] type parses its dataset into the same verbose
 // schema value TYPED_META consumes, then rides metaFor: ONE derivation, so markup defaults can't drift. ──
-const springData = (d: DOMStringMap) => ({ ...Object.fromEntries(SPRING_KEYS.map((k) => [k, num(d[k])])), mode: d.mode }); // the motion control reads the same markup
-const choices = (d: DOMStringMap) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }); // the radio grid, by either name
+// the motion control reads the same markup
+const springData = (d: DOMStringMap) => ({ ...Object.fromEntries(SPRING_KEYS.map((k) => [k, num(d[k])])), mode: d.mode });
+// the radio grid, by either name
+const choices = (d: DOMStringMap) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) });
 const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: HTMLElement, label: string) => object>> = {
-  slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft), unit: d.unit }), // absent bounds derive from the value, like the schema
+  // absent bounds derive from the value, like the schema
+  slider: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), soft: flag(d.soft), unit: d.unit }),
   checkbox: (d) => (d.options ? { type: "radiogrid", ...choices(d) } : { value: d.checked === "true" }),
   radiogrid: choices,
   segmented: choices,
@@ -35,21 +38,26 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
   text: (d) => ({ value: d.value ?? "", placeholder: d.placeholder, rows: num(d.rows) }),
   fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
   interval: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined, min: num(d.min), max: num(d.max), step: num(d.step) }),
-  sides: (d) => ({ value: d.value ?? d, corners: flag(d.corners), unit: d.unit, step: num(d.step), min: num(d.min), max: num(d.max) }), // "8px 16px", or data-top / -right / -bottom / -left
-  shadow: (d) => ({ value: d.value ?? { ...d, inset: flag(d.inset) } }), // a box-shadow string, or data-x / -y / -blur / -color
+  // "8px 16px", or data-top / -right / -bottom / -left
+  sides: (d) => ({ value: d.value ?? d, corners: flag(d.corners), unit: d.unit, step: num(d.step), min: num(d.min), max: num(d.max) }),
+  // a box-shadow string, or data-x / -y / -blur / -color
+  shadow: (d) => ({ value: d.value ?? { ...d, inset: flag(d.inset) } }),
   spring: springData,
-  motion: (d) => ({ ...springData(d), curve: d.curve && d.curve.includes(",") ? d.curve.split(",").map(Number) : d.curve, duration: num(d.duration) }), // plus data-curve and data-duration
+  // plus data-curve and data-duration
+  motion: (d) => ({ ...springData(d), curve: d.curve && d.curve.includes(",") ? d.curve.split(",").map(Number) : d.curve, duration: num(d.duration) }),
   cubicbezier: (d) => ({ value: d.value ? d.value.split(",").map(Number) : undefined }),
   point: (d) => {
     const vals = (d.value || "").split(",").map((s) => parseFloat(s));
     return {
-      components: splitList(d.components || "X,Y").map((lab, i) => ({ key: lab.toLowerCase(), label: lab, value: isNaN(vals[i]) ? 0 : vals[i], step: num(d.step), min: num(d.min), max: num(d.max) })), // no step: the control derives a continuous one
+      // no step: the control derives a continuous one
+      components: splitList(d.components || "X,Y").map((lab, i) => ({ key: lab.toLowerCase(), label: lab, value: isNaN(vals[i]) ? 0 : vals[i], step: num(d.step), min: num(d.min), max: num(d.max) })),
       pad: flag(d.pad), invertY: d.invertY === "true",
     };
   },
   plot: (d) => ({ expr: d.expr, xMin: num(d.xmin), xMax: num(d.xmax), yMin: num(d.ymin), yMax: num(d.ymax), samples: num(d.samples), editable: d.editable !== "false" }),
 };
-const num = (s: string | undefined) => { if (s == null || s === "") return undefined; const n = +s; return Number.isFinite(n) ? n : undefined; }; // non-numeric → undefined, so the default applies
+// non-numeric → undefined, so the default applies
+const num = (s: string | undefined) => { if (s == null || s === "") return undefined; const n = +s; return Number.isFinite(n) ? n : undefined; };
 const flag = (s: string | undefined) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
 const splitList = (s: string | undefined) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
 const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
@@ -106,7 +114,8 @@ async function enhance(root: Document | Element, kit: MarkupKit, strings?: Words
       const live = () => [...panel.querySelectorAll<HostEl>("[data-twk]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);
       // Two hosts can share a key (a repeated data-key, or the same label): suffix the duplicates.
       const values = () => {
-        const vals: Record<string, unknown> = Object.create(null); // null-proto: a "__proto__" data-key is an ordinary key
+        // null-proto: a "__proto__" data-key is an ordinary key
+        const vals: Record<string, unknown> = Object.create(null);
         for (const t of live()) {
           let k = t.key, n = 2; while (hasOwn(vals, k)) k = `${t.key}-${n++}`;
           vals[k] = t.ctrl.get();
@@ -115,7 +124,8 @@ async function enhance(root: Document | Element, kit: MarkupKit, strings?: Words
       };
       const reset = () => { for (const t of live()) t.reset(); };
       const toolbar = el("div", "twk-toolbar");
-      toolbar.append(makeCopyBtn(() => [values(), -1], tr), makeResetBtn(reset, tr)); header.append(toolbar); // no defaults to diff against: the copy is every value
+      // no defaults to diff against: the copy is every value
+      toolbar.append(makeCopyBtn(() => [values(), -1], tr), makeResetBtn(reset, tr)); header.append(toolbar);
     }
   });
   // Folders first: move child hosts into the collapsible chrome.

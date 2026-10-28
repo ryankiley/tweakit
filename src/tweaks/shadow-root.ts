@@ -12,7 +12,8 @@ let pageRules = false;
 const PAGE_CSS = '@property --twk-float-gap { syntax: "<length>"; inherits: true; initial-value: -1px; } .twk-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } .twk-lift-slot { display: block; flex: none; pointer-events: none; }';
 const addPageRules = () => {
   if (pageRules) return; pageRules = true;
-  try { const s = new CSSStyleSheet(); s.replaceSync(PAGE_CSS); document.adoptedStyleSheets = [...document.adoptedStyleSheets, s]; } // no <style>: a strict CSP allows a constructed sheet
+  // no <style>: a strict CSP allows a constructed sheet
+  try { const s = new CSSStyleSheet(); s.replaceSync(PAGE_CSS); document.adoptedStyleSheets = [...document.adoptedStyleSheets, s]; }
   catch { const s = el("style"); s.textContent = PAGE_CSS; document.head.append(s); }
 };
 // The kit's rules as the page already has them (tweakit/css imported or linked), copied into a sheet every shadow root
@@ -25,14 +26,16 @@ let kitSheet: CSSStyleSheet | null = null;
 const kitRules = (rules: CSSRuleList, found: { host: boolean }): string[] => [...rules].flatMap((r) => {
   if ("styleSheet" in r) { try { return kitRules((r as CSSImportRule).styleSheet!.cssRules, found); } catch { return []; } }
   if (!r.cssText.includes("twk-")) return [];
-  if (r instanceof CSSStyleRule || !("cssRules" in r) || "appendRule" in r) { if (r.cssText.startsWith(":host")) found.host = true; return [r.cssText]; } // appendRule: a @keyframes, kept whole
+  // appendRule: a @keyframes, kept whole
+  if (r instanceof CSSStyleRule || !("cssRules" in r) || "appendRule" in r) { if (r.cssText.startsWith(":host")) found.host = true; return [r.cssText]; }
   const inner = kitRules((r as CSSGroupingRule).cssRules, found);
   return inner.length ? [`${r.cssText.slice(0, r.cssText.indexOf("{"))}{${inner.join("")}}`] : [];
 });
 const pageKit = () => {
   if (kitSheet || typeof CSSStyleSheet !== "function" || !("adoptedStyleSheets" in ShadowRoot.prototype)) return kitSheet;
   const out: string[] = [], found = { host: false };
-  for (const s of document.styleSheets) { try { out.push(...kitRules(s.cssRules, found)); } catch {} } // a cross-origin sheet can't be read
+  // a cross-origin sheet can't be read
+  for (const s of document.styleSheets) { try { out.push(...kitRules(s.cssRules, found)); } catch {} }
   if (found.host) { kitSheet = new CSSStyleSheet(); kitSheet.replaceSync(out.join("\n")); }
   return kitSheet;
 };

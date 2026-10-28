@@ -36,7 +36,8 @@ import { loadSingle, tick } from "./_helpers.mjs";
 // as it does in a browser instead of degrading to black.
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const NAMED_COLORS = { red: [1, 0, 0], black: [0, 0, 0], white: [1, 1, 1], blue: [0, 0, 1], lime: [0, 1, 0], transparent: [0, 0, 0, 0] };
-function canvasColor(str) { // what a 2D context's fillStyle getter echoes for `str`, or null when the write would be ignored
+// what a 2D context's fillStyle getter echoes for `str`, or null when the write would be ignored
+function canvasColor(str) {
   const s = String(str).trim().toLowerCase();
   let rgb = null, a = 1, m;
   if ((m = s.match(/^#([0-9a-f]{3,8})$/))) {
@@ -60,7 +61,8 @@ const fakeContext = () => {
         : k === "getContextAttributes" ? {} : undefined;
     },
     set: (_, k, v) => {
-      if (k === "fillStyle" || k === "strokeStyle") { const n = typeof v === "string" ? canvasColor(v) : null; if (n) store[k] = n; } // an unparseable color leaves the previous value, like the real setter
+      // an unparseable color leaves the previous value, like the real setter
+      if (k === "fillStyle" || k === "strokeStyle") { const n = typeof v === "string" ? canvasColor(v) : null; if (n) store[k] = n; }
       else store[k] = v;
       return true;
     },
@@ -103,7 +105,8 @@ function mulberry32(seed) {
 // so a poll that outlives destroy() is a named failure, not a hung process. ──
 const rafQueue = new Map();
 let rafId = 0, rafTimer = 0;
-const asyncErrors = []; // exceptions out of rAF callbacks, listener throws, unhandled rejections — attributed to the op in flight
+// exceptions out of rAF callbacks, listener throws, unhandled rejections — attributed to the op in flight
+const asyncErrors = [];
 const runFrame = () => {
   rafTimer = 0;
   const batch = [...rafQueue.values()]; rafQueue.clear();
@@ -215,7 +218,8 @@ function genControl(r, type, hostile) {
 function genKey(r, ctx) {
   const roll = r.next();
   if (roll < 0.7) return r.pick(WORDS) + ctx.n++;
-  if (roll < 0.8) return r.pick(WORDS);                                 // bare — may collide with a namesake in another folder
+  // bare — may collide with a namesake in another folder
+  if (roll < 0.8) return r.pick(WORDS);
   if (roll < 0.85) return "a.b";                                        // a literal dot in a key
   if (roll < 0.9) return r.pick(["_last", "constructor", "toString", "hasOwnProperty", "valueOf", "prototype"]);
   if (roll < 0.95) return "";
@@ -251,7 +255,8 @@ function genSchema(r, ctx, count, depth, prefix) {
     } else {
       const type = r.chance(0.78) ? r.pick(VALUE_TYPES) : r.pick(VALUELESS_TYPES);
       value = genControl(r, type, hostile);
-      if (value && typeof value === "object" && !Array.isArray(value) && r.chance(0.2)) { // per-control options ride on any object form
+      // per-control options ride on any object form
+      if (value && typeof value === "object" && !Array.isArray(value) && r.chance(0.2)) {
         Object.assign(value, r.pick([{ hint: "a hint" }, { disabled: true }, { disabled: (get) => !!get(r.pick(WORDS)) }, { render: (get) => get(r.pick(WORDS)) !== false }, { hint: 5 }, { render: "yes" }]));
       }
       // The prototype names are refused at every depth — not a control path to check.
@@ -301,7 +306,8 @@ function firstDiff(a, b, path = "$") {
   }
   return `${path}: ${JSON.stringify(a)} → ${JSON.stringify(b)}`;
 }
-const nest = (path, value) => path.reduceRight((acc, k) => defineKey({}, k, acc), value); // { a: { b: value } } from ["a","b"]
+// { a: { b: value } } from ["a","b"]
+const nest = (path, value) => path.reduceRight((acc, k) => defineKey({}, k, acc), value);
 
 const describeEl = (el) => `<${el.tagName.toLowerCase()}${el.type ? ` type=${el.type}` : ""}${el.className ? ` class="${el.className}"` : ""}>`;
 const KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Enter", "Escape", " ", "PageUp", "PageDown", "Tab"];
@@ -365,7 +371,8 @@ function makeOps(r, ctx) {
       el.click();
     },
     change: (p) => { // commit an edit through a field the way a user would: type into an input / select and fire change
-      const els = [...p.el.querySelectorAll("input, select, textarea")].filter((e) => !e.disabled && e.type !== "file"); // a file input's value is read-only by spec
+      // a file input's value is read-only by spec
+      const els = [...p.el.querySelectorAll("input, select, textarea")].filter((e) => !e.disabled && e.type !== "file");
       if (!els.length) return;
       const el = r.pick(els);
       let v;
@@ -399,7 +406,8 @@ function checkInvariants(p, ctx, where) {
   const values = JSON.parse(json).values;
   for (const { path } of ctx.paths) {
     const holder = atPath(p.params, path.slice(0, -1));
-    if (holder == null || typeof holder !== "object" || !Object.prototype.hasOwnProperty.call(holder, path[path.length - 1])) continue; // the control was skipped (malformed), or the path is a hostile key the kit refused
+    // the control was skipped (malformed), or the path is a hostile key the kit refused
+    if (holder == null || typeof holder !== "object" || !Object.prototype.hasOwnProperty.call(holder, path[path.length - 1])) continue;
     const v = holder[path[path.length - 1]];
     const label = `${where} params.${path.join(".")}`;
     // `undefined` is a documented control state (a list whose options hold no match); it
@@ -454,7 +462,8 @@ async function runSeed(seed) {
     step = "destroy";
     p.destroy();
     p.destroy();                      // idempotent
-    p.set("anything", 1); p.setMany({ a: 1 }); p.reset(); p.fromJSON({ values: {} }); p.undo(); p.redo(); // inert, not throwing
+    // inert, not throwing
+    p.set("anything", 1); p.setMany({ a: 1 }); p.reset(); p.fromJSON({ values: {} }); p.undo(); p.redo();
     assert.deepEqual(p.toJSON(), { values: {}, ui: {} }, "toJSON() after destroy is the empty state");
     assert.equal(document.querySelector(".twk-panel"), null, "no panel root left in the document");
     assert.equal(liveIntervals.size, 0, "a poll interval outlived destroy()");

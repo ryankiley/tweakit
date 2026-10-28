@@ -105,8 +105,10 @@ console.log(`sizes (gzip): code-split ${sizes.split} (core + shared chunk) · si
 // 5) docs site → dist/*.html. Page modules are imported raw, never through esbuild: each run
 // function is toString()-serialized into both the snippet and the page script.
 const { buildSite } = await import("./site/build-site.mjs");
-const chunks = [...Object.keys(splitBuild.metafile.outputs).filter((k) => k.endsWith(".js")).map((k) => path.basename(k)), "auto.js"]; // every split file; the pages preload them
-const { version, homepage } = JSON.parse(await readFile(p("package.json"), "utf8")); // the sidebar shows the version; the Markdown files link by the homepage
+// every split file; the pages preload them
+const chunks = [...Object.keys(splitBuild.metafile.outputs).filter((k) => k.endsWith(".js")).map((k) => path.basename(k)), "auto.js"];
+// the sidebar shows the version; the Markdown files link by the homepage
+const { version, homepage } = JSON.parse(await readFile(p("package.json"), "utf8"));
 await buildSite({ outDir: p("dist"), esbuild, sizes, chunks, version, site: (homepage || "").replace(/\/$/, "") });
 
 console.log("Built tweakit → dist/");

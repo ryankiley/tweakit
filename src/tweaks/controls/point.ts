@@ -12,7 +12,8 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   const comps = meta.components; // [{ key, label, value, step, min, max }]
 
   // ── Trigger row — label + value + a mini pad preview. ──
-  const { root, trigger, right } = triggerRow("twk-point", meta.label ?? tr("point", "Point")); // ??: an explicit "" label renders none
+  // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-point", meta.label ?? tr("point", "Point"));
   const valueEl = el("span", "twk-trigger-value");
   const preview = el("div", "twk-trigger-chip twk-point-preview");
   const previewDot = el("div", "twk-point-preview-dot");
@@ -33,8 +34,10 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     let lo = c.min ?? -half, hi = c.max ?? half;
     // A lone bound at or past the other end spans from itself instead, as the slider's does (min 5 over 0 spans 5–35, not 5–1, swapped).
     if ((c.min == null) !== (c.max == null) && !(hi > lo)) { const w = 2 * defaultRange(Math.abs(+(c.min ?? c.max)!))[1]; if (c.min == null) lo = hi - w; else hi = lo + w; }
-    const fine = 10 ** Math.floor(Math.log10((hi - lo) / 200)), nudge = c.step ?? (fine > 0 && Number.isFinite(fine) ? fine : 1); // a degenerate range (hi ≤ lo, NaN) keeps a step of 1
-    return { lo, hi, nudge, step: c.step ?? Math.min(nudge, decimalStep(c.value), decimalStep(c.min)) }; // the pad's arrows keep the decade: 3.14159's 0.00001 would crawl
+    // a degenerate range (hi ≤ lo, NaN) keeps a step of 1
+    const fine = 10 ** Math.floor(Math.log10((hi - lo) / 200)), nudge = c.step ?? (fine > 0 && Number.isFinite(fine) ? fine : 1);
+    // the pad's arrows keep the decade: 3.14159's 0.00001 would crawl
+    return { lo, hi, nudge, step: c.step ?? Math.min(nudge, decimalStep(c.value), decimalStep(c.min)) };
   };
   const ranges = comps.map(rangeOf);
   const rx = ranges[0], ry = ranges[1];
@@ -62,7 +65,8 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     const fld = numField({ label: c.label ?? c.key, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max }, () => { sync(); emit(); });
     fields.append(fld.el); return fld;
   });
-  const read = () => Object.fromEntries(comps.map((c, k) => [c.key, flds[k].get()])); // the emitted map, straight off the fields
+  // the emitted map, straight off the fields
+  const read = () => Object.fromEntries(comps.map((c, k) => [c.key, flds[k].get()]));
 
   // Readout: the components at each step's precision, so a value reads "−1.00, −0.46" (steady columns), not "−1, −0.46".
   const fmt = (v: number, step: number) => (+v).toFixed(stepPrecision(step));
@@ -80,7 +84,8 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
       padThumb.style.left = tx + "%"; padThumb.style.top = ty + "%";
       previewDot.style.left = inset(fx); previewDot.style.top = inset(tyFrac); // mini pad: dot stays in bounds
       padLine.setAttribute("x2", tx); padLine.setAttribute("y2", ty);
-      padHost.setAttribute("aria-description", `${comps[0].label ?? comps[0].key} ${fmt(flds[0].get(), rx.step)}, ${comps[1].label ?? comps[1].key} ${fmt(flds[1].get(), ry.step)}`); // the pad's live readout for assistive tech
+      // the pad's live readout for assistive tech
+      padHost.setAttribute("aria-description", `${comps[0].label ?? comps[0].key} ${fmt(flds[0].get(), rx.step)}, ${comps[1].label ?? comps[1].key} ${fmt(flds[1].get(), ry.step)}`);
     };
     const padSet = (e: PointerEvent) => {
       const [fx, fy] = boxFrac(e, padHost); const yFrac = meta.invertY ? fy : 1 - fy;

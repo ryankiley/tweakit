@@ -54,7 +54,8 @@ for (const file of files) {
       } finally {
         window.removeEventListener("error", onError);
         for (const p of made) p.destroy();
-        for (const el of document.querySelectorAll(".twk-panel")) el.remove(); // panels built straight into body (floating examples)
+        // panels built straight into body (floating examples)
+        for (const el of document.querySelectorAll(".twk-panel")) el.remove();
         stage.remove();
       }
     });

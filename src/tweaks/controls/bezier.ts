@@ -19,7 +19,8 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   let view = [-0.25, 1.25], held = false;
   const fitView = () => { if (!held) view = [Math.min(-0.25, v[1] - 0.1, v[3] - 0.1), Math.max(1.25, v[1] + 0.1, v[3] + 0.1)]; };
   // Four numbers, or what CSS writes: a keyword (`ease-in-out`) or `cubic-bezier(…)`. Anything else opens on `ease`.
-  const read = (x: unknown) => (Array.isArray(x) && x.length === 4 ? x.map(Number) : x === "linear" ? [0, 0, 1, 1] : parseEasing(x)?.slice()); // parseEasing reads linear as null
+  // parseEasing reads linear as null
+  const read = (x: unknown) => (Array.isArray(x) && x.length === 4 ? x.map(Number) : x === "linear" ? [0, 0, 1, 1] : parseEasing(x)?.slice());
   let v: number[] = read(meta.value) || DEF.slice();
   if (v.some((n) => !Number.isFinite(n))) v = DEF.slice(); // a non-finite init would show NaN and a blank curve
   v = fit(v);
@@ -95,8 +96,10 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   drag(h1, 0); drag(h2, 1);
 
   onReady(drawGraph);
-  onLive(root, [[window, "resize"], [window, "twk-reflow"]], drawGraph); // twk-reflow: a tab page revealing this re-measures it
-  return { el: root, set: (nv: unknown) => { const m = read(nv); if (m) { if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() }; // the build's clamp, so get() agrees with the handles
+  // twk-reflow: a tab page revealing this re-measures it
+  onLive(root, [[window, "resize"], [window, "twk-reflow"]], drawGraph);
+  // the build's clamp, so get() agrees with the handles
+  return { el: root, set: (nv: unknown) => { const m = read(nv); if (m) { if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() };
 }
 
 registerControl("cubicbezier", createBezier);

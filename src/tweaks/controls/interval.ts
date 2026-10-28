@@ -16,7 +16,8 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   const decimals = stepPrecision(step);
   const q = (v: number) => roundToStep(v, min, step);
   let lo = 0, hi = 0;
-  const put = (a: number, b: number) => { lo = clamp(q(Math.min(a, b)), min, max); hi = clamp(q(Math.max(a, b)), min, max); }; // ordered, on the grid, in bounds
+  // ordered, on the grid, in bounds
+  const put = (a: number, b: number) => { lo = clamp(q(Math.min(a, b)), min, max); hi = clamp(q(Math.max(a, b)), min, max); };
   // Missing tuple entries fall back to the bounds: value:[5] gives [5, max], not [5, NaN].
   put(Number.isFinite(t0) ? t0 : min, Number.isFinite(t1) ? t1 : max);
 
@@ -36,7 +37,8 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   });
 
   const pctOf = (v: number) => ((v - min) / ((max - min) || 1)) * 100;
-  const handleLeft = (pct: number) => `clamp(5px, calc(${pct}% - 1.5px), calc(100% - 9px))`; // stay inset at the extremes, like the slider handle
+  // stay inset at the extremes, like the slider handle
+  const handleLeft = (pct: number) => `clamp(5px, calc(${pct}% - 1.5px), calc(100% - 9px))`;
   const render = () => {
     const a = pctOf(lo), b = pctOf(hi);
     fill.style.left = a + "%"; fill.style.width = Math.max(0, b - a) + "%";
@@ -74,7 +76,8 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
       track.style.transition = ""; // a re-press mid spring-home stretches 1:1
       track.classList.add("is-active", "is-dragging"); active = null;
       grab(e.clientX);
-      (active === "lo" ? hLo : hHi).focus({ focusVisible: false }); // preventDefault killed click-to-focus; focus without a ring
+      // preventDefault killed click-to-focus; focus without a ring
+      (active === "lo" ? hLo : hHi).focus({ focusVisible: false });
     },
     onMove: (e) => { grab(e.clientX); rubberBand(track, rect, e.clientX); },
     onEnd: () => { rubberRelease(track); rect = null; active = null; track.classList.remove("is-active", "is-dragging"); },
@@ -82,7 +85,8 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   wireHoverClass(track, render); // re-run the dodge with the real track width on hover
   // Recompute once layout and fonts settle (a web-font swap shifts the widths the dodge measures) and on track-width change.
   onReady(render);
-  onLive(track, [[window, "resize"], [window, "twk-reflow"]], render); // twk-reflow: a tab page revealing this re-measures it
+  // twk-reflow: a tab page revealing this re-measures it
+  onLive(track, [[window, "resize"], [window, "twk-reflow"]], render);
 
   // Home/End snap a handle to its neighbor-or-limit, so the two can't cross.
   const page = (max - min) / 10 || step * 10; // PageUp/Down: a tenth of the range, as the slider jumps

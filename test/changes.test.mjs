@@ -57,7 +57,8 @@ test("a paste onto a pick lands only what fits; with nothing fitting the band fl
   const head = p.el.querySelector(".twk-folder-header"); pressBeside(p, head);
   let notified = 0; p.on(() => notified++);
   const before = JSON.stringify(p.params.f);
-  const css = globalThis.CSS; globalThis.CSS = { supports: (_, v) => !/nonsense|NaN|;/.test(v) }; // what a browser's parser says
+  // what a browser's parser says
+  const css = globalThis.CSS; globalThis.CSS = { supports: (_, v) => !/nonsense|NaN|;/.test(v) };
   try {
     for (const v of [{ blur: null, on: "yes", tint: "rgb(nonsense)", pick: "zzz", span: [5], locked: 9, origin: { x: 1 } }, { span: [1, 2, 3] }, { tint: "oklch(NaN 0 0)" }, { tint: "rgb(1,2,3); background:url(x)" }, "not json", "[1, 2]"])
       assert.equal((await clipKey(head, "v", typeof v === "string" ? v : JSON.stringify(v))).flash, "failed", JSON.stringify(v));
@@ -87,8 +88,10 @@ test("a folder whose keys hold a literal dot pastes its own copy back; a paste l
   p.fromJSON({ values: { f: { "a.b": 5, c: 5 } } });
   assert.equal((await clipKey(head, "v", c.copied)).flash, "ok");
   assert.deepEqual(p.params.f, { "a.b": 1, c: 1 });
-  const band = p.el.querySelector(".twk-folder"); band.classList.remove("is-pasted", "is-refused"); // the last paste's flash
-  key(head, { key: "v", metaKey: true }); browserClip("v", JSON.stringify({ c: 9 })); p.destroy(); await wait(20); // destroyed while the chunk loads
+  // the last paste's flash
+  const band = p.el.querySelector(".twk-folder"); band.classList.remove("is-pasted", "is-refused");
+  // destroyed while the chunk loads
+  key(head, { key: "v", metaKey: true }); browserClip("v", JSON.stringify({ c: 9 })); p.destroy(); await wait(20);
   assert.ok(!band.classList.contains("is-pasted") && !band.classList.contains("is-refused"), "the panel is gone: no flash");
 });
 

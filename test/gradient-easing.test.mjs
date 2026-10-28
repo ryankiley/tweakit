@@ -15,7 +15,8 @@ const barCss = (p) => {
   const style = p.el.querySelector(".twk-gradient-grad").style;
   if (!Object.getOwnPropertyDescriptor(style, "background")) {
     let last = style.background; Object.defineProperty(style, "background", { configurable: true, get: () => last, set: (v) => { last = v; } });
-    p.el.querySelector(".twk-gradient-ease").dispatchEvent(new Event("change", { bubbles: true })); // repaint through the accessor
+    // repaint through the accessor
+    p.el.querySelector(".twk-gradient-ease").dispatchEvent(new Event("change", { bubbles: true }));
   }
   return String(style.background);
 };
@@ -69,7 +70,8 @@ test("set() applies an easing it names and leaves one it doesn't; reset returns 
   const p = tweaks("G", { g: { type: "gradient", value: [["#ff0000", 0], ["#0000ff", 1]] } });
   p.set("g", { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "ease-in" });
   assert.equal(p.params.g.easing, "ease-in"); assert.equal(easeSel(p).value, "ease-in");
-  p.set("g", { stops: [{ color: "lime", pos: 0 }, { color: "blue", pos: 1 }] }); // stops only — a host mirror-back without easing
+  // stops only — a host mirror-back without easing
+  p.set("g", { stops: [{ color: "lime", pos: 0 }, { color: "blue", pos: 1 }] });
   assert.equal(p.params.g.easing, "ease-in", "left as set, not silently reset");
   assert.equal(p.params.g.stops[0].color, "lime");
   p.reset();

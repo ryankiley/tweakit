@@ -5,7 +5,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { window } from "./_setup-dom.mjs";
 import { loadSingle, loadSplit, tick, ptr, distCss, warnings, dragHeader } from "./_helpers.mjs";
-globalThis.MutationObserver = window.MutationObserver; // the kit guards on the global; the shared setup doesn't expose it
+// the kit guards on the global; the shared setup doesn't expose it
+globalThis.MutationObserver = window.MutationObserver;
 
 const { tweaks } = await loadSingle();
 const lazy = await loadSplit();
@@ -83,8 +84,10 @@ test("a click anywhere on the header but its toolbar folds the panel; a click th
   press(6, 4); assert.ok(collapsed(), "past 6px a mouse drags: the click is swallowed"); assert.equal(p.el.dataset.mode, "floating");
   toolbarBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
   assert.ok(collapsed(), "a toolbar button keeps its own click");
-  toolbarBtn.dispatchEvent(ptr("pointerdown", { clientX: 200, clientY: 10 })); // pressed on a button, slid off onto the strip:
-  header.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true })); // the click lands on the common ancestor
+  // pressed on a button, slid off onto the strip:
+  toolbarBtn.dispatchEvent(ptr("pointerdown", { clientX: 200, clientY: 10 }));
+  // the click lands on the common ancestor
+  header.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
   assert.ok(collapsed(), "a press that began on the toolbar never folds the panel");
   p.destroy();
 });
@@ -275,7 +278,8 @@ test("the floating panel touched last sits above the others", () => {
 
 test("presets and undo called before a lazy panel is ready replay in order", async () => {
   localStorage.clear();
-  const spring = { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } }; // lazy, so assemble waits on ready
+  // lazy, so assemble waits on ready
+  const spring = { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } };
   const p = lazy.tweaks("LazyPresets", { x: [1, 0, 10, 1], s: spring }, { persist: "lp" });
   assert.ok(p.el.querySelector(".twk-toolbar-btn--reset").disabled, "in the lazy window");
   p.set("x", 4);
@@ -288,7 +292,8 @@ test("presets and undo called before a lazy panel is ready replay in order", asy
   assert.equal(p.params.x, 4, "the preset captured the value at its point in the queue");
   p.destroy();
   localStorage.setItem("tw:lp2:presets", JSON.stringify({ v: 1, presets: { seven: { x: 7 } } }));
-  const q = lazy.tweaks("LazyLoad", { x: [1, 0, 10, 1], b: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } }, { persist: "lp2" }); // spring is registered by now — a type the process has not loaded keeps this in the lazy window
+  // spring is registered by now — a type the process has not loaded keeps this in the lazy window
+  const q = lazy.tweaks("LazyLoad", { x: [1, 0, 10, 1], b: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } }, { persist: "lp2" });
   assert.ok(q.el.querySelector(".twk-toolbar-btn--reset").disabled, "still in the lazy window");
   assert.equal(q.loadPreset("seven"), true, "a stored preset is loadable before ready");
   assert.equal(q.loadPreset("missing"), false);

@@ -3,7 +3,8 @@
  * doesn't know fails the build, so a mirror never ships with HTML in it. */
 import { dedent, codeText, extractBody, demoCaption, fillSizes } from "./code.mjs";
 
-const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', nbsp: " " }; // the ones the prose uses; another fails the build
+// the ones the prose uses; another fails the build
+const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', nbsp: " " };
 const unescape = (s) => s.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e) => {
   if (e[0] === "#") { const hex = /^#x/i.test(e); return String.fromCodePoint(parseInt(e.slice(hex ? 2 : 1), hex ? 16 : 10)); }
   if (!(e in ENTITIES)) throw new Error(`htmlToMd: no Markdown for the entity ${m}`);
@@ -15,7 +16,8 @@ const collapse = (s) => s.replace(/\s+/g, " ").trim();
 /** Inline tags → Markdown; entities stay for a later pass, so a `<` can only be a real tag. */
 function inline(html, link) {
   return html
-    .replace(/<code>([\s\S]*?)<\/code>/gi, (m, t) => {   // one backtick more than the longest run inside, padded when it touches one
+    // one backtick more than the longest run inside, padded when it touches one
+    .replace(/<code>([\s\S]*?)<\/code>/gi, (m, t) => {
       const f = "`".repeat(Math.max(0, ...(t.match(/`+/g) || []).map((r) => r.length)) + 1), pad = /^`|`$/.test(t) ? " " : "";
       return `${f}${pad}${t}${pad}${f}`;
     })
@@ -56,7 +58,8 @@ export function htmlToMd(html, { link = (h) => h } = {}) {
 
 /** One docs page as Markdown: title, description, intro, then each example's heading, prose and code. */
 export function pageToMd(page, { site, sizes = {} }) {
-  const link = (href) => href.replace(/^\.\/([\w-]+)\.html/, `${site}/$1.md`).replace(/^\.\//, `${site}/`); // absolute: the text travels without its URL
+  // absolute: the text travels without its URL
+  const link = (href) => href.replace(/^\.\/([\w-]+)\.html/, `${site}/$1.md`).replace(/^\.\//, `${site}/`);
   const fence = (lang, text) => `\`\`\`${lang}\n${text}\n\`\`\``;
   const L = [`# ${page.meta.title}`];
   if (page.meta.description) L.push("", `> ${page.meta.description}`);

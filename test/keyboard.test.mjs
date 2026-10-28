@@ -19,7 +19,8 @@ test("opening the color popover moves focus inside it, and Tab-out closes it", a
   const outside = document.createElement("button"); document.body.append(outside);
   const trigger = p.el.querySelector(".twk-color .twk-trigger");
   trigger.focus();
-  trigger.click(); // Enter on a focused button is a click — jsdom has no key activation, so the test fires the click the key would
+  // Enter on a focused button is a click — jsdom has no key activation, so the test fires the click the key would
+  trigger.click();
   await wait(40); // past the open rAF (16ms here), where the pop renders at real size and takes focus
   const pop = document.body.querySelector(".twk-color-pop.is-open");
   assert.ok(pop, "the popover is open");
@@ -81,7 +82,8 @@ test("point pad: focusable group, arrows move one step on the matching axis, Shi
   assert.equal(p.params.pos.x, 0.09);
   key(pad, { key: "Home" });
   assert.deepEqual(p.params.pos, { x: 0, y: 0 }, "Home restores the schema default");
-  await wait(400); // spoken 250ms after the last key, written 100ms after that: aria-description is read on focus and never again
+  // spoken 250ms after the last key, written 100ms after that: aria-description is read on focus and never again
+  await wait(400);
   assert.equal(document.querySelector(".twk-sr").textContent, pad.getAttribute("aria-description"), "a run of keys ends with the pad's readout spoken");
   p.destroy();
 });

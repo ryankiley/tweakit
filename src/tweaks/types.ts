@@ -3,7 +3,8 @@
  * the schema shorthands + the verbose control forms + the panel methods. */
 
 /** An option for a select / radio grid: a bare string or number, or `{ value, label }`; the param is the value as written. */
-export type Option = string | number | { value: string | number; label?: string; color?: string }; // color: any CSS color, shown as a swatch beside a dropdown option (and the chosen one on the row)
+// color: any CSS color, shown as a swatch beside a dropdown option (and the chosen one on the row)
+export type Option = string | number | { value: string | number; label?: string; color?: string };
 
 /** A color stop in a gradient. */
 export type GradientStop = { color: string; pos: number };
@@ -97,7 +98,8 @@ export type SchemaObject =
   | { type: "sides"; value?: SidesInput; corners?: boolean; unit?: string; step?: number; min?: number; max?: number; top?: number; right?: number; bottom?: number; left?: number }
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
   | { type: "point"; components: ReadonlyArray<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; value?: { readonly [key: string]: number }; pad?: boolean; invertY?: boolean }
-  | { type: "point"; value: { readonly [key: string]: number }; components?: undefined; pad?: boolean; invertY?: boolean } // the value names its components
+  // the value names its components
+  | { type: "point"; value: { readonly [key: string]: number }; components?: undefined; pad?: boolean; invertY?: boolean }
   | { type: "gradient"; value?: GradientValue | ReadonlyArray<GradientStop | readonly [string, number]>; stops?: ReadonlyArray<GradientStop | readonly [string, number]>; interpolation?: GradientInterpolation; easing?: GradientEasing }
   | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
   | { type: "fpsgraph" }
@@ -131,12 +133,16 @@ export type SchemaObject =
 export type SchemaValue = SchemaValueOf<SchemaNest>;
 // `F` is the nested-folder branch: strict for a schema annotated `Schema`, loose for what tweaks() infers from (HeldSchema).
 type SchemaValueOf<F> =
-  | number                                          // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative spans that either side of zero)
+  // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative spans that either side of zero)
+  | number
   | boolean                                         // → checkbox
   | string                                          // → text input; a hex or color-function string → color picker
-  | readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number] // [value, min?, max?, step?] → slider
-  | readonly [readonly [number, number], number, number] | readonly [readonly [number, number], number, number, number]           // [[lo,hi], min, max, step?] → interval
-  | readonly number[] | readonly (number | readonly number[])[] // either of the above, widened by a schema held in a variable
+  // [value, min?, max?, step?] → slider
+  | readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number]
+  // [[lo,hi], min, max, step?] → interval
+  | readonly [readonly [number, number], number, number] | readonly [readonly [number, number], number, number, number]
+  // either of the above, widened by a schema held in a variable
+  | readonly number[] | readonly (number | readonly number[])[]
   | readonly Option[]                               // a list of options → list (dropdown)
   | { options: readonly Option[]; value?: string | number }  // a list with a chosen default
   | { action: () => void; label?: string }          // → button
@@ -211,7 +217,8 @@ type TypedValue<V> =
 /** The value a schema entry puts on `params`. */
 export type ValueOf<V> =
   V extends { readonly type: infer T } ? (
-    string extends T ? any                                   // a `type` widened by a schema held in a variable: the control can't be known
+    // a `type` widened by a schema held in a variable: the control can't be known
+    string extends T ? any
     : T extends SchemaObject["type"] ? (T extends keyof Hinge ? ([Extract<Hinge[T], keyof V>] extends [never] ? ShorthandValue<V> : VerboseValue<V, T>) : VerboseValue<V, T>)
     // A name no control has: with a field only a control reads, the runtime skips it; without one, it's a folder.
     : T extends string ? ([Extract<"value" | "options" | "action", keyof V>] extends [never] ? ShorthandValue<V> : never)
@@ -223,7 +230,8 @@ type ShorthandValue<V> =
   : V extends readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number] ? number
   : V extends readonly [number, ...number[]] ? V[number]     // five numbers or more are a list of them
   : V extends readonly [] ? undefined                        // an empty list, with no choice to hold
-  : V extends readonly number[] ? number                     // a tuple widened by a schema held in a variable: a slider, or a list of numbers
+  // a tuple widened by a schema held in a variable: a slider, or a list of numbers
+  : V extends readonly number[] ? number
   : V extends readonly (number | readonly number[])[] ? [number, number]
   : V extends number ? number
   : V extends boolean ? boolean

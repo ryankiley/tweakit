@@ -15,7 +15,8 @@ const kit: MarkupKit = { metaFor, ensureForMetas, LAZY_IMPORT, createFolder, cre
 /** Bind every unbound [data-twk] host under `root` (the document by default). */
 export function enhance(root: Document | Element = document, opts: EnhanceOptions = {}): Promise<void> {
   const run = getMarkup<MarkupKit>();
-  if (run || !TW_SPLIT) return run ? run(root, kit, opts.strings) : Promise.resolve(); // the single-file build registered it on load: synchronous, as ever
+  // the single-file build registered it on load: synchronous, as ever
+  if (run || !TW_SPLIT) return run ? run(root, kit, opts.strings) : Promise.resolve();
   // A chunk that fails to load skips the markup, as a failed control chunk skips its control, instead of rejecting.
   return import("./markup.js").then(() => getMarkup<MarkupKit>()!(root, kit, opts.strings), (e) => console.error("[tweaks] markup chunk failed to load:", e));
 }

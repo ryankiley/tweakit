@@ -17,8 +17,10 @@ interface Meta {
   // Per-control options (ControlOptions), attached by metaFor.
   render?: (get: Get) => boolean; disabled?: boolean | ((get: Get) => boolean); hint?: string; persist?: boolean;
   // Ranges — slider, number, interval, monitor.
-  min?: number; max?: number; step?: number; soft?: boolean; unit?: string; corners?: boolean; // corners: the sides control labels its four as corners and floors them at 0
-  format?: (value: number) => string; parse?: (text: string) => number; // slider: readout from the value, and a typed one back
+  // corners: the sides control labels its four as corners and floors them at 0
+  min?: number; max?: number; step?: number; soft?: boolean; unit?: string; corners?: boolean;
+  // slider: readout from the value, and a typed one back
+  format?: (value: number) => string; parse?: (text: string) => number;
   // Single-select — list, radiogrid.
   options?: Option[]; cols?: number;
   // Text.
@@ -71,7 +73,8 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
   // Absent min/max derive in the control from the value the range must contain, like the bare-number shorthand:
   // `{ type: "slider", value: 50 }` spans 0–150 like `size: 50`.
   slider: (v) => ({ value: v.value ?? v.min ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit), format: fnOf(v.format), parse: fnOf(v.parse) }),
-  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit) }), // no step: the number control (heavy.ts) fits one to the default
+  // no step: the number control (heavy.ts) fits one to the default
+  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit) }),
   checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
@@ -93,7 +96,8 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
   // Either mode's fields, top-level or nested, or `value` as a bare curve; the control infers
   // the mode (spring keys → spring) and fills the defaults.
   motion: (v) => {
-    const s = typeof v.value === "string" || Array.isArray(v.value) ? { ...v, curve: v.value } : isObj(v.value) ? v.value : v; // the array test first: isObj is true of an array
+    // the array test first: isObj is true of an array
+    const s = typeof v.value === "string" || Array.isArray(v.value) ? { ...v, curve: v.value } : isObj(v.value) ? v.value : v;
     const springy = SPRING_KEYS.some((k) => s[k] != null);
     // Both sides get a default, so a reset restores the editor you weren't looking at too.
     const value: any = { curve: "ease", duration: 300, ...(springy ? {} : { visualDuration: 0.5, bounce: 0.2 }) };
@@ -122,18 +126,21 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
     });
     if (bad.length) notice("pointValue", at, bad.join(", "));
     if (!components.length) return false;
-    return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) }; // the default component map, for reset()
+    // the default component map, for reset()
+    return { components, pad: v.pad, invertY: v.invertY, value: Object.fromEntries(components.map((c: PointComponent) => [c.key, c.value ?? 0])) };
   },
   buttongroup: (v) => ({ buttons: v.buttons }),
   separator: () => ({}),
   // Page keys dedupe ("A!" and "A?" both slug to "a") so two pages can't share one params subtree.
   tabs: (v, depth) => {
-    if (!v.pages || typeof v.pages !== "object" || !Object.keys(v.pages).length) return false; // no pages is nothing to show, not an empty bar
+    // no pages is nothing to show, not an empty bar
+    if (!v.pages || typeof v.pages !== "object" || !Object.keys(v.pages).length) return false;
     const used = new Set<string>();
     return { pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => {
       const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "tab";
       let k = base, n = 2; while (used.has(k)) k = `${base}-${n++}`; used.add(k);
-      return { key: k, title: title.trim() ? title : words()("tab", "Tab"), children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) }; // an empty title still gets a visible tab
+      // an empty title still gets a visible tab
+      return { key: k, title: title.trim() ? title : words()("tab", "Tab"), children: Object.entries(schema).map(([ck, sv]) => metaFor(ck, sv, depth + 1)).filter(Boolean) };
     }) };
   },
 };
@@ -148,9 +155,11 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     // A handler that throws or returns nothing for a malformed shape skips that control, not
     // the whole panel. The label is resolved here, once, so every verbose form honors `{ label }`.
     let fields: MetaFields;
-    try { fields = TYPED_META[value.type as keyof typeof TYPED_META]!(value, depth, key); } // a guard can't narrow a property of an `any`
+    // a guard can't narrow a property of an `any`
+    try { fields = TYPED_META[value.type as keyof typeof TYPED_META]!(value, depth, key); }
     catch (e) { console.error(`[tweaks] malformed "${value.type}" schema value for "${key}" — control skipped:`, e); return null; }
-    if (fields) return meta(String(value.type), fields, ownLabel(value, label)); // a String object would miss m.type === "tabs" downstream
+    // a String object would miss m.type === "tabs" downstream
+    if (fields) return meta(String(value.type), fields, ownLabel(value, label));
     // Nothing back with the hinge field or a value present is malformed. With neither, this is a plain folder
     // holding a child named `type` (`marker: { type: "point", size: 3 }`) — fall through.
     const need = REQUIRED[value.type];

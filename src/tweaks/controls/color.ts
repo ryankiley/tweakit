@@ -30,9 +30,11 @@ const CHECKER = "var(--twk-checker)"; // the alpha checker, a tweaks.css token
 // Null-prototype: the space name comes from the parsed string, so `color(constructor …)` must
 // miss rather than resolve to a member of Object.prototype and reach convert().
 const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null), { srgb: "srgb", "display-p3": "p3", rec2020: "rec2020", "prophoto-rgb": "prophoto-rgb", "a98-rgb": "a98-rgb", "srgb-linear": "srgb-linear", xyz: "xyz-d65", "xyz-d65": "xyz-d65", "xyz-d50": "xyz-d50" });
-const SRGB_FN_RE = /^(rgba?|hsla?|hwb)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i; // sRGB-family functions; no nested parens
+// sRGB-family functions; no nested parens
+const SRGB_FN_RE = /^(rgba?|hsla?|hwb)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i;
 const ENGINE_FN_RE = /^(oklch|oklab|lch|lab|color)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i; // the engine's own functions
-const CSS_SPACES = /^(srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|xyz|xyz-d50|xyz-d65)$/i; // color()'s predefined spaces
+// color()'s predefined spaces
+const CSS_SPACES = /^(srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|xyz|xyz-d50|xyz-d65)$/i;
 const HEX_RE = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i; // 3/4/6/8 digits only; 5/7 is junk
 // The one scratch 2D context; null where the DOM has no canvas (jsdom), and that is cached too.
 let c2dCache: CanvasRenderingContext2D | null;
@@ -51,14 +53,16 @@ export function isColor(str: string | null | undefined) {
   if (HEX_RE.test(str)) return true;
   if (ENGINE_FN_RE.test(str)) return engineFn(str);
   if (SRGB_FN_RE.test(str)) return srgbFn(str) !== null;
-  const c2d = canvas2d(); if (!c2d) return !str.includes("(") && NAMED.has(str.toLowerCase()); // no canvas (jsdom, a worker): only CSS's own names, so "junk" isn't read as black
+  // no canvas (jsdom, a worker): only CSS's own names, so "junk" isn't read as black
+  const c2d = canvas2d(); if (!c2d) return !str.includes("(") && NAMED.has(str.toLowerCase());
   return ["#000", "#fff"].some((sentinel) => { c2d.fillStyle = sentinel; const before = c2d.fillStyle; c2d.fillStyle = str; return c2d.fillStyle !== before; });
 }
 // The sRGB-family functions by CSS Color 4's own grammar — modern and legacy syntax, `none`,
 // percentages, angle units — and nothing looser, so a color-shaped string CSS would reject
 // (`rgb(a b c)`, a mixed legacy `rgb(255, 0%, 0)`) is null here. Channels clamp where CSS clamps.
 const CSS_NUM = "[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:e[+-]?\\d+)?"; // CSS's <number>; a trailing dot ("1.") is not one
-const TOK_NUM = new RegExp("^" + CSS_NUM + "$", "i"), TOK_PCT = new RegExp("^" + CSS_NUM + "%$", "i"), TOK_ANGLE = new RegExp("^(" + CSS_NUM + ")(deg|grad|rad|turn)$", "i"), CSS_WS = /[ \t\n\r\f]+/, NONE = /^none$/i; // keywords are ASCII case-insensitive
+// keywords are ASCII case-insensitive
+const TOK_NUM = new RegExp("^" + CSS_NUM + "$", "i"), TOK_PCT = new RegExp("^" + CSS_NUM + "%$", "i"), TOK_ANGLE = new RegExp("^(" + CSS_NUM + ")(deg|grad|rad|turn)$", "i"), CSS_WS = /[ \t\n\r\f]+/, NONE = /^none$/i;
 const cssTrim = (t: string) => t.replace(/^[ \t\n\r\f]+|[ \t\n\r\f]+$/g, "");
 const one = (t: string) => !!t && !CSS_WS.test(t); // exactly one token in the slot
 const tokKind = (t: string) => (NONE.test(t) ? "none" : TOK_NUM.test(t) ? "num" : TOK_PCT.test(t) ? "pct" : TOK_ANGLE.test(t) ? "angle" : null);
@@ -82,7 +86,8 @@ function srgbFn(str: string): [Vec3, number] | null {
     kinds = ch.map(tokKind);
     if (fn === "rgb" ? !kinds.every((k) => k && k !== "angle") : !(kinds[0] && kinds[0] !== "pct" && kinds[1] && kinds[1] !== "angle" && kinds[2] && kinds[2] !== "angle")) return null;
   }
-  const n = (t: string, max: number) => (NONE.test(t) ? 0 : /%$/.test(t) ? (parseFloat(t) / 100) * max : parseFloat(t)); // never NaN; ±Infinity meets the clamp below
+  // never NaN; ±Infinity meets the clamp below
+  const n = (t: string, max: number) => (NONE.test(t) ? 0 : /%$/.test(t) ? (parseFloat(t) / 100) * max : parseFloat(t));
   const A = alpha === undefined ? 1 : clamp(n(alpha, 1), 0, 1);
   const k = fn === "rgb"
     ? convert([clamp(n(ch[0], 255) / 255, 0, 1), clamp(n(ch[1], 255) / 255, 0, 1), clamp(n(ch[2], 255) / 255, 0, 1)], "srgb", "oklch")
@@ -118,17 +123,22 @@ function parseColor(str: string | null | undefined): Oklcha {
     const fn = m[1].toLowerCase();
     const [body, aRaw] = m[2].split("/").map((s) => s.trim());
     let toks = body.split(/\s+/).filter(Boolean), space = fn as Space;
-    if (fn === "color") { space = COLOR_FN_SPACES[(toks[0] || "").toLowerCase()]; toks = toks.slice(1); if (!space) return [0.7, 0.1, 280, 1]; } // an unsupported color() space degrades to the default
+    // an unsupported color() space degrades to the default
+    if (fn === "color") { space = COLOR_FN_SPACES[(toks[0] || "").toLowerCase()]; toks = toks.slice(1); if (!space) return [0.7, 0.1, 280, 1]; }
     // One channel: `none` → 0, `%` scales by the slot's ratio, num() keeps NaN out (a seed degrades, it doesn't reject).
     const ch = (t: string | undefined, pctScale = 1) => (!t || NONE.test(t) ? 0 : num(parseFloat(t)) * (/%$/.test(t) ? pctScale : 1));
     const A = aRaw ? clamp(ch(aRaw, 0.01), 0, 1) : 1;
     // L and chroma clamp at parse time, as CSS Color 4 does.
     const c: Vec3 =
-      fn === "lab" ? [clamp(ch(toks[0]), 0, 100), ch(toks[1], 1.25), ch(toks[2], 1.25)]                          // L% is 0–100 as-is; a/b 100% ↔ ±125
-      : fn === "lch" ? [clamp(ch(toks[0]), 0, 100), Math.max(0, ch(toks[1], 1.5)), parseAngle(toks[2] || "0")]   // C 100% ↔ 150; H takes angle units
+      // L% is 0–100 as-is; a/b 100% ↔ ±125
+      fn === "lab" ? [clamp(ch(toks[0]), 0, 100), ch(toks[1], 1.25), ch(toks[2], 1.25)]
+      // C 100% ↔ 150; H takes angle units
+      : fn === "lch" ? [clamp(ch(toks[0]), 0, 100), Math.max(0, ch(toks[1], 1.5)), parseAngle(toks[2] || "0")]
       : fn === "color" ? [ch(toks[0], 0.01), ch(toks[1], 0.01), ch(toks[2], 0.01)]
-      : fn === "oklab" ? [clamp(ch(toks[0], 0.01), 0, 1), ch(toks[1], 0.004), ch(toks[2], 0.004)]                // L% → 0–1; a/b 100% ↔ ±0.4
-      : [clamp(ch(toks[0], 0.01), 0, 1), Math.max(0, ch(toks[1], 0.004)), parseAngle(toks[2] || "0")];           // oklch
+      // L% → 0–1; a/b 100% ↔ ±0.4
+      : fn === "oklab" ? [clamp(ch(toks[0], 0.01), 0, 1), ch(toks[1], 0.004), ch(toks[2], 0.004)]
+      // oklch
+      : [clamp(ch(toks[0], 0.01), 0, 1), Math.max(0, ch(toks[1], 0.004)), parseAngle(toks[2] || "0")];
     return held(space === "oklch" ? c : convert(c, space, "oklch"), A);
   }
   // rgb() / hsl() / hwb() by CSS's own grammar; a string it rejects parses as black like any junk.
@@ -183,7 +193,8 @@ const keptLabel = (f: Flavor | null, mode: ColorMode) => {
 const flavored = (s: string, f: Flavor | null, oklch: Vec3, A: number) => {
   if (!f) return s;
   const alpha = A < 0.999 ? String(+A.toFixed(3)) : f.alphaSlot ? "1" : "";
-  if (f.name === "color") return `color(srgb ${toGamut(oklch, "srgb").map((x) => +clamp(num(x), 0, 1).toFixed(3) + 0).join(" ")}${alpha && ` / ${alpha}`})`; // p3's precision
+  // p3's precision
+  if (f.name === "color") return `color(srgb ${toGamut(oklch, "srgb").map((x) => +clamp(num(x), 0, 1).toFixed(3) + 0).join(" ")}${alpha && ` / ${alpha}`})`;
   const ch = (/\((.*)\)$/.exec(s)?.[1] ?? "").split(/\s*[,/]\s*|\s+/).slice(0, 3);
   return f.legacy ? `${f.name}(${ch.map((t) => (t === "none" ? "0" : t)).join(", ")}${alpha && `, ${alpha}`})` : `${f.name}(${ch.join(" ")}${alpha && ` / ${alpha}`})`;
 };
@@ -193,10 +204,12 @@ const flavored = (s: string, f: Flavor | null, oklch: Vec3, A: number) => {
  *  No trigger or popover of its own: the color control mounts one in its popover, the gradient editor re-points one at the selected stop. */
 function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): PickerBody {
   const tr = words();
-  let [L, C, H, A] = parseColor(isColor(meta.value) ? meta.value : "#7c5cff"); // the kit's default color, for none or junk (parseColor reads junk as black)
+  // the kit's default color, for none or junk (parseColor reads junk as black)
+  let [L, C, H, A] = parseColor(isColor(meta.value) ? meta.value : "#7c5cff");
   // It opens in the notation the color was written in, unless the host seeds a mode, and hands back that exact string
   // until it's edited: "#ff0000" read back as oklch(63% 0.26 29), so code expecting hex broke and pasted values drifted.
-  const seeded = EDIT_MODES.includes(meta.mode); // a host's mode (the gradient's blend space) holds; only an unseeded picker follows a color's notation
+  // a host's mode (the gradient's blend space) holds; only an unseeded picker follows a color's notation
+  const seeded = EDIT_MODES.includes(meta.mode);
   let mode = seeded ? meta.mode : notationOf(meta.value) ?? "oklch";
   let raw: string | null = verbatim(meta.value) ? meta.value.trim() : null;
   let flavor = !seeded && isColor(meta.value) ? flavorOf(String(meta.value)) : null; // until another mode is picked
@@ -243,7 +256,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     const stretch = showsGamutBoundary(mode) ? "p3" : "srgb";
     const curve = gamutCurve(H, stretch); chromaCurve = curve; // per-lightness chroma ceiling of the plane gamut
     const backingW = Math.round(cssW * dpr), backingH = Math.round(cssH * dpr);
-    const W = Math.max(1, Math.round(backingW / 4)), Hh = Math.max(1, Math.round(backingH / 4)); // gradient rasterized at 1/4 res
+    // gradient rasterized at 1/4 res
+    const W = Math.max(1, Math.round(backingW / 4)), Hh = Math.max(1, Math.round(backingH / 4));
     if (off.width !== W || off.height !== Hh) { off.width = W; off.height = Hh; offData = new ImageData(W, Hh, CANVAS_CS); }
     const data = offData.data;
     const invH = Hh > 1 ? 1 / (Hh - 1) : 0, invW = W > 1 ? 1 / (W - 1) : 0;
@@ -271,7 +285,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const vividHue = (hue: number) => { const rgb = convert([STRIP_L, chromaCeil(oklchGamutProbe(hue, "srgb"), STRIP_L), hue], "oklch", "srgb"); return `rgb(${clamp(rgb[0] * 255, 0, 255) | 0},${clamp(rgb[1] * 255, 0, 255) | 0},${clamp(rgb[2] * 255, 0, 255) | 0})`; };
   let hueW = 0;
   const renderHue = () => {
-    const w = Math.max(1, hueBar.clientWidth), h = Math.max(1, hueBar.clientHeight); if (w < 2) return; // layout size, as above
+    // layout size, as above
+    const w = Math.max(1, hueBar.clientWidth), h = Math.max(1, hueBar.clientHeight); if (w < 2) return;
     if (w === hueW && hueCanvas.width === w) return; // the strip depends only on width
     hueW = w; hueCanvas.width = w; hueCanvas.height = h;
     for (let x = 0; x < w; x++) { hctx.fillStyle = vividHue((x / (w - 1)) * 360); hctx.fillRect(x, 0, 1, h); }
@@ -285,7 +300,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     areaThumb.style.left = at(ceil > 0 ? C / ceil : 0); areaThumb.style.top = at(1 - L);
     hueThumb.style.left = inside(H / 360, 16); alphaThumb.style.left = inside(A, 16);
     alphaBar.setAttribute("aria-valuenow", String(+A.toFixed(2)));
-    const hDeg = Math.round(H); hueBar.setAttribute("aria-valuenow", String(hDeg)); hueBar.setAttribute("aria-valuetext", `${hDeg}°`); // H may be 360: End reads as the top of the range
+    // H may be 360: End reads as the top of the range
+    const hDeg = Math.round(H); hueBar.setAttribute("aria-valuenow", String(hDeg)); hueBar.setAttribute("aria-valuetext", `${hDeg}°`);
     area.setAttribute("aria-description", tr("colorReadout", "lightness {l}%, chroma {c}", { l: Math.round(L * 100), c: +C.toFixed(3) }));
     alphaGrad.style.background = `linear-gradient(to right, oklch(${L} ${C} ${H} / 0), oklch(${L} ${C} ${H}))`;
     // Filled rings: a grabbed thumb scales past its track, so each ring carries its own
@@ -297,22 +313,26 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   };
   const hexText = () => serialize([L, C, H], "hex", A);
   const refresh = () => {
-    const g = gamutLabel([L, C, H], mode); gamut2.textContent = g === "wide" ? tr("wide", "wide") : g; // sRGB and P3 are names
+    // sRGB and P3 are names
+    const g = gamutLabel([L, C, H], mode); gamut2.textContent = g === "wide" ? tr("wide", "wide") : g;
     if (mode === "hex") { const hx = channels.querySelector<HTMLInputElement>(".twk-color-chan-input"); if (hx && activeIn(hx) !== hx) hx.value = hexText(); }
     else { const vals = channelValues([L, C, H], mode); chanFields.forEach((f, i) => { if (!f.el.contains(activeIn(f.el))) f.set(vals[i]); }); }
   };
-  const reflow = () => { renderHue(); renderArea(); positionThumbs(); }; // mounted at real size → rasterize + place the thumbs
+  // mounted at real size → rasterize + place the thumbs
+  const reflow = () => { renderHue(); renderArea(); positionThumbs(); };
   const emit = () => onChange(colorStr());
   // renderArea bails on zero width, so an offscreen repaint is a cheap no-op.
   const sync = (repaint: boolean) => { if (repaint && H !== paintedHue) renderArea(); positionThumbs(); refresh(); };
-  const commit = (repaint: boolean) => { raw = null; sync(repaint); emit(); }; // an edit writes the picker's own notation
+  // an edit writes the picker's own notation
+  const commit = (repaint: boolean) => { raw = null; sync(repaint); emit(); };
 
   const renderChannels = () => {
     channels.replaceChildren(); chanFields = [];
     if (mode === "hex") {
       channels.classList.add("twk-color-channels--hex");
       const wrap = el("div", "twk-color-chan");
-      const inp = el("input", "twk-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", tr("hex", "Hex color")); quietFocus(inp); selectAllOnFocus(inp); // select all: you replace a color, not a digit
+      // select all: you replace a color, not a digit
+      const inp = el("input", "twk-color-chan-input"); inp.type = "text"; inp.spellcheck = false; inp.setAttribute("aria-label", tr("hex", "Hex color")); quietFocus(inp); selectAllOnFocus(inp);
       inp.addEventListener("change", () => { const v = inp.value.trim(); if (HEX_RE.test(v)) { [L, C, H, A] = parseColor(v); commit(true); } });
       // refresh() skips a focused field; catch up on blur (change fires first, so a typed edit is in).
       inp.addEventListener("blur", refresh);
@@ -363,7 +383,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode); setMode is the host pushing a mode in, so it fires neither.
   // The channel fields are rebuilt for the new mode, after the build: under the picker's own words again.
   const remode = (m: ColorMode) => { mode = m; raw = null; flavor = null; showMode(); using(tr.s, renderChannels); renderArea(); positionThumbs(); };
-  modeSel.addEventListener("change", () => { if (modeSel.value === "kept") return; remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); }); // the dropdown holds EDIT_MODES and the kept flavor
+  // the dropdown holds EDIT_MODES and the kept flavor
+  modeSel.addEventListener("change", () => { if (modeSel.value === "kept") return; remode(modeSel.value as ColorMode); meta.onMode && meta.onMode(); });
 
   renderChannels();
 
@@ -371,7 +392,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     el: root,
     // Blur a focused text field before re-pointing: its change handler commits typed text against
     // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as focus leaving the popover, which closes it.
-    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = activeIn(root) as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; showMode(); raw = verbatim(v) ? v.trim() : null; sync(true); }, // remode() first: it clears raw
+    // remode() first: it clears raw
+    set: (v: string) => { if (!isColor(v)) { console.warn(`[tweaks] color: "${String(v).slice(0, 40)}" isn't a color — kept ${colorStr()}`); return; } const ae = activeIn(root) as HTMLElement; if (ae && root.contains(ae) && ae.matches("input")) ae.blur(); [L, C, H, A] = parseColor(v); const m = seeded ? null : notationOf(v); if (m && m !== mode) remode(m); flavor = m ? flavorOf(v) : null; showMode(); raw = verbatim(v) ? v.trim() : null; sync(true); },
     get: () => colorStr(),
     // The gradient reads the mode to choose its blend space and re-points it on a stored ramp.
     mode: () => mode,
@@ -385,7 +407,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 
 // ── Color control — a trigger row (label + swatch + value readout) that opens a picker body in a popover. ──
 function createColor(meta: Meta, onChange: OnChange): Control {
-  const { root, trigger, right } = triggerRow("twk-color", meta.label ?? words()("color", "Color")); // ??: an explicit "" label renders none
+  // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-color", meta.label ?? words()("color", "Color"));
   const swatch = el("span", "twk-trigger-chip twk-color-swatch");
   const valueEl = el("span", "twk-trigger-value");
   right.append(swatch, valueEl);

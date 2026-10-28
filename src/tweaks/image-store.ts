@@ -28,7 +28,8 @@ const run = <T>(mode: IDBTransactionMode, fn: (s: Store) => T) => open().then((d
   try { const t = d.transaction("images", mode), out = fn(t.objectStore("images")); t.oncomplete = () => done(out); t.onerror = t.onabort = () => done(null); }
   catch { done(null); }
 }));
-const range = (key: string) => IDBKeyRange.bound([key], [key, []]); // an array sorts after every string, so [key, []] caps the range
+// an array sorts after every string, so [key, []] caps the range
+const range = (key: string) => IDBKeyRange.bound([key], [key, []]);
 
 // cyrb53: a 53-bit string hash, plenty to tell one panel's few images apart.
 const hash = (s: string) => {
