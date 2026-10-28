@@ -215,6 +215,9 @@ test("a shadow panel inside a styled #app matches an unstyled one; a light panel
   assert.ok(looks.ref.length > 10, "sanity: the panel has buttons, inputs and spans");
   assert.notDeepEqual(looks.light, looks.ref, "the light panel in #app is restyled: the bleed reproduces");
   assert.deepEqual(looks.shadow, looks.ref, "the shadow panel in #app looks like the clean one");
+  // A control that measured itself before the styles landed measures again: the switch's pill sits on its On.
+  const pill = await page.evaluate(() => { const r = window.panels.shadow.el.shadowRoot, a = r.querySelector(".twk-seg-pill").getBoundingClientRect(), b = r.querySelector('.twk-seg-btn[data-active="true"]').getBoundingClientRect(); return [Math.abs(a.left - b.left), Math.abs(a.width - b.width)]; });
+  assert.ok(pill[0] <= 2 && pill[1] <= 2, `the pill is on its segment (off by ${pill})`);
   assert.equal(looks.accent, "rgb(255, 0, 0)", "the host's --twk-accent themes the shadow panel");
   assert.equal(looks.radius, "13px", "and its --twk-radius, a token with a default (3px + the panel's 10px)");
   assert.notEqual(looks.refAccent, "rgb(255, 0, 0)");

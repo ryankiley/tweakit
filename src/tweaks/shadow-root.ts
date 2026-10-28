@@ -1,7 +1,7 @@
 /* opts.shadow — dresses a panel tweaks() built in a shadow root: the kit's stylesheet in it, a second host on <body> whose
  * root takes its portals (a pane, a hint, the drag guide), and the page's scheme pin and tokens carried across both
  * boundaries. Its own chunk, loaded only by a shadow panel. */
-import { el, carryScheme } from "./shared.js";
+import { el, carryScheme, requestReflow } from "./shared.js";
 
 declare const TW_SPLIT: boolean;
 type Host = HTMLElement & { _twPortal?: ShadowRoot; _twSync?: () => void; _twSlot?: Element; _twOn?: (on: boolean) => void };
@@ -57,7 +57,8 @@ export const dress = (host: Host, panel: HTMLElement, opt: boolean | { href?: st
   const href = (typeof opt === "object" && opt?.href) || new URL(TW_SPLIT ? "../tweaks.css" : "./tweaks.css", import.meta.url).href;
   addPageRules();
   // Transitions are held while the stylesheet lands, or the panel's first show would animate from its unstyled layout.
-  const settle = () => { host.style.visibility = ""; requestAnimationFrame(() => requestAnimationFrame(() => host.removeAttribute("data-twk-settling"))); };
+  // The controls measured themselves in that layout (a segmented pill, a slider's marks), so they measure again.
+  const settle = () => { host.style.visibility = ""; requestReflow(); requestAnimationFrame(() => requestAnimationFrame(() => host.removeAttribute("data-twk-settling"))); };
   host.setAttribute("data-twk-settling", "");
   styled(host.shadowRoot!, href, settle);
   // Portals go to a root of their own on <body>, as a light panel's go to <body>: a transformed or clipping ancestor of
