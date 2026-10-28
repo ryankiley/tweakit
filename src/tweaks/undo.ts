@@ -1,6 +1,6 @@
 /* Undo / redo (opts.undo) — a debounced history of snapshots, scoped to a hovered or focused panel so it doesn't hijack
  * the page's own undo. Its own module, so the history can be tested without a panel (test/undo.test.mjs). */
-import { hasOwn, valueChanged } from "./shared.js";
+import { hasOwn, valueChanged, activeIn } from "./shared.js";
 import type { Snapshot } from "./panel.js";
 
 /** A panel's history: `snapshot` reads its values, `applySnapshot` writes them back, `watch` subscribes to every change
@@ -35,9 +35,9 @@ export const createUndo = (panel: HTMLElement, snapshot: () => Snapshot, applySn
   const restore = (idx: number) => { applyingHistory = true; applySnapshot(history[idx]); applyingHistory = false; histIdx = idx; };
   const undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
   const redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
-  const focused = () => panel.matches(":hover") || panel.contains(document.activeElement);
+  const focused = () => panel.matches(":hover") || panel.contains(activeIn(panel));
   const onKey = (e: KeyboardEvent) => {
-    if (!focused() || !(e.metaKey || e.ctrlKey) || inEditable(e.target as Element)) return;
+    if (!focused() || !(e.metaKey || e.ctrlKey) || inEditable(e.composedPath()[0] as Element)) return; // the path: a shadow host retargets e.target
     const k = e.key.toLowerCase();
     if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     else if (k === "y") { e.preventDefault(); redo(); }

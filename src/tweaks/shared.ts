@@ -247,7 +247,30 @@ const carryScheme = (portal: Element, anchor: Element | null | undefined) => {
   if (s) portal.setAttribute("data-twk-scheme", s); else portal.removeAttribute("data-twk-scheme");
 };
 // …and the anchor panel's live theme (read at carry time — setTheme() swaps the object).
-const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => { applyThemeVars(portal, anchor?.closest<PanelEl>(".twk-panel")?._twTheme); carryScheme(portal, anchor); };
+// A shadow panel's portal host (shadow-root.ts) also takes the panel's tokens, which page CSS set on the panel's host.
+const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => { applyThemeVars(portal, anchor?.closest<PanelEl>(".twk-panel")?._twTheme); carryScheme(portal, anchor); ((anchor?.getRootNode() as ShadowRoot | undefined)?.host as any)?._twSync?.(); };
+
+// ── Shadow roots: a panel built with opts.shadow lives in its host's shadow root, and its portals in a second host on
+// <body> (shadow-root.ts), where a transformed ancestor can't capture them. home(): where a portal from `n` goes: that
+// panel's portal root, the kit's own root `n` is already in (a portal's, or a shadow panel's before its dressing lands),
+// else <body>, as for a light panel inside a page's own web component.
+// activeIn(): focus as `n`'s tree sees it, since document.activeElement stops at a shadow host. holds(): `t` is in `box`,
+// or is the host `box`'s tree shows as, the relatedTarget of focus crossing between a panel's root and its portals'. ──
+const home = (n: Node): Node => { const h = (n.getRootNode() as ShadowRoot).host as any; return h ? h._twPortal || (h.matches(".twk-host, .twk-portal-host") ? h.shadowRoot : document.body) : document.body; };
+const activeIn = (n: Node) => (n.getRootNode() as Document | ShadowRoot).activeElement;
+const holds = (box: Node, t: Node | null) => !!t && (box.contains(t) || t === (box.getRootNode() as ShadowRoot).host);
+// opts.shadow (a panel, mountControl, createColorPicker): `root` goes in a shadow root on a host of its own, hidden until
+// shadow-root.ts has styled it. Returns what goes in the page, the promise `ready` waits for, and the teardown, which
+// runs late if the dressing lands after a destroy().
+const isolate = (root: HTMLElement, shadow: boolean | { href?: string } | undefined) => {
+  if (!shadow) return { box: root, end: () => {} };
+  const box = el("twk-host" as "div", "twk-host"); box.attachShadow({ mode: "open" }).append(root); root.classList.add("twk-in-shadow"); box.style.visibility = "hidden";
+  let stop: (() => void) | undefined, gone = false;
+  const dressed = import("./shadow-root.js").then((m) => { stop = m.dress(box, root, shadow); if (gone) stop(); }, (e) => { box.style.visibility = ""; console.error("[tweaks] shadow: shadow-root.js failed to load — unstyled:", e); });
+  return { box, dressed, end: () => { gone = true; stop?.(); box.remove(); } };
+};
+// Put a portal where `from`'s portals go; in a shadow root .twk-in-shadow leaves its tokens to that root's :host.
+const portalTo = (n: HTMLElement, from: Node) => { const h = home(from); n.classList.toggle("twk-in-shadow", h !== document.body); if (n.parentNode !== h) h.appendChild(n); };
 
 // ── Popover — the portal-to-<body> shell behind every transient surface. Opens under its
 // trigger at its width (unless opts.width), carries the host theme, closes on outside-press / Esc / scroll-out. Globally
@@ -283,7 +306,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (!(r.width || r.height) || r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth || (sr?.height && (r.bottom < sr.top || r.top > sr.bottom))) return close(); // hidden, or scrolled out
     pop.style.left = r.left + dx + "px"; pop.style.top = r.top + dy + "px";
   };
-  const onOutside = (e: PointerEvent) => { if (!root.contains(e.target as Node) && !pop.contains(e.target as Node)) close(); };
+  const onOutside = (e: PointerEvent) => { const p = e.composedPath(); if (!p.includes(root) && !p.includes(pop)) close(); }; // the path, as a shadow host retargets e.target
   // Escape closes and stops propagation, so a host dialog doesn't close too. A field reverting an edit stops it first.
   const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && open && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); close(); refocus(); } };
   // Focus leaving both the pop and its trigger closes. A blur with no relatedTarget is
@@ -293,8 +316,10 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (!open) return; const t = e.relatedTarget as Node | null;
     if (!t && !document.hasFocus()) return; // the window lost focus (a file dialog, another app): the pane waits for it
     if (t ? root.contains(t) || pop.contains(t) : pointerModality) return;
+    // Focus crossing between a shadow panel's root and its portals' root reads as their host: look where it landed.
+    if (t && (holds(root, t) || holds(pop, t))) { setTimeout(() => { if (open && !root.contains(activeIn(root)) && !pop.contains(activeIn(pop))) close(); }, 0); return; }
     close();
-    if (t && !trigger.closest(".twk-panel")?.contains(t)) setTimeout(() => { if (!open && document.activeElement === t) trigger.focus(); }, 0);
+    if (t && !trigger.closest(".twk-panel")?.contains(t)) setTimeout(() => { if (!open && activeIn(t) === t) trigger.focus(); }, 0);
   };
   root.addEventListener("focusout", onFocusOut); pop.addEventListener("focusout", onFocusOut);
   const firstFocusable = () => pop.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])');
@@ -307,9 +332,9 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
     if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open popover first
     activePopoverClose = close; activePopoverTrigger = trigger;
     open = st.open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
-    // Reopened mid-fade, it's still on <body>; re-appending would kill the transition, so it reverses in place.
-    clearTimeout(removeTimer); const fading = pop.parentNode === document.body; st.moved = false; byPointer = pointerModality;
-    pop.inert = false; if (!fading) document.body.appendChild(pop);
+    // Reopened mid-fade, it's still in the page; re-appending would kill the transition, so it reverses in place.
+    clearTimeout(removeTimer); const fading = pop.parentNode === home(root); st.moved = false; byPointer = pointerModality; // a pop parked in its row isn't fading
+    pop.inert = false; if (!fading) portalTo(pop, root);
     if (!dragBound && opts.movable !== false) { dragBound = true; import("./heavy.js").then((m) => m.dragPane(pop, st, place), () => {}); }
     carrySkin(pop, root);
     window.addEventListener("twk-retheme", recarry); // setTheme() while open
@@ -323,7 +348,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
       pop.classList.add("is-open"); opts.onOpen && opts.onOpen(); place(); // render at real size, then re-place
       // Focus moves into the pop, or Tab walks past the portaled node at the end of <body>.
       // initialFocus wins over the first focusable; a pointer-opened pop takes focus quietly.
-      if (!pop.contains(document.activeElement)) { const f = (opts.initialFocus && opts.initialFocus()) || firstFocusable(); if (f) f.focus({ focusVisible: !pointerModality }); }
+      if (!pop.contains(activeIn(pop))) { const f = (opts.initialFocus && opts.initialFocus()) || firstFocusable(); if (f) f.focus({ focusVisible: !pointerModality }); }
     });
     // Unmount watchdog: a host removing the panel while open (an SPA route change) would
     // otherwise strand the portaled pop on screen.
@@ -336,7 +361,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   const close = () => {
     if (activePopoverClose === close) { activePopoverClose = null; activePopoverTrigger = null; }
     // Focus stranded inside the pop returns to the trigger before the node is removed.
-    if (pop.contains(document.activeElement)) refocus();
+    if (pop.contains(activeIn(pop))) refocus();
     open = st.open = false; root.classList.remove("is-open"); pop.classList.remove("is-open"); pop.inert = true; trigger.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", onOutside, true); document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", reflow);
@@ -515,7 +540,7 @@ export {
   normalizeRange, notice, sayNow, rangeStep, overlapsText,
   optValue, optLabel, json, el, btn, txt, stopPointerLeak, onReady, onLive, requestReflow,
   wireHoverClass, popover, closeActivePopover,
-  resolveTheme, applyThemeVars, carryScheme, carrySkin, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
+  resolveTheme, applyThemeVars, carryScheme, carrySkin, home, activeIn, holds, portalTo, isolate, setCollapsed, foldBody, setDisabled, activeIndex, setRadioActive, radioButton, navIndex, createSegmented,
   blade, quietFocus, measurePill, rubberBand, rubberRelease, REDUCE_MOTION, EASE_SPRING, EASE_GLIDE, icon, announce, hasOwn, isReservedKey, valueChanged, restoreDefault, SPRING_KEYS,
 };
 export type { OnChange, ThemeVars, PanelEl, RadioBtn, Built, NumSpec, NumField, Popover, ControlCtor };

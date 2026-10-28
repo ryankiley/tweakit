@@ -394,6 +394,23 @@ export const examples = [
         <tr><td><code>toolbar</code></td><td><code>false</code> for a bare panel (no copy / reset / presets)</td></tr>
         <tr><td><code>undo</code></td><td>debounced undo/redo history</td></tr>
         <tr><td><code>onReset</code></td><td>replace the default reset behavior</td></tr>
+        <tr><td><code>shadow</code></td><td><code>true</code> builds the panel in a shadow root, out of reach of page CSS such as <code>#app button { … }</code>; see below</td></tr>
       </table>`,
+  },
+  {
+    id: "shadow",
+    title: "Shielded from page CSS",
+    prose: `<p>A page's rules aimed through a wrapper (<code>#app button { padding: 20px }</code>,
+      a <code>.prose</code> container, CMS styles) reach a panel's own buttons, fields and labels.
+      <code>shadow: true</code> builds the panel in a shadow root instead, and its panes in a
+      second root on <code>&lt;body&gt;</code>, where none of that applies. <code>panel.el</code> is
+      then the host, a <code>&lt;twk-host&gt;</code>: append it as usual. The panel still inherits
+      what any element does (the host's font size, color, direction). Theme it with
+      <code>--twk-*</code> tokens on the host itself (<code>.twk-host { --twk-radius: 4px }</code>),
+      which its panes take too, or with <code>theme</code>; your own rules for the kit's classes
+      (<code>.twk-panel { … }</code>) come along as well. Its styles are the kit's rules from the
+      page's own <code>tweakit/css</code>; a page without it links <code>tweaks.css</code> from
+      beside the module, or the stylesheet at <code>shadow: { href }</code>.
+      <code>mountControl</code> and <code>createColorPicker</code> take <code>shadow</code> too.</p>`,
   },
 ];

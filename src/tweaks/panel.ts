@@ -2,7 +2,7 @@
  * API. Persistence, presets, undo, floating drag and the lazy-window queue live here. */
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, foldBody,
-  applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus,
+  applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, activeIn, isolate,
   getControl, notice, isObj, hasOwn, isReservedKey, valueChanged, restoreDefault,
 } from "./shared.js";
 import { metaFor, VALUELESS } from "./schema.js";
@@ -246,6 +246,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const controls = el("div", "twk-controls");
   body.append(controls);
   panel.append(header, body);
+  // opts.shadow: the panel lives in a shadow root on its own host, out of page CSS's reach; shadow-root.ts styles it and
+  // gives its portals a root of their own. `box` is what sits in the page and moves on a lift.
+  const iso = isolate(panel, opts.shadow), box = iso.box;
 
   // Stash the theme so the portaled popovers (which lose the panel's inherited vars) re-apply it on open.
   let themeVars = resolveTheme(opts.theme);
@@ -445,11 +448,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (panel.dataset.mode === "floating") return;
       const r = panel.getBoundingClientRect();
       px = r.left; py = r.top;
-      if (panel.parentNode) {
+      if (box.parentNode) {
         liftSlot = el("span", "twk-lift-slot");
         liftSlot.style.width = r.width + "px"; liftSlot.style.height = r.height + "px";
         liftSlot.setAttribute("aria-hidden", "true");
-        panel.before(liftSlot);
+        box.before(liftSlot); (box as any)._twSlot = liftSlot; // a shadow panel's scheme pin is read at its slot from here on
       }
       // Portal to <body>: a transformed/filter/contain ancestor would become the fixed panel's containing block. The scheme scope doesn't ride along — carry it.
       // So does the rest of the slot's context: the text properties the kit leaves to inheritance (a host's font-size,
@@ -459,17 +462,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       // changes is written, inline. A host rule reaching inside through an ancestor (`#app button { … }`) still stops
       // matching: only a shadow root could keep that.
       applyThemeVars(panel, null);
-      const cs = getComputedStyle(panel), lang = panel.closest("[lang]")?.getAttribute("lang"), was: Record<string, string> = {};
+      const cs = getComputedStyle(panel), lang = box.closest("[lang]")?.getAttribute("lang"), was: Record<string, string> = {};
       for (const k of ["font-family", "font-size", "font-weight", "font-style", "font-stretch", "font-variant", "font-feature-settings", "font-variation-settings", "font-kerning", "line-height", "letter-spacing", "word-spacing", "text-transform", "text-align", "color", "direction", ...Array.from(cs).filter((k) => k.startsWith("--twk-"))]) was[k] = cs.getPropertyValue(k);
       carryScheme(panel, panel);
-      document.body.appendChild(panel);
+      document.body.appendChild(box);
       for (const k in was) if (cs.getPropertyValue(k) !== was[k]) panel.style.setProperty(k, carried[k] = was[k]);
-      if (lang && panel.closest("[lang]")?.getAttribute("lang") !== lang) panel.lang = lang;
+      if (lang && box.closest("[lang]")?.getAttribute("lang") !== lang) panel.lang = lang;
       applyThemeVars(panel, themeVars);
       panel.dataset.mode = "floating"; apply();
       // A host that removes its container without destroy() would leave the lifted panel on screen; when the placeholder leaves the document, the panel follows.
       if (liftSlot && typeof MutationObserver === "function") {
-        const obs = new MutationObserver(() => { if (liftSlot && !liftSlot.isConnected) { obs.disconnect(); liftSlot = null; panel.remove(); } });
+        const obs = new MutationObserver(() => { if (liftSlot && !liftSlot.isConnected) { obs.disconnect(); liftSlot = null; box.remove(); } });
         obs.observe(document.documentElement, { childList: true, subtree: true });
         cleanups.push(() => obs.disconnect());
       }
@@ -598,7 +601,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Out of sight: hidden by its condition, on a tab page not showing, or inside a collapsed folder or panel.
   const hidden = (el: Element) => !!(el.closest(".twk-cond-hidden, .twk-tabs-page:not([data-active=true])") || el.parentElement?.closest(".is-collapsed"));
   let pick: [Element, Scope] | undefined;
-  const away = (e: Event) => { const t = e.target as Element; if (!panel.contains(t) && !t.closest?.(".twk-portal")) unpick(); };
+  const away = (e: Event) => { const t = e.composedPath()[0] as Element; if (!panel.contains(t) && !t.closest?.(".twk-portal")) unpick(); }; // the path: a shadow host retargets e.target
   const unpick = () => { if (!pick) return; pick[0].classList.remove("is-picked"); pick = undefined; document.removeEventListener("pointerdown", away, true); if (picked?.[0] === panel) picked = null; };
   const choose = (el: Element, s: Scope) => {
     if (picked && picked[0] !== panel) picked[1](); // one pick on the page
@@ -607,7 +610,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Focus moves to what was picked (a folder's header, a row's control), so its keys work and a screen reader names
     // it; a press shows no ring. A text field isn't focused, or ⌘V would paste into it as text, and any selection goes.
     const f = [...el.querySelectorAll<HTMLElement>('button:not(:disabled):not([tabindex="-1"]), [tabindex="0"]')].find((n) => !n.closest(".twk-hint, .twk-portal, [inert]")); // its tab stop, not a hint or a closed pop's
-    if (f) f.focus({ preventScroll: true, focusVisible: false } as FocusOptions); else (document.activeElement as HTMLElement | null)?.blur?.();
+    if (f) f.focus({ preventScroll: true, focusVisible: false } as FocusOptions); else (activeIn(panel) as HTMLElement | null)?.blur?.();
     document.getSelection?.()?.removeAllRanges();
   };
   cleanups.push(unpick);
@@ -633,15 +636,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // hidden field for the keypress (the copy selected in it), the browser copies or pastes there, and focus steps back.
   const onClipKey = (e: KeyboardEvent) => {
     if (e.key === "Escape") { if (pick) { e.stopPropagation(); unpick(); } return; }
-    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.target as Element)) return;
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat || inEditable(e.composedPath()[0] as Element)) return;
     const k = e.key.toLowerCase(); if (k !== "c" && k !== "v") return;
     if (picked && !picked[0].isConnected) picked[1](); // the picking panel left the page without destroy(): free the slot
     if (pick && hidden(pick[0])) unpick(); // a pick out of sight takes nothing
-    const fe = document.activeElement, s = pick ? pick[1] : picked || !fe || hidden(fe) ? undefined : scopeAt(fe); // focus on a hidden row takes nothing either
-    if (!s || (k === "c" && String(document.getSelection?.() || ""))) return; // selected text: the browser copies that
+    const fe = activeIn(panel), s = pick ? pick[1] : picked || !fe || hidden(fe) ? undefined : scopeAt(fe); // focus on a hidden row takes nothing either
+    const rn: any = panel.getRootNode(); // a shadow root's own selection where it has one (Chrome); else the document's holds it
+    if (!s || (k === "c" && String((rn.getSelection ? rn : document).getSelection?.() || ""))) return; // selected text: the browser copies that
     const json = k === "c" ? JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2) : "";
     const copied = (ok: boolean) => { if (!destroyed) announce(ok ? `${s.label} copied` : "Copy failed"); }; // words for a screen reader; the toolbar's copy button stays as it is
-    const band = pick?.[0], back = document.activeElement as HTMLElement | null, ring = !!back?.matches(":focus-visible");
+    const band = pick?.[0], back = activeIn(panel) as HTMLElement | null, ring = !!back?.matches(":focus-visible");
     // The browser's copy or paste can land some milliseconds after this keydown (an app's menu passes it on), so focus
     // steps back only when it lands, or after a second with none; it's caught page-wide, wherever focus is by then.
     if (!catchEl) { catchEl = el("textarea", "twk-sr"); catchEl.tabIndex = -1; catchEl.setAttribute("aria-hidden", "true"); for (const t of ["copy", "paste"]) document.addEventListener(t, (e) => onCatch?.(e as ClipboardEvent), true); }
@@ -735,7 +739,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   // Every mutating method goes through later(): live at once, queued in the lazy window, silent after destroy().
   const api = {
-    el: panel, params,
+    el: box, params,
     on(fn) { if (destroyed) return () => {}; listeners.add(fn); return () => listeners.delete(fn); },
     set(key, v, o) { const k = String(key), silent = o?.silent; later(() => { if (applySet(k, v)) notify(silent); }); }, // a key that can't stringify throws here, not in the replay
     // Batch write: listeners + persist fire once for the whole batch.
@@ -777,7 +781,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (liftSlot) { liftSlot.remove(); liftSlot = null; }
       if (topFloating === panel) topFloating = null;
       panel.dataset.twkDestroyed = ""; // onLive listeners release on their next event by this mark
-      panel.remove();
+      box.remove();
     },
   } as Panel; // `ready` is filled in just below
   // Assemble once the missing modules resolve, surfacing that on ready; else assemble now. A panel that persists an image
@@ -790,6 +794,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   }, () => {}) : null;
   if (!images) imagesReady = true;
   const imagesIn = images && images.then(restoreImages);
+  // A shadow panel's dressing: `ready` waits for it, not for the stylesheet's download.
+  const shadowIn = iso.dressed; cleanups.push(iso.end);
   const lazy = ensureForMetas(metas);
   if (lazy) {
     // A failed chunk or a throwing build leaves the panel unbuildable: queued calls dropped, later calls refused,
@@ -803,9 +809,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       throw e;
     };
     const building = lazy.then(assemble);
-    api.ready = panel.ready = (imagesIn ? Promise.all([building, imagesIn]) : building).then(() => api, fail); // fail covers both the chunk and a build that throws
+    api.ready = panel.ready = (imagesIn || shadowIn ? Promise.all([building, imagesIn, shadowIn]) : building).then(() => api, fail); // fail covers both the chunk and a build that throws
     api.ready.catch(() => {}); // a handled fork: no unhandled-rejection noise
   }
-  else { assemble(); api.ready = panel.ready = imagesIn ? imagesIn.then(() => api) : Promise.resolve(api); }
+  else { assemble(); api.ready = panel.ready = imagesIn || shadowIn ? Promise.all([imagesIn, shadowIn]).then(() => api) : Promise.resolve(api); }
   return api as Panel;
 }
