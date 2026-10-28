@@ -1,5 +1,5 @@
 // ── Point — 2D/3D/4D vector. Lazy.
-import { el, clamp, stepPrecision, defaultRange, popover, registerControl } from "../shared.js";
+import { el, clamp, stepPrecision, defaultRange, popover, registerControl, words } from "../shared.js";
 import { numField, svgEl, grabSurface, boxFrac, arrowStep, sayWhenKeysStop, triggerRow, decimalStep } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta, PointComponent } from "../schema.js";
@@ -8,10 +8,11 @@ import type { Control } from "../types.js";
 // A trigger row opens the 2D pad over the component fields in a popover. The fields hold the values; readout, thumb
 // and emitted map read off them. `pad: false` opts out.
 function createPoint(meta: Meta, onChange: OnChange): Control {
+  const tr = words();
   const comps = meta.components; // [{ key, label, value, step, min, max }]
 
   // ── Trigger row — label + value + a mini pad preview. ──
-  const { root, trigger, right } = triggerRow("twk-point", meta.label ?? "Point"); // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-point", meta.label ?? tr("point", "Point")); // ??: an explicit "" label renders none
   const valueEl = el("span", "twk-trigger-value");
   const preview = el("div", "twk-trigger-chip twk-point-preview");
   const previewDot = el("div", "twk-point-preview-dot");
@@ -58,7 +59,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   const sync = () => { positionPad(); paintValue(); };
   const emit = () => onChange(read());
   const flds = comps.map((c, k) => {
-    const fld = numField({ label: c.label, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max }, () => { sync(); emit(); });
+    const fld = numField({ label: c.label ?? c.key, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max }, () => { sync(); emit(); });
     fields.append(fld.el); return fld;
   });
   const read = () => Object.fromEntries(comps.map((c, k) => [c.key, flds[k].get()])); // the emitted map, straight off the fields
@@ -90,7 +91,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     // Keyboard: a focusable group (no ARIA role fits a 2D point; the readout rides on aria-description). Arrows move a
     // pad step (⇧ = ten), ↑ always up on screen; Home restores the default. Escape is the popover's — a blur here would close it first.
     padHost.tabIndex = 0; padHost.setAttribute("role", "group");
-    padHost.setAttribute("aria-label", `${meta.label ?? "Point"} pad: ${comps[0].label ?? comps[0].key} and ${comps[1].label ?? comps[1].key}`);
+    padHost.setAttribute("aria-label", tr("pointPad", "{label} pad: {x} and {y}", { label: meta.label ?? tr("point", "Point"), x: comps[0].label ?? comps[0].key, y: comps[1].label ?? comps[1].key }));
     const say = sayWhenKeysStop(padHost);
     padHost.addEventListener("keydown", (e) => {
       if (e.key === "Home") { e.preventDefault(); comps.forEach((c, k) => flds[k].set(c.value ?? 0)); sync(); emit(); say(); return; }

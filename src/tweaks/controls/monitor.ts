@@ -1,5 +1,5 @@
 // ── Monitor + FPS graph — live sparkline / readout. Lazy; registers both types.
-import { el, txt, clamp, blade, json, registerControl } from "../shared.js";
+import { el, txt, clamp, blade, json, registerControl, words } from "../shared.js";
 import { fitCanvas, accentColor } from "../heavy.js";
 import type { Meta } from "../schema.js";
 
@@ -36,7 +36,7 @@ function createMonitor(meta: Meta, perFrame = false) {
 
   const wrap = el("div", "twk-fps twk-monitor");
   const val = txt("span", "twk-fps-val", "—");
-  wrap.append(txt("span", "twk-fps-label", meta.label ?? "Monitor"), val);
+  wrap.append(txt("span", "twk-fps-label", meta.label ?? words()("monitor", "Monitor")), val);
 
   let timer = 0, raf = 0, unwatch = () => {}, wasConnected = false;
   // toFixed throws past 100; a missing value reads as a dash.
@@ -99,7 +99,7 @@ function createMonitor(meta: Meta, perFrame = false) {
 
 // ── FPS graph — each frame's timestamp becomes the rate since the last (none on the first or for the probe), 0–120. ──
 const frameRate = () => { let last = 0; return (now?: number) => { if (!(now! > 0)) return undefined; const fps = last ? 1000 / (now! - last) : undefined; last = now!; return fps; }; };
-const createFps = (meta: Meta) => createMonitor({ ...meta, label: meta.label ?? "FPS", get: frameRate(), view: "graph", min: 0, max: 120, decimals: 0 }, true); // ??: an explicit "" label renders none
+const createFps = (meta: Meta) => createMonitor({ ...meta, label: meta.label ?? words()("fps", "FPS"), get: frameRate(), view: "graph", min: 0, max: 120, decimals: 0 }, true); // ??: an explicit "" label renders none
 
 registerControl("fpsgraph", createFps);
 registerControl("monitor", (meta: Meta) => createMonitor(meta)); // the registry passes (meta, onChange), not perFrame

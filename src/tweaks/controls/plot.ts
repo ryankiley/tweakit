@@ -1,5 +1,5 @@
 // ── Plot — graph y=f(x) with a safe expression evaluator (compileExpr). Lazy.
-import { el, txt, clamp, onReady, onLive, quietFocus, registerControl } from "../shared.js";
+import { el, txt, clamp, onReady, onLive, quietFocus, registerControl, words } from "../shared.js";
 import { svgEl } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -138,6 +138,7 @@ export function parseExpr(src: unknown): Expr | string {
 // ── Plot — y = f(x) across a range with an editable expression, or a fixed `fn`. Y auto-ranges unless yMin/yMax are
 // given; the line breaks across asymptotes. ──
 function createPlot(meta: Meta, onChange: OnChange): Control {
+  const tr = words();
   // Non-finite bounds take the defaults, an inverted pair swaps, an equal pair pads out (÷0 drew nothing); a degenerate y-range falls back to auto.
   let xMin = Number(meta.xMin ?? meta.min), xMax = Number(meta.xMax ?? meta.max); // min/max are the verbose form's aliases
   if (!Number.isFinite(xMin)) xMin = -10;
@@ -162,7 +163,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
   if (editable) {
     const field = el("div", "twk-plot-field");
     input = el("input", "twk-plot-input"); input.type = "text"; input.value = expr; input.spellcheck = false;
-    input.autocapitalize = "off"; quietFocus(input); /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute("aria-label", `${meta.label || "Plot"} — expression in x`); input.setAttribute("aria-invalid", "false");
+    input.autocapitalize = "off"; quietFocus(input); /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute("aria-label", tr("expression", "{label} — expression in x", { label: meta.label || tr("plot", "Plot") })); input.setAttribute("aria-invalid", "false");
     field.append(txt("span", "twk-plot-fx", "y ="), input); root.append(field); // txt, not el(…, html): el's third arg is innerHTML
   }
 

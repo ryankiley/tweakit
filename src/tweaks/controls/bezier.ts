@@ -1,5 +1,5 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
-import { el, btn, txt, clamp, onReady, onLive, registerControl } from "../shared.js";
+import { el, btn, txt, clamp, onReady, onLive, registerControl, words } from "../shared.js";
 import { dragGesture, numField, svgEl, arrowStep } from "../heavy.js";
 import { parseEasing } from "../easing.js";
 import type { OnChange, Built } from "../shared.js";
@@ -7,6 +7,7 @@ import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
 
 function createBezier(meta: Meta, onChange: OnChange): Control {
+  const tr = words();
   const DEF = [0.25, 0.1, 0.25, 1];
   // x must stay 0–1 for a valid cubic-bezier(); y may be anything in CSS, and −1–2 holds the overshoot curves people reach
   // for (easeOutBack's 1.56, easeInOutBack's −0.6 and 1.6), which a −0.25–1.25 clamp flattened without a word.
@@ -32,8 +33,8 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   const diag = svgEl("line", "twk-bezier-diag"), line1 = svgEl("line", "twk-bezier-ctl"), line2 = svgEl("line", "twk-bezier-ctl");
   const curve = svgEl("path", "twk-bezier-curve");
   svg.append(unitBot, unitTop, diag, line1, line2, curve);
-  const h1 = btn("twk-bezier-handle"); h1.setAttribute("aria-label", "Control point 1");
-  const h2 = btn("twk-bezier-handle"); h2.setAttribute("aria-label", "Control point 2");
+  const h1 = btn("twk-bezier-handle"); h1.setAttribute("aria-label", tr("controlPoint", "Control point {n}", { n: 1 }));
+  const h2 = btn("twk-bezier-handle"); h2.setAttribute("aria-label", tr("controlPoint", "Control point {n}", { n: 2 }));
   graph.append(svg, h1, h2);
   const fields = el("div", "twk-fields twk-bezier-fields");
   root.append(graph, fields);
@@ -45,7 +46,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   // The curve and handles only; the fields update separately, so a field edit doesn't re-set itself.
   const drawGraph = () => {
     // No ARIA role fits a 2D point, so the labels carry the coordinates; set before the size guard for hidden tab pages.
-    h1.setAttribute("aria-label", `Control point 1, x ${v[0]}, y ${v[1]}`); h2.setAttribute("aria-label", `Control point 2, x ${v[2]}, y ${v[3]}`);
+    h1.setAttribute("aria-label", tr("controlPointAt", "Control point {n}, x {x}, y {y}", { n: 1, x: v[0], y: v[1] })); h2.setAttribute("aria-label", tr("controlPointAt", "Control point {n}, x {x}, y {y}", { n: 2, x: v[2], y: v[3] }));
     // Layout px, not getBoundingClientRect: under an ancestor CSS scale the rect sat the handles off the curve.
     W = graph.offsetWidth; H = graph.offsetHeight; if (W < 2) return;
     fitView();

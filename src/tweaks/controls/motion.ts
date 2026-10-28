@@ -1,6 +1,6 @@
 // ── Motion — a transition's timing: an easing curve with a duration, or a spring, in one popover over one value. The
 // value carries the CSS it resolves to — `duration` in ms and an `easing` string, cubic-bezier() or a sampled linear(). Lazy. ──
-import { el, txt, clamp, isObj, createSegmented, getControl, popover, registerControl, REDUCE_MOTION } from "../shared.js";
+import { el, txt, clamp, isObj, createSegmented, getControl, popover, registerControl, REDUCE_MOTION, words } from "../shared.js";
 import { numField, triggerRow, svgEl, springCurve, springRun, timeFromSpring, notice, SPRING_DUR } from "../heavy.js";
 import { KEYWORDS } from "../easing.js";
 import type { OnChange } from "../shared.js";
@@ -40,6 +40,7 @@ const exactSpring = (v: MotionInput): SpringOut | null => {
 const modeOf = (v: MotionInput, keep: Mode): Mode => (v.mode === "spring" || v.mode === "easing" ? v.mode : springKeys(v) ? "spring" : curveOf(v.curve) ? "easing" : keep); // a curve that doesn't parse is no reason to switch
 
 function createMotion(meta: Meta, onChange: OnChange): Control {
+  const tr = words();
   const Bezier = getControl("cubicbezier"), Spring = getControl("spring");
   if (!Bezier || !Spring) throw new Error("[tweaks] motion: the bezier and spring controls are not loaded");
   const init: MotionInput = isObj(meta.value) ? meta.value : {};
@@ -47,7 +48,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   let curve = curveOf(init.curve) ?? (KEYWORDS.ease.slice() as Curve), dur = has(init.duration) ? clamp(+init.duration!, 0, DUR_MAX) : DUR_DEF;
 
   // ── Row — label, a mini curve, a summary. ──
-  const { root, trigger, right } = triggerRow("twk-motion", meta.label ?? "Motion"); // ??: an explicit "" label renders none
+  const { root, trigger, right } = triggerRow("twk-motion", meta.label ?? tr("motion", "Motion")); // ??: an explicit "" label renders none
   const chip = el("span", "twk-trigger-chip twk-motion-chip");
   const chipSvg = svgEl("svg"); chipSvg.setAttribute("viewBox", "0 0 100 100"); chipSvg.setAttribute("preserveAspectRatio", "none");
   const chipPath = svgEl("path"); chipSvg.append(chipPath); chip.append(chipSvg);
@@ -70,13 +71,13 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   // Time mode only; its Mode row is hidden (tweaks.css). An edit there drops the kept physics.
   const spring = Spring({ ...meta, type: "spring", label: "", value: editorTime(init) } as Meta, () => { exact = null; update(); emit(); });
   const springNow = () => exact ?? (spring.get() as SpringOut);
-  const durFld = numField({ label: "Duration", value: dur, step: 10, min: 0, max: DUR_MAX, unit: "ms" }, (v) => { dur = clamp(v, 0, DUR_MAX); update(); emit(); });
+  const durFld = numField({ label: tr("duration", "Duration"), value: dur, step: 10, min: 0, max: DUR_MAX, unit: "ms" }, (v) => { dur = clamp(v, 0, DUR_MAX); update(); emit(); });
   dur = durFld.get(); // as the field snapped it
   const easingPane = el("div", "twk-motion-pane"), springPane = el("div", "twk-motion-pane"), durRow = el("div", "twk-fields");
   durRow.append(durFld.el); easingPane.append(bezier.el, durRow); springPane.append(spring.el);
   const stage = el("div", "twk-motion-stage"), box = el("div", "twk-motion-box"); stage.append(box);
-  const modeSeg = createSegmented([{ value: "easing", label: "Easing" }, { value: "spring", label: "Spring" }], mode, (m: unknown) => { if ((m === "easing" || m === "spring") && m !== mode) { mode = m; showMode(); update(); emit(); } }, "Motion type");
-  const typeRow = el("div", "twk-row"); typeRow.append(txt("span", "twk-row-label", "Type"), modeSeg.el);
+  const modeSeg = createSegmented([{ value: "easing", label: tr("easing", "Easing") }, { value: "spring", label: tr("spring", "Spring") }], mode, (m: unknown) => { if ((m === "easing" || m === "spring") && m !== mode) { mode = m; showMode(); update(); emit(); } }, tr("motionType", "Motion type"));
+  const typeRow = el("div", "twk-row"); typeRow.append(txt("span", "twk-row-label", tr("type", "Type")), modeSeg.el);
   body.append(typeRow, easingPane, springPane, stage);
   root.append(pop);
 
@@ -103,7 +104,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
     catch { anim = box.animate(frames, { duration: v.duration, fill: "forwards" }); } // no linear() support: a plain run rather than nothing
   };
   stage.addEventListener("click", () => replay(true));
-  stage.tabIndex = 0; stage.setAttribute("role", "button"); stage.setAttribute("aria-label", "Replay the motion");
+  stage.tabIndex = 0; stage.setAttribute("role", "button"); stage.setAttribute("aria-label", tr("replay", "Replay the motion"));
   stage.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); replay(true); } });
 
   // The chip's mini curve, y up, scaled so an overshoot still fits.
@@ -119,7 +120,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const resync = () => { if (mode === "easing") bezier.set(curve.slice()); else spring.set(spring.get()); };
   const showMode = () => { easingPane.style.display = mode === "easing" ? "" : "none"; springPane.style.display = mode === "spring" ? "" : "none"; resync(); };
   // The summary shows the authored duration; a spring's emitted run (its settle) is longer.
-  const summary = () => (mode === "easing" ? `Easing · ${dur} ms` : `Spring · ${Math.round((springNow().visualDuration ?? 0) * 1000)} ms`);
+  const summary = () => (mode === "easing" ? tr("easingSummary", "Easing · {ms} ms", { ms: dur }) : tr("springSummary", "Spring · {ms} ms", { ms: Math.round((springNow().visualDuration ?? 0) * 1000) }));
   const update = () => { chipPath.setAttribute("d", curvePath()); valueEl.textContent = summary(); replay(false); };
 
   popover(root, trigger, pop, { fallbackH: 380, onOpen: () => { modeSeg.set(mode); resync(); replay(true); }, initialFocus: () => modeSeg.el.querySelector<HTMLElement>('[tabindex="0"]') }); // hidden until open: measure now; focus the checked option

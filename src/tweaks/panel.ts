@@ -2,7 +2,7 @@
  * API. Persistence, presets, undo, floating drag and the lazy-window queue live here. */
 import {
   el, btn, txt, clamp, popover, closeActivePopover, stopPointerLeak, foldBody,
-  applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, activeIn, isolate,
+  applyThemeVars, resolveTheme, carryScheme, onLive, setDisabled, requestReflow, quietFocus, activeIn, isolate, using, words,
   getControl, notice, isObj, hasOwn, isReservedKey, valueChanged, restoreDefault,
 } from "./shared.js";
 import { metaFor, VALUELESS } from "./schema.js";
@@ -35,7 +35,8 @@ let catchEl: HTMLTextAreaElement | null = null, onCatch: ((e: ClipboardEvent) =>
  *  A schema written inline (or `as const`) types `params` from its shape. */
 export function tweaks<const S extends HeldSchema>(name: string, schema: S & KnownTypes<S>, opts?: TweaksOptions): Panel<ParamsOf<S>>;
 export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): Panel {
-  const metas = Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean);
+  const metas = using(opts.strings, () => Object.entries(schema).map(([k, v]) => metaFor(k, v)).filter(Boolean)); // an untitled tab page's name is a word too
+  const tr = words(opts.strings); // the panel's own words; its controls take them as assemble() builds them
   const params: Params = {};
   let last: string | undefined; // the dotted path the latest change touched (`card.size`), as set() and changes() name it: on()'s second argument
   const entries: Entry[] = []; // flattened across folders, for reset + persist
@@ -101,7 +102,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const isDataUrl = (v: unknown): v is string => typeof v === "string" && v.startsWith("data:");
   const imageEntries = () => entries.filter((e) => e.m.type === "image");
   const unsavable = new Map<Entry, unknown>();
-  const notSaved = (e: Entry, v: unknown) => { if (unsavable.get(e) === v) return; unsavable.set(e, v); e.note?.("Not saved"); };
+  const notSaved = (e: Entry, v: unknown) => { if (unsavable.get(e) === v) return; unsavable.set(e, v); e.note?.(tr("notSaved", "Not saved")); };
   const toRefs = (snap: Snapshot) => {
     const stored = imagesReady && imgs ? readStore(persistKey!) : undefined; // undefined: no store to hold an upload
     for (const e of imageEntries()) {
@@ -199,7 +200,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   const panel: PanelEl = el("div", "twk-panel"); panel.dataset.mode = "inline";
   // A landmark, so a screen reader can jump to the panel and hear which one; an unnamed region is no landmark, so a blank name falls back.
-  const landmark = (n: string) => panel.setAttribute("aria-label", n.trim() || "Tweaks");
+  const landmark = (n: string) => panel.setAttribute("aria-label", n.trim() || tr("panel", "Tweaks"));
   panel.setAttribute("role", "region"); landmark(name);
   // Stop pointer events leaking past the panel to a stage listening on window.
   stopPointerLeak(panel);
@@ -213,15 +214,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The values moved off their defaults, keyed by dotted path — setMany()'s shape, for baking tuned values into source.
   const changed = (): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.path.join(".")] = e.get(); return JSON.parse(JSON.stringify(out, replacer)); };
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
-  const copyBtn = makeCopyBtn((changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; });
+  const copyBtn = makeCopyBtn((changedOnly) => { if (!changedOnly) return [JSON.stringify(snapshot(), null, 2), -1]; const c = changed(); return [JSON.stringify(c, null, 2), Object.keys(c).length]; }, tr);
   // A picked row's paste (pasteScope, in the lazy clip chunk) writes through the panel's own load path; ctx lends it.
   // A paste is its own undo step: what was pending commits first, the paste right after, so neither merges with a drag.
-  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => { undoApi?.flush(); api.fromJSON(st); undoApi?.flush(); }, announce, alive: () => !destroyed };
-  const resetBtn = makeResetBtn(resetAll);
+  const ctx: ClipCtx = { panel, entries, fromJSON: (st) => { undoApi?.flush(); api.fromJSON(st); undoApi?.flush(); }, announce, alive: () => !destroyed, tr };
+  const resetBtn = makeResetBtn(resetAll, tr);
   // Presets share persistence's storage, so the button needs it on.
   let presetsBtn: HTMLButtonElement | null = null;
   if (persistKey && opts.presets !== false) { // opts.presets:false keeps the saving, without the menu
-    presetsBtn = toolbarBtn("", ICON_PRESETS, "Presets");
+    presetsBtn = toolbarBtn("", ICON_PRESETS, tr("presets", "Presets"));
     presetsBtn.setAttribute("aria-haspopup", "menu"); presetsBtn.setAttribute("aria-expanded", "false");
     toolbar.append(presetsBtn);
   }
@@ -310,7 +311,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const t = root.querySelector<HTMLElement>(".twk-slider-value")
       || root.querySelector<HTMLElement>(LABEL_SEL)
       || root;
-    t.classList.add("twk-resettable"); t.title = "Double-click or hold to reset";
+    t.classList.add("twk-resettable"); t.title = tr("resetHint", "Double-click or hold to reset");
     // Coarse pointers get a press-and-hold reset: the desktop double-click fights double-tap-zoom on touch.
     let holdT = 0, hx = 0, hy = 0, held = false;
     const cancelHold = () => { if (holdT) { clearTimeout(holdT); holdT = 0; t.classList.remove("twk-reset-holding"); } };
@@ -575,7 +576,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // menu's popover owns the clicks. A chunk that fails to load is tried again on the next press.
   if (presetsBtn) {
     const b = presetsBtn; let menu: Promise<ReturnType<typeof import("./presets.js")["presetsMenu"]>> | undefined, made = false;
-    const load = () => (menu ||= import("./presets.js").then((m) => { if (destroyed) throw 0; made = true; return m.presetsMenu(b, () => Object.keys(listPresets()), savePreset, loadPreset, deletePreset, announce, ICON_X); }, (e) => { menu = undefined; if (e !== 0) console.error("[tweaks] the presets menu failed to load:", e); throw e; }));
+    const load = () => (menu ||= import("./presets.js").then((m) => { if (destroyed) throw 0; made = true; return m.presetsMenu(b, () => Object.keys(listPresets()), savePreset, loadPreset, deletePreset, announce, ICON_X, tr); }, (e) => { menu = undefined; if (e !== 0) console.error("[tweaks] presets:", e); throw e; }));
     for (const t of ["pointerenter", "focus"]) b.addEventListener(t, () => { load().catch(() => {}); }, { once: true });
     let want = false;
     const cancel = (e: Event) => { if (e.type === "keydown" ? (e as KeyboardEvent).key === "Escape" : !e.composedPath().includes(b)) want = false; }; // Escape, or a press or focus elsewhere
@@ -644,7 +645,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const rn: any = panel.getRootNode(); // a shadow root's own selection where it has one (Chrome); else the document's holds it
     if (!s || (k === "c" && String((rn.getSelection ? rn : document).getSelection?.() || ""))) return; // selected text: the browser copies that
     const json = k === "c" ? JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2) : "";
-    const copied = (ok: boolean) => { if (!destroyed) announce(ok ? `${s.label} copied` : "Copy failed"); }; // words for a screen reader; the toolbar's copy button stays as it is
+    const copied = (ok: boolean) => { if (!destroyed) announce(ok ? tr("rowCopied", "{label} copied", { label: s.label }) : tr("copyFailed", "Copy failed")); }; // words for a screen reader; the toolbar's copy button stays as it is
     const band = pick?.[0], back = activeIn(panel) as HTMLElement | null, ring = !!back?.matches(":focus-visible");
     // The browser's copy or paste can land some milliseconds after this keydown (an app's menu passes it on), so focus
     // steps back only when it lands, or after a second with none; it's caught page-wide, wherever focus is by then.
@@ -666,7 +667,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // the undo seed, the queued API calls. Synchronous when every control type is registered, else behind panel.ready.
   const assemble = () => {
     if (destroyed) return; // destroy() before the chunks landed: nothing to build
-    built = cleanups.length; build(controls, metas, params);
+    built = cleanups.length; using(opts.strings, () => build(controls, metas, params));
     if (conditionals.length) {
       const byKey = new Map<string, Entry>(); for (const e of entries) if (!byKey.has(e.key)) byKey.set(e.key, e); // first wins
       const getVal = (k: string) => { const e = byKey.get(k); return e ? e.target[e.key] : params[k]; };

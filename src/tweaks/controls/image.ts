@@ -1,5 +1,5 @@
 // ── Image — a drop zone / file pick that yields a data URL; with `options`, a gallery of supplied URLs over the upload. Lazy.
-import { el, txt, btn, icon, optValue, radioButton, navIndex, popover, registerControl } from "../shared.js";
+import { el, txt, btn, icon, optValue, radioButton, navIndex, popover, registerControl, words } from "../shared.js";
 import { triggerRow } from "../heavy.js";
 import type { OnChange, RadioBtn } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -165,6 +165,7 @@ const shrink = async (file: File, fit: number, quality: number): Promise<string>
 const ICON_UPLOAD = icon('<path d="M12 15V4m-4.5 4.5L12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>');
 
 function createImage(meta: Meta, onChange: OnChange): Control {
+  const tr = words();
   let value = typeof meta.value === "string" ? meta.value : "";
   // Options: URLs, or { value, label }; anything but a non-empty string value is skipped, and a repeated URL keeps its first.
   const seen = new Set<string>();
@@ -183,15 +184,15 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   let noteTimer: ReturnType<typeof setTimeout>;
   const say = (msg: string) => { for (const n of notes) n.textContent = msg; clearTimeout(noteTimer); noteTimer = setTimeout(() => { for (const n of notes) n.textContent = ""; }, 2600); };
   // An off-list value's name: its file stem, else what it is. A blob: URL's stem is a UUID, so it counts as an upload.
-  const customName = (v: string) => (/^blob:/i.test(v) ? "" : stem(v)) || (/^(data|blob):/i.test(v) ? "Uploaded image" : "Custom image");
+  const customName = (v: string) => (/^blob:/i.test(v) ? "" : stem(v)) || (/^(data|blob):/i.test(v) ? tr("uploadedImage", "Uploaded image") : tr("customImage", "Custom image"));
   let render: () => void;
   // Every commit bumps gen, so a file read that lands after a tile was picked, a reset or a host set() is dropped.
   let gen = 0;
   const commit = (v: string, fire = true) => { gen++; value = v; render(); if (fire) onChange(value); };
   const load = (file: File | undefined) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return say("Not an image");
-    if (file.size > maxSize) return say(`${size(file.size)}, max ${size(maxSize)}`);
+    if (!file.type.startsWith("image/")) return say(tr("notAnImage", "Not an image"));
+    if (file.size > maxSize) return say(tr("tooLarge", "{size}, max {max}", { size: size(file.size), max: size(maxSize) }));
     // One commit, of the shrunk picture when there is one, else of the file as it is less its metadata: one change event, one save.
     const at = ++gen;
     shrink(file, fit, quality).then(async (url) => {
@@ -199,7 +200,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       if (url) return commit(url);
       const fr = new FileReader();
       fr.onload = () => { if (gen === at) commit(String(fr.result)); };
-      fr.onerror = () => say("Couldn't read the file");
+      fr.onerror = () => say(tr("unreadable", "Couldn't read the file"));
       fr.readAsDataURL(await strip(file));
     });
   };
@@ -221,11 +222,11 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   if (!options.length) {
     // The plain row: the whole trigger is the target, a click opens the file dialog and the row is also the drop zone.
     row.trigger.removeAttribute("aria-expanded"); // opens a file dialog, not an expandable popover
-    row.trigger.setAttribute("aria-label", `${meta.label}: choose an image`);
+    row.trigger.setAttribute("aria-label", tr("chooseImage", "{label}: choose an image", { label: meta.label }));
     const text = el("span", "twk-image-text");
     row.right.append(thumb, note, text);
     root.append(input, live);
-    render = () => { paintThumb(); text.textContent = value ? "Replace" : "Drop or choose"; };
+    render = () => { paintThumb(); text.textContent = value ? tr("replace", "Replace") : tr("dropOrChoose", "Drop or choose"); };
     row.trigger.addEventListener("click", () => input.click());
     dropZone(row.trigger, row.trigger);
   } else {
@@ -238,7 +239,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     // The pane is the gallery, with no wrapper: its padding and the gaps between tiles and foot are its drag edge.
     const pop = el("div", "twk-color-pop twk-image-pop twk-image-gallery");
     const upload = canUpload ? btn("twk-button twk-image-upload", ICON_UPLOAD) : null;
-    const clear = txt("button", "twk-image-clear", "Clear"); clear.type = "button"; clear.setAttribute("aria-label", `${meta.label}: clear the image`);
+    const clear = txt("button", "twk-image-clear", tr("clear", "Clear")); clear.type = "button"; clear.setAttribute("aria-label", tr("clearImage", "{label}: clear the image", { label: meta.label }));
     // The foot folds like a folder: a row track holds the upload button and a column track holds Clear, so either can
     // ease shut without measuring. Clear folds away when there's nothing to clear; the foot folds when it's empty.
     const foot = el("div", "twk-image-foot"), footRow = el("div", "twk-image-foot-row"), slot = el("div", "twk-image-clear-slot");
@@ -248,7 +249,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
     grid.style.setProperty("--twk-img-cols", String(cols));
     const tile = (v: string, label: string) => { const b = radioButton("twk-image-tile", v, () => commit(v)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
-    const names = options.map((o, i) => o.label || stem(o.value) || `Image ${i + 1}`);
+    const names = options.map((o, i) => o.label || stem(o.value) || tr("imageN", "Image {n}", { n: i + 1 }));
     const tiles = options.map((o, i) => { const b = tile(o.value, names[i]); grid.append(b); return b; });
     // A value that is none of the options (an upload, or a host-set URL) shows as a last tile, selected. Its URL rides
     // on _twVal, not data-value: the inline style already holds one copy of a data URL, and data-value would be a second.
@@ -270,7 +271,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       slot.dataset.open = String(!!value); slot.inert = !value; // nothing to clear: Clear folds away, out of the tab order
       foot.dataset.open = String(!!upload || (canClear && !!value)); foot.inert = foot.dataset.open === "false"; // an empty foot folds to nothing
       paintThumb();
-      name.textContent = !value ? "None" : k >= 0 ? names[k] : customName(value);
+      name.textContent = !value ? tr("none", "None") : k >= 0 ? names[k] : customName(value);
     };
     grid.addEventListener("keydown", (e) => {
       const btns = all(), i = btns.indexOf(e.target as RadioBtn); if (i < 0) return;
@@ -283,8 +284,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     pop.append(grid, foot);
     root.append(pop, live);
     if (upload) {
-      upload.setAttribute("aria-label", `${meta.label}: upload an image`);
-      upload.append(note, txt("span", "twk-image-text", "Upload image"));
+      upload.setAttribute("aria-label", tr("uploadImage", "{label}: upload an image", { label: meta.label }));
+      upload.append(note, txt("span", "twk-image-text", tr("upload", "Upload image")));
       upload.addEventListener("click", () => input.click());
       footRow.append(upload); root.append(input);
       dropZone(row.trigger, row.trigger); dropZone(pop, pop);

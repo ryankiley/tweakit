@@ -315,6 +315,131 @@ export interface SetOptions {
  *  `--twk-float-gap` overrides it. */
 export interface FloatingPlacement { x?: number; y?: number }
 
+/** The words a panel shows and says, by key, for the `strings` option (each line notes the English default). A key
+ *  with a `{placeholder}` takes a string that uses it, or a function given the values, for a language whose plurals
+ *  need more than one form. Units (px, ms, %), axis letters and color notations stay as they are. */
+export type Word<V = never> = [V] extends [never] ? string : string | ((v: V) => string);
+export interface Strings {
+  // The panel and its toolbar
+  /** "Tweaks" — the panel's landmark name when its own is blank */ panel?: string;
+  /** "Presets" — the toolbar button */ presets?: string;
+  /** "Copy values (⇧: changed only)" — the toolbar button */ copy?: string;
+  /** "Reset" — the toolbar button */ reset?: string;
+  /** "Double-click or hold to reset" — a row label's tooltip */ resetHint?: string;
+  /** "Values copied" */ copied?: string;
+  /** "{n} changed values copied" — 1 changed value copied for one */ copiedChanged?: Word<{ n: number }>;
+  /** "Nothing has changed" */ nothingChanged?: string;
+  /** "Copy failed" */ copyFailed?: string;
+  /** "{label} copied" — ⌘C on a row */ rowCopied?: Word<{ label: string }>;
+  /** "Not saved" — a value storage refused */ notSaved?: string;
+  /** "{n} values pasted" — 1 value pasted for one */ pasted?: Word<{ n: number }>;
+  /** "Nothing to paste" */ nothingToPaste?: string;
+  /** "Couldn't read the clipboard" */ clipboardUnread?: string;
+  // The presets menu
+  /** "Preset name…" — the field's placeholder */ presetName?: string;
+  /** "New preset name" — the field's label */ newPreset?: string;
+  /** "Save" */ save?: string;
+  /** "No presets yet" */ noPresets?: string;
+  /** "Loaded preset {name}" */ presetLoaded?: Word<{ name: string }>;
+  /** "Saved preset {name}" */ presetSaved?: Word<{ name: string }>;
+  /** "Preset {name} not saved: storage is full" */ presetFull?: Word<{ name: string }>;
+  /** "Delete preset {name}" — a row's delete button */ presetDelete?: Word<{ name: string }>;
+  // Controls
+  /** "Off" — a checkbox */ off?: string;
+  /** "On" — a checkbox */ on?: string;
+  /** "Button" — a group button with no label */ button?: string;
+  /** "Tab" — a tab page whose title is blank */ tab?: string;
+  /** "Folder" — a markup folder with no data-label */ folder?: string;
+  /** "Drag to adjust" — a number field's grip */ dragToAdjust?: string;
+  /** "{label} minimum" */ intervalMin?: Word<{ label: string }>;
+  /** "{label} maximum" */ intervalMax?: Word<{ label: string }>;
+  /** "Monitor" — a monitor with no label */ monitor?: string;
+  /** "FPS" — an fpsgraph with no label */ fps?: string;
+  /** "Plot" — a plot with no label */ plot?: string;
+  /** "{label} — expression in x" — a plot's field */ expression?: Word<{ label: string }>;
+  /** "Point" — a point with no label */ point?: string;
+  /** "{label} pad: {x} and {y}" */ pointPad?: Word<{ label: string; x: string | number; y: string | number }>;
+  /** "Control point {n}" — a cubic bézier handle */ controlPoint?: Word<{ n: number }>;
+  /** "Control point {n}, x {x}, y {y}" */ controlPointAt?: Word<{ n: number; x: string | number; y: string | number }>;
+  // Color
+  /** "Color" — a color row with no label, and the shadow's color row */ color?: string;
+  /** "Color plane: chroma across, lightness up" */ colorPlane?: string;
+  /** "Color mode" */ colorMode?: string;
+  /** "Hex color" */ hex?: string;
+  /** "Hue" */ hue?: string;
+  /** "Alpha" */ alpha?: string;
+  /** "lightness {l}%, chroma {c}" — the color plane's description, said after a run of keys */ colorReadout?: Word<{ l: number; c: number }>;
+  /** "wide" — the gamut badge past P3 (sRGB and P3 are names) */ wide?: string;
+  // Gradient
+  /** "Gradient" — a gradient with no label */ gradient?: string;
+  /** "{n} stops" — 1 stop for one */ stops?: Word<{ n: number }>;
+  /** "Add a stop after the selected one" — the add button's tooltip */ addStop?: string;
+  /** "Add a color stop after the selected one" — the add button's label */ addStopAria?: string;
+  /** "Color stop at {pos}%" */ stopAt?: Word<{ pos: number }>;
+  /** "Color stop at {pos}%, selected" */ stopAtSelected?: Word<{ pos: number }>;
+  /** "Easing between stops" — the easing menu's label */ stopEasing?: string;
+  /** "How the ramp blends between stops" — its tooltip */ stopEasingHint?: string;
+  /** "Linear" */ easeLinear?: string;
+  /** "Ease" */ ease?: string;
+  /** "Ease in" */ easeIn?: string;
+  /** "Ease out" */ easeOut?: string;
+  /** "Ease in-out" */ easeInOut?: string;
+  /** "Custom" — an easing the menu doesn't list */ custom?: string;
+  // Image
+  /** "Upload image" — the gallery's upload button */ upload?: string;
+  /** "{label}: upload an image" */ uploadImage?: Word<{ label: string }>;
+  /** "{label}: choose an image" */ chooseImage?: Word<{ label: string }>;
+  /** "Clear" */ clear?: string;
+  /** "{label}: clear the image" */ clearImage?: Word<{ label: string }>;
+  /** "Replace" */ replace?: string;
+  /** "Drop or choose" */ dropOrChoose?: string;
+  /** "None" — no image chosen */ none?: string;
+  /** "Image {n}" — a gallery option with no label */ imageN?: Word<{ n: number }>;
+  /** "Uploaded image" */ uploadedImage?: string;
+  /** "Custom image" — a value off the gallery's list */ customImage?: string;
+  /** "Not an image" */ notAnImage?: string;
+  /** "Couldn't read the file" */ unreadable?: string;
+  /** "{size}, max {max}" — a file over maxSize */ tooLarge?: Word<{ size: string; max: string }>;
+  // Motion and spring
+  /** "Motion" — a motion row with no label */ motion?: string;
+  /** "Motion type" */ motionType?: string;
+  /** "Type" — the motion pane's row label beside that switch */ type?: string;
+  /** "Easing" */ easing?: string;
+  /** "Spring" */ spring?: string;
+  /** "Duration" */ duration?: string;
+  /** "Replay the motion" */ replay?: string;
+  /** "Easing · {ms} ms" */ easingSummary?: Word<{ ms: number }>;
+  /** "Spring · {ms} ms" */ springSummary?: Word<{ ms: number }>;
+  /** "Spring mode" */ springMode?: string;
+  /** "Mode" */ mode?: string;
+  /** "Time" */ time?: string;
+  /** "Physics" */ physics?: string;
+  /** "Stiffness" */ stiffness?: string;
+  /** "Damping" */ damping?: string;
+  /** "Mass" */ mass?: string;
+  /** "Bounce" */ bounce?: string;
+  // Shadow
+  /** "Shadow" — a shadow with no label */ shadow?: string;
+  /** "Shadow position" */ shadowPosition?: string;
+  /** "in" — an inset shadow's summary, before its numbers */ inset?: string;
+  /** "Position" */ position?: string;
+  /** "Outer" */ outer?: string;
+  /** "Inner" */ inner?: string;
+  /** "Blur" */ blur?: string;
+  /** "Spread" */ spread?: string;
+  // Sides and corners
+  /** "Top" */ top?: string;
+  /** "Right" */ right?: string;
+  /** "Bottom" */ bottom?: string;
+  /** "Left" */ left?: string;
+  /** "Top-left" */ topLeft?: string;
+  /** "Top-right" */ topRight?: string;
+  /** "Bottom-right" */ bottomRight?: string;
+  /** "Bottom-left" */ bottomLeft?: string;
+  /** "Independent sides" */ splitSides?: string;
+  /** "Independent corners" */ splitCorners?: string;
+}
+
 /** Panel options (third arg to `tweaks()`). */
 export interface TweaksOptions {
   /** Theme overrides as `--twk-*` tokens; `null` / omitted = default monochrome. */
@@ -341,7 +466,13 @@ export interface TweaksOptions {
    *  then its host, a `<twk-host>`: theme it with `--twk-*` on the host itself (`.twk-host { … }`), or with `theme`. The styles come from the page's
    *  `tweakit/css` when that's loaded, else from `href` (by default `tweaks.css` beside the module). */
   shadow?: boolean | { href?: string };
+  /** The words the panel and its controls show and say, over the English defaults: translate them, or rename the chrome
+   *  (`{ presets: "Looks" }`). A key left out keeps its default. */
+  strings?: Strings;
 }
+
+/** Options for `enhance()`: the words its markup controls show and say. */
+export interface EnhanceOptions { strings?: Strings }
 
 /** The live values bag, loosely typed — `params[key]` for each control. A schema literal passed
  *  to `tweaks()` gets its exact shape instead (`ParamsOf`). */
@@ -466,6 +597,8 @@ export interface MountOptions {
   onChange?: (value: unknown, key: string) => void;
   /** Mount it in a shadow root, as `tweaks()`'s `shadow` does a panel; `el` is then the host. */
   shadow?: boolean | { href?: string };
+  /** Its words, as `tweaks()`'s `strings`. */
+  strings?: Strings;
 }
 
 /** The handle `mountControl()` returns. */
@@ -501,6 +634,8 @@ export interface ColorPickerOptions {
   onChange?: (value: string) => void;
   /** Build it in a shadow root, as `tweaks()`'s `shadow` does a panel; `el` is then the host. */
   shadow?: boolean | { href?: string };
+  /** Its words, as `tweaks()`'s `strings`. */
+  strings?: Strings;
 }
 
 /** The handle `createColorPicker()` returns. Bring your own trigger: append `el` to a popover

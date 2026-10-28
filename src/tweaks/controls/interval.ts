@@ -1,5 +1,5 @@
 // ── Interval / range slider — dual-handle [lo,hi]. Lazy.
-import { el, txt, clamp, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, overlapsText, wireHoverClass, onReady, onLive, registerControl, rubberBand, rubberRelease } from "../shared.js";
+import { el, txt, clamp, words, roundToStep, stepPrecision, gridEnds, normalizeRange, rangeStep, overlapsText, wireHoverClass, onReady, onLive, registerControl, rubberBand, rubberRelease } from "../shared.js";
 import { dragGesture } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -29,8 +29,9 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   track.append(fill, hLo, hHi, labelEl, valueEl);
   wrap.append(track);
 
-  ([["minimum", hLo], ["maximum", hHi]] as const).forEach(([lab, h]) => {
-    h.tabIndex = 0; h.setAttribute("role", "slider"); h.setAttribute("aria-label", `${label} ${lab}`);
+  const tr = words();
+  ([["intervalMin", "{label} minimum", hLo], ["intervalMax", "{label} maximum", hHi]] as const).forEach(([k, d, h]) => {
+    h.tabIndex = 0; h.setAttribute("role", "slider"); h.setAttribute("aria-label", tr(k, d, { label }));
     h.setAttribute("aria-valuemin", String(min)); h.setAttribute("aria-valuemax", String(max));
   });
 
