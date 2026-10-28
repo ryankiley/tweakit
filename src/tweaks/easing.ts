@@ -11,7 +11,10 @@ export type Bez = [number, number, number, number];
 
 // The CSS easing keywords as cubic-beziers. Null-prototype, so "constructor" can't read a function off Object.prototype.
 export const KEYWORDS: Record<string, Bez> = Object.assign(Object.create(null), {
-  ease: [0.25, 0.1, 0.25, 1], "ease-in": [0.42, 0, 1, 1], "ease-out": [0, 0, 0.58, 1], "ease-in-out": [0.42, 0, 0.58, 1],
+  ease: [0.25, 0.1, 0.25, 1],
+  "ease-in": [0.42, 0, 1, 1],
+  "ease-out": [0, 0, 0.58, 1],
+  "ease-in-out": [0.42, 0, 0.58, 1],
 });
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const SAMPLES = 15; // 16 per segment, Larsen's count; the joins vanish
@@ -22,7 +25,8 @@ export function parseEasing(e: unknown): Bez | null {
   if (typeof e !== "string") return null;
   const s = e.trim().toLowerCase();
   if (KEYWORDS[s]) return KEYWORDS[s];
-  const m = /^cubic-bezier\(([^()]*)\)$/.exec(s); if (!m) return null;
+  const m = /^cubic-bezier\(([^()]*)\)$/.exec(s);
+  if (!m) return null;
   const n = m[1].split(",").map((x) => (x.trim() ? Number(x) : NaN)); // an empty field is NaN, not Number("") → 0
   if (n.length !== 4 || !n.every(Number.isFinite)) return null;
   return [clamp01(n[0]), n[1], clamp01(n[2]), n[3]];
@@ -32,7 +36,11 @@ export function parseEasing(e: unknown): Bez | null {
 export function easingSamples(b: Bez): Array<[number, number]> {
   const out: Array<[number, number]> = [];
   for (let k = 0; k <= SAMPLES; k++) {
-    const t = k / SAMPLES, u = 1 - t, p1 = 3 * u * u * t, p2 = 3 * u * t * t, p3 = t * t * t;
+    const t = k / SAMPLES,
+      u = 1 - t,
+      p1 = 3 * u * u * t,
+      p2 = 3 * u * t * t,
+      p3 = t * t * t;
     out.push([p1 * b[0] + p2 * b[2] + p3, clamp01(p1 * b[1] + p2 * b[3] + p3)]);
   }
   return out;
@@ -43,19 +51,28 @@ const pct = (n: number) => +(n * 100).toFixed(2);
 // A stop's color is written into the gradient as it is, so it must be one color token: a comma or a stray ")" splices in
 // another layer (a url() the browser fetches), and var() can stand for anything. DOM-free, so by shape: a hex, a keyword,
 // or one function with no nested parens; the editor's picker checks the grammar itself.
-const STOP_COLOR = /^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?!(?:url|var)\()[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
+const STOP_COLOR =
+  /^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?!(?:url|var)\()[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
 // The blend spaces CSS takes, and a hue method on the polar ones; anything else (`in junk`, `in 5`) falls to
 // oklch, the default.
-const INTERP = /^(?:(?:hsl|hwb|lch|oklch)(?: (?:shorter|longer|increasing|decreasing) hue)?|srgb(?:-linear)?|oklab|lab|display-p3|rec2020|a98-rgb|prophoto-rgb|xyz(?:-d50|-d65)?)$/i;
-const blend = (v: GradientValue) => (typeof v.interpolation === "string" && INTERP.test(v.interpolation) ? v.interpolation : "oklch");
+const INTERP =
+  /^(?:(?:hsl|hwb|lch|oklch)(?: (?:shorter|longer|increasing|decreasing) hue)?|srgb(?:-linear)?|oklab|lab|display-p3|rec2020|a98-rgb|prophoto-rgb|xyz(?:-d50|-d65)?)$/i;
+const blend = (v: GradientValue) =>
+  typeof v.interpolation === "string" && INTERP.test(v.interpolation) ? v.interpolation : "oklch";
 
 /** The stops a value can draw, sorted. A hand-built value can hold no stops, or stops without a
  *  color or a numeric pos, and any of those builds CSS the browser drops whole, silently;
  *  so they're set aside with a warning (heavy.ts badGradient, one per distinct fault). */
 function drawable(value: unknown, fn: string): GradientStop[] {
   const all: unknown = value && typeof value === "object" ? (value as GradientValue).stops : null;
-  const ok = Array.isArray(all) ? all.filter((s) => s && typeof s.color === "string" && STOP_COLOR.test(s.color.trim()) && Number.isFinite(s.pos)) : [];
-  if (!ok.length || ok.length < (all as unknown[]).length) import("./heavy.js").then((m) => m.badGradient(fn, value, all, ok.length), () => {});
+  const ok = Array.isArray(all)
+    ? all.filter((s) => s && typeof s.color === "string" && STOP_COLOR.test(s.color.trim()) && Number.isFinite(s.pos))
+    : [];
+  if (!ok.length || ok.length < (all as unknown[]).length)
+    import("./heavy.js").then(
+      (m) => m.badGradient(fn, value, all, ok.length),
+      () => {},
+    );
   return ok.sort((a, b) => a.pos - b.pos);
 }
 
@@ -72,15 +89,19 @@ function stopList(value: GradientValue, stops: GradientStop[]): string {
   if (stops.length < 2) return `${stops[0].color}, ${stops[0].color}`;
   const bez = parseEasing(value.easing);
   if (!bez) return stops.map(plain).join(", ");
-  const samples = easingSamples(bez), space = blend(value);
+  const samples = easingSamples(bez),
+    space = blend(value);
   const out = [plain(stops[0])];
   for (let i = 1; i < stops.length; i++) {
-    const a = stops[i - 1], b = stops[i], span = b.pos - a.pos;
+    const a = stops[i - 1],
+      b = stops[i],
+      span = b.pos - a.pos;
     // Two stops at one position are a hard edge: no samples between.
-    if (span > 1e-6) for (let k = 1; k < SAMPLES; k++) {
-      const [x, y] = samples[k];
-      out.push(`color-mix(in ${space}, ${a.color}, ${b.color} ${pct(y)}%) ${pct(a.pos + span * x)}%`);
-    }
+    if (span > 1e-6)
+      for (let k = 1; k < SAMPLES; k++) {
+        const [x, y] = samples[k];
+        out.push(`color-mix(in ${space}, ${a.color}, ${b.color} ${pct(y)}%) ${pct(a.pos + span * x)}%`);
+      }
     out.push(plain(b));
   }
   return out.join(", ");
@@ -90,5 +111,7 @@ function stopList(value: GradientValue, stops: GradientStop[]): string {
  *  One stop draws a solid fill and no stops is `none`, both still valid for background-image. */
 export function gradientCss(value: GradientValue, direction: number | string = "to right"): string {
   const stops = drawable(value, "gradientCss");
-  return stops.length ? `linear-gradient(in ${blend(value)} ${typeof direction === "number" ? `${direction}deg` : direction}, ${stopList(value, stops)})` : "none";
+  return stops.length
+    ? `linear-gradient(in ${blend(value)} ${typeof direction === "number" ? `${direction}deg` : direction}, ${stopList(value, stops)})`
+    : "none";
 }

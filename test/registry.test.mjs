@@ -10,8 +10,10 @@ import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
 import { bundle } from "./_bundle.mjs";
 
-const { metaFor, TYPED_META, DATA_VALUE, VALUELESS, LAZY_IMPORT, getControl } =
-  await bundle("test/_registry-entry.mjs", { TW_SPLIT: "true" });
+const { metaFor, TYPED_META, DATA_VALUE, VALUELESS, LAZY_IMPORT, getControl } = await bundle(
+  "test/_registry-entry.mjs",
+  { TW_SPLIT: "true" },
+);
 
 // A minimal well-formed value per declared type — must grow when a control is added
 // (the fixture-exists assertion below fails otherwise, on purpose).
@@ -43,7 +45,12 @@ const FIXTURES = {
 };
 
 // a lazy control may have no table entry: its verbose form passes through
-const declared = new Set([...Object.keys(TYPED_META), ...Object.keys(DATA_VALUE), ...Object.keys(LAZY_IMPORT), "button"]);
+const declared = new Set([
+  ...Object.keys(TYPED_META),
+  ...Object.keys(DATA_VALUE),
+  ...Object.keys(LAZY_IMPORT),
+  "button",
+]);
 
 test("every declared control type has a fixture here", () => {
   for (const t of declared) assert.ok(t in FIXTURES, `add a minimal fixture for new control type "${t}"`);
@@ -55,14 +62,16 @@ test("every declared type derives a meta whose control is registered or lazily l
     assert.ok(meta, `metaFor rejected the minimal "${t}" fixture`);
     assert.ok(
       getControl(meta.type) || LAZY_IMPORT[meta.type] || meta.type === "folder" || meta.type === "tabs",
-      `"${t}" derives meta.type "${meta.type}", which no core registration or LAZY_IMPORT entry provides`
+      `"${t}" derives meta.type "${meta.type}", which no core registration or LAZY_IMPORT entry provides`,
     );
-    if (meta.type === "tabs") assert.ok(LAZY_IMPORT.tabs, "tabs must stay in LAZY_IMPORT — build() ensures it before assembling");
+    if (meta.type === "tabs")
+      assert.ok(LAZY_IMPORT.tabs, "tabs must stay in LAZY_IMPORT — build() ensures it before assembling");
   }
 });
 
 test("every LAZY_IMPORT key is a declared control type (no orphan chunks)", () => {
-  for (const t of Object.keys(LAZY_IMPORT)) assert.ok(declared.has(t), `LAZY_IMPORT["${t}"] has no TYPED_META/DATA_VALUE entry`);
+  for (const t of Object.keys(LAZY_IMPORT))
+    assert.ok(declared.has(t), `LAZY_IMPORT["${t}"] has no TYPED_META/DATA_VALUE entry`);
 });
 
 test("VALUELESS names only declared types", () => {
@@ -70,5 +79,6 @@ test("VALUELESS names only declared types", () => {
 });
 
 test("core and lazy registration don't overlap", () => {
-  for (const t of Object.keys(LAZY_IMPORT)) assert.equal(getControl(t), undefined, `"${t}" is both core-registered and lazy`);
+  for (const t of Object.keys(LAZY_IMPORT))
+    assert.equal(getControl(t), undefined, `"${t}" is both core-registered and lazy`);
 });

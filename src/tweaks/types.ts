@@ -12,7 +12,8 @@ export type GradientStop = { color: string; pos: number };
 /** The CSS `<color-interpolation-method>` a gradient blends through — the space of the
  *  mode the stops were authored in. Template it as `linear-gradient(in <interpolation> …)`
  *  so your CSS ramp matches the editor's preview exactly. */
-export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" | "lch" | "lab" | "display-p3" | "rec2020";
+export type GradientInterpolation =
+  "srgb" | "hsl" | "hwb" | "oklch" | "oklab" | "lch" | "lab" | "display-p3" | "rec2020";
 
 /** What a sides control accepts: one number for all four; `[vertical, horizontal]`,
  *  `[top, horizontal, bottom]` or `[top, right, bottom, left]` (CSS order); a CSS shorthand
@@ -20,29 +21,69 @@ export type GradientInterpolation = "srgb" | "hsl" | "hwb" | "oklch" | "oklab" |
  *  units warn and read as px); or any subset of
  *  the four as an object. With `corners: true` the four are the corners from top-left round,
  *  the same CSS order, under the same keys, and they floor at 0 unless `min` says otherwise. */
-export type SidesInput = number | readonly number[] | string | { top?: number; right?: number; bottom?: number; left?: number };
+export type SidesInput =
+  number | readonly number[] | string | { top?: number; right?: number; bottom?: number; left?: number };
 /** A sides control's value: the four numbers in CSS order plus the shorthand they collapse
  *  to (`css`, in the control's unit, `0` bare), so `el.style.padding = css`. */
-export interface SidesValue { top: number; right: number; bottom: number; left: number; css: string }
+export interface SidesValue {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  css: string;
+}
 
 /** What a shadow control accepts — any subset of its fields (px, `color` any color the kit
  *  parses); or, as `value`, a `box-shadow` string: optional `inset`, two to four px lengths,
  *  one color, one layer. */
-export interface ShadowInput { inset?: boolean; x?: number; y?: number; blur?: number; spread?: number; color?: string }
+export interface ShadowInput {
+  inset?: boolean;
+  x?: number;
+  y?: number;
+  blur?: number;
+  spread?: number;
+  color?: string;
+}
 /** A shadow control's value — the fields, plus the `box-shadow` CSS they resolve to (`css`),
  *  built from the numbers and the picker's own color notation, so `el.style.boxShadow = css`. */
-export interface ShadowValue { inset: boolean; x: number; y: number; blur: number; spread: number; color: string; css: string }
+export interface ShadowValue {
+  inset: boolean;
+  x: number;
+  y: number;
+  blur: number;
+  spread: number;
+  color: string;
+  css: string;
+}
 /** What a motion control accepts — any subset of either mode's fields. A `curve` may be
  *  the four cubic-bezier numbers or a CSS keyword (`ease`, `ease-out`, …); `duration` is
  *  the easing's, in ms. Spring keys select the spring mode unless `mode` says otherwise. */
-export interface MotionInput { mode?: "easing" | "spring"; curve?: readonly [number, number, number, number] | string; duration?: number; stiffness?: number; damping?: number; mass?: number; visualDuration?: number; bounce?: number }
+export interface MotionInput {
+  mode?: "easing" | "spring";
+  curve?: readonly [number, number, number, number] | string;
+  duration?: number;
+  stiffness?: number;
+  damping?: number;
+  mass?: number;
+  visualDuration?: number;
+  bounce?: number;
+}
 /** A motion control's value: an easing curve with its duration, or a spring — each also
  *  carrying the CSS it resolves to, `duration` in ms and an `easing` string (`cubic-bezier(…)`,
  *  or a sampled `linear(…)` for the spring), so a host can write
  *  `transition: transform ${duration}ms ${easing}` in either mode. */
 export type MotionValue =
   | { mode: "easing"; curve: [number, number, number, number]; duration: number; easing: string }
-  | { mode: "spring"; stiffness: number; damping: number; mass: number; visualDuration?: number; bounce?: number; duration: number; easing: string };
+  | {
+      mode: "spring";
+      stiffness: number;
+      damping: number;
+      mass: number;
+      visualDuration?: number;
+      bounce?: number;
+      duration: number;
+      easing: string;
+    };
 
 /** How a gradient blends between neighboring stops: `"linear"` (CSS's own straight blend,
  *  the default) or a CSS easing — `ease`, `ease-in`, `ease-out`, `ease-in-out`, or any
@@ -53,7 +94,11 @@ export type GradientEasing = "linear" | "ease" | "ease-in" | "ease-out" | "ease-
 /** A gradient control's value — the stops, the blend space, and the easing between stops.
  *  Hand it to `gradientCss(value, angle?)` for the CSS, or `gradientStops(value)` for just
  *  the stop list (a conic / radial gradient). */
-export interface GradientValue { stops: GradientStop[]; interpolation?: GradientInterpolation; easing?: GradientEasing }
+export interface GradientValue {
+  stops: GradientStop[];
+  interpolation?: GradientInterpolation;
+  easing?: GradientEasing;
+}
 
 /** Reader passed to a conditional `render` / `disabled` predicate — `get("siblingKey")`. */
 export type Get = (key: string) => unknown;
@@ -77,14 +122,22 @@ export interface ControlOptions {
 
 /** The verbose object forms a schema value can take: `{ type: "…", … }`. */
 export type SchemaObject =
-  | { type: "slider"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string;
+  | {
+      type: "slider";
+      value?: number;
+      min?: number;
+      max?: number;
+      step?: number;
+      soft?: boolean;
+      unit?: string;
       /** Draws the readout from the value ("7:30 AM" for minutes of the day), in place of its
        *  digits; `unit` still follows it. Display only, like `unit`: the param stays the number. */
       format?: (value: number) => string;
       /** Reads a typed readout back into a value, so the inline editor shows and takes the
        *  formatted text (without one, it edits the digits). Text it can't read (it throws, or
        *  returns anything but a finite number) leaves the value where it was. */
-      parse?: (text: string) => number }
+      parse?: (text: string) => number;
+    }
   | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
   | { type: "checkbox"; value?: boolean }
   | { type: "list"; options: readonly Option[]; value?: string | number }
@@ -92,19 +145,97 @@ export type SchemaObject =
   | { type: "color"; value?: string }
   | { type: "text"; value?: string; rows?: number; placeholder?: string }
   | { type: "interval"; value?: readonly [number, number]; min?: number; max?: number; step?: number }
-  | { type: "spring"; mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number; value?: { mode?: "time" | "physics"; visualDuration?: number; bounce?: number; stiffness?: number; damping?: number; mass?: number } }
+  | {
+      type: "spring";
+      mode?: "time" | "physics";
+      visualDuration?: number;
+      bounce?: number;
+      stiffness?: number;
+      damping?: number;
+      mass?: number;
+      value?: {
+        mode?: "time" | "physics";
+        visualDuration?: number;
+        bounce?: number;
+        stiffness?: number;
+        damping?: number;
+        mass?: number;
+      };
+    }
   | { type: "cubicbezier"; value?: readonly [number, number, number, number] }
   | ({ type: "shadow"; value?: ShadowInput | string } & ShadowInput)
-  | { type: "sides"; value?: SidesInput; corners?: boolean; unit?: string; step?: number; min?: number; max?: number; top?: number; right?: number; bottom?: number; left?: number }
+  | {
+      type: "sides";
+      value?: SidesInput;
+      corners?: boolean;
+      unit?: string;
+      step?: number;
+      min?: number;
+      max?: number;
+      top?: number;
+      right?: number;
+      bottom?: number;
+      left?: number;
+    }
   | ({ type: "motion"; value?: MotionInput } & MotionInput)
-  | { type: "point"; components: ReadonlyArray<{ key: string; label?: string; value?: number; min?: number; max?: number; step?: number }>; value?: { readonly [key: string]: number }; pad?: boolean; invertY?: boolean }
+  | {
+      type: "point";
+      components: ReadonlyArray<{
+        key: string;
+        label?: string;
+        value?: number;
+        min?: number;
+        max?: number;
+        step?: number;
+      }>;
+      value?: { readonly [key: string]: number };
+      pad?: boolean;
+      invertY?: boolean;
+    }
   // the value names its components
-  | { type: "point"; value: { readonly [key: string]: number }; components?: undefined; pad?: boolean; invertY?: boolean }
-  | { type: "gradient"; value?: GradientValue | ReadonlyArray<GradientStop | readonly [string, number]>; stops?: ReadonlyArray<GradientStop | readonly [string, number]>; interpolation?: GradientInterpolation; easing?: GradientEasing }
-  | { type: "plot"; expr?: string; fn?: (x: number) => number; xMin?: number; xMax?: number; yMin?: number; yMax?: number; samples?: number; editable?: boolean; min?: number; max?: number }
+  | {
+      type: "point";
+      value: { readonly [key: string]: number };
+      components?: undefined;
+      pad?: boolean;
+      invertY?: boolean;
+    }
+  | {
+      type: "gradient";
+      value?: GradientValue | ReadonlyArray<GradientStop | readonly [string, number]>;
+      stops?: ReadonlyArray<GradientStop | readonly [string, number]>;
+      interpolation?: GradientInterpolation;
+      easing?: GradientEasing;
+    }
+  | {
+      type: "plot";
+      expr?: string;
+      fn?: (x: number) => number;
+      xMin?: number;
+      xMax?: number;
+      yMin?: number;
+      yMax?: number;
+      samples?: number;
+      editable?: boolean;
+      min?: number;
+      max?: number;
+    }
   | { type: "fpsgraph" }
-  | { type: "monitor"; get?: () => number | string; value?: number | string; graph?: boolean; view?: "graph" | "text"; min?: number; max?: number; interval?: number; rows?: number; decimals?: number }
-  | { type: "image"; value?: string;
+  | {
+      type: "monitor";
+      get?: () => number | string;
+      value?: number | string;
+      graph?: boolean;
+      view?: "graph" | "text";
+      min?: number;
+      max?: number;
+      interval?: number;
+      rows?: number;
+      decimals?: number;
+    }
+  | {
+      type: "image";
+      value?: string;
       /** Supplied images to pick from, as URLs or `{ value, label }`. The control becomes a row naming the chosen
        *  image that opens a pane of tiles with the upload below them, and the param is the chosen URL or the upload's data URL. */
       options?: ReadonlyArray<string | { value: string; label?: string }>;
@@ -123,7 +254,8 @@ export type SchemaObject =
       /** `false` leaves the upload button out of a gallery: the options are the whole choice. */
       upload?: boolean;
       /** `false` leaves Clear out of a gallery, and Delete no longer empties it: for a choice that must keep a value. */
-      clear?: boolean }
+      clear?: boolean;
+    }
   | { type: "button"; action: () => void; label?: string }
   | { type: "buttongroup"; buttons: Record<string, () => void> | ReadonlyArray<{ label: string; action: () => void }> }
   | { type: "separator" }
@@ -135,30 +267,39 @@ export type SchemaValue = SchemaValueOf<SchemaNest>;
 type SchemaValueOf<F> =
   // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative spans that either side of zero)
   | number
-  | boolean                                         // → checkbox
-  | string                                          // → text input; a hex or color-function string → color picker
+  | boolean // → checkbox
+  | string // → text input; a hex or color-function string → color picker
   // [value, min?, max?, step?] → slider
-  | readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number]
+  | readonly [number]
+  | readonly [number, number]
+  | readonly [number, number, number]
+  | readonly [number, number, number, number]
   // [[lo,hi], min, max, step?] → interval
-  | readonly [readonly [number, number], number, number] | readonly [readonly [number, number], number, number, number]
+  | readonly [readonly [number, number], number, number]
+  | readonly [readonly [number, number], number, number, number]
   // either of the above, widened by a schema held in a variable
-  | readonly number[] | readonly (number | readonly number[])[]
-  | readonly Option[]                               // a list of options → list (dropdown)
-  | { options: readonly Option[]; value?: string | number }  // a list with a chosen default
-  | { action: () => void; label?: string }          // → button
-  | (SchemaObject & ControlOptions)                 // verbose form (+ render/disabled/hint)
-  | F                                               // nested object → folder
-  | SchemaFolder;                                   // a nested folder with its own render / disabled predicate
+  | readonly number[]
+  | readonly (number | readonly number[])[]
+  | readonly Option[] // a list of options → list (dropdown)
+  | { options: readonly Option[]; value?: string | number } // a list with a chosen default
+  | { action: () => void; label?: string } // → button
+  | (SchemaObject & ControlOptions) // verbose form (+ render/disabled/hint)
+  | F // nested object → folder
+  | SchemaFolder; // a nested folder with its own render / disabled predicate
 
 /** The object you hand to `tweaks(name, schema, opts?)`. No value is a function, so a verbose
  *  form's callbacks (`format`, `fn`) take their parameter types from that form alone. */
-export interface Schema { readonly [key: string]: SchemaValue; }
+export interface Schema {
+  readonly [key: string]: SchemaValue;
+}
 // A folder's string `type` names a control (a known name with none of its fields is still a folder), so a name no control
 // has can't pass as a folder: `const s: Schema = { a: { type: "slidr", value: 1 } }` compiled that way.
 type SchemaNest = Schema & { readonly type?: SchemaObject["type"] | Exclude<SchemaValue, string> };
 /** What tweaks() and mountControl() infer from: `Schema` with a folder's `type` left open, since a schema held in a
  *  variable widens a verbose form's `type` to `string`; their own check then rules on the names it can still see. */
-export interface HeldSchema { readonly [key: string]: HeldValue; }
+export interface HeldSchema {
+  readonly [key: string]: HeldValue;
+}
 /** A single value as mountControl() infers it; see `HeldSchema`. */
 export type HeldValue = SchemaValueOf<HeldSchema>;
 /** A nested folder that carries its own `render` / `disabled` predicate or `hint`: chrome, not
@@ -177,77 +318,222 @@ export interface SchemaFolder {
 // these types read the control it builds the way schema.ts does, in the same order.
 
 /** A spring control's value: the physics, plus the time pair and mode when tuned by feel. */
-export interface SpringValue { stiffness: number; damping: number; mass: number; visualDuration?: number; bounce?: number; mode?: "time" | "physics" }
+export interface SpringValue {
+  stiffness: number;
+  damping: number;
+  mass: number;
+  visualDuration?: number;
+  bounce?: number;
+  mode?: "time" | "physics";
+}
 
-type OptionValue<O> = O extends string | number ? O : O extends { readonly value: infer V extends string | number } ? V : never;
+type OptionValue<O> = O extends string | number
+  ? O
+  : O extends { readonly value: infer V extends string | number }
+    ? V
+    : never;
 // A list's param: one of its options, or a `value` off the list, which the control keeps as given until a pick.
-type ChoiceValue<V> = (V extends { readonly options: readonly (infer O)[] } ? OptionValue<O> : never) | (V extends { readonly value: infer D extends string | number } ? D : never);
-type Alnum = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
-type Dashed<S extends string, Acc extends string = "", Run = false> =
-  S extends `${infer C}${infer R}` ? C extends Alnum ? Dashed<R, `${Acc}${C}`, false> : Run extends true ? Dashed<R, Acc, true> : Dashed<R, `${Acc}-`, true> : Acc;
+type ChoiceValue<V> =
+  | (V extends { readonly options: readonly (infer O)[] } ? OptionValue<O> : never)
+  | (V extends { readonly value: infer D extends string | number } ? D : never);
+type Alnum =
+  | "a"
+  | "b"
+  | "c"
+  | "d"
+  | "e"
+  | "f"
+  | "g"
+  | "h"
+  | "i"
+  | "j"
+  | "k"
+  | "l"
+  | "m"
+  | "n"
+  | "o"
+  | "p"
+  | "q"
+  | "r"
+  | "s"
+  | "t"
+  | "u"
+  | "v"
+  | "w"
+  | "x"
+  | "y"
+  | "z"
+  | "0"
+  | "1"
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "7"
+  | "8"
+  | "9";
+type Dashed<S extends string, Acc extends string = "", Run = false> = S extends `${infer C}${infer R}`
+  ? C extends Alnum
+    ? Dashed<R, `${Acc}${C}`, false>
+    : Run extends true
+      ? Dashed<R, Acc, true>
+      : Dashed<R, `${Acc}-`, true>
+  : Acc;
 type TrimDash<S extends string> = S extends `-${infer R}` ? TrimDash<R> : S extends `${infer R}-` ? TrimDash<R> : S;
 /** A tab title's key under `params`: lower-case, each run of other characters a `-`, trimmed
  *  (`"Layout & Grid"` → `"layout-grid"`). Two titles that slug alike are told apart at runtime only. */
-export type TabKey<T extends string> = string extends T ? string : TrimDash<Dashed<Lowercase<T>>> extends infer K extends string ? (K extends "" ? "tab" : K) : never;
+export type TabKey<T extends string> = string extends T
+  ? string
+  : TrimDash<Dashed<Lowercase<T>>> extends infer K extends string
+    ? K extends ""
+      ? "tab"
+      : K
+    : never;
 // True when two page titles slug to one key: the runtime suffixes the later one (`a`, `a-2`) in an
 // order a type can't follow, so those pages read as the loose Params rather than merge into one.
-type TabClash<P> = true extends { [T in keyof P & string]: TabKey<T> extends { [U in Exclude<keyof P & string, T>]: TabKey<U> }[Exclude<keyof P & string, T>] ? true : false }[keyof P & string] ? true : false;
+type TabClash<P> = true extends {
+  [T in keyof P & string]: TabKey<T> extends { [U in Exclude<keyof P & string, T>]: TabKey<U> }[Exclude<
+    keyof P & string,
+    T
+  >]
+    ? true
+    : false;
+}[keyof P & string]
+  ? true
+  : false;
 
 type Valueless = "button" | "buttongroup" | "separator" | "fpsgraph" | "monitor";
 // The field each falsy-capable form hinges on (schema.ts REQUIRED), or a `value`: without either the object isn't
 // that control but a shorthand or a folder holding a child named `type`.
-type Hinge = { list: "options" | "value"; radiogrid: "options" | "value"; segmented: "options" | "value"; point: "components" | "value"; tabs: "pages" | "value" };
+type Hinge = {
+  list: "options" | "value";
+  radiogrid: "options" | "value";
+  segmented: "options" | "value";
+  point: "components" | "value";
+  tabs: "pages" | "value";
+};
 // A hinge field there but unusable skips the control at runtime, so it puts nothing on params.
-type TypedValue<V> =
-  V extends { readonly type: "slider" | "number" } ? number
-  : V extends { readonly type: "checkbox" } ? boolean
-  : V extends { readonly type: "list" | "radiogrid" | "segmented" } ? (V extends { readonly options: readonly unknown[] } ? ChoiceValue<V> : never)
-  : V extends { readonly type: "color" | "text" | "image" | "plot" } ? string
-  : V extends { readonly type: "interval" } ? [number, number]
-  : V extends { readonly type: "cubicbezier" } ? [number, number, number, number]
-  : V extends { readonly type: "spring" } ? SpringValue
-  : V extends { readonly type: "motion" } ? MotionValue
-  : V extends { readonly type: "shadow" } ? ShadowValue
-  : V extends { readonly type: "sides" } ? SidesValue
-  : V extends { readonly type: "gradient" } ? GradientValue
-  : V extends { readonly type: "point" } ? (V extends { readonly components: readonly [] } ? never : V extends { readonly components: readonly (infer C)[] } ? { [K in C extends { readonly key: infer Key extends string } ? Key : never]: number }
-    : V extends { readonly value: infer P extends object } ? (keyof P extends never ? never : { -readonly [K in keyof P & string]: number }) : never)
-  : V extends { readonly type: "tabs" } ? (V extends { readonly pages: infer P extends object } ? (keyof P extends never ? never : TabClash<P> extends true ? Record<string, Params> : { [T in keyof P & string as TabKey<T>]: ParamsOf<P[T]> }) : never)
-  : unknown;
+type TypedValue<V> = V extends { readonly type: "slider" | "number" }
+  ? number
+  : V extends { readonly type: "checkbox" }
+    ? boolean
+    : V extends { readonly type: "list" | "radiogrid" | "segmented" }
+      ? V extends { readonly options: readonly unknown[] }
+        ? ChoiceValue<V>
+        : never
+      : V extends { readonly type: "color" | "text" | "image" | "plot" }
+        ? string
+        : V extends { readonly type: "interval" }
+          ? [number, number]
+          : V extends { readonly type: "cubicbezier" }
+            ? [number, number, number, number]
+            : V extends { readonly type: "spring" }
+              ? SpringValue
+              : V extends { readonly type: "motion" }
+                ? MotionValue
+                : V extends { readonly type: "shadow" }
+                  ? ShadowValue
+                  : V extends { readonly type: "sides" }
+                    ? SidesValue
+                    : V extends { readonly type: "gradient" }
+                      ? GradientValue
+                      : V extends { readonly type: "point" }
+                        ? V extends { readonly components: readonly [] }
+                          ? never
+                          : V extends { readonly components: readonly (infer C)[] }
+                            ? { [K in C extends { readonly key: infer Key extends string } ? Key : never]: number }
+                            : V extends { readonly value: infer P extends object }
+                              ? keyof P extends never
+                                ? never
+                                : { -readonly [K in keyof P & string]: number }
+                              : never
+                        : V extends { readonly type: "tabs" }
+                          ? V extends { readonly pages: infer P extends object }
+                            ? keyof P extends never
+                              ? never
+                              : TabClash<P> extends true
+                                ? Record<string, Params>
+                                : { [T in keyof P & string as TabKey<T>]: ParamsOf<P[T]> }
+                            : never
+                          : unknown;
 /** The value a schema entry puts on `params`. */
-export type ValueOf<V> =
-  V extends { readonly type: infer T } ? (
-    // a `type` widened by a schema held in a variable: the control can't be known
-    string extends T ? any
-    : T extends SchemaObject["type"] ? (T extends keyof Hinge ? ([Extract<Hinge[T], keyof V>] extends [never] ? ShorthandValue<V> : VerboseValue<V, T>) : VerboseValue<V, T>)
-    // A name no control has: with a field only a control reads, the runtime skips it; without one, it's a folder.
-    : T extends string ? ([Extract<"value" | "options" | "action", keyof V>] extends [never] ? ShorthandValue<V> : never)
-    : ShorthandValue<V>)
+export type ValueOf<V> = V extends { readonly type: infer T }
+  ? // a `type` widened by a schema held in a variable: the control can't be known
+    string extends T
+    ? any
+    : T extends SchemaObject["type"]
+      ? T extends keyof Hinge
+        ? [Extract<Hinge[T], keyof V>] extends [never]
+          ? ShorthandValue<V>
+          : VerboseValue<V, T>
+        : VerboseValue<V, T>
+      : // A name no control has: with a field only a control reads, the runtime skips it; without one, it's a folder.
+        T extends string
+        ? [Extract<"value" | "options" | "action", keyof V>] extends [never]
+          ? ShorthandValue<V>
+          : never
+        : ShorthandValue<V>
   : ShorthandValue<V>;
 type VerboseValue<V, T> = T extends Valueless ? never : TypedValue<V>;
-type ShorthandValue<V> =
-  V extends readonly [readonly [number, number], ...unknown[]] ? [number, number]
-  : V extends readonly [number] | readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number] ? number
-  : V extends readonly [number, ...number[]] ? V[number]     // five numbers or more are a list of them
-  : V extends readonly [] ? undefined                        // an empty list, with no choice to hold
-  // a tuple widened by a schema held in a variable: a slider, or a list of numbers
-  : V extends readonly number[] ? number
-  : V extends readonly (number | readonly number[])[] ? [number, number]
-  : V extends number ? number
-  : V extends boolean ? boolean
-  : V extends string ? string
-  : V extends readonly (infer O)[] ? OptionValue<O>
-  : V extends { readonly action: (...a: any[]) => any } ? never
-  : V extends { readonly options: readonly unknown[] } ? ChoiceValue<V>
-  : V extends object ? Entries<V, true>
-  : unknown;
+type ShorthandValue<V> = V extends readonly [readonly [number, number], ...unknown[]]
+  ? [number, number]
+  : V extends
+        | readonly [number]
+        | readonly [number, number]
+        | readonly [number, number, number]
+        | readonly [number, number, number, number]
+    ? number
+    : V extends readonly [number, ...number[]]
+      ? V[number] // five numbers or more are a list of them
+      : V extends readonly []
+        ? undefined // an empty list, with no choice to hold
+        : // a tuple widened by a schema held in a variable: a slider, or a list of numbers
+          V extends readonly number[]
+          ? number
+          : V extends readonly (number | readonly number[])[]
+            ? [number, number]
+            : V extends number
+              ? number
+              : V extends boolean
+                ? boolean
+                : V extends string
+                  ? string
+                  : V extends readonly (infer O)[]
+                    ? OptionValue<O>
+                    : V extends { readonly action: (...a: any[]) => any }
+                      ? never
+                      : V extends { readonly options: readonly unknown[] }
+                        ? ChoiceValue<V>
+                        : V extends object
+                          ? Entries<V, true>
+                          : unknown;
 // Keys the runtime skips at every level, since they would write through to Object.prototype.
 type Reserved = "__proto__" | "constructor" | "prototype";
 // A nested folder's render / disabled / hint are its chrome, not children; at the root and on a
 // tab page they are controls like any other key.
-type FolderChrome<V, K> = K extends "disabled" | "hint" ? true : K extends "render" ? (V extends (...a: any[]) => any ? true : false) : false;
-type Entries<S, Nested extends boolean> = string extends keyof S ? Params
-  : { -readonly [K in keyof S & string as K extends Reserved ? never : ValueOf<S[K]> extends never ? never : Nested extends true ? (FolderChrome<S[K], K> extends true ? never : K) : K]: ValueOf<S[K]> };
+type FolderChrome<V, K> = K extends "disabled" | "hint"
+  ? true
+  : K extends "render"
+    ? V extends (...a: any[]) => any
+      ? true
+      : false
+    : false;
+type Entries<S, Nested extends boolean> = string extends keyof S
+  ? Params
+  : {
+      -readonly [
+        K in keyof S & string as K extends Reserved
+          ? never
+          : ValueOf<S[K]> extends never
+            ? never
+            : Nested extends true
+              ? FolderChrome<S[K], K> extends true
+                ? never
+                : K
+              : K
+      ]: ValueOf<S[K]>;
+    };
 /** The live values a schema builds, nested like the schema; a plain `Schema` gives the loose `Params`. */
 export type ParamsOf<S> = Entries<S, false>;
 
@@ -258,12 +544,23 @@ export type ParamsOf<S> = Entries<S, false>;
 // right where it's written. A known name without its hinge field is a folder at runtime and isn't checked further; with it,
 // or for a name with no hinge, the runtime builds that control, so its fields must fit the form: `{ type: "image",
 // options: [1] }` read as a folder of a text and a slider otherwise, and compiled.
-type CheckValue<V> =
-  V extends { readonly type: infer T } ? (string extends T ? V : T extends SchemaObject["type"] ? (V extends { readonly type: "tabs"; readonly pages: infer P } ? { readonly pages: { [K in keyof P]: KnownTypes<P[K]> } }
-    : T extends keyof Hinge ? ([Extract<Hinge[T], keyof V>] extends [never] ? unknown : FitsForm<V, T>) : FitsForm<V, T>) : { readonly type: NotAControlType })
-  : V extends readonly unknown[] | ((...a: any[]) => any) ? unknown
-  : V extends object ? KnownTypes<V>
-  : unknown;
+type CheckValue<V> = V extends { readonly type: infer T }
+  ? string extends T
+    ? V
+    : T extends SchemaObject["type"]
+      ? V extends { readonly type: "tabs"; readonly pages: infer P }
+        ? { readonly pages: { [K in keyof P]: KnownTypes<P[K]> } }
+        : T extends keyof Hinge
+          ? [Extract<Hinge[T], keyof V>] extends [never]
+            ? unknown
+            : FitsForm<V, T>
+          : FitsForm<V, T>
+      : { readonly type: NotAControlType }
+  : V extends readonly unknown[] | ((...a: any[]) => any)
+    ? unknown
+    : V extends object
+      ? KnownTypes<V>
+      : unknown;
 // The verbose form a known name builds (an alias finds the member that lists it), and V held to it when it doesn't fit.
 type FormOf<O, T> = O extends { readonly type: infer N } ? (T extends N ? O & ControlOptions : never) : never;
 type FitsForm<V, T> = V extends FormOf<SchemaObject, T> ? unknown : FormOf<SchemaObject, T>;
@@ -290,22 +587,36 @@ export interface Theme {
   /** Popover / dropdown background. */
   "--twk-dropdown-bg"?: string;
   /** Control surface and its hover / active steps. */
-  "--twk-surface"?: string; "--twk-surface-hover"?: string; "--twk-surface-active"?: string;
+  "--twk-surface"?: string;
+  "--twk-surface-hover"?: string;
+  "--twk-surface-active"?: string;
   /** Hairline border and its hover step. */
-  "--twk-border"?: string; "--twk-border-hover"?: string;
+  "--twk-border"?: string;
+  "--twk-border-hover"?: string;
   /** Text-selection highlight wash. */
   "--twk-selection"?: string;
   /** Text tones — panel title, section heading, primary value text, control label, and the muted / faint / focus tones. */
-  "--twk-text-root"?: string; "--twk-text-section"?: string; "--twk-text-primary"?: string; "--twk-text-label"?: string;
-  "--twk-text-secondary"?: string; "--twk-text-tertiary"?: string; "--twk-text-focus"?: string;
+  "--twk-text-root"?: string;
+  "--twk-text-section"?: string;
+  "--twk-text-primary"?: string;
+  "--twk-text-label"?: string;
+  "--twk-text-secondary"?: string;
+  "--twk-text-tertiary"?: string;
+  "--twk-text-focus"?: string;
   /** Copy-confirmation accent, and the invalid-state accent (the plot's bad-expression cue). */
-  "--twk-success"?: string; "--twk-danger"?: string;
+  "--twk-success"?: string;
+  "--twk-danger"?: string;
   /** Popover shadow, the panel's container elevation, and its lifted (floating / dragging) variant. */
-  "--twk-shadow-dropdown"?: string; "--twk-shadow-panel"?: string; "--twk-shadow-panel-lifted"?: string;
+  "--twk-shadow-dropdown"?: string;
+  "--twk-shadow-panel"?: string;
+  "--twk-shadow-panel-lifted"?: string;
   /** Font stack, and the monospace stack (the plot's expression field). */
-  "--twk-font-sans"?: string; "--twk-font-mono"?: string;
+  "--twk-font-sans"?: string;
+  "--twk-font-mono"?: string;
   /** Control corner radius, row height and the panel's width (256px by default), as CSS lengths. */
-  "--twk-radius"?: string; "--twk-row-height"?: string; "--twk-width"?: string;
+  "--twk-radius"?: string;
+  "--twk-row-height"?: string;
+  "--twk-width"?: string;
   /** Any other token. */
   [token: `--twk-${string}`]: string | undefined;
 }
@@ -321,7 +632,10 @@ export interface SetOptions {
 /** Where a floating panel starts: `x` / `y` are its insets in px (16 by default) from the
  *  viewport's top-left. The far edge keeps a gap of `y` when the height caps; CSS
  *  `--twk-float-gap` overrides it. */
-export interface FloatingPlacement { x?: number; y?: number }
+export interface FloatingPlacement {
+  x?: number;
+  y?: number;
+}
 
 /** The words a panel shows and says, by key, for the `strings` option (each line notes the English default). A key
  *  with a `{placeholder}` takes a string that uses it, or a function given the values, for a language whose plurals
@@ -376,7 +690,10 @@ export interface Strings {
   /** "Hex color" */ hex?: string;
   /** "Hue" */ hue?: string;
   /** "Alpha" */ alpha?: string;
-  /** "lightness {l}%, chroma {c}" — the color plane's description, said after a run of keys */ colorReadout?: Word<{ l: number; c: number }>;
+  /** "lightness {l}%, chroma {c}" — the color plane's description, said after a run of keys */ colorReadout?: Word<{
+    l: number;
+    c: number;
+  }>;
   /** "wide" — the gamut badge past P3 (sRGB and P3 are names) */ wide?: string;
   // Gradient
   /** "Gradient" — a gradient with no label */ gradient?: string;
@@ -480,7 +797,9 @@ export interface TweaksOptions {
 }
 
 /** Options for `enhance()`: the words its markup controls show and say. */
-export interface EnhanceOptions { strings?: Strings }
+export interface EnhanceOptions {
+  strings?: Strings;
+}
 
 /** The live values bag, loosely typed — `params[key]` for each control. A schema literal passed
  *  to `tweaks()` gets its exact shape instead (`ParamsOf`). */
@@ -490,8 +809,19 @@ export type Params = Record<string, any>;
  *  paths too (`drop.blur`): the types can't tell its value from a folder, so they allow what the runtime refuses. Past ten
  *  folders deep the rest of a path is any string, since spelling every one out overran tsc's depth limit. */
 export type PanelPath<P> = PathsOf<P, []>;
-type PathsOf<P, D extends unknown[]> = string extends keyof P ? string : D["length"] extends 10 ? string
-  : { [K in keyof P & string]: K | (P[K] extends readonly unknown[] ? never : P[K] extends object ? `${K}.${PathsOf<P[K], [...D, 0]>}` : never) }[keyof P & string];
+type PathsOf<P, D extends unknown[]> = string extends keyof P
+  ? string
+  : D["length"] extends 10
+    ? string
+    : {
+        [K in keyof P & string]:
+          | K
+          | (P[K] extends readonly unknown[]
+              ? never
+              : P[K] extends object
+                ? `${K}.${PathsOf<P[K], [...D, 0]>}`
+                : never);
+      }[keyof P & string];
 
 /** The whole-panel state `toJSON()` returns / `fromJSON()` accepts: every control value
  *  (nested to mirror folders/tabs) plus UI state — which folders are collapsed and which
@@ -673,8 +1003,13 @@ export interface ColorPicker {
 /** `detail` of the `twk:change` event a `[data-twk]` host dispatches (bubbling) whenever its
  *  control changes — `key` is the host's `data-key` (or its label), `value` the new value,
  *  also written to the host's `data-value`. */
-export interface TwChangeDetail { key: string; value: unknown; }
+export interface TwChangeDetail {
+  key: string;
+  value: unknown;
+}
 
 declare global {
-  interface HTMLElementEventMap { "twk:change": CustomEvent<TwChangeDetail>; }
+  interface HTMLElementEventMap {
+    "twk:change": CustomEvent<TwChangeDetail>;
+  }
 }

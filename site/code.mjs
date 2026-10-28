@@ -2,9 +2,16 @@
  * generator and any page that sets a block inside its own markup (the landing's install line). */
 import { highlightJS, highlightHTML } from "./highlight.mjs";
 
-export const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+export const esc = (s) =>
+  String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 /** The build's gzip sizes into their {{size-*}} tokens, in a page or its Markdown mirror. */
-export const fillSizes = (s, sizes = {}) => Object.entries(sizes).reduce((t, [k, v]) => t.replaceAll(`{{size-${k}}}`, v), s);
+export const fillSizes = (s, sizes = {}) =>
+  Object.entries(sizes).reduce((t, [k, v]) => t.replaceAll(`{{size-${k}}}`, v), s);
 
 export function dedent(text) {
   const lines = String(text).replace(/^\n+/, "").replace(/\s+$/, "").split("\n");
@@ -13,17 +20,27 @@ export function dedent(text) {
   return lines.map((l) => l.slice(min)).join("\n");
 }
 
-export const codeBlock = (html, lang, attrs = "") => `<div class="ex-codewrap"${attrs}><pre class="ex-code" data-lang="${lang}"><code>${html}</code></pre></div>`;
+export const codeBlock = (html, lang, attrs = "") =>
+  `<div class="ex-codewrap"${attrs}><pre class="ex-code" data-lang="${lang}"><code>${html}</code></pre></div>`;
 
 /** The text of a { lang, text } block. A "text" block is prose (a prompt): single newlines are
  *  source wrapping, so they join; blank lines stay. */
 // a list item keeps its line
-export const codeText = (c) => (c.lang === "text" ? dedent(c.text).trim().replace(/(\S)\n(?=(?![-*+] |\d+\. )\S)/g, "$1 ") : dedent(c.text).trim());
+export const codeText = (c) =>
+  c.lang === "text"
+    ? dedent(c.text)
+        .trim()
+        .replace(/(\S)\n(?=(?![-*+] |\d+\. )\S)/g, "$1 ")
+    : dedent(c.text).trim();
 
 /** One block from { lang, text }. */
 export function renderCode(c, attrs = "") {
   const text = codeText(c);
-  return codeBlock(c.lang === "html" ? highlightHTML(text) : c.lang === "js" ? highlightJS(text) : esc(text), c.lang, attrs);
+  return codeBlock(
+    c.lang === "html" ? highlightHTML(text) : c.lang === "js" ? highlightJS(text) : esc(text),
+    c.lang,
+    attrs,
+  );
 }
 
 /** The displayed snippet of an example's `run`: the function's own body. */
@@ -39,8 +56,17 @@ export function extractBody(fn) {
  *  `id` keys the tab and panel ids, so it is unique on its page; `label` names the tab list. */
 export function codeTabs(id, tabs, label) {
   if (!tabs.length) throw new Error(`code tabs "${id}": no tabs`);
-  const row = tabs.map((c, i) => `<button class="ex-tab" type="button" role="tab" id="tab-${id}-${i}" aria-selected="${i === 0}" aria-controls="tabpanel-${id}-${i}"${i ? ' tabindex="-1"' : ""}>${esc(c.label)}</button>`).join("");
-  const panels = tabs.map((c, i) => renderCode(c, ` role="tabpanel" id="tabpanel-${id}-${i}" aria-labelledby="tab-${id}-${i}"${i ? " hidden" : ""}`)).join("");
+  const row = tabs
+    .map(
+      (c, i) =>
+        `<button class="ex-tab" type="button" role="tab" id="tab-${id}-${i}" aria-selected="${i === 0}" aria-controls="tabpanel-${id}-${i}"${i ? ' tabindex="-1"' : ""}>${esc(c.label)}</button>`,
+    )
+    .join("");
+  const panels = tabs
+    .map((c, i) =>
+      renderCode(c, ` role="tabpanel" id="tabpanel-${id}-${i}" aria-labelledby="tab-${id}-${i}"${i ? " hidden" : ""}`),
+    )
+    .join("");
   return `<div class="ex-tabs"><div class="ex-tablist" role="tablist"${label ? ` aria-label="${esc(label)}"` : ""}>${row}</div>${panels}</div>`;
 }
 

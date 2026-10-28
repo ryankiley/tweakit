@@ -16,7 +16,8 @@ const DIST = new URL("../dist/tweaks.js", import.meta.url).href;
 const BUNDLE = new URL("./_bundle.mjs", import.meta.url).href;
 // Run an ES-module snippet in a child node, killed after 5 s. Returns the result for the
 // caller to assert on (exit 0 and no signal = it finished).
-const child = (code) => spawnSync(process.execPath, ["--input-type=module", "-e", code], { timeout: 5000, encoding: "utf8" });
+const child = (code) =>
+  spawnSync(process.execPath, ["--input-type=module", "-e", code], { timeout: 5000, encoding: "utf8" });
 const finished = (r, what) => {
   assert.equal(r.signal, null, `${what}: the child was killed (${r.signal}) — it never finished\n${r.stderr}`);
   assert.equal(r.status, 0, `${what}: the child exited ${r.status}\n${r.stderr}`);
@@ -63,7 +64,16 @@ const gradCss = (p) => String(p.el.querySelector(".twk-gradient-grad").style.bac
 test("a gradient stop that isn't a single color token never reaches the preview's CSS", () => {
   // Pre-fix: the stop's text was concatenated as-is, and the preview's background became
   // three layers — the gradient, a url() fetch, and a second gradient. Params carried it too.
-  const p = tweaks("G1", { g: { type: "gradient", value: [["#ff0000", 0], [HOSTILE_STOP, 0.5], ["#0000ff", 1]] } });
+  const p = tweaks("G1", {
+    g: {
+      type: "gradient",
+      value: [
+        ["#ff0000", 0],
+        [HOSTILE_STOP, 0.5],
+        ["#0000ff", 1],
+      ],
+    },
+  });
   assert.ok(p.params.g, "the control built");
   for (const s of p.params.g.stops) assert.match(s.color, ONE_TOKEN, `stop reached params: ${s.color}`);
   assert.equal(p.params.g.stops.length, 2, "the hostile stop is dropped, the two good ones stay");
@@ -71,15 +81,33 @@ test("a gradient stop that isn't a single color token never reaches the preview'
   assert.equal(gradCss(p).split("linear-gradient(").length - 1, 1, "exactly one gradient layer");
 
   // The same through set() and fromJSON() (the persisted-state and preset paths).
-  p.set("g", { stops: [{ color: "#00ff00", pos: 0 }, { color: HOSTILE_STOP, pos: 0.3 }, { color: "#000000", pos: 1 }], interpolation: "srgb" });
+  p.set("g", {
+    stops: [
+      { color: "#00ff00", pos: 0 },
+      { color: HOSTILE_STOP, pos: 0.3 },
+      { color: "#000000", pos: 1 },
+    ],
+    interpolation: "srgb",
+  });
   assert.equal(p.params.g.stops.length, 2);
   assert.doesNotMatch(gradCss(p), /url\(/);
-  p.fromJSON({ values: { g: [["oklch(0.7 0.1 20)", 0], ["url(https://x/p.png)", 0.5], ["#fff", 1]] } });
+  p.fromJSON({
+    values: {
+      g: [
+        ["oklch(0.7 0.1 20)", 0],
+        ["url(https://x/p.png)", 0.5],
+        ["#fff", 1],
+      ],
+    },
+  });
   assert.equal(p.params.g.stops.length, 2);
   assert.doesNotMatch(gradCss(p), /url\(/);
 
   // Fewer than two usable stops falls back to the default pair, never to an empty ramp.
-  p.set("g", [[HOSTILE_STOP, 0], ["#fff) , url(https://x/q.png", 1]]);
+  p.set("g", [
+    [HOSTILE_STOP, 0],
+    ["#fff) , url(https://x/q.png", 1],
+  ]);
   assert.equal(p.params.g.stops.length, 2);
   for (const s of p.params.g.stops) assert.match(s.color, ONE_TOKEN);
   assert.doesNotMatch(gradCss(p), /url\(/);
@@ -89,19 +117,35 @@ test("a hostile first stop is dropped too, and a keyword stop still builds witho
   // Pre-fix: the first stop seeds the picker body, whose sRGB-family parse ran into
   // jsdom's missing 2D context and threw — the whole control was skipped (params.g
   // undefined), so under jsdom the injection hid behind a TypeError.
-  const p = tweaks("G0", { g: { type: "gradient", value: [[HOSTILE_STOP, 0], ["#0000ff", 1], ["red", 0.5]] } });
+  const p = tweaks("G0", {
+    g: {
+      type: "gradient",
+      value: [
+        [HOSTILE_STOP, 0],
+        ["#0000ff", 1],
+        ["red", 0.5],
+      ],
+    },
+  });
   assert.ok(p.params.g, "the control built");
-  assert.deepEqual(p.params.g.stops.map((s) => s.color), ["red", "#0000ff"], "sorted by position, the hostile stop gone");
+  assert.deepEqual(
+    p.params.g.stops.map((s) => s.color),
+    ["red", "#0000ff"],
+    "sorted by position, the hostile stop gone",
+  );
   assert.doesNotMatch(gradCss(p), /url\(/);
 });
 
 // Count the comma-separated layers of a CSS value, honoring quoted strings and escapes.
 const layers = (css) => {
-  let n = 1, q = null;
+  let n = 1,
+    q = null;
   for (let i = 0; i < css.length; i++) {
     const c = css[i];
-    if (q) { if (c === "\\") i++; else if (c === q) q = null; }
-    else if (c === '"' || c === "'") q = c;
+    if (q) {
+      if (c === "\\") i++;
+      else if (c === q) q = null;
+    } else if (c === '"' || c === "'") q = c;
     else if (c === ",") n++;
   }
   return n;

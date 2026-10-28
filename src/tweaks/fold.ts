@@ -7,15 +7,27 @@ import { REDUCE_MOTION } from "./shared.js";
 
 /** Fold `node` shut or open; reduced motion, no Animations API or a row with nothing drawn just toggle the class. */
 export const fold = (node: HTMLElement & { _fold?: Animation }, hide: boolean) => {
-  const cs = getComputedStyle(node), at = node._fold?.playState == "running" && { marginBottom: cs.marginBottom, clipPath: cs.clipPath, opacity: cs.opacity };
-  node._fold?.cancel(); node.classList.remove("twk-cond-hidden");
+  const cs = getComputedStyle(node),
+    at = node._fold?.playState == "running" && {
+      marginBottom: cs.marginBottom,
+      clipPath: cs.clipPath,
+      opacity: cs.opacity,
+    };
+  node._fold?.cancel();
+  node.classList.remove("twk-cond-hidden");
   const h = !REDUCE_MOTION.matches && node.animate && node.offsetHeight;
   node.classList.toggle("twk-cond-hidden", hide);
-  if (h) try {
-    // d is the room the row takes: its height, the 6px stack gap (tweaks.css) and its own top margin.
-    const d = h + 6 + parseFloat(cs.marginTop), H = h + "px", shut = { height: H, marginBottom: -d + "px", clipPath: `inset(0 0 ${d}px)`, opacity: 0 }, open = { height: H, clipPath: "inset(0)" };
-    (node._fold = node.animate([at || (hide ? open : shut), hide ? shut : open], { duration: 350, easing: cs.getPropertyValue("--twk-ease-fold").trim() }))
-      .onfinish = () => node.classList.toggle("twk-cond-hidden", hide);
-    node.classList.remove("twk-cond-hidden"); // after animate(): a refused easing leaves the toggle done
-  } catch {}
+  if (h)
+    try {
+      // d is the room the row takes: its height, the 6px stack gap (tweaks.css) and its own top margin.
+      const d = h + 6 + parseFloat(cs.marginTop),
+        H = h + "px",
+        shut = { height: H, marginBottom: -d + "px", clipPath: `inset(0 0 ${d}px)`, opacity: 0 },
+        open = { height: H, clipPath: "inset(0)" };
+      (node._fold = node.animate([at || (hide ? open : shut), hide ? shut : open], {
+        duration: 350,
+        easing: cs.getPropertyValue("--twk-ease-fold").trim(),
+      })).onfinish = () => node.classList.toggle("twk-cond-hidden", hide);
+      node.classList.remove("twk-cond-hidden"); // after animate(): a refused easing leaves the toggle done
+    } catch {}
 };

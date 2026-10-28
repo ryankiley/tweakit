@@ -10,23 +10,39 @@ import { isObj, isColorStr, optValue, hasOwn, isReservedKey, words } from "./sha
 import type { Tr } from "./shared.js";
 
 /** Where a pasted value can land: a control's path, its current value, its meta and its row (a disabled one takes nothing). */
-export interface Slot { path: string[]; get: () => unknown; m: Meta; el?: Element }
+export interface Slot {
+  path: string[];
+  get: () => unknown;
+  m: Meta;
+  el?: Element;
+}
 /** How a paste reports: the words a screen reader hears, and whether its panel is still there. */
-export interface Report { announce: typeof announce; alive: () => boolean; tr?: Tr }
+export interface Report {
+  announce: typeof announce;
+  alive: () => boolean;
+  tr?: Tr;
+}
 /** What a panel lends the paste. */
-export interface ClipCtx extends Report { panel: HTMLElement; entries: Entry[]; fromJSON: (state: PanelState) => void }
+export interface ClipCtx extends Report {
+  panel: HTMLElement;
+  entries: Entry[];
+  fromJSON: (state: PanelState) => void;
+}
 /** What a scoped ⌘C / ⌘V acts on: one row, or every row under a folder's path. */
 export type Scope = { kind: "row"; entry: Entry; label: string } | { kind: "folder"; path: string[]; label: string };
 
-const atPath = (obj: unknown, path: string[]): unknown => path.reduce<any>((o, k) => (isObj(o) && hasOwn(o, k) ? o[k] : undefined), obj);
+const atPath = (obj: unknown, path: string[]): unknown =>
+  path.reduce<any>((o, k) => (isObj(o) && hasOwn(o, k) ? o[k] : undefined), obj);
 
 /** ⇧-copy's output is a flat map by dotted path; nested, "folder.child" lands where set() would put it. A reserved
  *  segment is dropped, so a pasted "__proto__.x" can't write onto Object.prototype. */
 const unflatten = (flat: Record<string, unknown>): Snapshot => {
   const out: Snapshot = {};
   for (const k of Object.keys(flat)) {
-    const path = k.split("."); if (path.some(isReservedKey)) continue;
-    let o = out; for (const s of path.slice(0, -1)) o = isObj(o[s]) ? o[s] : (o[s] = {});
+    const path = k.split(".");
+    if (path.some(isReservedKey)) continue;
+    let o = out;
+    for (const s of path.slice(0, -1)) o = isObj(o[s]) ? o[s] : (o[s] = {});
     o[path[path.length - 1]] = flat[k];
   }
   return out;
@@ -37,14 +53,28 @@ const unflatten = (flat: Record<string, unknown>): Snapshot => {
 // shaped like the first, a color the browser can parse wherever a color stands (a color or gradient control), and
 // for a list control one of its options. Anything else would be coerced or ignored by set() — null to 0, a stray string
 // to black, a short tuple dropped — so it's skipped, and counted as not pasted; so is anything for a disabled row.
-const isCssColor = (v: unknown) => isColorStr(v) && (typeof CSS === "undefined" || !CSS.supports || CSS.supports("color", v as string));
+const isCssColor = (v: unknown) =>
+  isColorStr(v) && (typeof CSS === "undefined" || !CSS.supports || CSS.supports("color", v as string));
 const sameShape = (cur: unknown, v: unknown, col: boolean): boolean => {
-  if (Array.isArray(cur)) return Array.isArray(v) && (cur.every((x) => !isObj(x)) ? v.length === cur.length && v.every((x, i) => sameShape(cur[i], x, col)) : v.length >= 2 && v.length <= 64 && v.every((x) => sameShape(cur[0], x, col)));
+  if (Array.isArray(cur))
+    return (
+      Array.isArray(v) &&
+      (cur.every((x) => !isObj(x))
+        ? v.length === cur.length && v.every((x, i) => sameShape(cur[i], x, col))
+        : v.length >= 2 && v.length <= 64 && v.every((x) => sameShape(cur[0], x, col)))
+    );
   if (isObj(cur)) return isObj(v) && !Array.isArray(v) && Object.keys(cur).every((k) => sameShape(cur[k], v[k], col));
-  return typeof v === typeof cur && (typeof v !== "number" || Number.isFinite(v)) && (!col || !isColorStr(cur) || isCssColor(v));
+  return (
+    typeof v === typeof cur &&
+    (typeof v !== "number" || Number.isFinite(v)) &&
+    (!col || !isColorStr(cur) || isCssColor(v))
+  );
 };
-const fits = (s: Slot, v: unknown) => v != null && !s.el?.closest(".is-disabled") && sameShape(s.get(), v, s.m.type === "color" || s.m.type === "gradient")
-  && (!s.m.options || s.m.options.some((o) => JSON.stringify(optValue(o)) === JSON.stringify(v)));
+const fits = (s: Slot, v: unknown) =>
+  v != null &&
+  !s.el?.closest(".is-disabled") &&
+  sameShape(s.get(), v, s.m.type === "color" || s.m.type === "gradient") &&
+  (!s.m.options || s.m.options.some((o) => JSON.stringify(optValue(o)) === JSON.stringify(v)));
 
 /** The values in `values` that fit their slots, each slot read at its path below `base`. */
 export const pick = <S extends Slot>(slots: S[], values: unknown, base: string[] = []): Array<[S, unknown]> =>
@@ -53,7 +83,11 @@ export const pick = <S extends Slot>(slots: S[], values: unknown, base: string[]
 // Only what fits is written, through fromJSON: a bag key or a value set() would coerce stays as it is.
 const write = (ctx: ClipCtx, hits: Array<[Entry, unknown]>) => {
   const out: Snapshot = {};
-  for (const [e, v] of hits) { let o = out; for (const k of e.path.slice(0, -1)) o = o[k] ||= {}; o[e.path[e.path.length - 1]] = v; }
+  for (const [e, v] of hits) {
+    let o = out;
+    for (const k of e.path.slice(0, -1)) o = o[k] ||= {};
+    o[e.path[e.path.length - 1]] = v;
+  }
   ctx.fromJSON({ values: out });
 };
 
@@ -65,13 +99,21 @@ export function pasteScope(ctx: ClipCtx, s: Scope, text: string): number | false
   const data = JSON.parse(text);
   let hits: Array<[Entry, unknown]>;
   if (s.kind === "row") {
-    const e = s.entry, v = isObj(data) && !Array.isArray(data) && Object.keys(data).length === 1 && hasOwn(data, e.key) ? data[e.key] : data;
+    const e = s.entry,
+      v =
+        isObj(data) && !Array.isArray(data) && Object.keys(data).length === 1 && hasOwn(data, e.key)
+          ? data[e.key]
+          : data;
     hits = fits(e, v) ? [[e, v]] : [];
   } else {
     if (!isObj(data) || Array.isArray(data)) return false;
     const rows = ctx.entries.filter((e) => e.path.length > s.path.length && s.path.every((k, i) => e.path[i] === k));
     hits = [];
-    for (const d of [data, unflatten(data)]) for (const v of [atPath(d, s.path), d]) { const h = isObj(v) ? pick(rows, v, s.path) : []; if (h.length > hits.length) hits = h; }
+    for (const d of [data, unflatten(data)])
+      for (const v of [atPath(d, s.path), d]) {
+        const h = isObj(v) ? pick(rows, v, s.path) : [];
+        if (h.length > hits.length) hits = h;
+      }
   }
   if (!hits.length) return false;
   write(ctx, hits);
@@ -85,12 +127,28 @@ const flashes = new WeakMap<Element, ReturnType<typeof setTimeout>>();
 export function pasteInto(text: string | null, apply: (text: string) => number | false, r: Report, band?: Element) {
   if (!r.alive()) return;
   let n: number | false = false;
-  if (text !== null) try { n = apply(text); } catch {}
+  if (text !== null)
+    try {
+      n = apply(text);
+    } catch {}
   const tr = r.tr || words();
-  r.announce(!n ? (text === null ? tr("clipboardUnread", "Couldn't read the clipboard") : tr("nothingToPaste", "Nothing to paste")) : tr("pasted", (v) => `${v.n} value${v.n === 1 ? "" : "s"} pasted`, { n }));
-  if (band) { // a quick second paste on the same row restarts the flash: the first one's timer mustn't cut it short
-    const c = n ? "is-pasted" : "is-refused"; band.classList.remove("is-pasted", "is-refused"); band.classList.add(c);
-    clearTimeout(flashes.get(band)); flashes.set(band, setTimeout(() => band.classList.remove(c), 450));
+  r.announce(
+    !n
+      ? text === null
+        ? tr("clipboardUnread", "Couldn't read the clipboard")
+        : tr("nothingToPaste", "Nothing to paste")
+      : tr("pasted", (v) => `${v.n} value${v.n === 1 ? "" : "s"} pasted`, { n }),
+  );
+  if (band) {
+    // a quick second paste on the same row restarts the flash: the first one's timer mustn't cut it short
+    const c = n ? "is-pasted" : "is-refused";
+    band.classList.remove("is-pasted", "is-refused");
+    band.classList.add(c);
+    clearTimeout(flashes.get(band));
+    flashes.set(
+      band,
+      setTimeout(() => band.classList.remove(c), 450),
+    );
   }
   return !!n;
 }

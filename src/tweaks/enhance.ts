@@ -10,7 +10,16 @@ import type { MarkupKit } from "./markup.js";
 import type { EnhanceOptions } from "./types.js";
 
 declare const TW_SPLIT: boolean;
-const kit: MarkupKit = { metaFor, ensureForMetas, LAZY_IMPORT, createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker };
+const kit: MarkupKit = {
+  metaFor,
+  ensureForMetas,
+  LAZY_IMPORT,
+  createFolder,
+  createControl,
+  makeCopyBtn,
+  makeResetBtn,
+  addHintMarker,
+};
 
 /** Bind every unbound [data-twk] host under `root` (the document by default). */
 export function enhance(root: Document | Element = document, opts: EnhanceOptions = {}): Promise<void> {
@@ -18,5 +27,8 @@ export function enhance(root: Document | Element = document, opts: EnhanceOption
   // the single-file build registered it on load: synchronous, as ever
   if (run || !TW_SPLIT) return run ? run(root, kit, opts.strings) : Promise.resolve();
   // A chunk that fails to load skips the markup, as a failed control chunk skips its control, instead of rejecting.
-  return import("./markup.js").then(() => getMarkup<MarkupKit>()!(root, kit, opts.strings), (e) => console.error("[tweaks] markup chunk failed to load:", e));
+  return import("./markup.js").then(
+    () => getMarkup<MarkupKit>()!(root, kit, opts.strings),
+    (e) => console.error("[tweaks] markup chunk failed to load:", e),
+  );
 }

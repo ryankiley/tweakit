@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { bundle } from "./_bundle.mjs";
 import { close } from "./_helpers.mjs";
 
-const { convert, toGamut, oklchToHex, hexToOklch, channelValues, withChannel, chromaCeil, oklchGamutProbe, serialize } = await bundle("src/wide-gamut.ts");
+const { convert, toGamut, oklchToHex, hexToOklch, channelValues, withChannel, chromaCeil, oklchGamutProbe, serialize } =
+  await bundle("src/wide-gamut.ts");
 
 const tripleClose = (got, want, eps = 1e-3) => got.every((c, i) => close(c, want[i], eps));
 
@@ -42,7 +43,10 @@ test("hex helpers round-trip", () => {
 
 test("toGamut maps out-of-gamut chroma into the destination range", () => {
   const rgb = toGamut([0.7, 0.4, 150], "srgb"); // far outside sRGB
-  assert.ok(rgb.every((c) => c >= 0 && c <= 1), `got ${rgb}`);
+  assert.ok(
+    rgb.every((c) => c >= 0 && c <= 1),
+    `got ${rgb}`,
+  );
 });
 
 test("chromaCeil agrees with a known boundary color", () => {
@@ -62,10 +66,10 @@ test("serialize stays in-mode for opaque and translucent alike", () => {
   assert.match(serialize(c, "srgb", 1), /^rgb\(/);
   assert.match(serialize(c, "srgb", 0.5), /^rgb\(.* \/ 0\.5\)$/); // translucent stays rgb (it used to jump to oklch())
   assert.match(serialize(c, "hsl", 0.5), /^hsl\(.* \/ 0\.5\)$/);
-  assert.match(serialize(c, "css", 0.5), /^rgba\(.*, 0\.5\)$/);   // legacy comma form keeps comma alpha
+  assert.match(serialize(c, "css", 0.5), /^rgba\(.*, 0\.5\)$/); // legacy comma form keeps comma alpha
   assert.match(serialize(c, "oklch", 0.5), /^oklch\(.* \/ 0\.5\)$/);
-  assert.equal(serialize(c, "hex", 1).length, 7);                 // #rrggbb
-  assert.equal(serialize(c, "hex", 0.5).length, 9);               // #rrggbbaa
+  assert.equal(serialize(c, "hex", 1).length, 7); // #rrggbb
+  assert.equal(serialize(c, "hex", 0.5).length, 9); // #rrggbbaa
 });
 
 test("narrow-gamut modes agree with hex on an out-of-gamut color (chroma-reduce, not per-channel clip)", () => {
@@ -73,5 +77,8 @@ test("narrow-gamut modes agree with hex on an out-of-gamut color (chroma-reduce,
   const rgb = channelValues(oog, "srgb").map((v) => Math.round(v));
   const hex = oklchToHex(oog[0], oog[1], oog[2]);
   const fromHex = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  assert.ok(rgb.every((v, i) => Math.abs(v - fromHex[i]) <= 1), `rgb ${rgb} vs hex ${fromHex}`);
+  assert.ok(
+    rgb.every((v, i) => Math.abs(v - fromHex[i]) <= 1),
+    `rgb ${rgb} vs hex ${fromHex}`,
+  );
 });

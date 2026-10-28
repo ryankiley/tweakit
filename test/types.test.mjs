@@ -10,8 +10,25 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("params are typed from the schema", async () => {
-  const args = ["node_modules/typescript/bin/tsc", "--ignoreConfig", "--noEmit", "--strict", "--skipLibCheck", "--target", "ES2020",
-    "--module", "ESNext", "--moduleResolution", "bundler", "--lib", "ES2020,DOM", "test/types/params.ts"];
-  const out = await promisify(execFile)("node", args, { cwd: ROOT }).then(() => "", (e) => String(e.stdout || e.message));
+  const args = [
+    "node_modules/typescript/bin/tsc",
+    "--ignoreConfig",
+    "--noEmit",
+    "--strict",
+    "--skipLibCheck",
+    "--target",
+    "ES2020",
+    "--module",
+    "ESNext",
+    "--moduleResolution",
+    "bundler",
+    "--lib",
+    "ES2020,DOM",
+    "test/types/params.ts",
+  ];
+  const out = await promisify(execFile)("node", args, { cwd: ROOT }).then(
+    () => "",
+    (e) => String(e.stdout || e.message),
+  );
   assert.equal(out.trim(), "");
 });

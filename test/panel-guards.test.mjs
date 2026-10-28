@@ -10,16 +10,27 @@ import { loadSingle, wait, armPresets } from "./_helpers.mjs";
 const { tweaks } = await loadSingle();
 
 test("every field a panel builds is left alone by autofill and password managers", async () => {
-  const p = tweaks("Fields", {
-    owner: { type: "text", value: "Maya" },
-    note: { type: "text", value: "", rows: 3 },
-  }, { persist: "t-fields" });
+  const p = tweaks(
+    "Fields",
+    {
+      owner: { type: "text", value: "Maya" },
+      note: { type: "text", value: "", rows: 3 },
+    },
+    { persist: "t-fields" },
+  );
   document.body.append(p.el);
   try {
     // The presets menu's name field is built in a popover on <body>.
     (await armPresets(p)).click();
-    const fields = [...p.el.querySelectorAll("input, textarea"), ...document.querySelectorAll(".twk-portal input, .twk-portal textarea")];
-    for (const cls of ["twk-text", "twk-textarea", "twk-presets-input"]) assert.ok(fields.some((f) => f.classList.contains(cls)), `a .${cls} was built`);
+    const fields = [
+      ...p.el.querySelectorAll("input, textarea"),
+      ...document.querySelectorAll(".twk-portal input, .twk-portal textarea"),
+    ];
+    for (const cls of ["twk-text", "twk-textarea", "twk-presets-input"])
+      assert.ok(
+        fields.some((f) => f.classList.contains(cls)),
+        `a .${cls} was built`,
+      );
     for (const f of fields) {
       assert.equal(f.getAttribute("autocomplete"), "off", `.${f.className} turns autofill off`);
       assert.ok(f.hasAttribute("data-1p-ignore"), `.${f.className} asks 1Password to leave it`);
@@ -34,9 +45,12 @@ test("every field a panel builds is left alone by autofill and password managers
 test("a press or a click on the panel or its popover never reaches the page", async () => {
   const p = tweaks("Clicks", { a: 1 }, { persist: "t-clicks" });
   document.body.append(p.el);
-  const heard = [], types = ["pointerdown", "pointerup", "click"];
+  const heard = [],
+    types = ["pointerdown", "pointerup", "click"];
   const onPage = (e) => heard.push(e.type);
-  const press = (node) => { for (const t of types) node.dispatchEvent(new window.Event(t, { bubbles: true })); };
+  const press = (node) => {
+    for (const t of types) node.dispatchEvent(new window.Event(t, { bubbles: true }));
+  };
   for (const t of types) document.addEventListener(t, onPage);
   try {
     const presets = await armPresets(p);

@@ -17,7 +17,11 @@ const server = createServer(async (req, res) => {
   const file = path.join(ROOT, decodeURIComponent(new URL(req.url, "http://x").pathname));
   if (!file.startsWith(ROOT)) return res.writeHead(403).end();
   let body;
-  try { body = await readFile(file); } catch { return res.writeHead(404).end(); }
+  try {
+    body = await readFile(file);
+  } catch {
+    return res.writeHead(404).end();
+  }
   res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream" }).end(body);
 }).listen(0, "127.0.0.1");
 await new Promise((r) => server.once("listening", r));
@@ -25,12 +29,19 @@ await new Promise((r) => server.once("listening", r));
 const browser = await chromium.launch();
 try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
-  const errors = []; page.on("pageerror", (e) => errors.push(String(e)));
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(`http://127.0.0.1:${server.address().port}/site/og/card.html`);
   await page.waitForSelector("body[data-ready]", { state: "attached", timeout: 10_000 });
   if (errors.length) throw new Error(`card.html threw: ${errors.join("; ")}`);
   await page.screenshot({ path: OUT });
-} finally { await browser.close(); server.close(); }
+} finally {
+  await browser.close();
+  server.close();
+}
 // oxipng, when it's installed, shaves about a quarter off losslessly
-const squeezed = await promisify(execFile)("oxipng", ["-o", "max", "--strip", "safe", OUT]).then(() => true, () => false);
+const squeezed = await promisify(execFile)("oxipng", ["-o", "max", "--strip", "safe", OUT]).then(
+  () => true,
+  () => false,
+);
 console.log(`og → ${path.relative(ROOT, OUT)}${squeezed ? " (oxipng)" : ""}`);

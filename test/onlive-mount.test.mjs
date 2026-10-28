@@ -14,11 +14,19 @@ const frame = () => new Promise((r) => setTimeout(r, 40));
 
 test("a listener registered before the mount still releases after an unmount with no event in between", async () => {
   const counts = { add: 0, remove: 0 };
-  const add = window.addEventListener.bind(window), remove = window.removeEventListener.bind(window);
-  window.addEventListener = (t, fn, o) => { if (t === "resize") counts.add++; return add(t, fn, o); };
-  window.removeEventListener = (t, fn, o) => { if (t === "resize") counts.remove++; return remove(t, fn, o); };
+  const add = window.addEventListener.bind(window),
+    remove = window.removeEventListener.bind(window);
+  window.addEventListener = (t, fn, o) => {
+    if (t === "resize") counts.add++;
+    return add(t, fn, o);
+  };
+  window.removeEventListener = (t, fn, o) => {
+    if (t === "resize") counts.remove++;
+    return remove(t, fn, o);
+  };
   try {
-    const host = document.createElement("div"); document.body.append(host);
+    const host = document.createElement("div");
+    document.body.append(host);
     const p = tweaks("Slider", { x: [1, 0, 10, 1] }); // the slider registers its resize listener while still detached
     host.append(p.el);
     await frame(); // the mount is noted next frame
@@ -26,7 +34,10 @@ test("a listener registered before the mount still releases after an unmount wit
     window.dispatchEvent(new window.Event("resize"));
     assert.ok(counts.add >= 1, "the slider registered a resize listener");
     assert.equal(counts.remove, counts.add, "every resize listener released on the first event after the unmount");
-  } finally { window.addEventListener = add; window.removeEventListener = remove; }
+  } finally {
+    window.addEventListener = add;
+    window.removeEventListener = remove;
+  }
 });
 
 test("an event before the mount is still skipped, not fatal", async () => {
@@ -43,20 +54,39 @@ test("an event before the mount is still skipped, not fatal", async () => {
 test("a destroy() within a frame of the build still releases the controls' window listeners", async () => {
   // Track the listeners by identity: panels earlier tests destroyed release theirs on these
   // same resize events, which a bare count would mistake for ours.
-  const added = new Set(), removed = new Set();
-  const add = window.addEventListener.bind(window), remove = window.removeEventListener.bind(window);
-  window.addEventListener = (t, fn, o) => { if (t === "resize") added.add(fn); return add(t, fn, o); };
-  window.removeEventListener = (t, fn, o) => { if (t === "resize") removed.add(fn); return remove(t, fn, o); };
+  const added = new Set(),
+    removed = new Set();
+  const add = window.addEventListener.bind(window),
+    remove = window.removeEventListener.bind(window);
+  window.addEventListener = (t, fn, o) => {
+    if (t === "resize") added.add(fn);
+    return add(t, fn, o);
+  };
+  window.removeEventListener = (t, fn, o) => {
+    if (t === "resize") removed.add(fn);
+    return remove(t, fn, o);
+  };
   const leftover = () => [...added].filter((fn) => !removed.has(fn)).length;
   try {
-    const p = tweaks("R6D", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+    const p = tweaks("R6D", {
+      x: [1, 0, 10, 1],
+      s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } },
+    });
     document.body.append(p.el);
     p.destroy(); // same frame: onLive never saw the panel connected
-    window.dispatchEvent(new window.Event("resize")); window.dispatchEvent(new window.Event("resize"));
-    assert.ok(added.size >= 2); assert.equal(leftover(), 0, "every control listener released on the first event after the destroy");
-    const host = document.createElement("div"); document.body.append(host);
-    const m = mountControl(host, [1, 0, 10, 1]); await m.ready;
-    m.destroy(); window.dispatchEvent(new window.Event("resize"));
+    window.dispatchEvent(new window.Event("resize"));
+    window.dispatchEvent(new window.Event("resize"));
+    assert.ok(added.size >= 2);
+    assert.equal(leftover(), 0, "every control listener released on the first event after the destroy");
+    const host = document.createElement("div");
+    document.body.append(host);
+    const m = mountControl(host, [1, 0, 10, 1]);
+    await m.ready;
+    m.destroy();
+    window.dispatchEvent(new window.Event("resize"));
     assert.equal(leftover(), 0, "the standalone control's listener released too");
-  } finally { window.addEventListener = add; window.removeEventListener = remove; }
+  } finally {
+    window.addEventListener = add;
+    window.removeEventListener = remove;
+  }
 });

@@ -23,19 +23,27 @@ test("every docs page shows the package version, linked to its release notes", a
   for (const f of htmlPages) {
     const html = await read(`dist/${f}`);
     assert.ok(!html.includes("{{version}}"), `${f}: unfilled version token`);
-    assert.ok(html.includes(`href="https://github.com/ryankiley/tweakit/releases/tag/v${version}"`), `${f}: no link to the v${version} release`);
+    assert.ok(
+      html.includes(`href="https://github.com/ryankiley/tweakit/releases/tag/v${version}"`),
+      `${f}: no link to the v${version} release`,
+    );
     assert.ok(html.includes(`>v${version}</a>`), `${f}: version not shown`);
   }
 });
 
 test("every docs page that runs the kit preloads every split file; a page that doesn't, preloads none", async () => {
-  assert.ok(chunks.includes("core.js") && chunks.length > 5, `a code-split build in dist/tweaks (${chunks.length} files)`);
+  assert.ok(
+    chunks.includes("core.js") && chunks.length > 5,
+    `a code-split build in dist/tweaks (${chunks.length} files)`,
+  );
   let scripted = 0;
   for (const file of htmlPages) {
     const html = await read(`dist/${file}`);
     const preloads = [...html.matchAll(/<link rel="modulepreload" href="\.\/tweaks\/([^"]+)" \/>/g)].map((m) => m[1]);
-    if (html.includes('<script type="module">')) { scripted++; assert.deepEqual(preloads.sort(), [...chunks].sort(), `${file}: preloads the whole build`); }
-    else assert.deepEqual(preloads, [], `${file}: nothing to preload`);
+    if (html.includes('<script type="module">')) {
+      scripted++;
+      assert.deepEqual(preloads.sort(), [...chunks].sort(), `${file}: preloads the whole build`);
+    } else assert.deepEqual(preloads, [], `${file}: nothing to preload`);
     assert.ok(!html.includes("{{preload}}"), `${file}: the preload slot was filled`);
   }
   assert.ok(scripted > 0, "at least one page runs the kit");
@@ -56,7 +64,10 @@ test("docs prose has no em or en dashes outside a numeric range and the empty ta
       offenders.push(`${file}:${i + 1}: ${text.length > 120 ? text.slice(Math.max(0, at - 50), at + 70) : text}`);
     });
   }
-  assert.ok(offenders.length === 0, `em or en dash in docs prose (write a colon, semicolon, comma or period instead):\n  ${offenders.join("\n  ")}`);
+  assert.ok(
+    offenders.length === 0,
+    `em or en dash in docs prose (write a colon, semicolon, comma or period instead):\n  ${offenders.join("\n  ")}`,
+  );
 });
 
 // The statement declaring `name`, from `const` to its semicolon, however it wraps.

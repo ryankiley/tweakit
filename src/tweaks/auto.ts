@@ -6,7 +6,9 @@ export * from "./core.js";
 
 // A page with nothing to bind doesn't fetch the markup chunk: no [data-twk] host, and no static showcase panel (enhance() wraps one).
 if (typeof document !== "undefined") {
-  const run = () => { if (document.querySelector('[data-twk], .twk-panel[data-mode="inline"] > .twk-controls')) enhance(document); };
+  const run = () => {
+    if (document.querySelector('[data-twk], .twk-panel[data-mode="inline"] > .twk-controls')) enhance(document);
+  };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
   else run();
 }

@@ -13,11 +13,17 @@ const click = (el) => el.dispatchEvent(new window.MouseEvent("click", { bubbles:
 
 test("a destroy() from a listener mid-replay drops the rest of the queue and arms no save", async () => {
   localStorage.clear();
-  const p = tweaks("D", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } }, { persist: "lwh-destroy" });
+  const p = tweaks(
+    "D",
+    { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } },
+    { persist: "lwh-destroy" },
+  );
   document.body.append(p.el);
   p.on(() => p.destroy());
-  p.set("x", 3); p.set("x", 5);
-  await p.ready; await tick(250);
+  p.set("x", 3);
+  p.set("x", 5);
+  await p.ready;
+  await tick(250);
   assert.equal(p.params.x, 3, "the write behind the destroying listener never applied");
   assert.equal(localStorage.getItem("tw:lwh-destroy"), null, "no persist write landed after destroy()");
 });
@@ -36,22 +42,52 @@ test("a key that can't stringify throws at the call; the panel still becomes rea
 test("a queued call that throws costs only itself", async () => {
   // A throwing opts.onReset inside a queued reset() used to throw out of the replay: ready
   // rejected, the writes behind it were lost, and the toolbar stayed disabled for good.
-  const errors = []; const err = console.error; console.error = (...a) => errors.push(String(a[0]));
+  const errors = [];
+  const err = console.error;
+  console.error = (...a) => errors.push(String(a[0]));
   try {
-    const p = tweaks("T", { x: [1, 0, 10, 1], pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } }, { onReset: () => { throw new Error("onReset boom"); } });
+    const p = tweaks(
+      "T",
+      {
+        x: [1, 0, 10, 1],
+        pt: {
+          type: "point",
+          components: [
+            { key: "x", value: 0 },
+            { key: "y", value: 0 },
+          ],
+        },
+      },
+      {
+        onReset: () => {
+          throw new Error("onReset boom");
+        },
+      },
+    );
     document.body.append(p.el);
-    p.set("x", 5); p.reset(); p.set("x", 7);
+    p.set("x", 5);
+    p.reset();
+    p.set("x", 7);
     await p.ready;
     assert.equal(p.params.x, 7, "the write behind the throwing reset still applied");
     assert.equal(p.el.querySelector(".twk-toolbar-btn--reset").disabled, false, "the toolbar came live");
-    assert.ok(errors.some((m) => m.includes("queued before ready failed")), "the throw was reported");
+    assert.ok(
+      errors.some((m) => m.includes("queued before ready failed")),
+      "the throw was reported",
+    );
     p.destroy();
-  } finally { console.error = err; }
+  } finally {
+    console.error = err;
+  }
 });
 
 test("the disabled presets trigger stays inert to a synthetic click before ready", async () => {
   localStorage.clear();
-  const p = tweaks("I", { x: [1, 0, 10, 1], r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 } }, { persist: "lwh-inert" });
+  const p = tweaks(
+    "I",
+    { x: [1, 0, 10, 1], r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 } },
+    { persist: "lwh-inert" },
+  );
   document.body.append(p.el);
   const presets = p.el.querySelector('[aria-label="Presets"]');
   assert.ok(presets.disabled);
@@ -60,18 +96,27 @@ test("the disabled presets trigger stays inert to a synthetic click before ready
   assert.equal(presets.getAttribute("aria-expanded"), "false");
   assert.equal(document.querySelector("body > .twk-presets-menu.is-open"), null, "no menu opened on the unbuilt panel");
   await p.ready;
-  click(presets); await tick(30);
+  click(presets);
+  await tick(30);
   assert.ok(document.querySelector("body > .twk-presets-menu"), "after ready the same click opens it");
   p.destroy();
 });
 
 test("the undo keys release after a mount-then-unmount with no event while connected", async () => {
   const counts = { add: 0, remove: 0 };
-  const add = document.addEventListener.bind(document), remove = document.removeEventListener.bind(document);
-  document.addEventListener = (t, fn, o) => { if (t === "keydown") counts.add++; return add(t, fn, o); };
-  document.removeEventListener = (t, fn, o) => { if (t === "keydown") counts.remove++; return remove(t, fn, o); };
+  const add = document.addEventListener.bind(document),
+    remove = document.removeEventListener.bind(document);
+  document.addEventListener = (t, fn, o) => {
+    if (t === "keydown") counts.add++;
+    return add(t, fn, o);
+  };
+  document.removeEventListener = (t, fn, o) => {
+    if (t === "keydown") counts.remove++;
+    return remove(t, fn, o);
+  };
   try {
-    const host = document.createElement("div"); document.body.append(host);
+    const host = document.createElement("div");
+    document.body.append(host);
     const p = tweaks("U", { x: [1, 0, 10, 1], pl: { type: "plot", expr: "x" } }, { undo: true });
     host.append(p.el); // mounted before ready, as a host normally does
     await p.ready;
@@ -79,7 +124,10 @@ test("the undo keys release after a mount-then-unmount with no event while conne
     document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "z", metaKey: true, bubbles: true }));
     assert.equal(counts.add, 1, "the undo listener was registered once");
     assert.equal(counts.remove, 1, "and released on the first keydown after the panel left the document");
-  } finally { document.addEventListener = add; document.removeEventListener = remove; }
+  } finally {
+    document.addEventListener = add;
+    document.removeEventListener = remove;
+  }
 });
 
 test("a chunk that fails to load leaves the API inert instead of a silent sink", async () => {
@@ -92,17 +140,26 @@ test("a chunk that fails to load leaves the API inert instead of a silent sink",
   await cp(new URL("../dist/tweaks/", import.meta.url), dir, { recursive: true });
   for (const f of await readdir(dir)) if (/^color-.*\.js$/.test(f)) await rm(path.join(dir, f));
   const { tweaks: broken } = await import(path.join(dir, "core.js"));
-  const errors = []; const err = console.error; console.error = (...a) => errors.push(a);
+  const errors = [];
+  const err = console.error;
+  console.error = (...a) => errors.push(a);
   try {
     const p = broken("Broken", { x: [1, 0, 10, 1], c: "#7c5cff" }, { persist: "lwh-broken" });
     document.body.append(p.el);
     p.set("x", 5);
     await assert.rejects(p.ready);
     assert.equal(p.savePreset("ghost"), false, "a save after the failure is refused, not pretended");
-    p.set("x", 6); p.set("x", 7);
+    p.set("x", 6);
+    p.set("x", 7);
     assert.equal(p.params.x, undefined, "nothing applied and nothing queued");
     assert.equal(p.el.querySelector(".twk-toolbar-btn--reset").disabled, true, "the toolbar stays inert");
-    assert.ok(errors.some((a) => String(a[0]).includes("failed to load")), "the failure is reported once on the console");
+    assert.ok(
+      errors.some((a) => String(a[0]).includes("failed to load")),
+      "the failure is reported once on the console",
+    );
     p.destroy();
-  } finally { console.error = err; await rm(dir, { recursive: true, force: true }); }
+  } finally {
+    console.error = err;
+    await rm(dir, { recursive: true, force: true });
+  }
 });

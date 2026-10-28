@@ -10,8 +10,12 @@ const { tweaks, enhance } = await loadSingle();
 const mount = mounter(tweaks, "U");
 
 test("slider: the readout and aria-valuetext carry the unit; the param, the inline editor and the emitted value do not", async () => {
-  const p = await mount({ blur: { type: "slider", value: 24, min: 0, max: 100, step: 1, unit: "px" }, plain: [3, 0, 10, 1] });
-  const track = p.el.querySelector(".twk-slider"), readout = track.querySelector(".twk-slider-value");
+  const p = await mount({
+    blur: { type: "slider", value: 24, min: 0, max: 100, step: 1, unit: "px" },
+    plain: [3, 0, 10, 1],
+  });
+  const track = p.el.querySelector(".twk-slider"),
+    readout = track.querySelector(".twk-slider-value");
   assert.equal(readout.textContent, "24 px");
   assert.equal(readout.querySelector(".twk-slider-unit").textContent, " px", "the unit is its own muted span");
   assert.equal(track.getAttribute("aria-valuetext"), "24 px");
@@ -26,7 +30,11 @@ test("slider: the readout and aria-valuetext carry the unit; the param, the inli
 });
 
 test("number: the field shows the unit and its accessible name names it; a bad unit is dropped", async () => {
-  const p = await mount({ delay: { type: "number", value: 300, unit: "ms" }, odd: { type: "number", value: 1, unit: 42 }, long: { type: "number", value: 1, unit: "  kilometers per hour  " } });
+  const p = await mount({
+    delay: { type: "number", value: 300, unit: "ms" },
+    odd: { type: "number", value: 1, unit: 42 },
+    long: { type: "number", value: 1, unit: "  kilometers per hour  " },
+  });
   const [delay, odd, long] = [...p.el.querySelectorAll(".twk-num-wrap")];
   assert.equal(delay.querySelector(".twk-num-unit").textContent, "ms");
   assert.equal(delay.querySelector(".twk-num").getAttribute("aria-label"), "Delay (ms)");
@@ -47,9 +55,16 @@ test("markup: data-unit on a slider and a number", async () => {
 });
 
 test("% and ° close up against the number; other units take a space", async () => {
-  const p = tweaks("U", { a: { type: "slider", value: 50, min: 0, max: 100, unit: "%" }, b: { type: "slider", value: 90, min: 0, max: 360, unit: "°" }, c: { type: "slider", value: 24, min: 0, max: 60, unit: "px" } });
-  document.body.append(p.el); await p.ready;
-  const vals = [...p.el.querySelectorAll(".twk-slider-value")].map((e) => e.textContent), texts = [...p.el.querySelectorAll('[role="slider"]')].map((e) => e.getAttribute("aria-valuetext"));
-  assert.deepEqual(vals, ["50%", "90°", "24 px"]); assert.deepEqual(texts, ["50%", "90°", "24 px"]);
+  const p = tweaks("U", {
+    a: { type: "slider", value: 50, min: 0, max: 100, unit: "%" },
+    b: { type: "slider", value: 90, min: 0, max: 360, unit: "°" },
+    c: { type: "slider", value: 24, min: 0, max: 60, unit: "px" },
+  });
+  document.body.append(p.el);
+  await p.ready;
+  const vals = [...p.el.querySelectorAll(".twk-slider-value")].map((e) => e.textContent),
+    texts = [...p.el.querySelectorAll('[role="slider"]')].map((e) => e.getAttribute("aria-valuetext"));
+  assert.deepEqual(vals, ["50%", "90°", "24 px"]);
+  assert.deepEqual(texts, ["50%", "90°", "24 px"]);
   p.destroy();
 });
