@@ -252,6 +252,7 @@ test("a pane drags by its edge and keeps that offset while open; a press on its 
   const trigger = p.el.querySelector(".twk-color .twk-trigger");
   let r = rect(100);
   trigger.getBoundingClientRect = () => r;
+  // an open pane's frame watchdog would keep a failed run alive
   try {
     trigger.click();
     await wait(60);
@@ -287,7 +288,7 @@ test("a pane drags by its edge and keeps that offset while open; a press on its 
     assert.deepEqual(at(), ["50px", "138px"], "the next open is under the row again");
   } finally {
     p.destroy();
-  } // an open pane's frame watchdog would keep a failed run alive
+  }
 });
 
 test("Escape hands focus back to the row as the pane was opened: quietly after a click, ringed after a key", async () => {

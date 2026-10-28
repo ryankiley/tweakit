@@ -49,7 +49,8 @@ const curveOf = (c: unknown): Curve | null => {
 };
 const springKeys = (v: MotionInput) =>
   has(v.stiffness) || has(v.damping) || has(v.mass) || has(v.visualDuration) || has(v.bounce);
-// Physics keys map to the visualDuration + bounce Motion would resolve to them (timeFromSpring). An explicit duration/bounce wins.
+// Physics keys map to the visualDuration + bounce Motion would resolve to them (timeFromSpring). An explicit
+// duration/bounce wins.
 const springTime = (v: MotionInput) => {
   const out: { mode: "time"; visualDuration?: number; bounce?: number } = { mode: "time" };
   if (has(v.stiffness)) {
@@ -294,10 +295,11 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
     if (!inp) return;
     mode = modeOf(inp, mode);
     const c = curveOf(inp.curve);
+    // read back fitted
     if (c) {
       bezier.set(c.slice());
       curve = bezier.get() as Curve;
-    } // read back fitted
+    }
     // read back snapped
     if (mode === "easing" && has(inp.duration)) {
       durFld.set(clamp(+inp.duration!, 0, DUR_MAX));

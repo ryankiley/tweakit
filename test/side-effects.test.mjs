@@ -1,8 +1,9 @@
 /* package.json's sideEffects lets a bundler drop an unused import of the kit whole, so it must name every file whose
- * import does something: the stylesheet, the auto entry, every hashed chunk of the split build (a lazy control registers
- * itself, and esbuild emits bare imports between chunks to keep their order), and src/, which the kit's own build bundles
- * under this same package.json (without it the single-file build silently loses every control single.ts imports for
- * effect). Only the two entries, core.js and tweaks.js, are left out: their registrations run whenever an export is used.
+ * import does something: the stylesheet, the auto entry, every hashed chunk of the split build (a lazy control
+ * registers itself, and esbuild emits bare imports between chunks to keep their order), and src/, which the kit's own
+ * build bundles under this same package.json (without it the single-file build silently loses every control single.ts
+ * imports for effect). Only the two entries, core.js and tweaks.js, are left out: their registrations run whenever an
+ * export is used.
  * Then a consumer bundled by esbuild, which honors the field, still builds every control. */
 import test from "node:test";
 import assert from "node:assert/strict";

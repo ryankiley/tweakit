@@ -9,15 +9,15 @@ import type { Control } from "../types.js";
 function createBezier(meta: Meta, onChange: OnChange): Control {
   const tr = words();
   const DEF = [0.25, 0.1, 0.25, 1];
-  // x must stay 0–1 for a valid cubic-bezier(); y may be anything in CSS, and −1–2 holds the overshoot curves people reach
-  // for (easeOutBack's 1.56, easeInOutBack's −0.6 and 1.6), which a −0.25–1.25 clamp flattened without a word.
+  // x must stay 0–1 for a valid cubic-bezier(); y may be anything in CSS, and −1–2 holds the overshoot curves people
+  // reach for (easeOutBack's 1.56, easeInOutBack's −0.6 and 1.6), which a −0.25–1.25 clamp flattened without a word.
   const YMIN = -1,
     YMAX = 2,
     PAD = 8;
   // Fit on build as well as in set(), so an authored [1.5, 0, -0.2, 1] can't reach get() as an invalid cubic-bezier().
   const fit = (m: number[]) => m.map((n, i) => clamp(n, i % 2 ? YMIN : 0, i % 2 ? YMAX : 1));
-  // The drawn y range: −0.25–1.25, grown to fit the handles. A drag holds it still, so the curve doesn't slide under the
-  // pointer, and the graph fits again when the drag ends.
+  // The drawn y range: −0.25–1.25, grown to fit the handles. A drag holds it still, so the curve doesn't slide under
+  // the pointer, and the graph fits again when the drag ends.
   let view = [-0.25, 1.25],
     held = false;
   const fitView = () => {
@@ -64,7 +64,8 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   };
   // The curve and handles only; the fields update separately, so a field edit doesn't re-set itself.
   const drawGraph = () => {
-    // No ARIA role fits a 2D point, so the labels carry the coordinates; set before the size guard for hidden tab pages.
+    // No ARIA role fits a 2D point, so the labels carry the coordinates; set before the size guard for hidden tab
+    // pages.
     h1.setAttribute("aria-label", tr("controlPointAt", "Control point {n}, x {x}, y {y}", { n: 1, x: v[0], y: v[1] }));
     h2.setAttribute("aria-label", tr("controlPointAt", "Control point {n}, x {x}, y {y}", { n: 2, x: v[2], y: v[3] }));
     // Layout px, not getBoundingClientRect: under an ancestor CSS scale the rect sat the handles off the curve.
@@ -117,7 +118,8 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
       gh = 0,
       scale = 1;
     dragGesture(handle, {
-      // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px); preventDefault killed click-to-focus.
+      // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px); preventDefault killed
+      // click-to-focus.
       onDown: (e) => {
         e.preventDefault();
         rect = graph.getBoundingClientRect();
@@ -146,7 +148,8 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
         drawGraph();
       },
     });
-    // Keyboard: arrows nudge by 0.01 (⇧ = 0.1) on the drag's clamps and grid, Home restores the default, Escape drops focus.
+    // Keyboard: arrows nudge by 0.01 (⇧ = 0.1) on the drag's clamps and grid, Home restores the default, Escape drops
+    // focus.
     handle.addEventListener("keydown", (e) => {
       if (e.key === "Escape") return handle.blur();
       if (e.key === "Home") {

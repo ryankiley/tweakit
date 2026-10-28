@@ -1,4 +1,5 @@
-/* opts.shadow — dresses a panel tweaks() built in a shadow root: the kit's stylesheet in it, a second host on <body> whose
+/* opts.shadow — dresses a panel tweaks() built in a shadow root: the kit's stylesheet in it, a second host on <body>
+ * whose
  * root takes its portals (a pane, a hint, the drag guide), and the page's scheme pin and tokens carried across both
  * boundaries. Its own chunk, loaded only by a shadow panel. */
 import { el, carryScheme, requestReflow } from "./shared.js";
@@ -72,8 +73,9 @@ const pageKit = () => {
   }
   return kitSheet;
 };
-// tweaks.css in a root: the page's copy when it has one, else a <link> to `href`, by default the file beside this module
-// (dist/tweaks.css). A bundler that rewrites `new URL(…, import.meta.url)` copies it as an asset; `shadow: { href }` else.
+// tweaks.css in a root: the page's copy when it has one, else a <link> to `href`, by default the file beside this
+// module (dist/tweaks.css). A bundler that rewrites `new URL(…, import.meta.url)` copies it as an asset;
+// `shadow: { href }` else.
 const styled = (root: ShadowRoot, href: string, done?: () => void) => {
   const kit = pageKit();
   if (kit) {
@@ -137,9 +139,9 @@ export const dress = (host: Host, panel: HTMLElement, opt: boolean | { href?: st
       return portals;
     },
   });
-  // A portal's tokens: the panel's own, which page CSS may have set on the host, written on its root's host each time one
-  // opens (carrySkin), so a pane matches its panel; what the panel no longer has goes too. The panel's theme is carried
-  // per portal as before.
+  // A portal's tokens: the panel's own, which page CSS may have set on the host, written on its root's host each time
+  // one opens (carrySkin), so a pane matches its panel; what the panel no longer has goes too. The panel's theme is
+  // carried per portal as before.
   host._twSync = () => {
     const cs = getComputedStyle(panel),
       s = portalHost.style;
@@ -149,7 +151,8 @@ export const dress = (host: Host, panel: HTMLElement, opt: boolean | { href?: st
       if (k.startsWith("--twk-")) s.setProperty(k, cs.getPropertyValue(k));
     }
   };
-  // The scheme pin on the host or an ancestor can't reach in: mirror it onto the panel, and keep it as the page changes.
+  // The scheme pin on the host or an ancestor can't reach in: mirror it onto the panel, and keep it as the page
+  // changes.
   // A lifted panel reads it at the slot it left, as a light one carries it on the lift.
   const pin = () => carryScheme(panel, host._twSlot || host);
   const obs = typeof MutationObserver === "function" ? new MutationObserver(pin) : null;

@@ -2,7 +2,8 @@
  * panel you get back. These are what ship as .d.ts, so consumers get autocomplete on
  * the schema shorthands + the verbose control forms + the panel methods. */
 
-/** An option for a select / radio grid: a bare string or number, or `{ value, label }`; the param is the value as written. */
+/** An option for a select / radio grid: a bare string or number, or `{ value, label }`; the param is the value as
+ * written. */
 // color: any CSS color, shown as a swatch beside a dropdown option (and the chosen one on the row)
 export type Option = string | number | { value: string | number; label?: string; color?: string };
 
@@ -237,23 +238,27 @@ export type SchemaObject =
       type: "image";
       value?: string;
       /** Supplied images to pick from, as URLs or `{ value, label }`. The control becomes a row naming the chosen
-       *  image that opens a pane of tiles with the upload below them, and the param is the chosen URL or the upload's data URL. */
+       *  image that opens a pane of tiles with the upload below them, and the param is the chosen URL or the upload's
+       *  data URL. */
       options?: ReadonlyArray<string | { value: string; label?: string }>;
-      /** Tiles per row in the gallery, 1 to 6 (by default one per option for two or three, 2 for one or four, then 3). */
+      /** Tiles per row in the gallery, 1 to 6 (by default one per option for two or three, 2 for one or four, then
+       * 3). */
       cols?: number;
       /** The largest upload taken, in bytes (10 MB unless set); a bigger file is refused with a note. */
       maxSize?: number;
       /** An upload longer than this on its long side, in px, is drawn down to it before it becomes the param, and one
-       *  heavier than 1.5 MB is redrawn at its size, so a phone photo can't fill storage (2560 unless set; `false` takes
-       *  uploads as they are). A JPEG comes out as a JPEG at
-       *  `quality`; anything else as a PNG when that is 1.5 MB or less (a screenshot, not a photo), else as a JPEG, or a WebP
-       *  when it has transparency. A GIF, an SVG, an animated WebP or APNG, a light picture within `fit`, or one the redraw wouldn't make smaller is kept as it is. */
+       *  heavier than 1.5 MB is redrawn at its size, so a phone photo can't fill storage (2560 unless set; `false`
+       *  takes uploads as they are). A JPEG comes out as a JPEG at
+       *  `quality`; anything else as a PNG when that is 1.5 MB or less (a screenshot, not a photo), else as a JPEG, or
+       *  a WebP when it has transparency. A GIF, an SVG, an animated WebP or APNG, a light picture within `fit`, or one
+       *  the redraw wouldn't make smaller is kept as it is. */
       fit?: number | false;
       /** The JPEG or WebP quality of a shrunk upload, 0 to 1 (0.85 unless set). */
       quality?: number;
       /** `false` leaves the upload button out of a gallery: the options are the whole choice. */
       upload?: boolean;
-      /** `false` leaves Clear out of a gallery, and Delete no longer empties it: for a choice that must keep a value. */
+      /** `false` leaves Clear out of a gallery, and Delete no longer empties it: for a choice that must keep a
+       * value. */
       clear?: boolean;
     }
   | { type: "button"; action: () => void; label?: string }
@@ -263,7 +268,8 @@ export type SchemaObject =
 
 /** A schema value — a shorthand, a verbose `{ type }` object, or a nested folder. */
 export type SchemaValue = SchemaValueOf<SchemaNest>;
-// `F` is the nested-folder branch: strict for a schema annotated `Schema`, loose for what tweaks() infers from (HeldSchema).
+// `F` is the nested-folder branch: strict for a schema annotated `Schema`, loose for what tweaks() infers from
+// (HeldSchema).
 type SchemaValueOf<F> =
   // bare number → slider (0–1 for a value ≤ 1, else 0–3×value; a negative spans that either side of zero)
   | number
@@ -292,8 +298,8 @@ type SchemaValueOf<F> =
 export interface Schema {
   readonly [key: string]: SchemaValue;
 }
-// A folder's string `type` names a control (a known name with none of its fields is still a folder), so a name no control
-// has can't pass as a folder: `const s: Schema = { a: { type: "slidr", value: 1 } }` compiled that way.
+// A folder's string `type` names a control (a known name with none of its fields is still a folder), so a name no
+// control has can't pass as a folder: `const s: Schema = { a: { type: "slidr", value: 1 } }` compiled that way.
 type SchemaNest = Schema & { readonly type?: SchemaObject["type"] | Exclude<SchemaValue, string> };
 /** What tweaks() and mountControl() infer from: `Schema` with a folder's `type` left open, since a schema held in a
  *  variable widens a verbose form's `type` to `string`; their own check then rules on the names it can still see. */
@@ -538,12 +544,12 @@ type Entries<S, Nested extends boolean> = string extends keyof S
 export type ParamsOf<S> = Entries<S, false>;
 
 // ── Type names checked at the call ──
-// Schema's folder branch takes any object, so `{ type: "slidr", value: 1 }` fit it and compiled. tweaks() and mountControl()
-// intersect their argument with these, which keep a known name, a widened `string` (a schema held in a variable: the
-// runtime decides), and every shorthand as they are, and turn an unknown name into the list of known ones, so it fails
-// right where it's written. A known name without its hinge field is a folder at runtime and isn't checked further; with it,
-// or for a name with no hinge, the runtime builds that control, so its fields must fit the form: `{ type: "image",
-// options: [1] }` read as a folder of a text and a slider otherwise, and compiled.
+// Schema's folder branch takes any object, so `{ type: "slidr", value: 1 }` fit it and compiled. tweaks() and
+// mountControl() intersect their argument with these, which keep a known name, a widened `string` (a schema held in a
+// variable: the runtime decides), and every shorthand as they are, and turn an unknown name into the list of known
+// ones, so it fails right where it's written. A known name without its hinge field is a folder at runtime and isn't
+// checked further; with it, or for a name with no hinge, the runtime builds that control, so its fields must fit the
+// form: `{ type: "image", options: [1] }` read as a folder of a text and a slider otherwise, and compiled.
 type CheckValue<V> = V extends { readonly type: infer T }
   ? string extends T
     ? V
@@ -564,8 +570,8 @@ type CheckValue<V> = V extends { readonly type: infer T }
 // The verbose form a known name builds (an alias finds the member that lists it), and V held to it when it doesn't fit.
 type FormOf<O, T> = O extends { readonly type: infer N } ? (T extends N ? O & ControlOptions : never) : never;
 type FitsForm<V, T> = V extends FormOf<SchemaObject, T> ? unknown : FormOf<SchemaObject, T>;
-// A brand, not the list of names: a literal intersected with the list collapses the whole entry to `never`, and the error
-// read "not assignable to type 'never'" on every key. The brand keeps the entry and puts its text in the error.
+// A brand, not the list of names: a literal intersected with the list collapses the whole entry to `never`, and the
+// error read "not assignable to type 'never'" on every key. The brand keeps the entry and puts its text in the error.
 type NotAControlType = { readonly "names no control: see the type list in AGENTS.md": true };
 /** A schema whose every `type` names a control (`tweaks()` checks it; `{ type: "slidr" }` is an error). */
 export type KnownTypes<S> = { [K in keyof S]: CheckValue<S[K]> };
@@ -580,7 +586,8 @@ export type KnownType<V> = CheckValue<V>;
 export interface Theme {
   /** Brand accent — slider fills, focus rings, active highlights (default: neutral, no accent). */
   "--twk-accent"?: string;
-  /** Text drawn on the accent (active segment / radio label); the primary text tone unless set, so set it with a light accent. */
+  /** Text drawn on the accent (active segment / radio label); the primary text tone unless set, so set it with a light
+   * accent. */
   "--twk-on-accent"?: string;
   /** Panel background, reused for recessed wells. */
   "--twk-base"?: string;
@@ -595,7 +602,8 @@ export interface Theme {
   "--twk-border-hover"?: string;
   /** Text-selection highlight wash. */
   "--twk-selection"?: string;
-  /** Text tones — panel title, section heading, primary value text, control label, and the muted / faint / focus tones. */
+  /** Text tones — panel title, section heading, primary value text, control label, and the muted / faint / focus
+   * tones. */
   "--twk-text-root"?: string;
   "--twk-text-section"?: string;
   "--twk-text-primary"?: string;
@@ -788,8 +796,9 @@ export interface TweaksOptions {
   /** Custom reset handler (e.g. restore real app defaults + rebuild). */
   onReset?: () => void;
   /** Mount the panel in a shadow root, so page CSS can't restyle it (`#app button { … }`, a `.prose` wrapper). `el` is
-   *  then its host, a `<twk-host>`: theme it with `--twk-*` on the host itself (`.twk-host { … }`), or with `theme`. The styles come from the page's
-   *  `tweakit/css` when that's loaded, else from `href` (by default `tweaks.css` beside the module). */
+   *  then its host, a `<twk-host>`: theme it with `--twk-*` on the host itself (`.twk-host { … }`), or with `theme`.
+   *  The styles come from the page's `tweakit/css` when that's loaded, else from `href` (by default `tweaks.css` beside
+   *  the module). */
   shadow?: boolean | { href?: string };
   /** The words the panel and its controls show and say, over the English defaults: translate them, or rename the chrome
    *  (`{ presets: "Looks" }`). A key left out keeps its default. */
@@ -806,8 +815,8 @@ export interface EnhanceOptions {
 export type Params = Record<string, any>;
 /** The keys `set()` and `setMany()` take: a typed panel's controls by dotted path (`size`, `card.size`), so a typo is a
  *  compile error; any string for a panel built from a plain `Schema`. An object-valued control's own fields read as
- *  paths too (`drop.blur`): the types can't tell its value from a folder, so they allow what the runtime refuses. Past ten
- *  folders deep the rest of a path is any string, since spelling every one out overran tsc's depth limit. */
+ *  paths too (`drop.blur`): the types can't tell its value from a folder, so they allow what the runtime refuses. Past
+ *  ten folders deep the rest of a path is any string, since spelling every one out overran tsc's depth limit. */
 export type PanelPath<P> = PathsOf<P, []>;
 type PathsOf<P, D extends unknown[]> = string extends keyof P
   ? string
@@ -855,7 +864,8 @@ export interface Panel<P = any> {
   /** Resolves once any lazily-loaded controls have hydrated and, for a panel that persists an image control, its
    *  stored images have loaded (resolves immediately when there's neither). */
   ready: Promise<Panel<P>>;
-  /** Subscribe to changes; `last` is the changed control's dotted path (`size`, `card.size`), as `set()` and `changes()`
+  /** Subscribe to changes; `last` is the changed control's dotted path (`size`, `card.size`), as `set()` and
+   * `changes()`
    *  name it, or undefined when many changed at once (a restore, `reset()`, `fromJSON`, `setMany`). */
   on(fn: (params: P, last?: string) => void): () => void;
   /** Set a control's value programmatically. Nested controls take a dotted path
@@ -893,7 +903,8 @@ export interface Panel<P = any> {
    *  with stays its storage key (`persist: true`), so saved values and presets keep their
    *  home across a rename. */
   setName(name: string): void;
-  /** Save the current values as a named preset (needs `opts.persist`). False when there is nowhere to save it, or storage refused it. */
+  /** Save the current values as a named preset (needs `opts.persist`). False when there is nowhere to save it, or
+   * storage refused it. */
   savePreset(name: string): boolean;
   /** Load a named preset. */
   loadPreset(name: string): boolean;
@@ -904,7 +915,8 @@ export interface Panel<P = any> {
   /** Undo / redo (need `opts.undo`). */
   undo(): void;
   redo(): void;
-  /** Tear the panel down — remove it from the DOM, release every global listener, close any open popover; the API goes inert. */
+  /** Tear the panel down — remove it from the DOM, release every global listener, close any open popover; the API goes
+   * inert. */
   destroy(): void;
 }
 

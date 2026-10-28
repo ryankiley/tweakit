@@ -105,7 +105,8 @@ test("gradient normalizes its value: default pair, clamped positions, tuple stop
   assert.deepEqual(pos, [0, 1]); // out-of-range positions clamp into [0,1]
 });
 
-// IndexedDB in memory (on globalThis, where the bundle looks): an uploaded image persists there, and storage holds its ref.
+// IndexedDB in memory (on globalThis, where the bundle looks): an uploaded image persists there, and storage holds its
+// ref.
 Object.assign(globalThis, { indexedDB: fakeIDB, IDBKeyRange: FakeKeyRange });
 const records = () =>
   new Promise((done) => {
@@ -170,8 +171,8 @@ test("a ref whose record is gone leaves the image at its schema value", async ()
   p.destroy();
 });
 
-// Two tabs on one key: the tab without the upload saved, pruned the record it had never seen, and the tab that saved last
-// with the image still held its ref, so the reload came back empty.
+// Two tabs on one key: the tab without the upload saved, pruned the record it had never seen, and the tab that saved
+// last with the image still held its ref, so the reload came back empty.
 test("a save prunes only the records its own panel knows, so another tab's upload survives it", async () => {
   const S = { x: [1, 0, 10, 1], im: { type: "image" } },
     img = "data:image/gif;base64," + "C".repeat(2048);
@@ -192,8 +193,8 @@ test("a save prunes only the records its own panel knows, so another tab's uploa
   c.destroy();
 });
 
-// A persisted image made the panel wait for IndexedDB before building, so on the single build every value read undefined
-// until ready, not only the image.
+// A persisted image made the panel wait for IndexedDB before building, so on the single build every value read
+// undefined until ready, not only the image.
 test("a persisted image doesn't hold up the rest: the single build restores every other value at once", async () => {
   const S = { x: [1, 0, 10, 1], im: { type: "image" } },
     img = "data:image/gif;base64," + "D".repeat(2048);
@@ -255,7 +256,8 @@ test("an image the person picked and cleared while the store loaded stays cleare
   b.destroy();
 });
 
-// The same for an image a preset names that this panel fetches: a write meanwhile, even back to the value it held, wins.
+// The same for an image a preset names that this panel fetches: a write meanwhile, even back to the value it held,
+// wins.
 test("a write made while a preset's image is fetched wins over the image", async () => {
   const S = { im: { type: "image", options: ["/a.png"] } },
     one = "data:image/gif;base64," + "G".repeat(2048);
@@ -304,8 +306,9 @@ test("an image IndexedDB refuses saves inline instead, and a preset holding its 
   }
 });
 
-// Each undo step was a deep clone of every value, so after an upload every later step held its own copy of it: a 4 MB image
-// and 20 slider edits grew the heap by ~80 MB, and history keeps 200 steps. A step now shares what didn't change with the one before.
+// Each undo step was a deep clone of every value, so after an upload every later step held its own copy of it: a 4 MB
+// image and 20 slider edits grew the heap by ~80 MB, and history keeps 200 steps. A step now shares what didn't change
+// with the one before.
 test("undo history keeps one copy of an unchanged big value, not one per step", () => {
   const SETUP = new URL("./_setup-dom.mjs", import.meta.url).href,
     BUNDLE = new URL("../dist/tweaks.js", import.meta.url).href;
@@ -340,7 +343,8 @@ test("undo history keeps one copy of an unchanged big value, not one per step", 
   assert.ok(mb < 16, `20 edits after a 4 MB upload grew the heap by ${mb} MB`);
 });
 
-// parseColor reads junk as black, so a stale or hand-edited stored color loaded as oklch(0% 0 0) instead of the schema's.
+// parseColor reads junk as black, so a stale or hand-edited stored color loaded as oklch(0% 0 0) instead of the
+// schema's.
 test("a stored color that isn't one falls back to the schema's, as a stale list option does", async () => {
   localStorage.setItem(
     "tw:t-badcolor",
@@ -523,8 +527,8 @@ test("an IndexedDB open that never settles reads as unavailable: ready resolves 
   }
 });
 
-// A session without the store dropped a stored ref and saved unasked, writing "" over it; the next session with IndexedDB
-// then pruned the record as unnamed. The ref now stays saved until the row is written.
+// A session without the store dropped a stored ref and saved unasked, writing "" over it; the next session with
+// IndexedDB then pruned the record as unnamed. The ref now stays saved until the row is written.
 test("a session where IndexedDB can't open keeps a stored image's ref, so the next session has the image", async () => {
   const a = tweaks("NS", IMG_S, { persist: "t-no-store" });
   await a.ready;
@@ -533,11 +537,12 @@ test("a session where IndexedDB can't open keeps a stored image's ref, so the ne
   a.destroy();
   const ref = saved("tw:t-no-store").im,
     idb = globalThis.indexedDB;
+  // private mode, or denied
   globalThis.indexedDB = {
     open() {
       throw new DOMException("blocked", "SecurityError");
     },
-  }; // private mode, or denied
+  };
   try {
     const fresh = (await import(`${distUrl("tweaks.js").href}?no-store`)).tweaks; // its own image store, never opened
     const b = fresh("NS", IMG_S, { persist: "t-no-store" });
@@ -592,8 +597,8 @@ test("an upload IndexedDB refuses after destroy() still saves inline", async () 
   q.destroy();
 });
 
-// Values and presets are wrapped with a format version, so a change to what's stored (a color's precision, a gray's hue)
-// can tell old data from new. 0.5's bare object is no version: it reads as nothing.
+// Values and presets are wrapped with a format version, so a change to what's stored (a color's precision, a gray's
+// hue) can tell old data from new. 0.5's bare object is no version: it reads as nothing.
 test("values and presets save as { v: 1, … }, and 0.5's bare object is ignored", async () => {
   localStorage.setItem("tw:t-v0", JSON.stringify({ x: 3 }));
   localStorage.setItem("tw:t-v0:presets", JSON.stringify({ old: { x: 5 } }));

@@ -28,8 +28,9 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     t1 = +(meta.value && meta.value[1]);
   const lo0 = Number.isFinite(t0) ? t0 : 0,
     hi0 = Number.isFinite(t1) ? t1 : 1;
-  // normalizeRange, the slider's guard: an absent or non-finite bound (data-min="abc") derives from the values, each end
-  // widening it, for the shorthand and the verbose form alike: [20, 80] spans 0–240, not 20–80 (which pinned both handles).
+  // normalizeRange, the slider's guard: an absent or non-finite bound (data-min="abc") derives from the values, each
+  // end widening it, for the shorthand and the verbose form alike: [20, 80] spans 0–240, not 20–80 (which pinned both
+  // handles).
   let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, [lo0, hi0], label);
   [min, max] = gridEnds(min, max, step); // the slider's rule: no value past an off-grid bound
   const decimals = stepPrecision(step);
@@ -81,10 +82,12 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     valueEl.textContent = `${lo.toFixed(decimals)} – ${hi.toFixed(decimals)}`;
     hLo.setAttribute("aria-valuenow", String(lo));
     hHi.setAttribute("aria-valuenow", String(hi));
-    // Value-dodge (overlapsText), per handle: one sliding under the label or the readout yields so the text stays legible.
+    // Value-dodge (overlapsText), per handle: one sliding under the label or the readout yields so the text stays
+    // legible.
     const trackW = wrap.offsetWidth;
     if (trackW) {
-      // The label's room is what the dual readout leaves, measured: 12px label inset + 8px gap + the readout's right inset.
+      // The label's room is what the dual readout leaves, measured: 12px label inset + 8px gap + the readout's right
+      // inset.
       labelEl.style.maxWidth = Math.max(0, trackW - valueEl.offsetWidth - 12 - 8 - 10) + "px";
       const dodges = (pct: number) => overlapsText(labelEl, valueEl, (pct / 100) * trackW - 1.5, 3);
       hLo.classList.toggle("is-dodge", dodges(pctOf(lo)));
@@ -142,7 +145,8 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     },
   });
   wireHoverClass(track, render); // re-run the dodge with the real track width on hover
-  // Recompute once layout and fonts settle (a web-font swap shifts the widths the dodge measures) and on track-width change.
+  // Recompute once layout and fonts settle (a web-font swap shifts the widths the dodge measures) and on track-width
+  // change.
   onReady(render);
   // twk-reflow: a tab page revealing this re-measures it
   onLive(

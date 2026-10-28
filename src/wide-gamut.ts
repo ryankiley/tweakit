@@ -628,10 +628,11 @@ const wrapCss = (t: string, mode: ColorMode) =>
               : mode === "rec2020"
                 ? `color(rec2020 ${t})`
                 : `${mode}(${t})`;
-// The value's channels, a digit finer than the readout (L 63.2%, C 0.257, H 29.2): rounded to the readout, 98% of colors came
-// back different (#939796's faint green read as a neutral gray). A powerless hue is `none`, as CSS Color 4 writes it: a
-// float-noise hue on white (180, cyan) or a gray bent every oklch gradient and color-mix() through it. HSL's black and
-// white are written S 0 and hue none: S divides by min(L, 1 - L), so next to either end it read noise as 100% and a hue.
+// The value's channels, a digit finer than the readout (L 63.2%, C 0.257, H 29.2): rounded to the readout, 98% of
+// colors came back different (#939796's faint green read as a neutral gray). A powerless hue is `none`, as CSS Color 4
+// writes it: a float-noise hue on white (180, cyan) or a gray bent every oklch gradient and color-mix() through it.
+// HSL's black and white are written S 0 and hue none: S divides by min(L, 1 - L), so next to either end it read noise
+// as 100% and a hue.
 function precise(oklch: Vec3, mode: ColorMode) {
   const chans = MODE_CHANNELS[mode],
     c = modeCoords(oklch, modeSpaceId(mode), mode);

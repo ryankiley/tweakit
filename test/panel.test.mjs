@@ -127,7 +127,8 @@ test("destroy() releases a monitor's poll even on a panel that never mounted", a
 });
 
 test("a hostile color string is skipped, not thrown, and the rest of a restore still lands", () => {
-  // Regression: `color(constructor …)` read its space off Object.prototype and threw out of set(), and that throw abandoned the rest of the restore.
+  // Regression: `color(constructor …)` read its space off Object.prototype and threw out of set(), and that throw
+  // abandoned the rest of the restore.
   const p = tweaks("CX", { a: [1, 0, 10, 1], c: { type: "color", value: "#ff0000" }, z: [1, 0, 10, 1] });
   p.set("c", "color(constructor 1 0 0)"); // must not throw…
   p.set("c", "color(__proto__ 1 0 0)"); // …nor this: an unknown color() space
@@ -152,7 +153,8 @@ test("a slider survives a step too fine for toFixed", () => {
 });
 
 test("markup mode echoes an object-valued control as its components, not [object Object]", async () => {
-  // Regression: data-value got ctrl.get() as is, so a point or spring wrote [object Object] into the attribute its parser reads.
+  // Regression: data-value got ctrl.get() as is, so a point or spring wrote [object Object] into the attribute its
+  // parser reads.
   const holder = document.createElement("div");
   holder.innerHTML = `<div data-twk="point" data-label="Offset" data-components="X,Y" data-value="3,4" data-step="1"></div>`;
   document.body.append(holder);
@@ -318,7 +320,8 @@ test("fromJSON applies known value paths, skips stale ones, and notifies once", 
 });
 
 test("a header press released off the header can't leave the panel dragging on hover", () => {
-  // Regression: capture starts past the 4px threshold, so a release off the header left dragId set and the next hover dragged.
+  // Regression: capture starts past the 4px threshold, so a release off the header left dragId set and the next hover
+  // dragged.
   const p = tweaks("Drag", { a: [1, 0, 10, 1] });
   document.body.append(p.el);
   const header = p.el.querySelector(".twk-header"),
@@ -788,7 +791,8 @@ test("⌘Z inside a text field is left to the field's native undo", () => {
 });
 
 test("double-clicking inside the plot's expression box selects a word, not a reset", () => {
-  // Regression: the plot had no reset label, so its root was the target and a dblclick in the field wiped the expression.
+  // Regression: the plot had no reset label, so its root was the target and a dblclick in the field wiped the
+  // expression.
   const p = tweaks("Plot", { f: { type: "plot", expr: "x*x", label: "Curve" } });
   document.body.append(p.el);
   const root = p.el.querySelector(".twk-plot");
@@ -909,8 +913,8 @@ test("an onReset that calls panel.reset() performs the default reset instead of 
   assert.equal(calls, 2, "the guard lifts after the hook returns");
 });
 
-// The menu is a lazy chunk: a press with no hover before it (a tap, a keyboard press) opens it once it lands, and a panel
-// destroyed while it loads opens nothing.
+// The menu is a lazy chunk: a press with no hover before it (a tap, a keyboard press) opens it once it lands, and a
+// panel destroyed while it loads opens nothing.
 test("the presets menu opens on a press that came with no hover, and not on a panel destroyed while it loaded", async () => {
   const p = tweaks("Cold", { a: 1 }, { persist: "t-presets-cold" }),
     q = tweaks("Gone", { a: 1 }, { persist: "t-presets-gone" });
@@ -1099,7 +1103,8 @@ test("a setMany() batch isolates a key it refuses", async () => {
   p.destroy();
 });
 
-// on() reported the bare leaf, so size, card.size and btn.size all arrived as "size" and a listener couldn't tell them apart.
+// on() reported the bare leaf, so size, card.size and btn.size all arrived as "size" and a listener couldn't tell them
+// apart.
 test("on() names a nested control by its dotted path, from the control and from set()", () => {
   const p = tweaks("Paths", { size: [1, 0, 10, 1], card: { size: [2, 0, 10, 1] }, btn: { size: [3, 0, 10, 1] } });
   const seen = [];
@@ -1143,8 +1148,8 @@ test("a set() past a hard range clamps and warns once a key; a soft slider and a
   p.destroy();
 });
 
-// The check read the schema's min and max, unset when the range derives: `size: 24` then set("size", 500) gave 72 silently,
-// and a sides or point control was never checked.
+// The check read the schema's min and max, unset when the range derives: `size: 24` then set("size", 500) gave 72
+// silently, and a sides or point control was never checked.
 test("a set() past a derived range, a sides' or a point's warns too, naming the range the control resolved", async () => {
   const p = tweaks("Derived", {
     size: 24,

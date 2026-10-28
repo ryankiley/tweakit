@@ -29,15 +29,17 @@ const stem = (url: string) => {
     return s;
   }
 };
-// Pixels, not bytes, are what make an upload heavy: a phone photo is ~4 MB as a data URL, and storage holds ~5 MB an origin,
-// so one upload could keep every value from saving. A picture longer than `fit` on its long side is drawn down to it before
-// it becomes the param, and one within `fit` but heavier than 1.5 MB is redrawn at its size. A JPEG stays a JPEG, at `quality`. Anything else is tried as a PNG first, so a screenshot or text
-// isn't smudged, and kept as one up to 1.5 MB: a photo's PNG at 2560px is several times that, while a screenshot's is not.
-// (It's weighed by size, not against the JPEG: drawn down, even a screenshot's PNG runs about twice its JPEG.) Past that it
-// is a JPEG, or with transparency a WebP where the browser writes one, whichever is smaller than the PNG. An SVG has no
-// pixels to fit, and a GIF, an animated WebP or an APNG would keep only its first frame, so they are taken as they are.
-// Resolves "" to take the file as it is: it fits and is light, its format is kept, the browser can't decode or draw it, or
-// the redraw came out no smaller.
+// Pixels, not bytes, are what make an upload heavy: a phone photo is ~4 MB as a data URL, and storage holds ~5 MB an
+// origin, so one upload could keep every value from saving. A picture longer than `fit` on its long side is drawn down
+// to it before it becomes the param, and one within `fit` but heavier than 1.5 MB is redrawn at its size. A JPEG stays
+// a JPEG, at `quality`. Anything else is tried as a PNG first, so a screenshot or text isn't smudged, and kept as one
+// up to 1.5 MB: a photo's PNG at 2560px is several times that, while a screenshot's is not.
+// (It's weighed by size, not against the JPEG: drawn down, even a screenshot's PNG runs about twice its JPEG.) Past
+// that it is a JPEG, or with transparency a WebP where the browser writes one, whichever is smaller than the PNG. An
+// SVG has no pixels to fit, and a GIF, an animated WebP or an APNG would keep only its first frame, so they are taken
+// as they are.
+// Resolves "" to take the file as it is: it fits and is light, its format is kept, the browser can't decode or draw it,
+// or the redraw came out no smaller.
 const KEEP = /^image\/(gif|svg\+xml)$/i;
 const PNG_BUDGET = 1.5 * MB;
 const PNG_SIG = "\x89PNG\r\n\x1a\n";
@@ -64,15 +66,17 @@ export const animated = async (file: Blob) => {
     i += webp ? 8 + n + (n & 1) : 12 + n; // at least a header on, so the end of the file comes
   }
 };
-// A picture taken as it is keeps its bytes, and a phone's carry where it was taken: Exif's GPS, and XMP, which can repeat
-// it. The value is stored and copied as JSON into source, so those blocks are cut from the bytes, losslessly: the ICC
-// profile, which carries a wide gamut, and everything else stays. Exif's Orientation decides which way up the picture
-// shows, so a turned one gets a bare Exif back holding only that tag. A redraw needs none of this: a canvas writes no Exif.
+// A picture taken as it is keeps its bytes, and a phone's carry where it was taken: Exif's GPS, and XMP, which can
+// repeat it. The value is stored and copied as JSON into source, so those blocks are cut from the bytes, losslessly:
+// the ICC profile, which carries a wide gamut, and everything else stays. Exif's Orientation decides which way up the
+// picture shows, so a turned one gets a bare Exif back holding only that tag. A redraw needs none of this: a canvas
+// writes no Exif.
 // Each parser hands back the bytes left, or null to keep the file whole: nothing to cut, or a block it can't read.
 const orientation = (t: Uint8Array) => {
   const le = ascii(t, 0, "II"),
     v = new DataView(t.buffer, t.byteOffset, t.byteLength);
   if (!le && !ascii(t, 0, "MM")) return null;
+  // an offset past the end
   try {
     const ifd = v.getUint32(4, le);
     for (let k = 0, n = v.getUint16(ifd, le); k < n; k++)
@@ -83,7 +87,7 @@ const orientation = (t: Uint8Array) => {
     return 1;
   } catch {
     return null;
-  } // an offset past the end
+  }
 };
 // A big-endian TIFF header and one IFD with the one entry: Orientation, a SHORT.
 const bareExif = (o: number) =>
@@ -97,8 +101,9 @@ const crc32 = (b: Uint8Array) => {
   }
   return ~c >>> 0;
 };
-// An Ultra HDR JPEG's XMP carries its gain map (hdrgm:), the HDR itself, so it stays when every namespace it declares and
-// every prefix it uses is the gain map's or its container's: nothing there can say where or who. Anything more, and it's cut.
+// An Ultra HDR JPEG's XMP carries its gain map (hdrgm:), the HDR itself, so it stays when every namespace it declares
+// and every prefix it uses is the gain map's or its container's: nothing there can say where or who. Anything more, and
+// it's cut.
 const XMP = "http://ns.adobe.com/xap/1.0/\0";
 const GAIN_NS = [
   "adobe:ns:meta/",
@@ -119,10 +124,10 @@ const gainMapOnly = (b: Uint8Array) => {
   return true;
 };
 // An MPF JPEG (Ultra HDR's gain map, a camera's preview) indexes the images after the first by their offset from its MP
-// header, so a cut between that header and the first image's end moves them all up by the bytes cut. A list that doesn't
-// read is left as it was. The images after the first are left whole, their own Exif or XMP with them: the MP index and
-// the gain-map XMP's Item:Length both record their sizes, so cutting into them means rewriting both, and a gain map's XMP
-// is its HDR.
+// header, so a cut between that header and the first image's end moves them all up by the bytes cut. A list that
+// doesn't read is left as it was. The images after the first are left whole, their own Exif or XMP with them: the MP
+// index and the gain-map XMP's Item:Length both record their sizes, so cutting into them means rewriting both, and a
+// gain map's XMP is its HDR.
 const mpfShift = (seg: Uint8Array, by: number) => {
   const le = ascii(seg, 0, "II"),
     v = new DataView(seg.buffer, seg.byteOffset, seg.byteLength);
@@ -232,7 +237,8 @@ const hasAlpha = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
   for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true;
   return false;
 };
-// toBlob encodes off the main thread where the browser can. null when it can't write that type (it hands back a PNG instead).
+// toBlob encodes off the main thread where the browser can. null when it can't write that type (it hands back a PNG
+// instead).
 const encode = (c: HTMLCanvasElement, type: string, q?: number) =>
   new Promise<Blob | null>((r) => c.toBlob((b) => r(b && b.type === type ? b : null), type, q));
 const dataUrl = (b: Blob) =>
@@ -294,7 +300,8 @@ const ICON_UPLOAD = icon('<path d="M12 15V4m-4.5 4.5L12 4l4.5 4.5M4 15v3a2 2 0 0
 function createImage(meta: Meta, onChange: OnChange): Control {
   const tr = words();
   let value = typeof meta.value === "string" ? meta.value : "";
-  // Options: URLs, or { value, label }; anything but a non-empty string value is skipped, and a repeated URL keeps its first.
+  // Options: URLs, or { value, label }; anything but a non-empty string value is skipped, and a repeated URL keeps its
+  // first.
   const seen = new Set<string>();
   const options = (Array.isArray(meta.options) ? meta.options : [])
     .map((o) => ({ value: optValue(o), label: o && typeof o === "object" && o.label != null ? String(o.label) : "" }))
@@ -350,7 +357,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     if (!file.type.startsWith("image/")) return say(tr("notAnImage", "Not an image"));
     if (file.size > maxSize)
       return say(tr("tooLarge", "{size}, max {max}", { size: size(file.size), max: size(maxSize) }));
-    // One commit, of the shrunk picture when there is one, else of the file as it is less its metadata: one change event, one save.
+    // One commit, of the shrunk picture when there is one, else of the file as it is less its metadata: one change
+    // event, one save.
     const at = ++gen;
     shrink(file, fit, quality).then(async (url) => {
       if (gen !== at) return;
@@ -363,7 +371,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       fr.readAsDataURL(await strip(file));
     });
   };
-  // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the children doesn't drop the outline.
+  // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the
+  // children doesn't drop the outline.
   // A disabled control's root stays hit-testable (only its children go inert), so the zone checks for itself; on the
   // control's root, since the gallery's pane is portaled out of the panel while open.
   const dropZone = (zone: HTMLElement, over: HTMLElement) => {
@@ -411,9 +420,9 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     row.trigger.addEventListener("click", () => input.click());
     dropZone(row.trigger, row.trigger);
   } else {
-    // The gallery: the row, with the chosen image's name, opens a pane of the tiles, as one radio group, over a foot with
-    // the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and the pane both
-    // take a dropped file.
+    // The gallery: the row, with the chosen image's name, opens a pane of the tiles, as one radio group, over a foot
+    // with the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and the pane
+    // both take a dropped file.
     const name = el("span", "twk-trigger-value"),
       rowNote = el("span", "twk-image-note");
     row.right.append(thumb, rowNote, name);
@@ -451,7 +460,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       return b;
     });
     // A value that is none of the options (an upload, or a host-set URL) shows as a last tile, selected. Its URL rides
-    // on _twVal, not data-value: the inline style already holds one copy of a data URL, and data-value would be a second.
+    // on _twVal, not data-value: the inline style already holds one copy of a data URL, and data-value would be a
+    // second.
     const custom: RadioBtn = btn("twk-image-tile twk-image-custom");
     custom.setAttribute("role", "radio");
     // parentNode, not isConnected: a panel not yet in the document has no connected nodes
@@ -464,8 +474,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
         custom.setAttribute("aria-label", customName(value));
         if (!custom.parentNode) grid.append(custom); // re-appending an attached node moves it, and a move blurs it
       } else {
-        // The focused tile is leaving (undo, a preset, set()): focus moves on first, since removing a focused node blurs
-        // it to <body>, and that blur closes the pane.
+        // The focused tile is leaving (undo, a preset, set()): focus moves on first, since removing a focused node
+        // blurs it to <body>, and that blur closes the pane.
         if (custom.matches(":focus")) tiles[Math.max(0, k)].focus();
         custom.remove();
       }
@@ -505,10 +515,11 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       const j = navIndex(e.key, i, btns.length, cols);
       if (j < 0) return;
       e.preventDefault();
+      // a tile holds its URL
       if (j !== i) {
         btns[j].focus();
         commit(btns[j]._twVal as string);
-      } // a tile holds its URL
+      }
     });
     // Clear hides itself: hand focus on first, not to the body
     clear.addEventListener("click", () => {

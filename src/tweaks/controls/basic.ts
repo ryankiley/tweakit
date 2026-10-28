@@ -47,7 +47,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   const label = meta.label;
   let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, [+(meta.value as number)], label);
   // A hard slider's range is its reachable grid: the ends move in to the first/last grid point,
-  // so notches, hashmarks, keyboard ends, aria bounds and the emitted value agree. A soft slider keeps its authored range.
+  // so notches, hashmarks, keyboard ends, aria bounds and the emitted value agree. A soft slider keeps its authored
+  // range.
   if (!meta.soft) [min, max] = gridEnds(min, max, step);
   const snap = (max - min) / step <= 6; // past ~6 stops, snapping at every step felt notchy
   const seed = Number.isFinite(+meta.value) ? +meta.value : min; // a non-finite seed → min
@@ -176,10 +177,11 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     sPrevT = 0;
   };
   const springFrame = (now: number) => {
+    // panel torn down mid-drag — bail
     if (!track.isConnected) {
       springStop();
       return;
-    } // panel torn down mid-drag — bail
+    }
     const dt = sPrevT ? Math.min((now - sPrevT) / 1000, 0.05) : 1 / 60;
     sPrevT = now;
     const trackW = wrap.offsetWidth || (rect && rect.width) || 1;
@@ -213,10 +215,11 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     pull = (((sx - ei) * step) / (max - min || 1)) * trackW; // spring offset from the committed notch, in px
     value = clamp(min + ei * step, min, max);
     render();
+    // emit once per commit, not per frame
     if (ei !== sPrevEi) {
       sPrevEi = ei;
       onChange(q(value));
-    } // emit once per commit, not per frame
+    }
     if (!sDrag && Math.abs(sv) < 0.004 && Math.abs(sx - ei) < 0.004) {
       sx = ei;
       sv = 0;
@@ -239,7 +242,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     if (valueEl.classList.contains("is-editing")) return;
     if (e.button !== 0 || downPos) return; // primary button only; no second-pointer hijack
     e.preventDefault();
-    // preventDefault suppressed click-to-focus; restore it without the keyboard ring (programmatic focus otherwise reads as keyboard).
+    // preventDefault suppressed click-to-focus; restore it without the keyboard ring (programmatic focus otherwise
+    // reads as keyboard).
     track.focus({ focusVisible: false });
     downId = e.pointerId;
     try {
@@ -252,7 +256,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     track.classList.add("is-active");
     rect = wrap.getBoundingClientRect();
     scale = rect.width / (wrap.offsetWidth || rect.width);
-    // Snap springs to the pressed notch; continuous glides there, the glide cleared on the first move so dragging stays 1:1.
+    // Snap springs to the pressed notch; continuous glides there, the glide cleared on the first move so dragging stays
+    // 1:1.
     if (snap) {
       fill.style.transition = "";
       handle.style.transition = "";
@@ -360,7 +365,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     } else if (valueEl.classList.contains("is-editable")) e.stopPropagation();
   });
   // The inline editor, reached from the armed readout's click or Enter on the focused track. Enter
-  // commits and Escape cancels, both returning focus to the track; a blur commits and leaves focus where the user sent it.
+  // commits and Escape cancels, both returning focus to the track; a blur commits and leaves focus where the user sent
+  // it.
   const openEditor = () => {
     if (valueEl.classList.contains("is-editing")) return;
     const input = el("input", "twk-slider-input");
@@ -458,7 +464,8 @@ function createRadiogrid(meta: Meta, onChange: OnChange): Control {
     return b;
   });
   const reflect = () => setRadioActive(btns, value);
-  // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
+  // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset()
+  // restores it
   const set = (v: unknown, fire = true) => {
     if (v != null && v !== meta.value && !btns.some((b) => b._twVal === v)) return;
     value = v;
@@ -483,7 +490,8 @@ function createRadiogrid(meta: Meta, onChange: OnChange): Control {
 }
 
 // ── Select ──
-// An option's color: one token, no nesting, so a `)` can't close it early and splice a url() into the background shorthand.
+// An option's color: one token, no nesting, so a `)` can't close it early and splice a url() into the background
+// shorthand.
 const COLOR_TOKEN = /^(?:#[0-9a-f]{3,8}|[a-z]+|(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch|color|var)\([^()]*\))$/i;
 const CHEVRON = chevronIcon("twk-select-chevron");
 function createSelect(meta: Meta, onChange: OnChange): Control {
@@ -541,7 +549,8 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
       b.setAttribute("aria-selected", String(sel));
     });
   };
-  // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
+  // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset()
+  // restores it
   const set = (v: unknown, fire = true) => {
     if (v != null && v !== meta.value && !opts.some((o) => o.value === v)) return;
     value = v;
@@ -584,9 +593,9 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
       !e.altKey &&
       !e.isComposing
     ) {
-      // Type-ahead, as a native select: keys within a beat form a prefix that moves focus to the first label starting with it,
-      // the same key over and over cycles its matches, and no match leaves focus where it is. A space joins a prefix under way
-      // and is never also the option's activation; on its own it stays the option's.
+      // Type-ahead, as a native select: keys within a beat form a prefix that moves focus to the first label starting
+      // with it, the same key over and over cycles its matches, and no match leaves focus where it is. A space joins a
+      // prefix under way and is never also the option's activation; on its own it stays the option's.
       const k = e.key.toLowerCase();
       typed = (inBeat ? typed : "") + k;
       typedAt = performance.now();
@@ -692,7 +701,8 @@ function createFolder(meta: { label: string }) {
   header.addEventListener("click", () => collapse(!root.classList.contains("is-collapsed")));
   return { el: root, body: inner, setCollapsed: collapse };
 }
-/** Builds a control from the registry; a constructor that throws degrades to null so one bad control can't abort the panel. */
+/** Builds a control from the registry; a constructor that throws degrades to null so one bad control can't abort the
+ * panel. */
 function createControl(meta: Meta, onChange: OnChange): Control | null {
   const make = getControl(meta.type);
   if (!make) return null;

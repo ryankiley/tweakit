@@ -9,7 +9,8 @@ import type { GradientEasing, GradientStop, GradientValue } from "./types.js";
 /** cubic-bezier control points [x1, y1, x2, y2]. */
 export type Bez = [number, number, number, number];
 
-// The CSS easing keywords as cubic-beziers. Null-prototype, so "constructor" can't read a function off Object.prototype.
+// The CSS easing keywords as cubic-beziers. Null-prototype, so "constructor" can't read a function off
+// Object.prototype.
 export const KEYWORDS: Record<string, Bez> = Object.assign(Object.create(null), {
   ease: [0.25, 0.1, 0.25, 1],
   "ease-in": [0.42, 0, 1, 1],
@@ -48,9 +49,9 @@ export function easingSamples(b: Bez): Array<[number, number]> {
 
 const pct = (n: number) => +(n * 100).toFixed(2);
 
-// A stop's color is written into the gradient as it is, so it must be one color token: a comma or a stray ")" splices in
-// another layer (a url() the browser fetches), and var() can stand for anything. DOM-free, so by shape: a hex, a keyword,
-// or one function with no nested parens; the editor's picker checks the grammar itself.
+// A stop's color is written into the gradient as it is, so it must be one color token: a comma or a stray ")" splices
+// in another layer (a url() the browser fetches), and var() can stand for anything. DOM-free, so by shape: a hex, a
+// keyword, or one function with no nested parens; the editor's picker checks the grammar itself.
 const STOP_COLOR =
   /^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?!(?:url|var)\()[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
 // The blend spaces CSS takes, and a hue method on the polar ones; anything else (`in junk`, `in 5`) falls to

@@ -184,8 +184,9 @@ test("y overshoot clamps into color-mix's 0–100% and the stops still sort by p
   pos.forEach((p, i) => i && assert.ok(p >= pos[i - 1], "monotonic"));
 });
 
-// A stop's color and the blend space went into the CSS unchecked: `in junk`, `in 5`, and a color holding a comma spliced a
-// url() layer the browser fetches. A stop that isn't one color token is skipped; an unknown space falls to oklch.
+// A stop's color and the blend space went into the CSS unchecked: `in junk`, `in 5`, and a color holding a comma
+// spliced a url() layer the browser fetches. A stop that isn't one color token is skipped; an unknown space falls to
+// oklch.
 test("a stop that isn't one color token is skipped, and an unknown blend space falls to oklch", async (t) => {
   const warn = t.mock.method(console, "warn", () => {});
   for (const color of [

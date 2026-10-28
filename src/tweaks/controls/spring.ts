@@ -42,9 +42,11 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   });
   const has = (x: unknown) => Number.isFinite(+x);
 
-  // Time mode edits visualDuration + bounce (Motion's spring shorthand), mapped onto the physics the preview and emit share
-  // exactly as Motion resolves them (springFromTime): stiffness = (2π / (visualDuration × 1.2))², ζ from bounce floored at
-  // 0.05, a negative bounce overdamped. Not through the physics pad's clamps, which would cut a short spring's stiffness.
+  // Time mode edits visualDuration + bounce (Motion's spring shorthand), mapped onto the physics the preview and emit
+  // share exactly as Motion resolves them (springFromTime): stiffness = (2π / (visualDuration × 1.2))², ζ from bounce
+  // floored at
+  // 0.05, a negative bounce overdamped. Not through the physics pad's clamps, which would cut a short spring's
+  // stiffness.
   // An authored duration past the editor's range is clamped, and the console says so once.
   const [DUR_MIN, DUR_MAX] = SPRING_DUR;
   let said = false;
@@ -65,7 +67,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     return { stiffness: sig(p.stiffness), damping: sig(p.damping), mass: p.mass };
   };
 
-  // Top-level props (the inline shorthand) or the `value:{…}` form, value winning; the mode is explicit or inferred, time winning.
+  // Top-level props (the inline shorthand) or the `value:{…}` form, value winning; the mode is explicit or inferred,
+  // time winning.
   const explicit = (m: unknown): SpringMode | null => (m === "time" || m === "physics" ? m : null);
   const init = {
     stiffness: meta.stiffness,
@@ -121,7 +124,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     pts.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))));
     ctx.stroke();
   };
-  // The resolved {k,d,m} plus, in time mode, visualDuration/bounce, from which set() infers the mode back from persistence.
+  // The resolved {k,d,m} plus, in time mode, visualDuration/bounce, from which set() infers the mode back from
+  // persistence.
   const resolvedValue = (): Phys & Partial<SpringTime> =>
     mode === "time" ? { ...resolved(), visualDuration: time.visualDuration, bounce: time.bounce } : resolved();
   const emit = () => onChange(resolvedValue());
@@ -232,7 +236,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   showMode();
   onReady(draw);
   // The canvas reads theme tokens at draw time: redraw on resize, on a tab page revealing it (twk-reflow; it built at
-  // 0×0 while hidden), on an OS scheme flip and on a host re-theme — CSS re-themes the SVG controls, a canvas keeps a stale color.
+  // 0×0 while hidden), on an OS scheme flip and on a host re-theme — CSS re-themes the SVG controls, a canvas keeps a
+  // stale color.
   onLive(
     canvas,
     [
@@ -243,7 +248,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     ],
     draw,
   );
-  // A host flipping [data-twk-scheme] re-themes through CSS alone; the canvas needs a redraw. Let go once mounted and removed.
+  // A host flipping [data-twk-scheme] re-themes through CSS alone; the canvas needs a redraw. Let go once mounted and
+  // removed.
   // The redraw waits a frame, for a shadow panel's own observer to mirror the pin first.
   let schemeObs: MutationObserver | null = null,
     wasMounted = false;
@@ -283,7 +289,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
         if (has(v.visualDuration)) time.visualDuration = clampDur(v.visualDuration);
         if (has(v.bounce)) time.bounce = clampBounce(v.bounce);
       }
-      // Restore the physics cache even alongside time keys (reset's default carries both), so a later toggle to Physics shows the intended spring.
+      // Restore the physics cache even alongside time keys (reset's default carries both), so a later toggle to Physics
+      // shows the intended spring.
       if (hasPhys) phys = clampS({ ...phys, ...v });
       modeToggle.set(mode);
       durFld.set(time.visualDuration * 1000);

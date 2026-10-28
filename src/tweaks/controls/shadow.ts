@@ -66,8 +66,8 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const insetRow = el("div", "twk-row");
   insetRow.append(txt("span", "twk-row-label", tr("position", "Position")), insetSeg.el);
   const fields = el("div", "twk-fields twk-shadow-fields");
-  // The four lengths live in their fields, read as the fields fit them: an authored 2.5 shows "3" and emits 3px, and the
-  // blur's min clamps a negative one to 0.
+  // The four lengths live in their fields, read as the fields fit them: an authored 2.5 shows "3" and emits 3px, and
+  // the blur's min clamps a negative one to 0.
   const field = (label: string, value: number, min?: number): NumField => {
     const f = numField({ label, value, step: 1, min, unit: "px" }, () => {
       update();
@@ -128,7 +128,8 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   const pop_ = popover(root, trigger, pop, { fallbackH: 300, onOpen: body.reflow, onReflow: body.reflow });
   update();
 
-  // Set/restore: the object form or a strict box-shadow string; `css` is ignored, and the color goes through the picker.
+  // Set/restore: the object form or a strict box-shadow string; `css` is ignored, and the color goes through the
+  // picker.
   const set = (v: unknown) => {
     const inp = read(v);
     if (!inp) return;

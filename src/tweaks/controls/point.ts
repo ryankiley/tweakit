@@ -42,7 +42,8 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     const half = defaultRange(Math.abs(Number.isFinite(+c.value) ? +c.value : 0))[1];
     let lo = c.min ?? -half,
       hi = c.max ?? half;
-    // A lone bound at or past the other end spans from itself instead, as the slider's does (min 5 over 0 spans 5–35, not 5–1, swapped).
+    // A lone bound at or past the other end spans from itself instead, as the slider's does (min 5 over 0 spans 5–35,
+    // not 5–1, swapped).
     if ((c.min == null) !== (c.max == null) && !(hi > lo)) {
       const w = 2 * defaultRange(Math.abs(+(c.min ?? c.max)!))[1];
       if (c.min == null) lo = hi - w;
@@ -109,7 +110,8 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   // the emitted map, straight off the fields
   const read = () => Object.fromEntries(comps.map((c, k) => [c.key, flds[k].get()]));
 
-  // Readout: the components at each step's precision, so a value reads "−1.00, −0.46" (steady columns), not "−1, −0.46".
+  // Readout: the components at each step's precision, so a value reads "−1.00, −0.46" (steady columns), not
+  // "−1, −0.46".
   const fmt = (v: number, step: number) => (+v).toFixed(stepPrecision(step));
   const paintValue = () => {
     valueEl.textContent = flds.map((f, k) => fmt(f.get(), ranges[k].step)).join(", ");
@@ -151,7 +153,8 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     };
     grabSurface(padHost, padSet);
     // Keyboard: a focusable group (no ARIA role fits a 2D point; the readout rides on aria-description). Arrows move a
-    // pad step (⇧ = ten), ↑ always up on screen; Home restores the default. Escape is the popover's — a blur here would close it first.
+    // pad step (⇧ = ten), ↑ always up on screen; Home restores the default. Escape is the popover's — a blur here would
+    // close it first.
     padHost.tabIndex = 0;
     padHost.setAttribute("role", "group");
     padHost.setAttribute(

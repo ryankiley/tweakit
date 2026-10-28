@@ -1,4 +1,5 @@
-/* Markup-driven enhancement, core's side: enhance(). The work lives in markup.ts, a lazy chunk of the code-split build that
+/* Markup-driven enhancement, core's side: enhance(). The work lives in markup.ts, a lazy chunk of the code-split build
+ * that
  * only a page with markup fetches; core lends it what it shares with the panel, as a kit. Importing core binds nothing:
  * the page scan on load is opt-in, in auto.ts (tweakit/auto), so the package can declare core free of side effects. */
 import { getMarkup } from "./shared.js";

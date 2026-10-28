@@ -1,6 +1,7 @@
 /* A color keeps the notation it was written in and the precision it needs. "#ff0000" read back as oklch(63% 0.26 29):
- * code expecting hex broke, pasted values drifted, and the rounding changed 98% of colors (#939796's faint green read as
- * gray). A gray's hue came out as float noise (white as hue 180, cyan), which bends every oklch gradient through it. */
+ * code expecting hex broke, pasted values drifted, and the rounding changed 98% of colors (#939796's faint green read
+ * as gray). A gray's hue came out as float noise (white as hue 180, cyan), which bends every oklch gradient through
+ * it. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
@@ -61,7 +62,8 @@ test("a gray's hue is written none, so a gradient through it doesn't bend", asyn
 });
 
 test("HSL's black and white have no hue, whatever float noise makes of S", async () => {
-  // S divides by min(L, 1 - L), so a breath off black read as hsl(247 100% 0%) and bent an `in hsl` gradient through it.
+  // S divides by min(L, 1 - L), so a breath off black read as hsl(247 100% 0%) and bent an `in hsl` gradient through
+  // it.
   assert.equal(
     serialize(convert([1, 1, 0.99999], "srgb", "oklch"), "hsl", 1),
     "hsl(none 0% 100%)",
@@ -158,7 +160,8 @@ test("a color row opens in the mode its schema names, and in its notation withou
 });
 
 test("a hex's digits and a color() space name aren't read as numbers, so they read back as written too", async () => {
-  // #1E40AF scanned as 1e40 and rec2020 as 2020, both past the hostile-number cut, so each came back rewritten unedited.
+  // #1E40AF scanned as 1e40 and rec2020 as 2020, both past the hostile-number cut, so each came back rewritten
+  // unedited.
   const written = {
     a: "#1E40AF",
     b: "#2E8B57",
@@ -175,7 +178,8 @@ test("a hex's digits and a color() space name aren't read as numbers, so they re
   p.destroy();
 });
 
-// With no canvas to ask (jsdom, a worker), any word passed as a color and parsed as black: a stored "junk" loaded #000000.
+// With no canvas to ask (jsdom, a worker), any word passed as a color and parsed as black: a stored "junk" loaded
+// #000000.
 test("a stored or set color that can't be read keeps the default, and says so, even with no canvas", async () => {
   const warns = [],
     warn = console.warn;
@@ -195,8 +199,8 @@ test("a stored or set color that can't be read keeps the default, and says so, e
   }
 });
 
-// color(srgb …) opened with the dropdown on RGB while edits wrote color(srgb …), and choosing RGB again fired no change, so
-// rgb() came back only by way of another mode.
+// color(srgb …) opened with the dropdown on RGB while edits wrote color(srgb …), and choosing RGB again fired no
+// change, so rgb() came back only by way of another mode.
 test("a kept flavor shows as its own option beside its mode's, so choosing the mode drops it", async () => {
   const open = async (value) => {
     const p = createColorPicker({ value, onChange: () => {} });

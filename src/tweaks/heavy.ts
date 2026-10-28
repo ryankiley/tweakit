@@ -92,8 +92,8 @@ const escapeReverts = (input: HTMLInputElement, kept: () => string) =>
     e.stopPropagation();
     input.value = kept();
   });
-// Drag a pane by its edge (padding, or a gap between parts) to uncover what's beneath; it keeps that offset from its row
-// while open (st.moved), and the next open resets it. Bound by popover() on a movable pane's first open.
+// Drag a pane by its edge (padding, or a gap between parts) to uncover what's beneath; it keeps that offset from its
+// row while open (st.moved), and the next open resets it. Bound by popover() on a movable pane's first open.
 const dragPane = (pop: HTMLElement, st: { open: boolean; moved: boolean }, place: () => void) =>
   pop.addEventListener("pointerdown", (e: PointerEvent) => {
     if (e.target !== pop || e.button !== 0 || !st.open) return;
@@ -224,7 +224,8 @@ const fitCanvas = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, max
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return [r.width, r.height];
 };
-// The modal-trigger row (color, gradient, point): a row button, label left, a preview cluster (`right`) the caller fills.
+// The modal-trigger row (color, gradient, point): a row button, label left, a preview cluster (`right`) the caller
+// fills.
 const triggerRow = (cls: string, label: string) => {
   const root = el("div", cls);
   const trigger = btn("twk-trigger");
@@ -373,7 +374,8 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   // Typed text is read strictly as a whole number, as the slider's editor reads it (not parseFloat, which takes "1,000"
   // as 1 and "12abc" as 12); the field's unit may be typed along. NaN for anything else.
   const typed = () => Number(inp.value.replace(spec.unit || "", "").trim() || NaN);
-  // Only a readable number that lands on a new value commits; otherwise the field shows the kept value again and fires nothing.
+  // Only a readable number that lands on a new value commits; otherwise the field shows the kept value again and fires
+  // nothing.
   inp.addEventListener("change", () => {
     const n = typed();
     if (Number.isFinite(n) && fit(n) !== value) set(n);
@@ -401,10 +403,12 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
 }
 
 // ── Number — numField in its row chrome. ──
-// The coarsest power of ten a number sits on (0.5 → 0.1, 3.14159 → 0.00001, 1230 → 10), read at 12 significant digits so
-// 0.1 + 0.2 counts as 0.3; Infinity for 0 or a non-number, which constrains nothing. A step no coarser keeps it exactly.
-// Past eight significant digits a number was computed, not written (1/3, Math.PI): it steps at its fourth digit, as a slider
-// rounds it, so an arrow moves it by 0.0001, not by 1e-12.
+// The coarsest power of ten a number sits on (0.5 → 0.1, 3.14159 → 0.00001, 1230 → 10), read at 12 significant digits
+// so
+// 0.1 + 0.2 counts as 0.3; Infinity for 0 or a non-number, which constrains nothing. A step no coarser keeps it
+// exactly.
+// Past eight significant digits a number was computed, not written (1/3, Math.PI): it steps at its fourth digit, as a
+// slider rounds it, so an arrow moves it by 0.0001, not by 1e-12.
 const decimalStep = (v: unknown) => {
   const n = Number(Math.abs(+(v as number)).toPrecision(12));
   if (!n || !Number.isFinite(n)) return Infinity;
@@ -426,10 +430,10 @@ registerControl("number", (meta: Meta, onChange?: OnChange) =>
 
 // ── Spring step response — shared by the spring and motion controls. The window runs to the
 // settle, capped at 2.2 s. ──
-// Motion's visualDuration + bounce, resolved as motion-dom's spring generator does (mass 1): a bounce maps to a damping ratio
-// as SwiftUI's does, floored at 0.05 either way; the period is visualDuration × 1.2; and an overdamped (negative) bounce
-// scales the frequency by a Newton solve so it arrives when the critically damped spring would. Copied value for value, so
-// what's tuned here plays the same in Motion.
+// Motion's visualDuration + bounce, resolved as motion-dom's spring generator does (mass 1): a bounce maps to a damping
+// ratio as SwiftUI's does, floored at 0.05 either way; the period is visualDuration × 1.2; and an overdamped (negative)
+// bounce scales the frequency by a Newton solve so it arrives when the critically damped spring would. Copied value for
+// value, so what's tuned here plays the same in Motion.
 const CRIT = (2 * Math.PI) / 1.2;
 // The visualDuration (s) the spring editor shows and resolves: down to 10 ms, up to the 10 s a spring's linear() runs.
 const SPRING_DUR = [0.01, 10] as const;
@@ -484,9 +488,9 @@ function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, 
   return out;
 }
 // The run as a CSS transition: how long, and a linear() easing. It lasts until within e⁻⁷ of rest, by the slowest mode
-// (an overdamped spring's slow root, not ζω₀), capped at 10 s, where the last stop is 1 so it ends at rest. There are at
-// least 24 stops a wobble plus one on every peak and trough, each at its own percentage, so the overshoots land where
-// they are: stops spaced by duration alone give a bouncy spring three a wobble and miss its peaks by a third.
+// (an overdamped spring's slow root, not ζω₀), capped at 10 s, where the last stop is 1 so it ends at rest. There are
+// at least 24 stops a wobble plus one on every peak and trough, each at its own percentage, so the overshoots land
+// where they are: stops spaced by duration alone give a bouncy spring three a wobble and miss its peaks by a third.
 const springRun = (k: number, d: number, m: number) => {
   const w0 = Math.sqrt(k / m),
     z = d / (2 * Math.sqrt(k * m)),
@@ -504,9 +508,10 @@ const springRun = (k: number, d: number, m: number) => {
   return { duration: Math.round(span * 1000), easing: `linear(${stops.join(", ")})` };
 };
 
-// The name a typo is a single edit from (a letter added, dropped or changed), or that another library or an older tweakit
-// calls it by. It and the notices below are lazy, as only a mistake needs them. unknownType: a schema or markup `type` no
-// control answers to. Its list leaves out the color module's picker body, registered as a control but not a type to write.
+// The name a typo is a single edit from (a letter added, dropped or changed), or that another library or an older
+// tweakit calls it by. It and the notices below are lazy, as only a mistake needs them. unknownType: a schema or markup
+// `type` no control answers to. Its list leaves out the color module's picker body, registered as a control but not a
+// type to write.
 const SYNONYMS: Record<string, string> = Object.assign(Object.create(null), {
   bezier: "cubicbezier",
   "cubic-bezier": "cubicbezier",
@@ -561,7 +566,8 @@ const badGradient = (fn: string, value: unknown, all: unknown, n: number) => {
     console.warn(`[tweaks] ${fn}(): ${why}`);
   }
 };
-// The words for the core's notices (shared.ts notice()): what went wrong and the way out, downloaded only when one fires.
+// The words for the core's notices (shared.ts notice()): what went wrong and the way out, downloaded only when one
+// fires.
 const NOTICES: Record<string, (...a: any[]) => string> = {
   clamp: (key, v, min, max, type) =>
     `set("${key}", ${JSON.stringify(v)}) clamped to ${min > -Infinity ? min : "−∞"}–${max < Infinity ? max : "∞"}; widen min/max${type === "slider" || type === "number" ? ", or set soft: true to allow it" : ""}`,

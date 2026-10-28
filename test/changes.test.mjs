@@ -27,8 +27,9 @@ const mount = () => mountPanel(schema());
 const mountPanel = mounter(tweaks, "C");
 
 // ⌘C / ⌘V on `target`, then the browser's own copy or paste on the hidden field the keypress focused, carrying `text`
-// (an Error: a paste with no clipboard data): what was copied, whether the key was taken, and how it went: "ok" or "failed" from the copy icon's check, the picked band's flash, or with nothing
-// picked the words a screen reader heard; "none" when nothing answered.
+// (an Error: a paste with no clipboard data): what was copied, whether the key was taken, and how it went: "ok" or
+// "failed" from the copy icon's check, the picked band's flash, or with nothing picked the words a screen reader heard;
+// "none" when nothing answered.
 // What the browser does after the keydown when focus sits in the panel's hidden field: a copy event whose data the
 // panel sets, or a paste event carrying `text`, fired on `on` (default: the field; a slower browser fires it wherever
 // focus is by then). Returns the copied text, true for a paste, or false when the keypress left focus where it was.

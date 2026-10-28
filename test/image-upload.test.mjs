@@ -156,8 +156,8 @@ test("a JPEG with fill bytes before a marker still loses its Exif", async () => 
   assert.deepEqual(out, bytes(SOI, [0xff, 0xff], JFIF, DQT, SCAN));
 });
 
-// Ultra HDR: the primary's XMP names the gain map (hdrgm:) and its container, and the gain map follows the primary's EOI
-// as a second JPEG with an XMP of its own, found through MPF's index of offsets from the MP header.
+// Ultra HDR: the primary's XMP names the gain map (hdrgm:) and its container, and the gain map follows the primary's
+// EOI as a second JPEG with an XMP of its own, found through MPF's index of offsets from the MP header.
 const NS =
   'xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:hdrgm="http://ns.adobe.com/hdr-gain-map/1.0/" xmlns:Container="http://ns.google.com/photos/1.0/container/" xmlns:Item="http://ns.google.com/photos/1.0/container/item/"';
 const gainXmp = (more = "", body = "") =>
@@ -283,7 +283,8 @@ test("a file with nothing to cut, or one that doesn't parse, comes back as it is
   }
 });
 
-// The control, through the plain row. jsdom's FileReader reads only jsdom's Blobs, so the kit's new Blob is jsdom's here.
+// The control, through the plain row. jsdom's FileReader reads only jsdom's Blobs, so the kit's new Blob is jsdom's
+// here.
 // It resolves on the upload's one commit, not after a fixed wait: on a loaded CI runner the read outlasted 30 ms.
 const upload = (b, type, schema = { type: "image" }) =>
   new Promise((resolve, reject) => {

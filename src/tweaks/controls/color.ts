@@ -243,8 +243,8 @@ const engineFn = (str: string) => {
   }
   return true;
 };
-// A parsed color as the picker holds it: no NaN, chroma capped at MAX_CHROMA (`oklch(0.5 1e999 0)` parsed to C = Infinity
-// and hung the gamut map's bisection), and the hue in [0,360) so a negative input can't strand the thumb.
+// A parsed color as the picker holds it: no NaN, chroma capped at MAX_CHROMA (`oklch(0.5 1e999 0)` parsed to C =
+// Infinity and hung the gamut map's bisection), and the hue in [0,360) so a negative input can't strand the thumb.
 const held = (k: Vec3, A: number): Oklcha => [
   num(k[0]),
   clamp(num(k[1]), 0, MAX_CHROMA),
@@ -278,7 +278,8 @@ function parseColor(str: string | null | undefined): Oklcha {
       toks = toks.slice(1);
       if (!space) return [0.7, 0.1, 280, 1];
     }
-    // One channel: `none` → 0, `%` scales by the slot's ratio, num() keeps NaN out (a seed degrades, it doesn't reject).
+    // One channel: `none` → 0, `%` scales by the slot's ratio, num() keeps NaN out (a seed degrades, it doesn't
+    // reject).
     const ch = (t: string | undefined, pctScale = 1) =>
       !t || NONE.test(t) ? 0 : num(parseFloat(t)) * (/%$/.test(t) ? pctScale : 1);
     const A = aRaw ? clamp(ch(aRaw, 0.01), 0, 1) : 1;
@@ -319,8 +320,9 @@ function parseColor(str: string | null | undefined): Oklcha {
 }
 
 // Whether a written color is handed back as written: a color in a notation the picker edits, or in a color() space it
-// reads but has no mode for (xyz, a98-rgb, prophoto-rgb…), with every number a plain one. Anything else (1e999, a named color) is normalized, as the picker reads it. Only a function's arguments are
-// numbers: a hex's digits read as exponents (#1E40AF as 1e40) and `rec2020` as 2020, so those came back rewritten.
+// reads but has no mode for (xyz, a98-rgb, prophoto-rgb…), with every number a plain one. Anything else (1e999, a named
+// color) is normalized, as the picker reads it. Only a function's arguments are numbers: a hex's digits read as
+// exponents (#1E40AF as 1e40) and `rec2020` as 2020, so those came back rewritten.
 const verbatim = (v: unknown): v is string =>
   typeof v === "string" &&
   isColor(v) &&
@@ -358,9 +360,9 @@ const flavorOf = (v: string): Flavor | null => {
   if (name === "color") return /^srgb\s/i.test(m[2]) ? { name, legacy: false, alphaSlot: false } : null;
   return { name, legacy: args > 1, alphaSlot: args === 4 };
 };
-// The dropdown's name for a kept flavor its mode doesn't write on its own ("color(srgb)", "rgba()", "hsl(,)" for commas),
-// short as the mode names, since a select is as wide as its widest option; null when the mode writes it anyway (rgb() in
-// RGB, rgba(…, 1) in CSS).
+// The dropdown's name for a kept flavor its mode doesn't write on its own ("color(srgb)", "rgba()", "hsl(,)" for
+// commas), short as the mode names, since a select is as wide as its widest option; null when the mode writes it anyway
+// (rgb() in RGB, rgba(…, 1) in CSS).
 const keptLabel = (f: Flavor | null, mode: ColorMode) => {
   if (!f) return null;
   if (f.name === "color") return "color(srgb)";
@@ -372,7 +374,8 @@ const keptLabel = (f: Flavor | null, mode: ColorMode) => {
     ? null
     : `${f.name}(${f.legacy ? "," : ""})`;
 };
-// serialize()'s string in the written flavor, rebuilt from its numbers. Legacy syntax has no `none`: a gray's hue writes 0.
+// serialize()'s string in the written flavor, rebuilt from its numbers. Legacy syntax has no `none`: a gray's hue
+// writes 0.
 const flavored = (s: string, f: Flavor | null, oklch: Vec3, A: number) => {
   if (!f) return s;
   const alpha = A < 0.999 ? String(+A.toFixed(3)) : f.alphaSlot ? "1" : "";
@@ -389,13 +392,15 @@ const flavored = (s: string, f: Flavor | null, oklch: Vec3, A: number) => {
 
 // ── Picker body ──
 /** The editor surface: L×C plane, hue + alpha strips, mode dropdown + gamut label, and per-mode channel inputs.
- *  No trigger or popover of its own: the color control mounts one in its popover, the gradient editor re-points one at the selected stop. */
+ *  No trigger or popover of its own: the color control mounts one in its popover, the gradient editor re-points one at
+ *  the selected stop. */
 function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): PickerBody {
   const tr = words();
   // the kit's default color, for none or junk (parseColor reads junk as black)
   let [L, C, H, A] = parseColor(isColor(meta.value) ? meta.value : "#7c5cff");
   // It opens in the notation the color was written in, unless the host seeds a mode, and hands back that exact string
-  // until it's edited: "#ff0000" read back as oklch(63% 0.26 29), so code expecting hex broke and pasted values drifted.
+  // until it's edited: "#ff0000" read back as oklch(63% 0.26 29), so code expecting hex broke and pasted values
+  // drifted.
   // a host's mode (the gradient's blend space) holds; only an unseeded picker follows a color's notation
   const seeded = EDIT_MODES.includes(meta.mode);
   let mode = seeded ? meta.mode : (notationOf(meta.value) ?? "oklch");
@@ -440,7 +445,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     modeSel.append(o);
   });
   // A kept flavor shows as its own option beside its mode's, selected, so picking the mode the dropdown would otherwise
-  // show is a change, and drops it: re-picking the shown option fires nothing, so rgb() couldn't come back from color(srgb).
+  // show is a change, and drops it: re-picking the shown option fires nothing, so rgb() couldn't come back from
+  // color(srgb).
   const keptOpt = document.createElement("option");
   keptOpt.value = "kept";
   const showMode = () => {
@@ -749,7 +755,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   );
 
   // A mode switch is formatting-only and never emits: notifying would push a no-op change into
-  // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode); setMode is the host pushing a mode in, so it fires neither.
+  // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode);
+  // setMode is the host pushing a mode in, so it fires neither.
   // The channel fields are rebuilt for the new mode, after the build: under the picker's own words again.
   const remode = (m: ColorMode) => {
     mode = m;
@@ -772,7 +779,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   return {
     el: root,
     // Blur a focused text field before re-pointing: its change handler commits typed text against
-    // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as focus leaving the popover, which closes it.
+    // the OLD state, so stop-hopping can't land stop A's text on stop B. Only text fields: blurring the plane reads as
+    // focus leaving the popover, which closes it.
     // remode() first: it clears raw
     set: (v: string) => {
       if (!isColor(v)) {

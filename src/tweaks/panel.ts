@@ -83,8 +83,8 @@ export type Snapshot = Record<string, any>;
 let topFloating: HTMLElement | null = null; // the floating panel raised last (raise())
 const liveKeys = new Map<string, number>(); // persist keys of the panels alive now, for the shared-key warning
 let picked: [HTMLElement, () => void] | null = null; // the panel holding the page's one pick, and how to drop it
-// The page's one hidden field that a picked ⌘C / ⌘V focuses for the keypress, so the browser's own copy and paste run on
-// it: the system clipboard both ways, with no permission to ask. `onCatch` is that keypress's answer.
+// The page's one hidden field that a picked ⌘C / ⌘V focuses for the keypress, so the browser's own copy and paste run
+// on it: the system clipboard both ways, with no permission to ask. `onCatch` is that keypress's answer.
 let catchEl: HTMLTextAreaElement | null = null,
   onCatch: ((e: ClipboardEvent) => void) | null = null;
 
@@ -114,7 +114,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const cleanups: Array<() => void> = []; // releases for destroy(): document/window listeners, timers
   let destroyed = false; // set by destroy(): assemble() bails, mutators go silent
   let assembled = false; // set at the end of assemble(); no controls exist before
-  // The lazy window: a mutating API call made before the controls exist queues here and replays in order once assemble() has built them.
+  // The lazy window: a mutating API call made before the controls exist queues here and replays in order once
+  // assemble() has built them.
   const queue: Array<() => void> = [];
   let failed = false; // the chunks failed: the panel can never be built
   let built = -1; // cleanups.length as assemble() enters build()
@@ -150,8 +151,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Storage keys — opt-in via opts.persist (a string key, or `true` to key by name).
   const persistKey = opts.persist ? `tw:${opts.persist === true ? name : opts.persist}` : null;
   const presetsKey = persistKey ? `${persistKey}:presets` : null;
-  // Two live panels on one key overwrite each other's saves, the last write winning: say so. A remount after destroy() is fine.
-  // The key is held until destroy(), or until a failed build leaves the panel unable to save: a remount then is quiet too.
+  // Two live panels on one key overwrite each other's saves, the last write winning: say so. A remount after destroy()
+  // is fine.
+  // The key is held until destroy(), or until a failed build leaves the panel unable to save: a remount then is quiet
+  // too.
   let holdsKey = !!persistKey;
   if (persistKey) {
     const n = liveKeys.get(persistKey) || 0;
@@ -182,9 +185,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       return false;
     }
   };
-  // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to what's
-  // stored (a color's precision, a gray's hue) can tell old data from new. Anything else (0.5's bare object) reads as
-  // nothing, and the panel opens on its defaults.
+  // Saved values and presets carry a format version, { v: 1, values } and { v: 1, presets }, so a later change to
+  // what's stored (a color's precision, a gray's hue) can tell old data from new. Anything else (0.5's bare object)
+  // reads as nothing, and the panel opens on its defaults.
   const unwrap = (s: any, k: string) => (s?.v === 1 ? s[k] : null);
   const writeValues = (snap: Snapshot) => writeStore(persistKey!, { v: 1, values: snap });
   const writePresets = (all: unknown) => writeStore(presetsKey!, { v: 1, presets: all });
@@ -204,10 +207,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     return snap;
   };
   // ── Images in IndexedDB (image-store.ts): what storage holds for an uploaded image is its ref, and `savedImages` maps this
-  // panel's refs to their data URLs. The build doesn't wait for them: every other value restores as it builds, and a stored
-  // image waits in `waiting` until the store answers, then fills in (restoreImages), by `ready`. With no store to hold an
-  // upload (not answered yet, unavailable, or it refused that image), the data URL saves inline, as 0.5 saved it, and moves
-  // to the store on a later save; a write storage refuses then leaves the inline images out. With no store, a stored ref
+  // panel's refs to their data URLs. The build doesn't wait for them: every other value restores as it builds, and a
+  // stored image waits in `waiting` until the store answers, then fills in (restoreImages), by `ready`. With no store
+  // to hold an upload (not answered yet, unavailable, or it refused that image), the data URL saves inline, as 0.5
+  // saved it, and moves to the store on a later save; a write storage refuses then leaves the inline images out. With
+  // no store, a stored ref
   // stays saved as it was until its row is written. ──
   // both null without IndexedDB
   let imgs: ReturnType<(typeof import("./image-store.js"))["bind"]> | null = null,
@@ -245,15 +249,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     }
     return snap;
   };
-  // An image a restore names by ref: from the store's answer, or once it answers; a ref the store has never seen here (a
-  // preset another tab saved) is fetched. It lands only on a row the host and the person left alone meanwhile.
+  // An image a restore names by ref: from the store's answer, or once it answers; a ref the store has never seen here
+  // (a preset another tab saved) is fetched. It lands only on a row the host and the person left alone meanwhile.
   const late = (e: Entry, held: unknown, url: string) => {
     if (destroyed || valueChanged(held, e.get()) || !tryAssign(e, url)) return false;
     undoApi?.patch(e.path, held, e.get()); // not a step of its own: ⌘Z mustn't take a restored image back out
     return true;
   };
-  // A stored snapshot back to values, the way applySnapshot takes them: each known ref resolved, an unknown one left out
-  // (its control keeps its value) and listed, so `restore` can fill it in once it arrives.
+  // A stored snapshot back to values, the way applySnapshot takes them: each known ref resolved, an unknown one left
+  // out (its control keeps its value) and listed, so `restore` can fill it in once it arrives.
   const fromRefs = (snap: Snapshot | null, pending: [Entry, string][] = []) => {
     if (snap && typeof snap === "object")
       for (const e of imageEntries()) {
@@ -289,10 +293,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The store answered: each waiting row the host and the person left alone takes its image, in one notify.
   const restoreImages = () => {
     imagesReady = true;
+    // not built yet: the build resolves refs itself
     if (!assembled || destroyed || failed) {
       waiting.clear();
       return;
-    } // not built yet: the build resolves refs itself
+    }
     let changed = false;
     for (const [e, [ref, held]] of [...waiting]) {
       const url = savedImages?.get(ref);
@@ -305,16 +310,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       notify();
     } else if (imgs) persist(); // an upload saved inline while the store loaded moves to it now
   };
-  // Delete the records nothing names any more: not the saved values, not a preset. Only records this panel knows, loaded
-  // or written: another tab's panel on the same key may have just stored one this panel has never seen.
+  // Delete the records nothing names any more: not the saved values, not a preset. Only records this panel knows,
+  // loaded or written: another tab's panel on the same key may have just stored one this panel has never seen.
   const pruneImages = () => imgs?.prune([readStore(persistKey!), listPresets()]);
   // Debounced save; destroy() flushes a pending write rather than dropping it. saveNow writes at once.
   let saveNow = () => {};
   const persist = persistKey
     ? (() => {
         let saveT = 0;
-        // A write storage refuses (off, denied, or full of something else) is dropped silently, unless an image saved inline may
-        // be what didn't fit: then those are left out, their rows say so, and the rest is written.
+        // A write storage refuses (off, denied, or full of something else) is dropped silently, unless an image saved
+        // inline may be what didn't fit: then those are left out, their rows say so, and the rest is written.
         const save = () => {
           saveT = 0;
           const snap = toRefs(unsaved(snapshot()));
@@ -355,7 +360,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     });
     if (!destroyed) persist();
   };
-  // The one write path behind restores and set(). A function/symbol/bigint is no control value (JSON can't carry those).
+  // The one write path behind restores and set(). A function/symbol/bigint is no control value (JSON can't carry
+  // those).
   const notAValue = (v: unknown) => typeof v === "function" || typeof v === "symbol" || typeof v === "bigint";
   // An explicit write also settles a row still waiting for its stored image: the host's or the person's value wins.
   const assign = (e: Entry, v: unknown) => {
@@ -403,7 +409,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   const panel: PanelEl = el("div", "twk-panel");
   panel.dataset.mode = "inline";
-  // A landmark, so a screen reader can jump to the panel and hear which one; an unnamed region is no landmark, so a blank name falls back.
+  // A landmark, so a screen reader can jump to the panel and hear which one; an unnamed region is no landmark, so a
+  // blank name falls back.
   const landmark = (n: string) => panel.setAttribute("aria-label", n.trim() || tr("panel", "Tweaks"));
   panel.setAttribute("role", "region");
   landmark(name);
@@ -459,7 +466,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The buttons act on controls that only exist once assemble() has built them: inert until then.
   const toolbarBtns = [copyBtn, resetBtn, presetsBtn].filter(Boolean);
   for (const b of toolbarBtns) b.disabled = true;
-  // swallowClick lives on the header, not the title: once the header holds pointer capture, the click ending a drag is dispatched there.
+  // swallowClick lives on the header, not the title: once the header holds pointer capture, the click ending a drag is
+  // dispatched there.
   let dragMoved = false,
     swallowClick = false;
   header.addEventListener(
@@ -476,8 +484,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // A bottom-parked floating panel grows past the viewport when it expands: re-clamp once the collapse has settled.
   const toggleBody = () => foldBody(panel, titleBtn, body, !panel.classList.contains("is-collapsed"), reclamp);
   titleBtn.addEventListener("click", toggleBody);
-  // A click anywhere on the header outside the toolbar folds the panel, if the press began on the header or title (a press
-  // slid off a toolbar button also clicks here). A drag's closing click arrives defaultPrevented.
+  // A click anywhere on the header outside the toolbar folds the panel, if the press began on the header or title (a
+  // press slid off a toolbar button also clicks here). A drag's closing click arrives defaultPrevented.
   let pressedHeader = false;
   header.addEventListener(
     "pointerdown",
@@ -493,8 +501,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const controls = el("div", "twk-controls");
   body.append(controls);
   panel.append(header, body);
-  // opts.shadow: the panel lives in a shadow root on its own host, out of page CSS's reach; shadow-root.ts styles it and
-  // gives its portals a root of their own. `box` is what sits in the page and moves on a lift.
+  // opts.shadow: the panel lives in a shadow root on its own host, out of page CSS's reach; shadow-root.ts styles it
+  // and gives its portals a root of their own. `box` is what sits in the page and moves on a lift.
   const iso = isolate(panel, opts.shadow),
     box = iso.box;
 
@@ -510,9 +518,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     SNAP = 28; // px: viewport inset; snap distance to park against an edge
   // opts.floating's x / y are insets from the viewport's top-left, as px / py below are.
   const place = typeof opts.floating === "object" && opts.floating ? opts.floating : null;
-  // The vertical clamp uses the panel's full height, scrollHeight, not its capped one: clamping on the cap would ratchet
-  // (every position fits, so a tall panel drags up but never back down). +1: it rounds, so a panel parked at the far edge
-  // isn't capped a fraction short of its rows.
+  // The vertical clamp uses the panel's full height, scrollHeight, not its capped one: clamping on the cap would
+  // ratchet (every position fits, so a tall panel drags up but never back down). +1: it rounds, so a panel parked at
+  // the far edge isn't capped a fraction short of its rows.
   // The viewport from clientWidth / clientHeight: a fixed box's right and bottom edges sit inside the page scrollbars,
   // which innerWidth / innerHeight count. Only in standards mode: with no doctype the root's client box is the page's
   // content, not the viewport (and jsdom has no layout: 0) — the inner size there.
@@ -537,17 +545,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     y0 = inset(start.y);
   let px = x0,
     py = y0;
-  // The gap a capped panel keeps from the far edge: while it sits at its opts.floating placement, the inset that gave the
-  // near one (16 for `true`), so a panel placed 16px down stops 16px short of the bottom. Once dragged or restored, it has
-  // left that placement: the margin, as the drag clamp keeps. --twk-float-gap overrides either (tweaks.css registers it
-  // as a <length>, so a rem or vh value computes to px here).
+  // The gap a capped panel keeps from the far edge: while it sits at its opts.floating placement, the inset that gave
+  // the near one (16 for `true`), so a panel placed 16px down stops 16px short of the bottom. Once dragged or restored,
+  // it has left that placement: the margin, as the drag clamp keeps. --twk-float-gap overrides either (tweaks.css
+  // registers it as a <length>, so a rem or vh value computes to px here).
   let moved = !!saved,
     gap = MARGIN;
   const readGap = () => {
     const v = parseFloat(getComputedStyle(panel).getPropertyValue("--twk-float-gap"));
     gap = v >= 0 ? v : opts.floating && !moved ? inset(place?.y) : MARGIN;
   };
-  // A fixed box ignores page scroll, so a floating panel caps at the viewport past its near edge and scrolls (tweaks.css).
+  // A fixed box ignores page scroll, so a floating panel caps at the viewport past its near edge and scrolls
+  // (tweaks.css).
   // Custom properties, not left / top / max-height: the stylesheet maps them, so host CSS can still override each one.
   const apply = () => {
     const s = panel.style;
@@ -563,10 +572,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       py = clamp(py, MARGIN, maxY);
       return;
     }
-    // A pinned panel clamps from its placement each time, so a window that narrows and widens again hands its spot back.
+    // A pinned panel clamps from its placement each time, so a window that narrows and widens again hands its spot
+    // back.
     px = clamp(x0, Math.min(MARGIN, x0), maxX);
-    // It keeps its insets while they leave it half the window (or its full height, if less); past that the inset and the
-    // far gap shrink together, so a short window never caps it to nothing.
+    // It keeps its insets while they leave it half the window (or its full height, if less); past that the inset and
+    // the far gap shrink together, so a short window never caps it to nothing.
     const room = vh() - Math.min(panel.scrollHeight + 1, vh() / 2),
       k = Math.min(1, room / (y0 + gap || 1));
     py = Math.round(y0 * k);
@@ -662,7 +672,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         inp.blur(); // commits + closes the editor; a no-op change, so no notify
         resetEntry(entry);
       });
-    // The keyboard reset, Alt-qualified so a bare Backspace in a text field stays a backspace and the gradient editor keeps Delete.
+    // The keyboard reset, Alt-qualified so a bare Backspace in a text field stays a backspace and the gradient editor
+    // keeps Delete.
     root.addEventListener("keydown", (e) => {
       if (!e.altKey || e.metaKey || e.ctrlKey || (e.key !== "Backspace" && e.key !== "Delete")) return;
       e.preventDefault();
@@ -673,9 +684,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     });
   };
 
-  // Conditional controls — `render` shows/hides, `disabled` grays-out + locks, both re-evaluated on every change; `hint` is a static tooltip.
+  // Conditional controls — `render` shows/hides, `disabled` grays-out + locks, both re-evaluated on every change;
+  // `hint` is a static tooltip.
   const conditionals: Array<{ node: HTMLElement; m: Meta }> = [];
-  // fold.ts is a lazy chunk the first pass imports, so that pass just toggles; foldRow returns whether the row was revealed (re-measure).
+  // fold.ts is a lazy chunk the first pass imports, so that pass just toggles; foldRow returns whether the row was
+  // revealed (re-measure).
   let fold: typeof import("./fold.js").fold | undefined;
   const foldRow = (node: HTMLElement & { _hid?: boolean }, hide: boolean) => {
     if (!node._hid === !hide) return false;
@@ -692,7 +705,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const folderEls: Array<{ path: string[]; el: HTMLElement; setCollapsed: (c: boolean) => void }> = [],
     tabsCtrls: Array<{ path: string[]; ctrl: TabsControl; pageKeys: string[] }> = [];
 
-  // A control's own loop (the monitor, the FPS graph) hands back a `destroy`; a panel destroyed before it ever connected would run it forever.
+  // A control's own loop (the monitor, the FPS graph) hands back a `destroy`; a panel destroyed before it ever
+  // connected would run it forever.
   const adopt = (ctrl: Control) => {
     if (typeof ctrl.destroy === "function") cleanups.push(ctrl.destroy);
   };
@@ -747,7 +761,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       adopt(ctrl);
       if (!valued) valueless.set(dotted, m.type);
       if (valued) {
-        // reset() restores `raw` over the form the control OPENED on (`def`), read before the parked value applies — see restoreDefault.
+        // reset() restores `raw` over the form the control OPENED on (`def`), read before the parked value applies —
+        // see restoreDefault.
         const def = ctrl.get();
         // A value a host parked on params before assemble ran wins over the schema default.
         if (hasOwn(target, m.key)) ctrl.set(target[m.key]);
@@ -848,7 +863,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // pointer; on release it eases to a near viewport edge, and the position persists to "<key>:pos".
   if (draggable || opts.floating) {
     if (draggable) panel.dataset.draggable = "true"; // CSS grab cursor on the header — the affordance
-    // Lift in place at the current rect; a same-size placeholder stays in the old slot, or the host container reflows mid-drag.
+    // Lift in place at the current rect; a same-size placeholder stays in the old slot, or the host container reflows
+    // mid-drag.
     const lift = () => {
       if (panel.dataset.mode === "floating") return;
       const r = panel.getBoundingClientRect();
@@ -863,13 +879,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         box.before(liftSlot);
         (box as any)._twSlot = liftSlot;
       }
-      // Portal to <body>: a transformed/filter/contain ancestor would become the fixed panel's containing block. The scheme scope doesn't ride along — carry it.
+      // Portal to <body>: a transformed/filter/contain ancestor would become the fixed panel's containing block. The
+      // scheme scope doesn't ride along — carry it.
       // So does the rest of the slot's context: the text properties the kit leaves to inheritance (a host's font-size,
-      // letter-spacing, color, direction, lang) and every --twk-* token, inherited or matched through an ancestor selector
-      // (`.my-sidebar .twk-panel { --twk-radius: 4px }`, as the theming page shows). Read with the panel's own theme off, so
-      // opts.theme / setTheme() still layer on top and setTheme(null) falls back to the host's values; only what the move
-      // changes is written, inline. A host rule reaching inside through an ancestor (`#app button { … }`) still stops
-      // matching: only a shadow root could keep that.
+      // letter-spacing, color, direction, lang) and every --twk-* token, inherited or matched through an ancestor
+      // selector (`.my-sidebar .twk-panel { --twk-radius: 4px }`, as the theming page shows). Read with the panel's own
+      // theme off, so opts.theme / setTheme() still layer on top and setTheme(null) falls back to the host's values;
+      // only what the move changes is written, inline. A host rule reaching inside through an ancestor
+      // (`#app button { … }`) still stops matching: only a shadow root could keep that.
       applyThemeVars(panel, null);
       const cs = getComputedStyle(panel),
         lang = box.closest("[lang]")?.getAttribute("lang"),
@@ -901,7 +918,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       applyThemeVars(panel, themeVars);
       panel.dataset.mode = "floating";
       apply();
-      // A host that removes its container without destroy() would leave the lifted panel on screen; when the placeholder leaves the document, the panel follows.
+      // A host that removes its container without destroy() would leave the lifted panel on screen; when the
+      // placeholder leaves the document, the panel follows.
       if (liftSlot && typeof MutationObserver === "function") {
         const obs = new MutationObserver(() => {
           if (liftSlot && !liftSlot.isConnected) {
@@ -1005,8 +1023,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
           apply(); // …and drop the snap transition, so the grab is 1:1
         }
       });
-    // The keyboard's drag: with the title focused, Alt+arrows move the panel 10px (Shift: 50px) through the same lift, clamp
-    // and saved position as a pointer drag. Alt-qualified, so a bare arrow stays the page's.
+    // The keyboard's drag: with the title focused, Alt+arrows move the panel 10px (Shift: 50px) through the same lift,
+    // clamp and saved position as a pointer drag. Alt-qualified, so a bare arrow stays the page's.
     if (draggable)
       header.addEventListener("keydown", (e) => {
         if (e.target !== titleBtn || !e.altKey || e.metaKey || e.ctrlKey) return;
@@ -1033,7 +1051,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       const dx = e.clientX - sx,
         dy = e.clientY - sy;
       if (!dragMoved) {
-        // Drag slop: quick clicks wander a few px, fingers more. Collapsing is common and moving rare, so favor the click.
+        // Drag slop: quick clicks wander a few px, fingers more. Collapsing is common and moving rare, so favor the
+        // click.
         if (Math.hypot(dx, dy) < (e.pointerType === "mouse" ? 6 : 10)) return;
         dragMoved = true;
         grab();
@@ -1079,16 +1098,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     header.addEventListener("lostpointercapture", endDrag); // implicit capture loss mid-drag ends it like a release
     cleanups.push(() => listen(false)); // a destroy() mid-press releases the document listeners
   }
-  // Registered by assemble(): onLive releases itself once the owner LEAVES the document, which it can only tell if it saw the panel connected first.
+  // Registered by assemble(): onLive releases itself once the owner LEAVES the document, which it can only tell if it
+  // saw the panel connected first.
   const watchResize = () => {
     if (!(draggable || opts.floating)) return;
     reclamp(); // a resize during the lazy window went unheard; clamp now
     cleanups.push(onLive(panel, [[window, "resize"]], reclamp));
   };
 
-  // The menu is presets.ts, downloaded on the button's first hover, focus or press. A press before it lands opens it once it
-  // does, unless Escape, or a press or focus elsewhere, came first, and a second press doesn't queue a second open; after that the
-  // menu's popover owns the clicks. A chunk that fails to load is tried again on the next press.
+  // The menu is presets.ts, downloaded on the button's first hover, focus or press. A press before it lands opens it
+  // once it does, unless Escape, or a press or focus elsewhere, came first, and a second press doesn't queue a second
+  // open; after that the menu's popover owns the clicks. A chunk that fails to load is tried again on the next press.
   if (presetsBtn) {
     const b = presetsBtn;
     let menu: Promise<ReturnType<(typeof import("./presets.js"))["presetsMenu"]>> | undefined,
@@ -1167,8 +1187,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   // ── Pick and copy / paste — a press beside a row (in the panel's side padding, or a gap between rows) picks it, as
   // a layer is picked in a design tool; beside a folder's header, the folder. ⌘C / ⌘V (ctrl elsewhere) then act on the
-  // pick, or with none on the page, on the row holding focus. A row copies its value and pastes one back; a folder copies
-  // its values object and pastes one into its own keys, so two folders with the same keys trade values. Escape, or a
+  // pick, or with none on the page, on the row holding focus. A row copies its value and pastes one back; a folder
+  // copies its values object and pastes one into its own keys, so two folders with the same keys trade values. Escape,
+  // or a
   // press anywhere else, drops the pick; a text field or a text selection keeps the browser's own keys. ──
   const scopes = new Map<Element, Scope>(); // a row's or folder's root → its scope, filled by build()
   const scopeAt = (n: Element | null): Scope | undefined => {
@@ -1217,6 +1238,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     document.getSelection?.()?.removeAllRanges();
   };
   cleanups.push(unpick);
+  // capture: a label's own pointerdown stops the event before it bubbles here
   panel.addEventListener(
     "pointerdown",
     (e) => {
@@ -1240,7 +1262,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       choose(...hit);
     },
     true,
-  ); // capture: a label's own pointerdown stops the event before it bubbles here
+  );
   const inEditable = (t: Element | null) =>
     !!(
       t &&
@@ -1372,7 +1394,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       }),
     );
     assembled = true;
-    // Replay after the restore, so an explicit host set() wins over a stored value; a destroy() mid-replay drops the rest.
+    // Replay after the restore, so an explicit host set() wins over a stored value; a destroy() mid-replay drops the
+    // rest.
     for (const fn of queue.splice(0)) {
       if (destroyed) break;
       try {
@@ -1391,7 +1414,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const clampNote = (e: Entry, key: string, v: unknown) => {
     const r = e.range;
     if (!r || e.m.soft || clamped.has(e)) return;
-    // [component, number] pairs: one number, a list (interval, sides), a sides string, or an object's sides or components.
+    // [component, number] pairs: one number, a list (interval, sides), a sides string, or an object's sides or
+    // components.
     const asked: [string, unknown][] =
       typeof v === "string"
         ? v
@@ -1413,7 +1437,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       }
     }
   };
-  // Resolve a (possibly dotted) key, apply, report whether the leaf changed; never notifies, so setMany fires one notify.
+  // Resolve a (possibly dotted) key, apply, report whether the leaf changed; never notifies, so setMany fires one
+  // notify.
   const applySet = (key: string, v: unknown) => {
     if (String(key).split(".").some(isReservedKey)) return false; // never write through to the prototype
     const parts = String(key).split(".");
@@ -1511,9 +1536,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     toJSON() {
       return destroyed ? { values: {}, ui: {} } : { values: snapshot(), ui: collectUI() };
     },
+    // empty in the lazy window too — no entries yet
     changes() {
       return destroyed ? {} : changed();
-    }, // empty in the lazy window too — no entries yet
+    },
     fromJSON(state, o) {
       if (!state || typeof state !== "object") return;
       const silent = o?.silent;
@@ -1533,7 +1559,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       titleEl.textContent = title;
       landmark(title);
     },
-    // A lifted panel's carried context sits under the theme: a key the old theme set and the new one drops falls back to it.
+    // A lifted panel's carried context sits under the theme: a key the old theme set and the new one drops falls back
+    // to it.
     setTheme(theme) {
       if (destroyed) return;
       applyThemeVars(panel, null);
@@ -1592,15 +1619,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       box.remove();
     },
   } as Panel; // `ready` is filled in just below
-  // Assemble once the missing modules resolve, surfacing that on ready; else assemble now. A panel that persists an image
-  // builds without waiting for its stored images; they fill in when the store answers, and `ready` waits for that too.
+  // Assemble once the missing modules resolve, surfacing that on ready; else assemble now. A panel that persists an
+  // image builds without waiting for its stored images; they fill in when the store answers, and `ready` waits for that
+  // too.
   // A store that fails to load just saves no uploads.
   const images =
     persistKey && scanTypes(metas).has("image")
       ? import("./image-store.js").then(
           async (m) => {
             savedImages = await m.load(persistKey);
-            // A refused upload saves again, inline; after destroy() no save is armed, so it writes now while storage still names that ref.
+            // A refused upload saves again, inline; after destroy() no save is armed, so it writes now while storage
+            // still names that ref.
             if (savedImages)
               imgs = m.bind(
                 persistKey,

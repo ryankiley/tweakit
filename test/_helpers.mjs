@@ -1,4 +1,5 @@
-/* Shared test helpers. DOM-free at import time; the ones that build events or stub navigator read the jsdom globals when called. */
+/* Shared test helpers. DOM-free at import time; the ones that build events or stub navigator read the jsdom globals
+ * when called. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -32,7 +33,8 @@ export const armPresets = async (p) => {
   return b;
 };
 
-/** A synthetic pointer event; jsdom has no PointerEvent constructor. Composed, as a real one is, so it leaves a shadow root. */
+/** A synthetic pointer event; jsdom has no PointerEvent constructor. Composed, as a real one is, so it leaves a shadow
+ * root. */
 export const ptr = (type, props) =>
   Object.assign(new Event(type, { bubbles: true, cancelable: true, composed: true }), {
     pointerId: 1,
@@ -63,7 +65,8 @@ export const saved = (k) => {
   return s && s.v === 1 && Object.keys(s).length === 2 ? (s.values ?? s.presets) : s;
 };
 
-/** Run `fn` with console.warn collected, then wait `settle` ms, since a notice's words load from a lazy chunk. Resolves to
+/** Run `fn` with console.warn collected, then wait `settle` ms, since a notice's words load from a lazy chunk. Resolves
+ * to
  *  the warnings, each call's arguments joined; `fn` gets the list as it fills, for checks between steps. */
 export const warnings = async (fn, settle = 20) => {
   const warn = console.warn,
@@ -117,7 +120,8 @@ export const copyFrom = (root, init) =>
       .dispatchEvent(new window.MouseEvent("click", { bubbles: true, ...init })),
   );
 
-/** A press in the panel's side padding level with `node`, which picks that row or folder. jsdom lays nothing out, so the
+/** A press in the panel's side padding level with `node`, which picks that row or folder. jsdom lays nothing out, so
+ * the
  *  row or folder header `node` sits in is given a box at the press's height for the moment of the press. */
 export const pressBeside = (p, node, props = {}) => {
   const box = node && (node.closest(".twk-folder-header") || node.closest(".twk-controls > *"));

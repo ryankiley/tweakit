@@ -6,8 +6,9 @@
 const REF = "tw-image:";
 type Store = IDBObjectStore;
 let db: Promise<IDBDatabase | null> | null = null;
-// An open that never settles (another tab's pending delete or upgrade) reads as unavailable after 3s rather than holding
-// panel.ready forever. The connection closes for another tab's upgrade or delete, and one the browser drops is reopened.
+// An open that never settles (another tab's pending delete or upgrade) reads as unavailable after 3s rather than
+// holding panel.ready forever. The connection closes for another tab's upgrade or delete, and one the browser drops is
+// reopened.
 const open = () =>
   (db ||= new Promise<IDBDatabase | null>((done) => {
     let late = false;
@@ -16,6 +17,7 @@ const open = () =>
       db = null;
       done(null);
     }, 3000);
+    // no indexedDB at all
     try {
       const r = indexedDB.open("tweakit", 1);
       r.onupgradeneeded = () => r.result.createObjectStore("images");
@@ -43,7 +45,7 @@ const open = () =>
     } catch {
       clearTimeout(t);
       done(null);
-    } // no indexedDB at all
+    }
   }));
 // One transaction; resolves with what `fn` returns once it commits, null if it fails.
 const run = <T>(mode: IDBTransactionMode, fn: (s: Store) => T) =>
@@ -110,7 +112,8 @@ const prune = (key: string, refs: string[]) =>
     return true;
   });
 
-/** Each ref a stored snapshot or preset names, read from its JSON whatever the schema: a renamed field's preset still counts. */
+/** Each ref a stored snapshot or preset names, read from its JSON whatever the schema: a renamed field's preset still
+ * counts. */
 const refsIn = (v: unknown) => new Set<string>(JSON.stringify(v ?? null).match(/tw-image:[0-9a-z]+/g) || []);
 /** Delete the records under `key` this panel knows (`known`) that nothing in `named` names any more. */
 const pruneUnnamed = (key: string, known: Map<string, string>, named: unknown[]) => {
@@ -125,8 +128,10 @@ const swapRef = (presets: unknown, ref: string, withText: string) => {
   return text.includes(ref) ? JSON.parse(text.split(ref).join(JSON.stringify(withText).slice(1, -1))) : null;
 };
 
-/** The store bound to one panel: `known` holds the records it has loaded or written (ref → data URL), `refused` runs when
- *  a write fails with its ref (the panel saves again, that image inline), and the presets pair reads and writes its presets. */
+/** The store bound to one panel: `known` holds the records it has loaded or written (ref → data URL), `refused` runs
+ * when
+ *  a write fails with its ref (the panel saves again, that image inline), and the presets pair reads and writes its
+ *  presets. */
 const bind = (
   key: string,
   known: Map<string, string>,
@@ -144,7 +149,8 @@ const bind = (
     hashed.set(row, [v, r]);
     return r;
   };
-  // A record the store refused: a preset that names it takes the data URL inline, or an empty image if storage can't fit it.
+  // A record the store refused: a preset that names it takes the data URL inline, or an empty image if storage can't
+  // fit it.
   const inlinePresets = (ref: string, v: string) => {
     const inlined = swapRef(readPresets(), ref, v);
     if (!inlined || writePresets(inlined)) return;
@@ -152,7 +158,8 @@ const bind = (
     console.warn("[tweaks] persist: an image a preset holds didn't fit in storage — the preset keeps the rest");
   };
   return {
-    /** The ref `row`'s image saves as, or null to save it inline (the store refused it). Written once, and again whenever
+    /** The ref `row`'s image saves as, or null to save it inline (the store refused it). Written once, and again
+     * whenever
      *  `stored` (what storage holds now) no longer names it: a tab that replaced it may have pruned the record. */
     save(row: object, v: string, stored: unknown) {
       const ref = refOf(row, v);

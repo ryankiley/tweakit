@@ -1,5 +1,6 @@
 /* The page scan on load is opt-in. Importing tweakit, tweakit/core or tweakit/single binds no [data-twk] host; the
- * tweakit/auto entry (dist/tweaks/auto.js) binds the page's hosts once it has parsed, as the bare import did up to 0.5. */
+ * tweakit/auto entry (dist/tweaks/auto.js) binds the page's hosts once it has parsed, as the bare import did up to
+ * 0.5. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";

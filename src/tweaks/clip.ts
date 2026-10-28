@@ -9,7 +9,8 @@ import type { announce } from "./feedback.js";
 import { isObj, isColorStr, optValue, hasOwn, isReservedKey, words } from "./shared.js";
 import type { Tr } from "./shared.js";
 
-/** Where a pasted value can land: a control's path, its current value, its meta and its row (a disabled one takes nothing). */
+/** Where a pasted value can land: a control's path, its current value, its meta and its row (a disabled one takes
+ * nothing). */
 export interface Slot {
   path: string[];
   get: () => unknown;
@@ -123,7 +124,8 @@ export function pasteScope(ctx: ClipCtx, s: Scope, text: string): number | false
 const flashes = new WeakMap<Element, ReturnType<typeof setTimeout>>();
 /** Every paste ends here. `text` is what the browser's paste event carried (null: none); `apply` returns how many
  *  values it took, or false for nothing usable (a throw counts the same). A screen reader hears which, and a picked
- *  `band` flashes it; the result is whether anything landed, or undefined when the panel went while this chunk loaded. */
+ *  `band` flashes it; the result is whether anything landed, or undefined when the panel went while this chunk
+ *  loaded. */
 export function pasteInto(text: string | null, apply: (text: string) => number | false, r: Report, band?: Element) {
   if (!r.alive()) return;
   let n: number | false = false;

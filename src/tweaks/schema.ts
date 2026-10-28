@@ -178,9 +178,10 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
     return { value };
   },
   point: (v, _depth, at) => {
-    // `value: { x: 0, y: 0 }`, the shape the control hands back, names the components itself; a value beside components sets
-    // their defaults. With neither, a value makes it malformed, and no value a folder with a child named `type`. A value's component is a finite
-    // number or a numeric string; anything else (null, true, "abc") starts at 0 with one notice. A reserved key is skipped.
+    // `value: { x: 0, y: 0 }`, the shape the control hands back, names the components itself; a value beside components
+    // sets their defaults. With neither, a value makes it malformed, and no value a folder with a child named `type`. A
+    // value's component is a finite number or a numeric string; anything else (null, true, "abc") starts at 0 with one
+    // notice. A reserved key is skipped.
     const bad: string[] = [];
     const num = (k: string, n: unknown) => {
       const x = typeof n === "number" ? n : typeof n === "string" && n.trim() ? +n : NaN;
@@ -297,8 +298,8 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
     return meta(type, fields, ownLabel(value, label));
   }
   // A `type` no control answers to (a typo, or another library's name for one). With a field only a control reads, it's
-  // meant as one, and skipped: built as a folder, `bezier`'s value array would read as a slider's [value, min, max]. With
-  // none it's a folder with a child named `type` (`font: { type: "Inter", size: 12 }`). The words are lazy.
+  // meant as one, and skipped: built as a folder, `bezier`'s value array would read as a slider's [value, min, max].
+  // With none it's a folder with a child named `type` (`font: { type: "Inter", size: 12 }`). The words are lazy.
   else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string") {
     const control = hasOwn(value, "value") || Array.isArray(value.options) || typeof value.action === "function";
     import("./heavy.js").then(

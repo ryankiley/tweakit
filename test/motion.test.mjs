@@ -57,7 +57,8 @@ test("a keyword curve and a duration author the easing; spring keys author a spr
   e.destroy();
   const s = await mount({ t: { type: "motion", stiffness: 300, damping: 26, mass: 1 } });
   const v = s.params.t;
-  // Physics keys map to the duration + bounce Motion would resolve them from (its period is visualDuration × 1.2), and the value carries the resolved physics back out.
+  // Physics keys map to the duration + bounce Motion would resolve them from (its period is visualDuration × 1.2), and
+  // the value carries the resolved physics back out.
   assert.equal(v.mode, "spring");
   assert.ok(
     Math.abs(v.stiffness - 300) < 1e-6 && Math.abs(v.damping - 26) < 1e-6 && v.mass === 1,
@@ -291,8 +292,9 @@ test("a spring's physics round-trips clean: stiffness 300 comes back 300, not 30
   p.destroy();
 });
 
-// Time mode mapped visualDuration to stiffness without Motion's ×1.2, so a spring tuned here played ~18% faster than the same
-// { visualDuration, bounce } in Motion, and it clamped bounce to 0–1 and the result through the physics pad's limits.
+// Time mode mapped visualDuration to stiffness without Motion's ×1.2, so a spring tuned here played ~18% faster than
+// the same { visualDuration, bounce } in Motion, and it clamped bounce to 0–1 and the result through the physics pad's
+// limits.
 // The expected numbers come from running motion-dom's own spring.ts (bounceToDampingRatio, overdampedFreqScale and the
 // visualDuration branch of getSpringOptions) on each pair, not from this kit's code.
 const MOTION = [
@@ -331,8 +333,9 @@ test("physics keys handed to a motion control read back as the visualDuration an
   }
 });
 
-// A spring's linear() took its stops from the duration alone, so the bouncier the spring the fewer each wobble got: 3.4 a
-// cycle and 36% off at the extreme, over a 14 s run. Checked here against the closed-form response, at 2000 points.
+// A spring's linear() took its stops from the duration alone, so the bouncier the spring the fewer each wobble got:
+// 3.4 a cycle and 36% off at the extreme, over a 14 s run. Checked here against the closed-form response, at 2000
+// points.
 const exact = (k, d, m) => {
   const w0 = Math.sqrt(k / m),
     z = d / (2 * Math.sqrt(k * m)),
@@ -372,7 +375,8 @@ test("a spring's linear() easing follows the spring within 1% however bouncy, an
 });
 
 // The preview window ran to the settle of ζω₀, an overdamped spring's fast root: at bounce −1 it spanned 1.6 ms and the
-// chip drew a flat line ending at 0.011. With no overshoot the chip scales y from 90 (at 0) to 10 (at rest), so it ends near 10.
+// chip drew a flat line ending at 0.011. With no overshoot the chip scales y from 90 (at 0) to 10 (at rest), so it ends
+// near 10.
 test("an overdamped spring's preview curve runs until it settles, as a critically damped one's does", async () => {
   for (const bounce of [-1, -0.5, -0.05, 0]) {
     const p = tweaks("Pre", { m: { type: "motion", mode: "spring", visualDuration: 0.5, bounce } });
@@ -383,7 +387,8 @@ test("an overdamped spring's preview curve runs until it settles, as a criticall
   }
 });
 
-// The editor clamped visualDuration to 0.1–1 s, so a motion's physics came back rewritten (stiffness 15 as 27.4, 5000 as
+// The editor clamped visualDuration to 0.1–1 s, so a motion's physics came back rewritten (stiffness 15 as 27.4,
+// 5000 as
 // 2741) and a spring's visualDuration 2 as 1, without a word.
 test("authored springs survive: physics a host wrote come back as written, and a visualDuration up to 10 s is kept", async () => {
   const w = await warnings(async () => {
@@ -448,7 +453,8 @@ test("authored springs survive: physics a host wrote come back as written, and a
   p.destroy();
 });
 
-// The drag mapped the preview's height to bounce 0–100% only, though a negative bounce (overdamped) is valid since #222.
+// The drag mapped the preview's height to bounce 0–100% only, though a negative bounce (overdamped) is valid since
+// #222.
 test("dragging a time-mode spring's preview spans bounce −100% to 100%, the middle 0", async () => {
   const p = await mount({ s: { type: "spring", visualDuration: 0.5, bounce: 0.2 } });
   const viz = p.el.querySelector(".twk-spring-viz");

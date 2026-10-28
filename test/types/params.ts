@@ -173,7 +173,8 @@ expect<Equal<typeof badHinge.params, {}>>();
 // A value is a hinge too: a list holding one but no options is skipped at runtime, not a folder of `type` and `value`.
 // @ts-expect-error a list needs its options
 tweaks("Hinge", { noOptions: { type: "list", value: "a" } });
-// A name no control has, with a value, options or an action, is skipped at runtime: nothing on params. Without one, a folder.
+// A name no control has, with a value, options or an action, is skipped at runtime: nothing on params. Without one, a
+// folder.
 const unknownTypes = {
   b: { type: "bezier", value: [0.3, 1, 0.6, 1] },
   d: { type: "dropdown", options: ["a", "b"] },
@@ -230,7 +231,8 @@ paths.set("nope", 5);
 paths.setMany({ nope: 5 });
 const plain: Schema = { a: 1 };
 tweaks("Plain", plain).set("anything", 1);
-// Twenty folders deep still compiles (tsc ran out of depth spelling every path); past ten the rest of a path is any string.
+// Twenty folders deep still compiles (tsc ran out of depth spelling every path); past ten the rest of a path is any
+// string.
 const deep = tweaks("Deep", {
   f: {
     a: {
@@ -299,7 +301,8 @@ const takesPanel = (p: Panel) => p.set("anything", 1);
 takesPanel(paths);
 asPanel.reset();
 
-// An annotated Schema holds a nested `type` to the known names too; a known name, a folder and a non-string `type` child pass.
+// An annotated Schema holds a nested `type` to the known names too; a known name, a folder and a non-string `type`
+// child pass.
 // @ts-expect-error "slidr" names no control
 const annotated: Schema = { a: { type: "slidr", value: 1 } };
 // @ts-expect-error nor deeper in a folder

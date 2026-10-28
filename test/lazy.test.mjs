@@ -114,8 +114,8 @@ const pointer = (type, target, x, y, extra = {}) =>
   );
 
 test("a header drag lifts the panel before the lazy chunks have landed", async () => {
-  // The shell's own wiring doesn't wait for the lazy chunks: it used to be wired inside the deferred assemble(), so until
-  // the first chunk landed a header drag did nothing. shadow is a lazy type no test above loads.
+  // The shell's own wiring doesn't wait for the lazy chunks: it used to be wired inside the deferred assemble(), so
+  // until the first chunk landed a header drag did nothing. shadow is a lazy type no test above loads.
   const p = tweaks("Early", { x: [1, 0, 10, 1], s: { type: "shadow" } });
   document.body.append(p.el);
   assert.ok(p.el.querySelector(".twk-toolbar-btn--reset").disabled, "in the lazy window");

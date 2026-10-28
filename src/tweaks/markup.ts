@@ -1,7 +1,8 @@
 /* Markup-driven enhancement — the work behind enhance(): it turns [data-twk] hosts into live controls, sharing the
- * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a page
- * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
- * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
+ * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a
+ * page with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well
+ * as by core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the
+ * kit). */
 import {
   el,
   btn,

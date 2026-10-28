@@ -71,7 +71,8 @@ test("the split build has exactly three shared chunks, and core imports exactly 
 });
 
 // The markup layer (enhance() and the [data-twk] parsers) is its own lazy chunk, fetched only by a page with markup. It
-// borrows core's panel modules through a kit rather than importing them: an import would hoist them into a shared chunk.
+// borrows core's panel modules through a kit rather than importing them: an import would hoist them into a shared
+// chunk.
 test("the markup chunk is lazy and imports only the shared chunk; a page without markup never fetches it", async () => {
   const { readdir, readFile } = await import("node:fs/promises");
   const dir = new URL("../dist/tweaks/", import.meta.url);
@@ -92,8 +93,8 @@ test("the markup chunk is lazy and imports only the shared chunk; a page without
   );
 });
 
-// The presets menu is its own chunk too, fetched on the Presets button's first hover, focus or press. Like markup it takes
-// announce() and its icon from core as arguments, so it imports only the shared chunk.
+// The presets menu is its own chunk too, fetched on the Presets button's first hover, focus or press. Like markup it
+// takes announce() and its icon from core as arguments, so it imports only the shared chunk.
 test("the presets menu chunk is lazy and imports only the shared chunk", async () => {
   const { readdir, readFile } = await import("node:fs/promises");
   const dir = new URL("../dist/tweaks/", import.meta.url);

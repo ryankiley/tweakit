@@ -1,5 +1,6 @@
 /* The presets menu (opts.persist): the toolbar button's pane for saving, loading and deleting named snapshots. Its own
- * chunk, loaded when the button is first hovered, focused or pressed: a panel whose button nobody reaches never downloads it. */
+ * chunk, loaded when the button is first hovered, focused or pressed: a panel whose button nobody reaches never
+ * downloads it. */
 import { el, btn, txt, popover, quietFocus } from "./shared.js";
 import type { Tr } from "./shared.js";
 

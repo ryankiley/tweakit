@@ -63,9 +63,9 @@ const read = (v: unknown, cur: number[]): number[] | null => {
   return null;
 };
 
-// The unit a shorthand string says, when its sides agree: "1rem 2rem" is rem, and so is "0 1rem 2". A zero doesn't vote,
-// as 0 is 0 in any unit. Mixed units can't be kept, since the control edits four numbers in one unit, so they warn and
-// read as px, as every string did before; "" when the string names no unit.
+// The unit a shorthand string says, when its sides agree: "1rem 2rem" is rem, and so is "0 1rem 2". A zero doesn't
+// vote, as 0 is 0 in any unit. Mixed units can't be kept, since the control edits four numbers in one unit, so they
+// warn and read as px, as every string did before; "" when the string names no unit.
 const saidUnit = (v: unknown, name: string, sides: string[]) => {
   const n = typeof v === "string" && lengths(v);
   if (!n) return "";
@@ -95,7 +95,8 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   // an explicit unit wins over the string's
   const unit = (typeof meta.unit === "string" && meta.unit.trim()) || saidUnit(init, name, names) || "px";
   let v = read(init, [0, 0, 0, 0]);
-  // No step: 1, or finer when a side has decimals, so "0.5rem 1.25rem" keeps its quarter rem (decimalStep, as the number's).
+  // No step: 1, or finer when a side has decimals, so "0.5rem 1.25rem" keeps its quarter rem (decimalStep, as the
+  // number's).
   // a radius can't go negative; a margin can
   const spec = {
     step: meta.step ?? Math.min(1, ...(v || []).map(decimalStep)),
@@ -105,7 +106,8 @@ function createSides(meta: Meta, onChange: OnChange): Control {
   };
   // the readout and css at the step's decimals, so 0.125rem isn't 0.13rem
   const fmt = (n: number) => String(+n.toFixed(Math.max(2, stepPrecision(+spec.step))));
-  // A default it can't read still starts at 0, but says so: a padding that quietly lost its value looks like the page's bug.
+  // A default it can't read still starts at 0, but says so: a padding that quietly lost its value looks like the page's
+  // bug.
   // An object naming no side stays quiet, as markup hands its whole dataset over when there's no data-value.
   if (!v && meta.value != null && (typeof meta.value !== "object" || Array.isArray(meta.value)))
     console.warn(
@@ -119,8 +121,8 @@ function createSides(meta: Meta, onChange: OnChange): Control {
     update();
     emit();
   });
-  // One toggle, moved to whichever block is showing; last in both, so it sits on the same pixels either way. It says what
-  // a click opens — each corner or side on its own — and is pressed while they are.
+  // One toggle, moved to whichever block is showing; last in both, so it sits on the same pixels either way. It says
+  // what a click opens — each corner or side on its own — and is pressed while they are.
   const split = corners ? tr("splitCorners", "Independent corners") : tr("splitSides", "Independent sides");
   const link = btn("twk-sides-link", ICON_SPLIT);
   link.setAttribute("aria-label", split);

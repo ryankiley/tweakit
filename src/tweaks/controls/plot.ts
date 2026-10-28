@@ -63,8 +63,9 @@ export function parseExpr(src: unknown): Expr | string {
   if (src.length > 512) return "too long: 512 characters at most";
   const s = src,
     toks: Tok[] = [];
-  // `5.` reads as 5, as `.5` reads as 0.5. An e is an exponent only with a digit right after it (and its sign): `2e+1` is
-  // 20, while `2e+x` is the constant, 2·e + x, as `2e` alone is 2·e. Scientific notation never has a name for its power.
+  // `5.` reads as 5, as `.5` reads as 0.5. An e is an exponent only with a digit right after it (and its sign): `2e+1`
+  // is 20, while `2e+x` is the constant, 2·e + x, as `2e` alone is 2·e. Scientific notation never has a name for its
+  // power.
   const numRe = /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y,
     idRe = /[A-Za-z_]\w*/y;
   let i = 0;
@@ -146,9 +147,10 @@ export function parseExpr(src: unknown): Expr | string {
     let a = unary();
     if (!a) return null;
     for (let t = peek(); t; t = peek()) {
-      // `2x`, `2pi`, `3(x+1)`, `pi x`, `3x(x)`, `(x)(x)`, `sin(x)cos(x)`: a number, x, a constant or ")" directly before
-      // a name or "(" multiplies, as on paper. x and the constants are never functions, so `x(2)` is 2x; `xy` stays one
-      // (unknown) name, and a number after an operand (`2 3`, `(x)2`) asks for an operator. It binds as `*` does: `2x^2` is 2·x².
+      // `2x`, `2pi`, `3(x+1)`, `pi x`, `3x(x)`, `(x)(x)`, `sin(x)cos(x)`: a number, x, a constant or ")" directly
+      // before a name or "(" multiplies, as on paper. x and the constants are never functions, so `x(2)` is 2x; `xy`
+      // stays one (unknown) name, and a number after an operand (`2 3`, `(x)2`) asks for an operator. It binds as `*`
+      // does: `2x^2` is 2·x².
       const prev = toks[p - 1].t,
         implied = (prev === "num" || prev === "id" || prev === "rp") && (t.t === "id" || t.t === "lp");
       if (!implied && !(t.t === "op" && (t.v === "*" || t.v === "/" || t.v === "%"))) break;
@@ -214,8 +216,10 @@ export function parseExpr(src: unknown): Expr | string {
         return (x) => fn(...argv.map((a) => a(x)));
       }
       if (fn) {
-        // `sin x`, `cos 2x`: a one-argument function takes a bare x, constant or number-times-name, as a calculator does.
-        // Anything longer (`sin x^2`, `sin -x`, `sin 2 cos x`) reads two ways, so it asks for the parentheses instead of guessing.
+        // `sin x`, `cos 2x`: a one-argument function takes a bare x, constant or number-times-name, as a calculator
+        // does.
+        // Anything longer (`sin x^2`, `sin -x`, `sin 2 cos x`) reads two ways, so it asks for the parentheses instead
+        // of guessing.
         const a = fn.length === 1 ? bare() : null,
           n = peek();
         if (!a || (n && (n.t === "op" ? n.v === "^" : n.t !== "rp" && n.t !== "comma")))
@@ -268,7 +272,8 @@ export function parseExpr(src: unknown): Expr | string {
 // given; the line breaks across asymptotes. ──
 function createPlot(meta: Meta, onChange: OnChange): Control {
   const tr = words();
-  // Non-finite bounds take the defaults, an inverted pair swaps, an equal pair pads out (÷0 drew nothing); a degenerate y-range falls back to auto.
+  // Non-finite bounds take the defaults, an inverted pair swaps, an equal pair pads out (÷0 drew nothing); a degenerate
+  // y-range falls back to auto.
   // min/max are the verbose form's aliases
   let xMin = Number(meta.xMin ?? meta.min),
     xMax = Number(meta.xMax ?? meta.max);

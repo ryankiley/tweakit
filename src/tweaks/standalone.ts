@@ -22,7 +22,8 @@ import type { PickerBody, PickerOptions } from "./controls/color.js";
 
 // Outside a .twk-panel the cascade delivers none of the kit's tokens, so the wrapper carries .twk-portal.
 const scope = (cls: string) => el("div", `${cls} twk-standalone twk-portal`);
-// Run `build` once the lazy module has landed (synchronously when none is missing); the handled fork keeps a failed chunk out of the unhandled-rejection channel.
+// Run `build` once the lazy module has landed (synchronously when none is missing); the handled fork keeps a failed
+// chunk out of the unhandled-rejection channel.
 const whenLoaded = <H>(metas: Array<Pick<Meta, "type">>, build: () => void, handle: H): Promise<H> => {
   const pend = ensureForMetas(metas);
   if (!pend) {
@@ -79,10 +80,11 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     root.append(ctrl.el);
     if (!valued) return;
     last = ctrl.get(); // the form the control opened on
+    // a set() from the lazy window applies and announces now
     if (queued) {
       ctrl.set(parked);
       emit(ctrl.get());
-    } // a set() from the lazy window applies and announces now
+    }
   };
   const handle: MountedControl = {
     el: iso.box,

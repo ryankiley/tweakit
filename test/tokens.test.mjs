@@ -120,7 +120,8 @@ test("pins set color-scheme on the kit's nodes, the light pin after the dark", (
   );
   assert.ok(dark > 0 && light > dark, "both pin rules ship, light last");
   assert.ok(/\.twk-panel,\.twk-portal\{[^}]*color-scheme:light dark/.test(css), "unpinned, the kit follows the OS");
-  // The slider handle's light-only edge is the one scheme rule left outside light-dark(): a shadow can't come and go by color.
+  // The slider handle's light-only edge is the one scheme rule left outside light-dark(): a shadow can't come and go by
+  // color.
   assert.deepEqual(
     [...css.matchAll(/@media ?\(prefers-color-scheme: ?light\)\{([^{}]+)\{/g)].map((m) => m[1]),
     [".twk-slider-handle:where(:not([data-twk-scheme=dark] *))"],

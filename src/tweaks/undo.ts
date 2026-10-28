@@ -4,8 +4,8 @@ import { hasOwn, valueChanged, activeIn } from "./shared.js";
 import type { Snapshot } from "./panel.js";
 
 /** A panel's history: `snapshot` reads its values, `applySnapshot` writes them back, `watch` subscribes to every change
- *  (the silent ones too), and ⌘Z belongs to `panel` while it's hovered or focused, outside an editable field. Positional,
- *  as a context object's keys would survive minification in the core. */
+ *  (the silent ones too), and ⌘Z belongs to `panel` while it's hovered or focused, outside an editable field.
+ *  Positional, as a context object's keys would survive minification in the core. */
 export const createUndo = (
   panel: HTMLElement,
   snapshot: () => Snapshot,
@@ -23,7 +23,8 @@ export const createUndo = (
   // Walk a new step beside the one before it: a string that didn't change takes the earlier step's copy, so an image's
   // data URL is held once across history, not once a step. Strings only, never objects, so no step can edit another.
   // True when nothing changed, which spares serializing both steps to compare them.
-  // (Snapshots are JSON: own keys, no undefined. A key b lacks reads undefined or an inherited function, and never matches.)
+  // (Snapshots are JSON: own keys, no undefined. A key b lacks reads undefined or an inherited function, and never
+  // matches.)
   const share = (a: any, b: any): boolean => {
     if (a === b) return true;
     if (!a || !b || typeof a != "object" || typeof b != "object" || Array.isArray(a) != Array.isArray(b)) return false;
@@ -82,8 +83,8 @@ export const createUndo = (
       redo();
     }
   };
-  // patch: a late restore (an image the store just answered for) goes into every step that still held what its row held,
-  // so it isn't a step of its own, and ⌘Z neither takes it back out nor folds a pending edit into the base.
+  // patch: a late restore (an image the store just answered for) goes into every step that still held what its row
+  // held, so it isn't a step of its own, and ⌘Z neither takes it back out nor folds a pending edit into the base.
   const patch = (path: string[], held: unknown, v: unknown) => {
     const k = path[path.length - 1],
       h = JSON.parse(JSON.stringify(held ?? null)),
@@ -93,10 +94,11 @@ export const createUndo = (
       if (o && typeof o === "object" && hasOwn(o, k) && !valueChanged(o[k], h)) o[k] = nv;
     }
   };
+  // the base step: the panel as built and restored
   const arm = () => {
     history = [snapshot()];
     histIdx = 0;
-  }; // the base step: the panel as built and restored
+  };
   return { undo, redo, onKey, flush, arm, patch };
 };
 export type Undo = ReturnType<typeof createUndo>;

@@ -1,7 +1,8 @@
 /* Copy and paste across every valued row type: a row copied from one folder pastes onto the same row in a folder with
- * the same keys and lands exactly; a whole folder does the same; and a value pasted onto a row of another type is refused
- * without moving anything. Drives the real pick (a press beside the row, the probe across the controls stubbed: jsdom
- * lays nothing out) and the real ⌘C / ⌘V with the browser's copy and paste events stood in for, on the single-file bundle under jsdom. */
+ * the same keys and lands exactly; a whole folder does the same; and a value pasted onto a row of another type is
+ * refused without moving anything. Drives the real pick (a press beside the row, the probe across the controls stubbed:
+ * jsdom lays nothing out) and the real ⌘C / ⌘V with the browser's copy and paste events stood in for, on the
+ * single-file bundle under jsdom. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";

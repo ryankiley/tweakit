@@ -1,4 +1,5 @@
-/* Layout in a real browser — what jsdom can't see: row heights, label insets, content that spills out of the panel, page
+/* Layout in a real browser — what jsdom can't see: row heights, label insets, content that spills out of the panel,
+ * page
  * overflow on a phone, and a header drag. Runs Playwright's Chromium against the built dist/ and the docs site;
  * `npm run test:browser` builds first, and CI runs it as its own job. Geometry, not pixels: a design change that keeps
  * the frame passes, one that breaks it fails. */
@@ -127,7 +128,8 @@ const boxes = (page, sel) =>
         .map((e) => ({ cls: e.classList[0], h: e.offsetHeight, lh: getComputedStyle(e).lineHeight })),
     sel,
   );
-// A height set by `line-height: normal` follows the font: the Linux CI's fonts, an author's on the Mac. A px one doesn't.
+// A height set by `line-height: normal` follows the font: the Linux CI's fonts, an author's on the Mac. A px one
+// doesn't.
 // An empty list passes every check, so a selector that stops matching would turn its check off: it fails instead.
 const pinned = (list, h) => {
   assert.ok(list.length, `nothing to measure for ${h}px`);
@@ -256,9 +258,10 @@ test("a floating panel follows a header drag, and a click on the header folds it
   await page.close();
 });
 
-// The first drag moves an inline panel under <body>; it must look the same there. The host here themes it three ways the
-// lift used to drop: a token on an ancestor, a token and a font through an ancestor selector on the panel, and text
-// properties the kit leaves to inheritance. The panel's own theme still layers on top afterwards, and falls back to them.
+// The first drag moves an inline panel under <body>; it must look the same there. The host here themes it three ways
+// the lift used to drop: a token on an ancestor, a token and a font through an ancestor selector on the panel, and text
+// properties the kit leaves to inheritance. The panel's own theme still layers on top afterwards, and falls back to
+// them.
 test("a panel lifted by its first drag keeps the host's tokens and type, under its own theme", async () => {
   const { page, errors } = await fixture();
   await page.evaluate(async () => {
@@ -359,9 +362,9 @@ for (const viewport of [
   });
 }
 
-// The reviewer's bleed: #app button / input / span rules restyle a light panel mounted in #app. The same panel built with
-// shadow: true matches one under a wrapper that passes down the same inherited text styles without those rules, while
-// tokens set on its host theme it and its list pane, which opens styled in its own root.
+// The reviewer's bleed: #app button / input / span rules restyle a light panel mounted in #app. The same panel built
+// with shadow: true matches one under a wrapper that passes down the same inherited text styles without those rules,
+// while tokens set on its host theme it and its list pane, which opens styled in its own root.
 test("a shadow panel inside a styled #app matches an unstyled one; a light panel there doesn't; its host's tokens theme it", async () => {
   const { page, errors } = await open("/fixture/bleed.html");
   await page.waitForSelector("body[data-ready]");

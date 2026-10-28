@@ -8,8 +8,8 @@ import { key, wait } from "./_helpers.mjs";
 const { createUndo } = await bundle("src/tweaks/undo.ts");
 const atPath = (o, path) => path.reduce((x, k) => (x == null ? undefined : x[k]), o);
 // A state the history reads and writes, and the change hook a panel would call after each write.
-// applySnapshot announces its write, as the panel's does, and `react` stands in for a host listener that changes another
-// value when it hears one: the history has to tell its own writes, and what they set off, from edits.
+// applySnapshot announces its write, as the panel's does, and `react` stands in for a host listener that changes
+// another value when it hears one: the history has to tell its own writes, and what they set off, from edits.
 const rig = (state, react = () => {}) => {
   let fire = () => {};
   const panel = document.createElement("div");

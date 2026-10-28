@@ -5,8 +5,8 @@
  *   dist/types/       .d.ts declarations
  *   dist/*.html       the docs site, from site/
  * TW_SPLIT is an esbuild define that picks the code path in core.ts. Every script ships a linked .map pointing into the
- * package's src/, so a stack trace from a user's app names the kit's source lines; it adds to the npm download, not to an
- * app's bundle. */
+ * package's src/, so a stack trace from a user's app names the kit's source lines; it adds to the npm download, not to
+ * an app's bundle. */
 import { mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { execFile } from "node:child_process";
@@ -27,7 +27,8 @@ await mkdir(p("dist"), { recursive: true });
 
 const esbuild = await import("esbuild");
 const sourcemap = "linked"; // a .map beside each script, in the package too: a user's stack trace names src/ lines
-// The package ships src/ once, which the maps point at, rather than a copy of it inside every map (two builds, ~825 KB).
+// The package ships src/ once, which the maps point at, rather than a copy of it inside every map (two builds,
+// ~825 KB).
 const sourcesContent = false;
 
 // 1) code-split chunks → dist/tweaks/; the metafile finds the shared chunk for the size report

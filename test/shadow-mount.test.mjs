@@ -201,9 +201,9 @@ test("a light panel inside a page's own shadow root keeps its panes on <body>, o
   }
 });
 
-// A shadow panel's host is a <twk-host>, so it hears the page connect and disconnect it. A host the page dropped without
-// destroy() kept its portal root on <body> and a document observer; one appended after its dressing, or moved, kept
-// whatever scheme it first read; a portal root the page removed stayed gone.
+// A shadow panel's host is a <twk-host>, so it hears the page connect and disconnect it. A host the page dropped
+// without destroy() kept its portal root on <body> and a document observer; one appended after its dressing, or moved,
+// kept whatever scheme it first read; a portal root the page removed stayed gone.
 test("a shadow host lets go when the page drops it, comes back when re-added, and reads the scheme where it lands", async () => {
   const dark = document.createElement("div");
   dark.dataset.twkScheme = "dark";

@@ -1,5 +1,6 @@
 /* opts.strings: every word the kit shows or says comes from one catalog (types.ts Strings), each key has its English
- * default in the source, and a panel built with other words shows none of the defaults, panes and sub-editors included. */
+ * default in the source, and a panel built with other words shows none of the defaults, panes and sub-editors
+ * included. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
@@ -166,8 +167,9 @@ test("with every word replaced, every control and pane, in every state the revie
     );
     assert.deepEqual(left, [], "English is still showing");
     const neverAsked = [...KEYS.keys()].filter((k) => !asked.has(k));
-    // What only an event or a rarer build says: a copy, a paste, a refused file or save, a preset loaded, a stop selected, a
-    // value storage refused; and a control's name when it has no label of its own, an easing off the menu, an unnamed image.
+    // What only an event or a rarer build says: a copy, a paste, a refused file or save, a preset loaded, a stop
+    // selected, a value storage refused; and a control's name when it has no label of its own, an easing off the menu,
+    // an unnamed image.
     const eventOnly = [
       "monitor",
       "fps",

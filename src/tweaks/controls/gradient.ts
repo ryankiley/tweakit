@@ -83,7 +83,8 @@ function normalizeStops(value: any): GradientStop[] {
 function createGradient(meta: Meta, onChange: OnChange): Control {
   const tr = words();
   meta.value ??= meta.stops; // the verbose form's `stops` aliases `value`
-  // The blend and easing read off `value: {…}` first, else the verbose form's top level, where a pasted value's fields land.
+  // The blend and easing read off `value: {…}` first, else the verbose form's top level, where a pasted value's fields
+  // land.
   const interp0 = parseInterp(meta.value) ?? parseInterp(meta),
     ease0 = parseEase(meta.value) ?? parseEase(meta);
   let stops = normalizeStops(meta.value);
@@ -135,7 +136,8 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   // the rail holds only stop handles
   const handleFor = (s: GradientStop) =>
     [...(rail.children as HTMLCollectionOf<StopHandle>)].find((h) => h._stop === s);
-  // Unlike the standalone color control, a mode switch here IS a change to the gradient's output, so it repaints and re-emits.
+  // Unlike the standalone color control, a mode switch here IS a change to the gradient's output, so it repaints and
+  // re-emits.
   // oklch: the documented default and colorAt's blend space
   const body = createPickerBody(
     {
@@ -277,7 +279,8 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     return clamp((x - r.left) / (r.width || 1), 0, 1);
   };
 
-  // A new stop's color: the bracketing stops interpolated in OKLCH at the EASED progress, so it lands invisibly on the ramp the bar draws.
+  // A new stop's color: the bracketing stops interpolated in OKLCH at the EASED progress, so it lands invisibly on the
+  // ramp the bar draws.
   const colorAt = (pos: number) => {
     const ss = sorted();
     let lo = ss[0],
@@ -335,14 +338,16 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     e.stopPropagation();
     addStop();
   });
-  // Double-click, not single, so it never fights grabbing a stop; a double-click on a stop falls through to its own handler.
+  // Double-click, not single, so it never fights grabbing a stop; a double-click on a stop falls through to its own
+  // handler.
   bar.addEventListener("dblclick", (e) => {
     if ((e.target as Element).closest(".twk-gradient-stop")) return;
     e.preventDefault();
     insertStopAt(posFromX(e.clientX));
   });
 
-  // Delete / Backspace removes the selected stop, ignored while typing in a field and with Alt held (the panel's reset chord).
+  // Delete / Backspace removes the selected stop, ignored while typing in a field and with Alt held (the panel's reset
+  // chord).
   pop.tabIndex = -1;
   pop.addEventListener("keydown", (e) => {
     if (
@@ -356,7 +361,8 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     }
   });
 
-  // Focus lands on the selected stop, not the first: focus is selection, so that would re-point the picker on every open.
+  // Focus lands on the selected stop, not the first: focus is selection, so that would re-point the picker on every
+  // open.
   popover(root, trigger, pop, {
     fallbackH: 392,
     onOpen: body.reflow,
@@ -374,10 +380,11 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
       const ip = parseInterp(v);
       if (ip) body.setMode(interpolationMode(ip));
       const es = parseEase(v);
+      // same rule as the blend
       if (es !== null) {
         easing = easingName(es);
         reflectEase();
-      } // same rule as the blend
+      }
       const next = normalizeStops(v).sort((a, b) => a.pos - b.pos);
       if (next.length === stops.length) {
         // Same count (a host mirroring values back): update the stop objects in place, paired in

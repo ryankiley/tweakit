@@ -177,7 +177,8 @@ globalThis.clearInterval = (id) => {
   return realClearInterval(id);
 };
 
-// An exception escaping an event listener reaches the window as an ErrorEvent (the same path a browser's onerror sees) — jsdom's own "not implemented" reports go elsewhere, so no filtering is needed.
+// An exception escaping an event listener reaches the window as an ErrorEvent (the same path a browser's onerror
+// sees) — jsdom's own "not implemented" reports go elsewhere, so no filtering is needed.
 window.addEventListener("error", (ev) => asyncErrors.push(["listener", ev.error ?? new Error(ev.message)]));
 process.on("unhandledRejection", (e) => asyncErrors.push(["unhandled rejection", e]));
 

@@ -1,5 +1,5 @@
-// Shoots site/og/card.html to site/static/og.png at 1x (1200×630, what link previews draw) with Playwright's Chromium, once the card
-// says it's ready. Run after a build (the card loads dist/), then commit the PNG; the site build
+// Shoots site/og/card.html to site/static/og.png at 1x (1200×630, what link previews draw) with Playwright's Chromium,
+// once the card says it's ready. Run after a build (the card loads dist/), then commit the PNG; the site build
 // copies static/ into the docs. On a Mac, so the word is set in SF Pro.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";

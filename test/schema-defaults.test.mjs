@@ -76,7 +76,8 @@ test("a negative default spans either side of zero, so it can cross it", () => {
   p.destroy();
 });
 
-// -45 spans -135–135 in steps of 10 counted from -135 (…, -5, 5, …), so 0 was out of reach; 0.5.2's -135 to -5 couldn't reach it either.
+// -45 spans -135–135 in steps of 10 counted from -135 (…, -5, 5, …), so 0 was out of reach; 0.5.2's -135 to -5 couldn't
+// reach it either.
 test("an inferred step across zero puts 0 on the grid", () => {
   const p = tweaks("Zero", { a: -45, b: -25, c: [-45], d: { type: "slider", value: -45 }, e: [5, -15, 105], f: 45 });
   for (const k of ["a", "b", "c", "d", "e", "f"]) {
@@ -343,8 +344,8 @@ test("key labels: camel humps split, capital runs stay together, sRGB and macOS 
   p.destroy();
 });
 
-// Every lowercase word ending in capitals was kept whole, so showFPS and baseURL stayed raw, and a name opening a longer
-// key split inside it ("iOSVersion" read "I OS Version").
+// Every lowercase word ending in capitals was kept whole, so showFPS and baseURL stayed raw, and a name opening a
+// longer key split inside it ("iOSVersion" read "I OS Version").
 test("key labels: a word ending in an acronym splits, and sRGB or iOS opening a key stays whole", async () => {
   const keys = {
     showFPS: 1,
@@ -411,8 +412,8 @@ test("an unknown type warns, naming the near type and the real ones; with no fie
   p.destroy();
 });
 
-// { type: "bezier", value: [...] } built a folder whose value array read as a slider's [value, min, max] and warned of a
-// swap, with no suggestion, as bezier is more than one edit from cubicbezier.
+// { type: "bezier", value: [...] } built a folder whose value array read as a slider's [value, min, max] and warned of
+// a swap, with no suggestion, as bezier is more than one edit from cubicbezier.
 test("another library's type name is skipped with the type it means, and its value can't cascade into other warnings", async () => {
   let p;
   const msgs = await warnings(() => {
@@ -461,7 +462,8 @@ test("a type named like an Object method, folder or colorpicker is an unknown ty
   p.destroy();
 });
 
-// { type: "list", value: "a" } has no options, so the list handler returns nothing; it built a folder of type and value rows.
+// { type: "list", value: "a" } has no options, so the list handler returns nothing; it built a folder of type and value
+// rows.
 test("a known type missing its required field is skipped when it holds a value, and stays a folder when it doesn't", async () => {
   const errors = [],
     error = console.error;
@@ -476,7 +478,8 @@ test("a known type missing its required field is skipped when it holds a value, 
   }
 });
 
-// An inverted pair swaps, which is right, but silently: { min: 10, max: 0 } and data-min="40" data-max="0" built quietly.
+// An inverted pair swaps, which is right, but silently: { min: 10, max: 0 } and data-min="40" data-max="0" built
+// quietly.
 test("a min above max still swaps, and says so", async () => {
   await warnings(async (msgs) => {
     const p = tweaks("Inv", {
@@ -501,7 +504,8 @@ const press = (el, key = "ArrowRight") =>
 const ends = (h) => [h.getAttribute("aria-valuemin"), h.getAttribute("aria-valuemax")];
 const sliders = (p) => [...p.el.querySelectorAll("[role=slider]")];
 
-// -1 ≤ v < 0 spans -1–1, a span of 2, and stepped by 0.1 where 0.5 steps by 0.01; -30's -90–90 stepped by 10 where 30's by 1.
+// -1 ≤ v < 0 spans -1–1, a span of 2, and stepped by 0.1 where 0.5 steps by 0.01; -30's -90–90 stepped by 10 where 30's
+// by 1.
 test("a negative's derived range steps like its positive twin", () => {
   const p = tweaks("Mirror", { nudge: -0.5, half: 0.5, two: -2, thirty: -30, v: { type: "slider", value: -0.5 } });
   assert.deepEqual(
@@ -528,7 +532,8 @@ test("a negative's derived range steps like its positive twin", () => {
   p.destroy();
 });
 
-// The grid is anchored at min rounded to the step's decimals: 0.25 over a step of 0.1 anchored at 0.3, so 1.25 came back 1.2.
+// The grid is anchored at min rounded to the step's decimals: 0.25 over a step of 0.1 anchored at 0.3, so 1.25 came
+// back 1.2.
 test("an inferred step fits the min too, and the max when a finer step reaches it", async () => {
   const p = tweaks("Anchor", {
     a: [1.25, 0.25, 4],
@@ -558,7 +563,8 @@ test("an inferred step fits the min too, and the max when a finer step reaches i
   p.destroy();
 });
 
-// 0.1 * 3 is 0.30000000000000004; its grid's first point, 0.3, sat a hair under it and the trim moved the floor to 0.31.
+// 0.1 * 3 is 0.30000000000000004; its grid's first point, 0.3, sat a hair under it and the trim moved the floor to
+// 0.31.
 test("float noise in a bound doesn't cost a step", async () => {
   const p = tweaks("Noise", { s: [0.3, 0.1 * 3, 1], i: [[0.1 + 0.2, 0.7]], j: [[0.3, 0.7], 0.1 * 3, 1] });
   await p.ready;
@@ -586,8 +592,8 @@ test("float noise in a bound doesn't cost a step", async () => {
   p.destroy();
 });
 
-// One written bound past the default: the other derived from the value alone and swapped in, so [5, 20] slid 15–20 with a
-// warning about a max nobody wrote, and [10, 30] or { value: 2, min: 10 } couldn't slide at all.
+// One written bound past the default: the other derived from the value alone and swapped in, so [5, 20] slid 15–20 with
+// a warning about a max nobody wrote, and [10, 30] or { value: 2, min: 10 } couldn't slide at all.
 test("a lone bound past the default derives the other from itself, so the range is never empty or swapped", async () => {
   await warnings(async (msgs) => {
     const p = tweaks("Lone", {
@@ -718,7 +724,8 @@ test("a point component's derived step keeps its default", async () => {
   p.destroy();
 });
 
-// The shorthand fell back to the tuple itself, pinning both handles at the ends, while the verbose form and markup derived a range.
+// The shorthand fell back to the tuple itself, pinning both handles at the ends, while the verbose form and markup
+// derived a range.
 test("the interval shorthand derives missing bounds as the verbose form does; given ones still win", async () => {
   const p = tweaks("IvShort", {
     a: [[20, 80]],

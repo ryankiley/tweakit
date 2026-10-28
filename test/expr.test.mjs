@@ -61,7 +61,8 @@ test("a number before a name or a parenthesis multiplies; names never split", ()
   assert.equal(compileExpr("2 3"), null);
 });
 
-// These read only "not a valid expression", against the parser's promise to say why, and 3x(x) as an unknown function x.
+// These read only "not a valid expression", against the parser's promise to say why, and 3x(x) as an unknown function
+// x.
 test('x, a constant or a closing parenthesis before a name or "(" multiplies too, and what\'s left says why', () => {
   const x = 1.7;
   for (const [s, want] of [

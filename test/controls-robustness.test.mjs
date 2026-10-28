@@ -216,6 +216,7 @@ test("a hint and the reset target sit beside a spring's or bezier's own caption,
   });
   document.body.append(p.el);
   await p.ready;
+  // a failing assertion must not leave the spring's observer and listeners behind
   try {
     for (const [cls, caption] of [
       ["twk-spring", "twk-spring-label"],
@@ -237,7 +238,7 @@ test("a hint and the reset target sit beside a spring's or bezier's own caption,
     }
   } finally {
     p.destroy();
-  } // a failing assertion must not leave the spring's observer and listeners behind
+  }
 });
 
 test("a hint on a separator adds no marker to the divider", () => {
@@ -551,7 +552,8 @@ test("a refusal under 1 KB reads in bytes, and is spoken from a status region ou
 });
 
 // ── A large upload is drawn down to `fit` before it becomes the param. jsdom decodes no images and draws no canvas, so a
-// picture of w × h, with or without transparency, is stubbed in, and every redraw and encode is recorded. `bytes` sets the
+// picture of w × h, with or without transparency, is stubbed in, and every redraw and encode is recorded. `bytes` sets
+// the
 // size each type encodes to, null for a type the browser can't write (it hands back a PNG instead). ──
 const withPicture = async ({ w, h, alpha = false, bytes = {} }, fn) => {
   const proto = window.HTMLCanvasElement.prototype,
@@ -844,8 +846,8 @@ test("a markup host with an unknown data-twk type is skipped with a warning nami
   }
 });
 
-// data-twk="segmented" was warned "isn't a control type", though a schema takes it; data-twk="tabs" fell through to a folder
-// whose missing get() threw out of enhance(), leaving every later host claimed but never built.
+// data-twk="segmented" was warned "isn't a control type", though a schema takes it; data-twk="tabs" fell through to a
+// folder whose missing get() threw out of enhance(), leaving every later host claimed but never built.
 test("markup builds segmented as a schema does, leaves a tabs host untouched, and one bad host doesn't stop the rest", async () => {
   const { enhance } = await loadSingle();
   const holder = document.createElement("div");

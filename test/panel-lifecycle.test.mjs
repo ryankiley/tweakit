@@ -126,7 +126,8 @@ test("a floating panel taller than the viewport caps at the viewport below its t
   // jsdom lays nothing out: stand in for the panel's full height (scrollHeight, rounded).
   const full = (v) => Object.defineProperty(p.el, "scrollHeight", { value: v, configurable: true });
   try {
-    // An inline panel lifted by a drag keeps the 8px margin at the bottom (one placed by opts.floating mirrors its inset; see below).
+    // An inline panel lifted by a drag keeps the 8px margin at the bottom (one placed by opts.floating mirrors its
+    // inset; see below).
     p.el.getBoundingClientRect = () => ({ left: 60, top: 120, right: 60, bottom: 120, width: 0, height: 0 });
     drag(0, 10); // lifted where it sat, then 10px down (past the click's slop)
     assert.deepEqual(

@@ -105,7 +105,8 @@ const gridEnds = (min: number, max: number, step: number, anchor = min): [number
   const r = (v: number) => roundToStep(v, anchor, step);
   let lo = Number.isFinite(min) ? r(min) : -Infinity,
     hi = Number.isFinite(max) ? r(max) : Infinity;
-  // A millionth of a step is float noise, not overshoot: 0.1 * 3's min rounds to 0.3, a hair under it, and trimmed to 0.31.
+  // A millionth of a step is float noise, not overshoot: 0.1 * 3's min rounds to 0.3, a hair under it, and trimmed to
+  // 0.31.
   const eps = step * 1e-6;
   if (lo < min - eps) lo = r(lo + step);
   if (hi > max + eps) hi = r(hi - step);
@@ -120,7 +121,8 @@ const gridEnds = (min: number, max: number, step: number, anchor = min): [number
 const inferStep = (min: number, max: number, ...vals: number[]) => {
   const range = max - min;
   if (min < 0 && max > 0) vals.push(0);
-  // A span under the finest step the bands reach (0.0001) starts at a hundredth of its own decade, or [5e-6, 0, 1e-5] was 0–0.
+  // A span under the finest step the bands reach (0.0001) starts at a hundredth of its own decade, or [5e-6, 0, 1e-5]
+  // was 0–0.
   const base =
     range > 0 && range < 1e-4
       ? 10 ** Math.floor(Math.log10(range)) / 100
@@ -141,8 +143,9 @@ const inferStep = (min: number, max: number, ...vals: number[]) => {
   const withMax = finest([...vals, max]);
   return fits(withMax, [...vals, max]) ? withMax : finest(vals);
 };
-// The range a value implies when no bound is given, widened by each value (defaultRange), and its step. A range mirrored
-// about zero steps like its positive half (-0.5 by 0.01, like 0.5), not by its doubled span, and its ends keep 0 on the grid.
+// The range a value implies when no bound is given, widened by each value (defaultRange), and its step. A range
+// mirrored about zero steps like its positive half (-0.5 by 0.01, like 0.5), not by its doubled span, and its ends keep
+// 0 on the grid.
 const derivedRange = (...vals: number[]) => {
   const rs = (vals.length ? vals : [0]).map(defaultRange);
   const min = Math.min(...rs.map((r) => r[0])),
@@ -170,8 +173,8 @@ const notice = (kind: string, ...args: unknown[]) => {
     );
 };
 // Normalize a slider-style range: an absent or non-finite bound derives from the values, an inverted pair swaps (with a
-// note, given the control's label), and only then does an absent or unusable step infer, so a NaN min can't hand it a NaN
-// span. Every range source funnels here.
+// note, given the control's label), and only then does an absent or unusable step infer, so a NaN min can't hand it a
+// NaN span. Every range source funnels here.
 const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals: number[] = [], label?: string) => {
   const given = (n: unknown) => n != null && n !== "" && Number.isFinite(+n!);
   vals = vals.filter(Number.isFinite);
@@ -179,8 +182,9 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals
   let min = given(rawMin) ? +rawMin! : d.min,
     max = given(rawMax) ? +rawMax! : d.max,
     step = +rawStep!;
-  // One bound written at or past the values' own other end: that end derives from the written bound, as a bare number its
-  // size would, and steps a span past it when that's still no range, so [5, 20] slides 20–60 and [0.5, 1] 1–2, not 15–20 or 1–1.
+  // One bound written at or past the values' own other end: that end derives from the written bound, as a bare number
+  // its size would, and steps a span past it when that's still no range, so [5, 20] slides 20–60 and [0.5, 1] 1–2, not
+  // 15–20 or 1–1.
   if (given(rawMin) !== given(rawMax) && !(max > min)) {
     const up = given(rawMin),
       b = up ? min : max,
@@ -380,7 +384,8 @@ export const placeBelow = (
   if (width === "match") pop.style.width = r.width + "px";
   // drawn width, which min-width may hold above a match
   const w = pop.offsetWidth || (width === "match" ? r.width : width || 0);
-  // A match held wider by min-width grows left from the trigger's right edge, so in a nested folder it spans the panel's row.
+  // A match held wider by min-width grows left from the trigger's right edge, so in a nested folder it spans the
+  // panel's row.
   const end = align === "end" || (width === "match" && w > r.width + 0.5);
   const x = end ? r.right - w : align === "center" ? r.left + r.width / 2 - w / 2 : r.left;
   pop.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + "px";
@@ -440,9 +445,10 @@ const carrySkin = (portal: HTMLElement, anchor: Element | null | undefined) => {
 
 // ── Shadow roots: a panel built with opts.shadow lives in its host's shadow root, and its portals in a second host on
 // <body> (shadow-root.ts), where a transformed ancestor can't capture them. home(): where a portal from `n` goes: that
-// panel's portal root, the kit's own root `n` is already in (a portal's, or a shadow panel's before its dressing lands),
-// else <body>, as for a light panel inside a page's own web component.
-// activeIn(): focus as `n`'s tree sees it, since document.activeElement stops at a shadow host. holds(): `t` is in `box`,
+// panel's portal root, the kit's own root `n` is already in (a portal's, or a shadow panel's before its dressing
+// lands), else <body>, as for a light panel inside a page's own web component.
+// activeIn(): focus as `n`'s tree sees it, since document.activeElement stops at a shadow host. holds(): `t` is in
+// `box`,
 // or is the host `box`'s tree shows as, the relatedTarget of focus crossing between a panel's root and its portals'. ──
 const home = (n: Node): Node => {
   const h = (n.getRootNode() as ShadowRoot).host as any;
@@ -450,9 +456,9 @@ const home = (n: Node): Node => {
 };
 const activeIn = (n: Node) => (n.getRootNode() as Document | ShadowRoot).activeElement;
 const holds = (box: Node, t: Node | null) => !!t && (box.contains(t) || t === (box.getRootNode() as ShadowRoot).host);
-// opts.shadow (a panel, mountControl, createColorPicker): `root` goes in a shadow root on a host of its own, hidden until
-// shadow-root.ts has styled it. Returns what goes in the page, the promise `ready` waits for (it holds the dressing's own
-// teardown), and the teardown, which waits for the dressing if a destroy() comes first.
+// opts.shadow (a panel, mountControl, createColorPicker): `root` goes in a shadow root on a host of its own, hidden
+// until shadow-root.ts has styled it. Returns what goes in the page, the promise `ready` waits for (it holds the
+// dressing's own teardown), and the teardown, which waits for the dressing if a destroy() comes first.
 const isolate = (root: HTMLElement, shadow: boolean | { href?: string } | undefined) => {
   if (!shadow) return { box: root, end: () => {} };
   const box = el("twk-host" as "div", "twk-host");
@@ -483,7 +489,8 @@ const portalTo = (n: HTMLElement, from: Node) => {
 };
 
 // ── Popover — the portal-to-<body> shell behind every transient surface. Opens under its
-// trigger at its width (unless opts.width), carries the host theme, closes on outside-press / Esc / scroll-out. Globally
+// trigger at its width (unless opts.width), carries the host theme, closes on outside-press / Esc / scroll-out.
+// Globally
 // single-open. onOpen runs once it's placed at real size; onReflow on resize while open. ──
 let activePopoverClose: null | (() => void) = null,
   activePopoverTrigger: HTMLElement | null = null;
@@ -893,8 +900,9 @@ const navIndex = (key: string, i: number, n: number, cols = 0) => {
   return -1;
 };
 // ── Segmented control — a single-select pill row (the boolean toggle, the spring's mode switch). ──
-// `onIs`: the boolean toggle, a two-segment row that is one switch to a screen reader (role="switch", aria-checked, one tab
-// stop, Space or Enter flips it) rather than "radio button, On, 2 of 2"; its Off/On segments stay as the pointer's targets.
+// `onIs`: the boolean toggle, a two-segment row that is one switch to a screen reader (role="switch", aria-checked, one
+// tab stop, Space or Enter flips it) rather than "radio button, On, 2 of 2"; its Off/On segments stay as the pointer's
+// targets.
 function createSegmented(options: Option[], value: unknown, onChange: OnChange, ariaLabel?: string, onIs?: unknown) {
   const sw = onIs !== undefined,
     seg = el("div", "twk-seg");
@@ -950,10 +958,11 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
     (sw ? seg : btns[j]).focus();
   });
   reflect();
+  // once laid out, again when fonts land
   onReady(() => {
     measure();
     seg.classList.add("is-ready");
-  }); // once laid out, again when fonts land
+  });
   // A tab page revealing this control re-measures the pill, built at 0×0 while display:none.
   onLive(seg, [[window, "twk-reflow"]], () => measure());
   return { el: seg, set: (v: unknown) => set(v, false), get: () => value };
@@ -1025,7 +1034,8 @@ const using = <T>(s: Words | null | undefined, fn: () => T): T => {
     inForce = was;
   }
 };
-// `.s` is the set it reads, for a control that rebuilds a part after its build to do so under it again (using(tr.s, …)).
+// `.s` is the set it reads, for a control that rebuilds a part after its build to do so under it again (using(tr.s,
+// …)).
 const words = (s: Words | null | undefined = inForce) =>
   Object.assign(
     (k: string, d: Word, v?: Record<string, unknown>): string => {
