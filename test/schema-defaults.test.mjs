@@ -256,6 +256,16 @@ test("another library's type name is skipped with the type it means, and its val
   p.destroy();
 });
 
+// Names on Object.prototype ("toString", "constructor") read as registered controls and threw out of tweaks(), and a
+// folder or the picker body, registered but not types to write, built or threw.
+test("a type named like an Object method, folder or colorpicker is an unknown type, not a crash", async () => {
+  let p;
+  const msgs = await warnings(() => { p = tweaks("Proto", { a: { type: "toString", value: 1 }, b: { type: "constructor", size: 12 }, c: { type: "folder", n: 1 }, d: { type: "colorpicker", value: "#fff" }, ok: 1 }); });
+  assert.deepEqual(p.params, { b: { type: "constructor", size: 12 }, c: { type: "folder", n: 1 }, ok: 1 });
+  for (const t of ["toString", "constructor", "folder", "colorpicker"]) assert.ok(msgs.some((m) => m.includes(`"${t}" isn't a control type`)), t);
+  p.destroy();
+});
+
 // { type: "list", value: "a" } has no options, so the list handler returns nothing; it built a folder of type and value rows.
 test("a known type missing its required field is skipped when it holds a value, and stays a folder when it doesn't", async () => {
   const errors = [], error = console.error; console.error = (...a) => errors.push(a.join(" "));

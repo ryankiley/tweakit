@@ -491,7 +491,7 @@ const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) 
 const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"]; // read by the spring and motion controls, and their markup
 // ── Control registry — type → constructor. Core controls register on load; a lazy one when
 // its module is imported, so the loaded set drives what can be built. ──
-const REGISTRY: Record<string, ControlCtor<any, any>> = {}; // heterogeneous by design — see ControlCtor
+const REGISTRY: Record<string, ControlCtor<any, any>> = Object.create(null); // heterogeneous by design — see ControlCtor; null-prototype, so a type named "toString" finds nothing
 export const registerControl = (type: string, ctor: ControlCtor<any, any>) => { REGISTRY[type] = ctor; };
 export const getControl = <C = Control, M = Meta>(type: string): ControlCtor<M, C> | undefined => REGISTRY[type];
 export const controlTypes = () => Object.keys(REGISTRY);

@@ -266,7 +266,7 @@ const springRun = (k: number, d: number, m: number) => {
 // The name a typo is a single edit from (a letter added, dropped or changed), or that another library or an older tweakit
 // calls it by. It and the notices below are lazy, as only a mistake needs them. unknownType: a schema or markup `type` no
 // control answers to. Its list leaves out the color module's picker body, registered as a control but not a type to write.
-const SYNONYMS: Record<string, string> = Object.assign(Object.create(null), { bezier: "cubicbezier", "cubic-bezier": "cubicbezier", easing: "cubicbezier", toggle: "checkbox", switch: "checkbox", bool: "checkbox", boolean: "checkbox", dropdown: "list", select: "list", string: "text", textarea: "text", range: "slider", fps: "fpsgraph" });
+const SYNONYMS: Record<string, string> = Object.assign(Object.create(null), { bezier: "cubicbezier", "cubic-bezier": "cubicbezier", easing: "motion", toggle: "checkbox", switch: "checkbox", bool: "checkbox", boolean: "checkbox", dropdown: "list", select: "list", string: "text", textarea: "text", range: "slider", fps: "fpsgraph" });
 const nearest = (s: string, names: string[]) => {
   const a = s.toLowerCase(); // case-blind, so "textmuted" finds "textMuted"
   if (names.includes(SYNONYMS[a])) return SYNONYMS[a];

@@ -10,7 +10,7 @@ type MetaNode = Pick<Meta, "type" | "children" | "pages">;
 // TW_SPLIT is an esbuild `define`: `false` for the single-file bundle, where single.ts imports
 // every control statically, so this map is empty and esbuild drops the import()s.
 declare const TW_SPLIT: boolean;
-const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
+const LAZY_IMPORT: Record<string, () => Promise<unknown>> = Object.assign(Object.create(null), TW_SPLIT ? { // null-prototype: "constructor" isn't a chunk
   number: () => import("./heavy.js"), // heavy.js registers the Number control itself
   interval: () => import("./controls/interval.js"),
   color: () => import("./controls/color.js"),
@@ -27,7 +27,7 @@ const LAZY_IMPORT: Record<string, () => Promise<unknown>> = TW_SPLIT ? {
   motion: () => Promise.all([import("./controls/bezier.js"), import("./controls/spring.js")]).then(() => import("./controls/motion.js")),
   point: () => import("./controls/point.js"),
   plot: () => import("./controls/plot.js"),
-} : {};
+} : {});
 const loading: Record<string, Promise<unknown>> = {};
 const ensure = (type: string) => (getControl(type) || !LAZY_IMPORT[type]) ? null : (loading[type] ||= LAZY_IMPORT[type]().catch((e) => { delete loading[type]; console.error(`[tweaks] control chunk "${type}" failed to load:`, e); throw e; })); // a rejection isn't cached, so a later panel retries
 const scanTypes = (metas: MetaNode[], set = new Set<string>()) => {

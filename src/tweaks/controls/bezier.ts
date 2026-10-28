@@ -1,6 +1,7 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
 import { el, btn, txt, clamp, onReady, onLive, registerControl } from "../shared.js";
 import { dragGesture, numField, svgEl, arrowStep } from "../heavy.js";
+import { parseEasing } from "../easing.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -16,7 +17,9 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   // pointer, and the graph fits again when the drag ends.
   let view = [-0.25, 1.25], held = false;
   const fitView = () => { if (!held) view = [Math.min(-0.25, v[1] - 0.1, v[3] - 0.1), Math.max(1.25, v[1] + 0.1, v[3] + 0.1)]; };
-  let v: number[] = Array.isArray(meta.value) && meta.value.length === 4 ? meta.value.map(Number) : DEF.slice();
+  // Four numbers, or what CSS writes: a keyword (`ease-in-out`) or `cubic-bezier(…)`. Anything else opens on `ease`.
+  const read = (x: unknown) => (Array.isArray(x) && x.length === 4 ? x.map(Number) : x === "linear" ? [0, 0, 1, 1] : parseEasing(x)?.slice()); // parseEasing reads linear as null
+  let v: number[] = read(meta.value) || DEF.slice();
   if (v.some((n) => !Number.isFinite(n))) v = DEF.slice(); // a non-finite init would show NaN and a blank curve
   v = fit(v);
   const def = v.slice(); // fitted default; Home on a handle returns to it
@@ -92,7 +95,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
 
   onReady(drawGraph);
   onLive(root, [[window, "resize"], [window, "tw-reflow"]], drawGraph); // tw-reflow: a tab page revealing this re-measures it
-  return { el: root, set: (nv: unknown) => { if (Array.isArray(nv) && nv.length === 4) { const m = nv.map(Number); if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() }; // the build's clamp, so get() agrees with the handles
+  return { el: root, set: (nv: unknown) => { const m = read(nv); if (m) { if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() }; // the build's clamp, so get() agrees with the handles
 }
 
 registerControl("cubicbezier", createBezier);
