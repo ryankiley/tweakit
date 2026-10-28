@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, wait, ptr, key, saved, quiet, warnings, withClipboard, copyFrom } from "./_helpers.mjs";
+import { loadSingle, wait, ptr, key, saved, quiet, warnings, withClipboard, copyFrom, armPresets } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 
@@ -347,7 +347,7 @@ test("destroy() in the same tick as opening a popover leaves no stray menu, focu
   // Regression: the open's deferred work didn't re-check `open`, so a close in between was undone.
   const p = tweaks("Race", { a: 1 }, { persist: "t-popover-race" });
   document.body.append(p.el);
-  p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]').click();
+  (await armPresets(p)).click();
   const menu = [...document.querySelectorAll(".twk-presets-menu")].at(-1);
   assert.ok(menu && menu.isConnected, "the menu portaled to <body>");
   p.destroy(); // same tick as the open
@@ -749,13 +749,43 @@ test("an onReset that calls panel.reset() performs the default reset instead of 
   assert.equal(calls, 2, "the guard lifts after the hook returns");
 });
 
+// The menu is a lazy chunk: a press with no hover before it (a tap, a keyboard press) opens it once it lands, and a panel
+// destroyed while it loads opens nothing.
+test("the presets menu opens on a press that came with no hover, and not on a panel destroyed while it loaded", async () => {
+  const p = tweaks("Cold", { a: 1 }, { persist: "t-presets-cold" }), q = tweaks("Gone", { a: 1 }, { persist: "t-presets-gone" });
+  document.body.append(p.el, q.el);
+  const btn = (x) => x.el.querySelector('[aria-label="Presets"]');
+  btn(p).click(); btn(q).click(); q.destroy();
+  await wait(40);
+  assert.equal(btn(p).getAttribute("aria-expanded"), "true", "the cold press opened the menu");
+  assert.ok([...document.querySelectorAll(".twk-presets-menu.is-open")].length === 1, "one menu open: the destroyed panel's never built");
+  btn(p).click(); await wait(10);
+  assert.equal(btn(p).getAttribute("aria-expanded"), "false", "from then on the menu's own popover toggles it");
+  p.destroy(); await wait(220);
+});
+
+// Each press before the chunk landed queued an open, and the second stacked observers close() couldn't release; a press
+// couldn't be taken back either.
+test("two presses before the presets chunk lands open the menu once, and Escape before it lands opens nothing", async () => {
+  const p = tweaks("Twice", { a: 1 }, { persist: "t-presets-twice" }), q = tweaks("Never", { a: 1 }, { persist: "t-presets-never" });
+  document.body.append(p.el, q.el);
+  const btn = (x) => x.el.querySelector('[aria-label="Presets"]');
+  btn(p).click(); btn(p).click(); await wait(40);
+  assert.equal(btn(p).getAttribute("aria-expanded"), "true", "open once, not toggled shut");
+  assert.equal(document.querySelectorAll(".twk-presets-menu.is-open").length, 1);
+  btn(p).click(); await wait(10);
+  btn(q).click(); document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(40);
+  assert.equal(btn(q).getAttribute("aria-expanded"), "false", "the Escape took the press back");
+  p.destroy(); q.destroy(); await wait(220);
+});
+
 test("destroy() closes its own popover and hint, not another panel's", async () => {
   // Regression: popovers are single-open page-wide, and destroy() closed whichever was up.
   const a = tweaks("A", { a: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "a hint" } }, { persist: "t-popover-a" });
   const b = tweaks("B", { b: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "b hint" } }, { persist: "t-popover-b" });
   document.body.append(a.el, b.el);
   const presets = (p) => p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]');
-  presets(b).click();
+  (await armPresets(b)).click();
   assert.equal(presets(b).getAttribute("aria-expanded"), "true", "B's menu is open");
   b.el.querySelector(".twk-hint").dispatchEvent(new Event("pointerenter"));
   const tip = document.querySelector(".twk-tip");

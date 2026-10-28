@@ -303,6 +303,7 @@ function popover(root: HTMLElement, trigger: HTMLButtonElement, pop: HTMLElement
   const recarry = () => carrySkin(pop, root);
   const onScheme = (recs: MutationRecord[]) => { if (!recs.every((r) => r.target === pop)) recarry(); };
   const openPop = () => {
+    if (open) return; // a second open would stack a second set of observers that close() can't reach
     if (activePopoverClose && activePopoverClose !== close) activePopoverClose(); // close any other open popover first
     activePopoverClose = close; activePopoverTrigger = trigger;
     open = st.open = true; root.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");

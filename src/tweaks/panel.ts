@@ -10,6 +10,7 @@ import { ensureForMetas, scanTypes } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
 import { makeCopyBtn, makeResetBtn, toolbarBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X } from "./icons.js";
+import { createUndo } from "./undo.js";
 import type { Schema, HeldSchema, TweaksOptions, Panel, Params, ParamsOf, KnownTypes, PanelState, Control } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { ClipCtx, Scope } from "./clip.js";
@@ -46,7 +47,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   let assembled = false; // set at the end of assemble(); no controls exist before
   // The lazy window: a mutating API call made before the controls exist queues here and replays in order once assemble() has built them.
   const queue: Array<() => void> = [];
-  // The last preset op queued per name: a loadPreset() behind a save is accepted, one behind a delete refused.
   let failed = false; // the chunks failed: the panel can never be built
   let built = -1; // cleanups.length as assemble() enters build()
   const later = (fn: () => void) => { if (destroyed) return; if (failed) return; assembled ? fn() : queue.push(fn); }; // the failed build already said why
@@ -567,83 +567,25 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     cleanups.push(onLive(panel, [[window, "resize"]], reclamp));
   };
 
+  // The menu is presets.ts, downloaded on the button's first hover, focus or press. A press before it lands opens it once it
+  // does, unless Escape, or a press or focus elsewhere, came first, and a second press doesn't queue a second open; after that the
+  // menu's popover owns the clicks. A chunk that fails to load is tried again on the next press.
   if (presetsBtn) {
-    const menu = el("div", "twk-presets-menu");
-    const saveRow = el("div", "twk-presets-save");
-    const input = el("input", "twk-presets-input"); input.type = "text"; input.placeholder = "Preset name…"; input.spellcheck = false; input.setAttribute("aria-label", "New preset name"); quietFocus(input);
-    const saveBtn = txt("button", "twk-presets-savebtn", "Save");
-    saveRow.append(input, saveBtn);
-    const list = el("div", "twk-presets-list");
-    menu.append(saveRow, list);
-    const renderList = () => {
-      const all = listPresets(), names = Object.keys(all);
-      list.replaceChildren();
-      if (!names.length) return list.append(txt("div", "twk-presets-empty", "No presets yet"));
-      for (const nm of names) {
-        const row = el("div", "twk-presets-row");
-        const load = txt("button", "twk-presets-load", nm);
-        load.addEventListener("click", () => { loadPreset(nm); menuPop.close(); announce(`Loaded preset ${nm}`); });
-        const del = btn("twk-presets-del", ICON_X); del.setAttribute("aria-label", `Delete preset ${nm}`);
-        del.addEventListener("click", (e) => { e.stopPropagation(); deletePreset(nm); renderList(); });
-        row.append(load, del); list.append(row);
-      }
-    };
-    const doSave = () => { const nm = input.value.trim(); if (!nm) { input.focus(); return; } if (!savePreset(nm)) { announce(`Preset ${nm} not saved: storage is full`); return; } input.value = ""; renderList(); announce(`Saved preset ${nm}`); }; // a refused save keeps the typed name
-    // The shared popover shell; align:"end" hangs it off the button's right edge.
-    const menuPop = popover(presetsBtn, presetsBtn, menu, {
-      width: 208, fallbackH: 160, align: "end",
-      onOpen: () => { renderList(); input.focus(); },
+    const b = presetsBtn; let menu: Promise<ReturnType<typeof import("./presets.js")["presetsMenu"]>> | undefined, made = false;
+    const load = () => (menu ||= import("./presets.js").then((m) => { if (destroyed) throw 0; made = true; return m.presetsMenu(b, () => Object.keys(listPresets()), savePreset, loadPreset, deletePreset, announce, ICON_X); }, (e) => { menu = undefined; if (e !== 0) console.error("[tweaks] the presets menu failed to load:", e); throw e; }));
+    for (const t of ["pointerenter", "focus"]) b.addEventListener(t, () => { load().catch(() => {}); }, { once: true });
+    let want = false;
+    const cancel = (e: Event) => { if (e.type === "keydown" ? (e as KeyboardEvent).key === "Escape" : !e.composedPath().includes(b)) want = false; }; // Escape, or a press or focus elsewhere
+    const watch = (on: boolean) => { for (const t of ["pointerdown", "focusin", "keydown"]) (on ? document.addEventListener : document.removeEventListener).call(document, t, cancel, true); };
+    b.addEventListener("click", () => {
+      if (made || b.disabled || want) return;
+      want = true; watch(true);
+      load().then((pop) => { if (want) pop.open(); }, () => {}).finally(() => { want = false; watch(false); });
     });
-    saveBtn.addEventListener("click", doSave);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") doSave(); });
   }
 
-  // ── Undo / redo (opts.undo) — a debounced history of snapshots, scoped to a hovered or focused panel so it doesn't hijack the page's own undo ──
-  const undoApi = opts.undo ? (() => {
-    // Bounded: each step is a deep clone of every value.
-    const HIST_MAX = 200;
-    let history: Snapshot[] = [], histIdx = 0, applyingHistory = false, histTimer = 0;
-    // Walk a new step beside the one before it: a string that didn't change takes the earlier step's copy, so an image's
-    // data URL is held once across history, not once a step. Strings only, never objects, so no step can edit another.
-    // True when nothing changed, which spares serializing both steps to compare them.
-    // (Snapshots are JSON: own keys, no undefined. A key b lacks reads undefined or an inherited function, and never matches.)
-    const share = (a: any, b: any): boolean => {
-      if (a === b) return true;
-      if (!a || !b || typeof a != "object" || typeof b != "object" || Array.isArray(a) != Array.isArray(b)) return false;
-      let same = Object.keys(a).length == Object.keys(b).length;
-      for (const k in a) if (a[k] === b[k]) a[k] = b[k]; else if (!share(a[k], b[k])) same = false;
-      return same;
-    };
-    const commit = () => {
-      histTimer = 0;
-      const snap = snapshot();
-      if (share(snap, history[histIdx])) return; // unchanged
-      history = history.slice(0, histIdx + 1); history.push(snap); // a new edit drops the redo branch
-      if (history.length > HIST_MAX) history = history.slice(history.length - HIST_MAX); // oldest steps age out
-      histIdx = history.length - 1;
-    };
-    const record = () => { if (applyingHistory) return; clearTimeout(histTimer); histTimer = setTimeout(commit, 350); };
-    const flush = () => { if (histTimer) { clearTimeout(histTimer); commit(); } }; // so ⌘Z right after a change still undoes that change
-    listeners.add(record); own.add(record);
-    const restore = (idx: number) => { applyingHistory = true; applySnapshot(history[idx]); applyingHistory = false; histIdx = idx; };
-    const undo = () => { flush(); if (histIdx > 0) restore(histIdx - 1); };
-    const redo = () => { flush(); if (histIdx < history.length - 1) restore(histIdx + 1); };
-    const focused = () => panel.matches(":hover") || panel.contains(document.activeElement);
-    // Registered by assemble() — see watchResize for why a global listener waits for the build.
-    const onKey = (e: KeyboardEvent) => {
-      if (!focused() || !(e.metaKey || e.ctrlKey) || inEditable(e.target as Element)) return;
-      const k = e.key.toLowerCase();
-      if (k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
-      else if (k === "y") { e.preventDefault(); redo(); }
-    };
-    // patch: a late restore (an image the store just answered for) goes into every step that still held what its row held,
-    // so it isn't a step of its own, and ⌘Z neither takes it back out nor folds a pending edit into the base.
-    const patch = (path: string[], held: unknown, v: unknown) => {
-      const k = path[path.length - 1], h = JSON.parse(JSON.stringify(held ?? null)), nv = JSON.parse(JSON.stringify(v ?? null));
-      for (const step of history) { const o: any = atPath(step, path.slice(0, -1)); if (o && typeof o === "object" && hasOwn(o, k) && !valueChanged(o[k], h)) o[k] = nv; }
-    };
-    return { undo, redo, onKey, flush, arm: () => { history = [snapshot()]; histIdx = 0; }, patch };
-  })() : null;
+  // ── Undo / redo (opts.undo): undo.ts. inEditable is declared below, and only read on a keypress. ──
+  const undoApi = opts.undo ? createUndo(panel, snapshot, applySnapshot, atPath, (t) => inEditable(t), (fn) => { listeners.add(fn); own.add(fn); }) : null;
 
   // ── Pick and copy / paste — a press beside a row (in the panel's side padding, or a gap between rows) picks it, as
   // a layer is picked in a design tool; beside a folder's header, the folder. ⌘C / ⌘V (ctrl elsewhere) then act on the
