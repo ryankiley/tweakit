@@ -48,13 +48,13 @@ for (const file of files) {
         // The example's state once settled: every panel's toJSON(), or the markup hosts' values.
         const state = ex.run
           ? made.map((p) => p.toJSON())
-          : [...stage.querySelectorAll("[data-tw]")].map((h) => ({ key: h.dataset.key ?? h.dataset.label ?? h.dataset.tw, value: h.dataset.value ?? null }));
+          : [...stage.querySelectorAll("[data-twk]")].map((h) => ({ key: h.dataset.key ?? h.dataset.label ?? h.dataset.twk, value: h.dataset.value ?? null }));
         fresh[name] = JSON.parse(JSON.stringify(state));
         if (!update) assert.deepEqual(fresh[name], baseline[name], `${name}: the example's settled state changed — if that is intended, rewrite the baseline with TW_UPDATE_DOCS_SNAPSHOT=1`);
       } finally {
         window.removeEventListener("error", onError);
         for (const p of made) p.destroy();
-        for (const el of document.querySelectorAll(".tw-panel")) el.remove(); // panels built straight into body (floating examples)
+        for (const el of document.querySelectorAll(".twk-panel")) el.remove(); // panels built straight into body (floating examples)
         stage.remove();
       }
     });

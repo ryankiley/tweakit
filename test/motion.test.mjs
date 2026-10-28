@@ -12,15 +12,15 @@ let runs = [];
 window.HTMLElement.prototype.animate = function (frames, opts) { runs.push({ el: this, frames, ...opts }); return { cancel() {} }; };
 const mountPanel = mounter(tweaks, "M");
 const mount = (schema) => { runs = []; return mountPanel(schema); };
-const open = async (p) => { const t = p.el.querySelector(".tw-motion .tw-trigger"); t.focus(); t.click(); await wait(40); const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
+const open = async (p) => { const t = p.el.querySelector(".twk-motion .twk-trigger"); t.focus(); t.click(); await wait(40); const pop = document.body.querySelector(".twk-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
 const close = async (p) => { document.activeElement.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(220); p.destroy(); };
 const EASE = "cubic-bezier(0.25, 0.1, 0.25, 1)";
 
 test("defaults: easing mode, the `ease` curve, 300 ms, and the CSS it resolves to", async () => {
   const p = await mount({ t: { type: "motion" } });
   assert.deepEqual(p.params.t, { mode: "easing", curve: [0.25, 0.1, 0.25, 1], duration: 300, easing: EASE });
-  assert.equal(p.el.querySelector(".tw-motion .tw-trigger-value").textContent, "Easing · 300 ms");
-  assert.match(p.el.querySelector(".tw-motion-chip path").getAttribute("d"), /^M10\.0,90\.0 L/, "the chip draws the curve from the origin");
+  assert.equal(p.el.querySelector(".twk-motion .twk-trigger-value").textContent, "Easing · 300 ms");
+  assert.match(p.el.querySelector(".twk-motion-chip path").getAttribute("d"), /^M10\.0,90\.0 L/, "the chip draws the curve from the origin");
   p.destroy();
 });
 
@@ -33,12 +33,12 @@ test("a keyword curve and a duration author the easing; spring keys author a spr
   // Physics keys map to the duration + bounce Motion would resolve them from (its period is visualDuration × 1.2), and the value carries the resolved physics back out.
   assert.equal(v.mode, "spring"); assert.ok(Math.abs(v.stiffness - 300) < 1e-6 && Math.abs(v.damping - 26) < 1e-6 && v.mass === 1, `the physics round-trips (${v.stiffness}, ${v.damping}, ${v.mass})`);
   assert.ok(Math.abs(v.visualDuration - 2 * Math.PI / (1.2 * Math.sqrt(300))) < 1e-9 && Math.abs(v.bounce - (1 - 26 / (2 * Math.sqrt(300)))) < 1e-9, `as a duration + bounce (${v.visualDuration}, ${v.bounce})`);
-  const shown = [...s.el.querySelectorAll(".tw-spring .tw-fields")].find((f) => f.style.display !== "none");
+  const shown = [...s.el.querySelectorAll(".twk-spring .twk-fields")].find((f) => f.style.display !== "none");
   assert.match(shown.textContent, /Duration/); assert.match(shown.textContent, /Bounce/); assert.doesNotMatch(shown.textContent, /Stiffness/, "the spring inside is tuned by feel only — duration + bounce");
   assert.equal(v.duration, Math.round(7 / (26 / 2) * 1000), "the run lasts to within e^-7 of settled: 7 / (ζ·ω₀), uncapped");
   const stops = v.easing.match(/^linear\((.+)\)$/)[1].split(", ").map(parseFloat);
   assert.ok(stops.length >= 48, `${stops.length} stops`); assert.ok(Math.abs(stops[0]) < 0.01 && Math.abs(stops.at(-1) - 1) < 0.05, "from rest to settled");
-  assert.equal(s.el.querySelector(".tw-motion .tw-trigger-value").textContent, `Spring · ${Math.round(v.visualDuration * 1000)} ms`, "the summary shows the authored duration, as the field does");
+  assert.equal(s.el.querySelector(".twk-motion .twk-trigger-value").textContent, `Spring · ${Math.round(v.visualDuration * 1000)} ms`, "the summary shows the authored duration, as the field does");
   s.destroy();
 });
 
@@ -59,14 +59,14 @@ test("set(): infers the mode from the keys, takes a bare keyword, ignores derive
 test("the popover: Easing | Spring switches the editor and the mode; the preview box runs the value's easing on open and on every edit; reset restores the mode", async () => {
   const p = await mount({ t: { type: "motion", curve: "ease", duration: 300 } });
   const pop = await open(p);
-  const seg = [...pop.querySelector(".tw-motion-body").children[0].querySelectorAll(".tw-seg-btn")]; // the mode switch is the body's first child (the spring editor below has its own Time | Physics pill)
+  const seg = [...pop.querySelector(".twk-motion-body").children[0].querySelectorAll(".twk-seg-btn")]; // the mode switch is the body's first child (the spring editor below has its own Time | Physics pill)
   assert.deepEqual(seg.map((b) => b.textContent.trim()), ["Easing", "Spring"]);
-  assert.equal(pop.querySelector(".tw-spring").closest(".tw-motion-pane").style.display, "none", "only the easing editor shows");
+  assert.equal(pop.querySelector(".twk-spring").closest(".twk-motion-pane").style.display, "none", "only the easing editor shows");
   const opened = runs.at(-1);
-  assert.equal(opened.el, pop.querySelector(".tw-motion-box")); assert.equal(opened.easing, EASE); assert.equal(opened.duration, 300);
+  assert.equal(opened.el, pop.querySelector(".twk-motion-box")); assert.equal(opened.easing, EASE); assert.equal(opened.duration, 300);
   seg[1].click();
   assert.equal(p.params.t.mode, "spring");
-  assert.equal(pop.querySelector(".tw-bezier").closest(".tw-motion-pane").style.display, "none", "now only the spring editor shows");
+  assert.equal(pop.querySelector(".twk-bezier").closest(".twk-motion-pane").style.display, "none", "now only the spring editor shows");
   assert.match(runs.at(-1).easing, /^linear\(/, "the preview replayed with the spring's easing");
   assert.deepEqual(Object.keys(p.changes()), ["t"], "a mode switch is a change");
   p.reset();
@@ -77,10 +77,10 @@ test("the popover: Easing | Spring switches the editor and the mode; the preview
 
 test("markup: data-curve takes four numbers or a keyword, and the value is the same shape", async () => {
   const holder = document.createElement("div");
-  holder.innerHTML = `<div data-tw="motion" data-label="Press" data-curve="0.42,0,1,1" data-duration="200"></div><div data-tw="motion" data-label="Pop" data-curve="ease-out"></div><div data-tw="motion" data-label="Boing" data-visual-duration="0.4" data-bounce="0.3"></div>`;
+  holder.innerHTML = `<div data-twk="motion" data-label="Press" data-curve="0.42,0,1,1" data-duration="200"></div><div data-twk="motion" data-label="Pop" data-curve="ease-out"></div><div data-twk="motion" data-label="Boing" data-visual-duration="0.4" data-bounce="0.3"></div>`;
   document.body.append(holder);
   await enhance(holder);
-  const [a, b, c] = [...holder.querySelectorAll('[data-tw="motion"]')].map((h) => h._tw.ctrl.get());
+  const [a, b, c] = [...holder.querySelectorAll('[data-twk="motion"]')].map((h) => h._tw.ctrl.get());
   assert.deepEqual(a, { mode: "easing", curve: [0.42, 0, 1, 1], duration: 200, easing: "cubic-bezier(0.42, 0, 1, 1)" });
   assert.deepEqual(b.curve, [0, 0, 0.58, 1], "a keyword curve");
   assert.equal(c.mode, "spring"); assert.equal(c.visualDuration, 0.4); assert.equal(c.bounce, 0.3);
@@ -100,17 +100,17 @@ test("review follow-ups: an out-of-range curve is emitted fitted, an off-grid du
   p.destroy();
 });
 
-test("review follow-ups: a set() while the popover is closed shows on reopen, and set() no longer broadcasts tw-reflow", async () => {
+test("review follow-ups: a set() while the popover is closed shows on reopen, and set() no longer broadcasts twk-reflow", async () => {
   const p = await mount({ t: { type: "motion", curve: "ease", duration: 300 } });
-  let reflows = 0; const count = () => reflows++; window.addEventListener("tw-reflow", count);
+  let reflows = 0; const count = () => reflows++; window.addEventListener("twk-reflow", count);
   let pop = await open(p);
   document.activeElement.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(230); // closed, node detached
   p.set("t", { curve: "ease-in", duration: 500 });
   assert.equal(reflows, 0, "no page-wide reflow on a set()");
   pop = await open(p);
-  assert.deepEqual([...pop.querySelectorAll(".tw-bezier-fields .tw-num")].map((i) => i.value), ["0.42", "0.00", "1.00", "1.00"], "the editor shows the value set while it was closed");
-  assert.equal(pop.querySelector(".tw-num[aria-label^=Duration]").value, "500");
-  window.removeEventListener("tw-reflow", count);
+  assert.deepEqual([...pop.querySelectorAll(".twk-bezier-fields .twk-num")].map((i) => i.value), ["0.42", "0.00", "1.00", "1.00"], "the editor shows the value set while it was closed");
+  assert.equal(pop.querySelector(".twk-num[aria-label^=Duration]").value, "500");
+  window.removeEventListener("twk-reflow", count);
   await close(p);
 });
 
@@ -121,7 +121,7 @@ test("review follow-ups: reset restores the mode you weren't looking at; the sum
   assert.equal(p.params.t.duration, 240);
   p.set("t", { mode: "spring" });
   assert.equal(p.params.t.bounce, 0.2, "the spring side went back to its default too");
-  assert.equal(p.el.querySelector(".tw-motion .tw-trigger-value").textContent, "Spring · 500 ms");
+  assert.equal(p.el.querySelector(".twk-motion .twk-trigger-value").textContent, "Spring · 500 ms");
   p.destroy();
 });
 
@@ -136,7 +136,7 @@ test("review follow-ups: the preview keeps its direction and finishes a run on e
   const n = runs.length, lastFrom = runs.at(-1).frames[0].transform;
   p.set("t", { bounce: 0.5 }); p.set("t", { bounce: 0.4 });
   assert.equal(runs.length, n, "edits don't restart a run in flight");
-  const stage = pop.querySelector(".tw-motion-stage");
+  const stage = pop.querySelector(".twk-motion-stage");
   Object.defineProperty(stage, "clientWidth", { value: 200 }); // jsdom lays out nothing: give the stage a width so the two directions differ
   assert.equal(stage.getAttribute("role"), "button"); assert.equal(stage.tabIndex, 0);
   stage.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
@@ -215,7 +215,7 @@ test("a spring's linear() easing follows the spring within 1% however bouncy, an
 test("an overdamped spring's preview curve runs until it settles, as a critically damped one's does", async () => {
   for (const bounce of [-1, -0.5, -0.05, 0]) {
     const p = tweaks("Pre", { m: { type: "motion", mode: "spring", visualDuration: 0.5, bounce } }); await p.ready;
-    const end = +p.el.querySelector(".tw-motion-chip path").getAttribute("d").split(",").at(-1);
+    const end = +p.el.querySelector(".twk-motion-chip path").getAttribute("d").split(",").at(-1);
     assert.ok(end < 11, `bounce ${bounce}: the curve ends at y ${end}, short of rest`);
     p.destroy();
   }
@@ -248,7 +248,7 @@ test("authored springs survive: physics a host wrote come back as written, and a
   p.destroy();
   // An edit in the editor tunes from what it shows, dropping the kept physics.
   p = await mount({ m: { type: "motion", stiffness: 15, damping: 3 } });
-  const bounce = p.el.querySelector('.tw-spring input[aria-label="Bounce (%)"]');
+  const bounce = p.el.querySelector('.twk-spring input[aria-label="Bounce (%)"]');
   bounce.value = "10"; bounce.dispatchEvent(new window.Event("change", { bubbles: true }));
   assert.equal(p.params.m.bounce, 0.1); assert.ok(Math.abs(p.params.m.visualDuration - 1.3519262) < 1e-6, "at the kept spring's duration");
   p.reset(); assert.equal(p.params.m.stiffness, 15, "reset brings the written physics back");
@@ -258,7 +258,7 @@ test("authored springs survive: physics a host wrote come back as written, and a
 // The drag mapped the preview's height to bounce 0–100% only, though a negative bounce (overdamped) is valid since #222.
 test("dragging a time-mode spring's preview spans bounce −100% to 100%, the middle 0", async () => {
   const p = await mount({ s: { type: "spring", visualDuration: 0.5, bounce: 0.2 } });
-  const viz = p.el.querySelector(".tw-spring-viz");
+  const viz = p.el.querySelector(".twk-spring-viz");
   viz.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 });
   viz.setPointerCapture = () => {};
   const at = (y) => { viz.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: y })); viz.dispatchEvent(ptr("pointerup", { clientX: 100, clientY: y })); return p.params.s.bounce; };

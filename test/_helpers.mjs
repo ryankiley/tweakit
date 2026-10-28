@@ -49,18 +49,18 @@ export const withClipboard = async (fn) => {
   try { await fn(); await wait(0); return copied; } finally { if (clip) Object.defineProperty(globalThis.navigator, "clipboard", clip); else delete globalThis.navigator.clipboard; }
 };
 /** What the toolbar's copy button under `root` writes; `init` adds to the click (shiftKey: what changed). */
-export const copyFrom = (root, init) => withClipboard(() => root.querySelector(".tw-toolbar-btn--swap").dispatchEvent(new window.MouseEvent("click", { bubbles: true, ...init })));
+export const copyFrom = (root, init) => withClipboard(() => root.querySelector(".twk-toolbar-btn--swap").dispatchEvent(new window.MouseEvent("click", { bubbles: true, ...init })));
 
 /** A press in the panel's side padding level with `node`, which picks that row or folder. jsdom lays nothing out, so the
  *  row or folder header `node` sits in is given a box at the press's height for the moment of the press. */
 export const pressBeside = (p, node, props = {}) => {
-  const box = node && (node.closest(".tw-folder-header") || node.closest(".tw-controls > *"));
+  const box = node && (node.closest(".twk-folder-header") || node.closest(".twk-controls > *"));
   if (box) box.getBoundingClientRect = () => ({ top: 40, bottom: 72, height: 32, left: 0, right: 0, width: 0 });
   try { p.el.dispatchEvent(ptr("pointerdown", { clientX: 2, clientY: 50, ...props })); } finally { if (box) delete box.getBoundingClientRect; }
 };
 /** Drag a panel by its header: pressed at (100, y0), moved by dx, dy and released there. */
 export const dragHeader = (p, dx, dy = 0, y0 = 10) => {
-  const header = p.el.querySelector(".tw-header");
+  const header = p.el.querySelector(".twk-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};
   header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: y0 }));
   header.dispatchEvent(ptr("pointermove", { clientX: 100 + dx, clientY: y0 + dy }));

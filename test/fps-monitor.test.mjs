@@ -10,9 +10,9 @@ const { tweaks } = await loadSingle();
 
 test("the FPS graph reads out a whole frame rate once mounted, and stops with the panel", async () => {
   const p = tweaks("F", { fps: { type: "fpsgraph" } });
-  const val = p.el.querySelector(".tw-fps-val");
+  const val = p.el.querySelector(".twk-fps-val");
   assert.equal(val.textContent, "—", "nothing to show before a frame");
-  assert.equal(p.el.querySelector(".tw-fps-label").textContent, "Fps");
+  assert.equal(p.el.querySelector(".twk-fps-label").textContent, "Fps");
   document.body.append(p.el);
   await wait(120); // a handful of polyfilled frames
   assert.match(val.textContent, /^\d+$/, `a whole number, got "${val.textContent}"`);
@@ -24,7 +24,7 @@ test("the FPS graph reads out a whole frame rate once mounted, and stops with th
 
 test("destroy() before the FPS graph ever mounts releases its frame loop", async () => {
   const p = tweaks("F2", { fps: { type: "fpsgraph" } });
-  const val = p.el.querySelector(".tw-fps-val");
+  const val = p.el.querySelector(".twk-fps-val");
   p.destroy();
   await wait(60);
   assert.equal(val.textContent, "—");
@@ -32,6 +32,6 @@ test("destroy() before the FPS graph ever mounts releases its frame loop", async
 
 test("a markup FPS graph keeps its default label and an explicit empty label renders none", async () => {
   const q = tweaks("F3", { fps: { type: "fpsgraph", label: "" } });
-  assert.equal(q.el.querySelector(".tw-fps-label").textContent, "");
+  assert.equal(q.el.querySelector(".twk-fps-label").textContent, "");
   q.destroy();
 });

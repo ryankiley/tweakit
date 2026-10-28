@@ -33,7 +33,7 @@ const all = (b) => ({
 });
 const KEYS = Object.keys(all(false));
 const mount = async () => { const p = tweaks("Types", { A: all(false), B: all(true) }); document.body.append(p.el); await p.ready; return p; };
-const rowOf = (p, folder, k) => p.el.querySelectorAll(".tw-folder")[folder === "A" ? 0 : 1].querySelectorAll(".tw-folder-body > .tw-controls > *")[KEYS.indexOf(k)];
+const rowOf = (p, folder, k) => p.el.querySelectorAll(".twk-folder")[folder === "A" ? 0 : 1].querySelectorAll(".twk-folder-body > .twk-controls > *")[KEYS.indexOf(k)];
 // ⌘C / ⌘V, then what the browser does on the hidden field the keypress focused: copies its selection onto `board`, or
 // pastes `board`. Returns how the picked band flashed for a paste: "ok", "failed" or "none".
 let board = null;
@@ -41,7 +41,7 @@ const press = async (k) => {
   const band = document.querySelector(".is-picked"); band?.classList.remove("is-pasted", "is-refused");
   key(document.body, { key: k, metaKey: true });
   const ta = document.activeElement;
-  if (ta?.matches("textarea.tw-sr")) {
+  if (ta?.matches("textarea.twk-sr")) {
     const ev = new window.Event(k === "c" ? "copy" : "paste", { bubbles: true, cancelable: true });
     Object.defineProperty(ev, "clipboardData", { value: { getData: () => board, setData: (t, v) => { board = v; } } });
     ta.dispatchEvent(ev);
@@ -66,8 +66,8 @@ test("every type's row copies from one folder and pastes onto its twin, landing 
 
 test("a whole folder of every type pastes onto its twin in one step", async () => {
   const p = await mount();
-  pressBeside(p, p.el.querySelectorAll(".tw-folder-header")[0]); await press("c");
-  pressBeside(p, p.el.querySelectorAll(".tw-folder-header")[1]);
+  pressBeside(p, p.el.querySelectorAll(".twk-folder-header")[0]); await press("c");
+  pressBeside(p, p.el.querySelectorAll(".twk-folder-header")[1]);
   let notified = 0; p.on(() => notified++);
   assert.equal(await press("v"), "ok");
   assert.deepEqual([p.params.B, notified], [p.params.A, 1], "every type landed, in one notify");

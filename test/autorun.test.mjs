@@ -1,4 +1,4 @@
-/* The page scan on load is opt-in. Importing tweakit, tweakit/core or tweakit/single binds no [data-tw] host; the
+/* The page scan on load is opt-in. Importing tweakit, tweakit/core or tweakit/single binds no [data-twk] host; the
  * tweakit/auto entry (dist/tweaks/auto.js) binds the page's hosts once it has parsed, as the bare import did up to 0.5. */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -7,7 +7,7 @@ import { loadSplit, loadSingle, distUrl, wait } from "./_helpers.mjs";
 
 const host = (key) => {
   const el = document.createElement("div");
-  Object.assign(el.dataset, { tw: "slider", key, value: "12", min: "0", max: "40" });
+  Object.assign(el.dataset, { twk: "slider", key, value: "12", min: "0", max: "40" });
   document.body.append(el);
   return el;
 };
@@ -19,18 +19,18 @@ test("the bare import and the single-file build bind nothing on load", async () 
   const split = await loadSplit();
   const single = await loadSingle();
   await wait(50);
-  assert.equal(a._tw, undefined, "a [data-tw] host in the page stays a plain div");
+  assert.equal(a._tw, undefined, "a [data-twk] host in the page stays a plain div");
   assert.equal(a.childElementCount, 0);
   // enhance() still binds on request, on either build
   await split.enhance(a);
-  assert.ok(a._tw && a.querySelector(".tw-slider"), "enhance() binds it");
+  assert.ok(a._tw && a.querySelector(".twk-slider"), "enhance() binds it");
   const b = host("b");
   await single.enhance(b);
   assert.ok(b._tw, "the single-file build's enhance() binds too");
   a.remove(); b.remove();
 });
 
-test("tweakit/auto binds the page's [data-tw] hosts on load, and re-exports the API", async () => {
+test("tweakit/auto binds the page's [data-twk] hosts on load, and re-exports the API", async () => {
   const el = host("auto");
   const auto = await import(distUrl("tweaks/auto.js"));
   assert.ok(await bound(el), "the auto entry bound the host");

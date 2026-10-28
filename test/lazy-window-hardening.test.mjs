@@ -29,7 +29,7 @@ test("a key that can't stringify throws at the call; the panel still becomes rea
   p.set("x", 5);
   await p.ready;
   assert.equal(p.params.x, 5, "the write queued after the bad one still applied");
-  assert.equal(p.el.querySelector(".tw-toolbar-btn--reset").disabled, false, "the toolbar came live");
+  assert.equal(p.el.querySelector(".twk-toolbar-btn--reset").disabled, false, "the toolbar came live");
   p.destroy();
 });
 
@@ -43,7 +43,7 @@ test("a queued call that throws costs only itself", async () => {
     p.set("x", 5); p.reset(); p.set("x", 7);
     await p.ready;
     assert.equal(p.params.x, 7, "the write behind the throwing reset still applied");
-    assert.equal(p.el.querySelector(".tw-toolbar-btn--reset").disabled, false, "the toolbar came live");
+    assert.equal(p.el.querySelector(".twk-toolbar-btn--reset").disabled, false, "the toolbar came live");
     assert.ok(errors.some((m) => m.includes("queued before ready failed")), "the throw was reported");
     p.destroy();
   } finally { console.error = err; }
@@ -58,10 +58,10 @@ test("the disabled presets trigger stays inert to a synthetic click before ready
   click(presets);
   await tick(30);
   assert.equal(presets.getAttribute("aria-expanded"), "false");
-  assert.equal(document.querySelector("body > .tw-presets-menu.is-open"), null, "no menu opened on the unbuilt panel");
+  assert.equal(document.querySelector("body > .twk-presets-menu.is-open"), null, "no menu opened on the unbuilt panel");
   await p.ready;
   click(presets); await tick(30);
-  assert.ok(document.querySelector("body > .tw-presets-menu"), "after ready the same click opens it");
+  assert.ok(document.querySelector("body > .twk-presets-menu"), "after ready the same click opens it");
   p.destroy();
 });
 
@@ -88,7 +88,7 @@ test("a chunk that fails to load leaves the API inert instead of a silent sink",
   const { mkdtemp, cp, readdir, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const path = await import("node:path");
-  const dir = await mkdtemp(path.join(tmpdir(), "tw-broken-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "twk-broken-"));
   await cp(new URL("../dist/tweaks/", import.meta.url), dir, { recursive: true });
   for (const f of await readdir(dir)) if (/^color-.*\.js$/.test(f)) await rm(path.join(dir, f));
   const { tweaks: broken } = await import(path.join(dir, "core.js"));
@@ -101,7 +101,7 @@ test("a chunk that fails to load leaves the API inert instead of a silent sink",
     assert.equal(p.savePreset("ghost"), false, "a save after the failure is refused, not pretended");
     p.set("x", 6); p.set("x", 7);
     assert.equal(p.params.x, undefined, "nothing applied and nothing queued");
-    assert.equal(p.el.querySelector(".tw-toolbar-btn--reset").disabled, true, "the toolbar stays inert");
+    assert.equal(p.el.querySelector(".twk-toolbar-btn--reset").disabled, true, "the toolbar stays inert");
     assert.ok(errors.some((a) => String(a[0]).includes("failed to load")), "the failure is reported once on the console");
     p.destroy();
   } finally { console.error = err; await rm(dir, { recursive: true, force: true }); }

@@ -47,15 +47,15 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   let curve = curveOf(init.curve) ?? (KEYWORDS.ease.slice() as Curve), dur = has(init.duration) ? clamp(+init.duration!, 0, DUR_MAX) : DUR_DEF;
 
   // ── Row — label, a mini curve, a summary. ──
-  const { root, trigger, right } = triggerRow("tw-motion", meta.label ?? "Motion"); // ??: an explicit "" label renders none
-  const chip = el("span", "tw-trigger-chip tw-motion-chip");
+  const { root, trigger, right } = triggerRow("twk-motion", meta.label ?? "Motion"); // ??: an explicit "" label renders none
+  const chip = el("span", "twk-trigger-chip twk-motion-chip");
   const chipSvg = svgEl("svg"); chipSvg.setAttribute("viewBox", "0 0 100 100"); chipSvg.setAttribute("preserveAspectRatio", "none");
   const chipPath = svgEl("path"); chipSvg.append(chipPath); chip.append(chipSvg);
-  const valueEl = el("span", "tw-trigger-value");
+  const valueEl = el("span", "twk-trigger-value");
   right.append(chip, valueEl);
 
   // ── Popover — the mode switch, the preview, one editor at a time. ──
-  const pop = el("div", "tw-color-pop tw-motion-pop"), body = el("div", "tw-motion-body"); pop.append(body);
+  const pop = el("div", "twk-color-pop twk-motion-pop"), body = el("div", "twk-motion-body"); pop.append(body);
   const bezier = Bezier({ ...meta, type: "cubicbezier", label: "", value: curve.slice() } as Meta, (v) => { curve = v as Curve; update(); emit(); });
   curve = bezier.get() as Curve; // as the editor fitted it, so no invalid cubic-bezier()
   // Host-written physics the editor can't draw exactly: it shows the nearest, clamped here so it doesn't warn as well.
@@ -72,11 +72,11 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const springNow = () => exact ?? (spring.get() as SpringOut);
   const durFld = numField({ label: "Duration", value: dur, step: 10, min: 0, max: DUR_MAX, unit: "ms" }, (v) => { dur = clamp(v, 0, DUR_MAX); update(); emit(); });
   dur = durFld.get(); // as the field snapped it
-  const easingPane = el("div", "tw-motion-pane"), springPane = el("div", "tw-motion-pane"), durRow = el("div", "tw-fields");
+  const easingPane = el("div", "twk-motion-pane"), springPane = el("div", "twk-motion-pane"), durRow = el("div", "twk-fields");
   durRow.append(durFld.el); easingPane.append(bezier.el, durRow); springPane.append(spring.el);
-  const stage = el("div", "tw-motion-stage"), box = el("div", "tw-motion-box"); stage.append(box);
+  const stage = el("div", "twk-motion-stage"), box = el("div", "twk-motion-box"); stage.append(box);
   const modeSeg = createSegmented([{ value: "easing", label: "Easing" }, { value: "spring", label: "Spring" }], mode, (m: unknown) => { if ((m === "easing" || m === "spring") && m !== mode) { mode = m; showMode(); update(); emit(); } }, "Motion type");
-  const typeRow = el("div", "tw-row"); typeRow.append(txt("span", "tw-row-label", "Type"), modeSeg.el);
+  const typeRow = el("div", "twk-row"); typeRow.append(txt("span", "twk-row-label", "Type"), modeSeg.el);
   body.append(typeRow, easingPane, springPane, stage);
   root.append(pop);
 

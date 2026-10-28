@@ -65,7 +65,7 @@ test("toJSON escapes dotted folder keys injectively; fromJSON restores values + 
   const q = tweaks("J", { "a.b": { x: [1, 0, 10, 1] } });
   q.fromJSON({ values: { "a.b": { x: 6 } }, ui: { folders: { "a~0b": true } } });
   assert.equal(q.params["a.b"].x, 6);
-  assert.ok(q.el.querySelector(".tw-folder").classList.contains("is-collapsed"));
+  assert.ok(q.el.querySelector(".twk-folder").classList.contains("is-collapsed"));
 });
 
 test("a restore reads only a snapshot's own keys: a control named for an Object.prototype member is left alone", () => {
@@ -196,8 +196,8 @@ test("an image the person picked and cleared while the store loaded stays cleare
   const S = { im: { type: "image", options: ["/a.png", "/b.png"] } }, one = "data:image/gif;base64," + "F".repeat(2048);
   const a = tweaks("Clr", S, { persist: "t-idb-clear" }); await a.ready; a.set("im", one); await tick(250); a.destroy();
   const b = tweaks("Clr", S, { persist: "t-idb-clear" });
-  b.el.querySelector('.tw-image-tile[data-value="/a.png"]').click();
-  b.el.querySelector(".tw-image-clear").click();
+  b.el.querySelector('.twk-image-tile[data-value="/a.png"]').click();
+  b.el.querySelector(".twk-image-clear").click();
   assert.equal(b.params.im, "");
   await b.ready; await tick(250);
   assert.equal(b.params.im, "", "the clear stands");
@@ -213,7 +213,7 @@ test("a write made while a preset's image is fetched wins over the image", async
   a.set("im", one); a.savePreset("p"); await tick(250);
   b.loadPreset("p"); b.set("im", ""); await tick(50);
   assert.equal(b.params.im, "", "set() back to the value it held");
-  b.loadPreset("p"); b.el.querySelector(".tw-image-tile").click(); b.el.querySelector(".tw-image-clear").click(); await tick(50);
+  b.loadPreset("p"); b.el.querySelector(".twk-image-tile").click(); b.el.querySelector(".twk-image-clear").click(); await tick(50);
   assert.equal(b.params.im, "", "a pick and a clear in the panel");
   b.loadPreset("p"); await tick(50);
   assert.equal(b.params.im, one, "left alone, the row takes the image");

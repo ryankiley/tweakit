@@ -23,7 +23,7 @@ const pickScheme = (v: string, cs: CSSStyleDeclaration) => {
 };
 const cssVar = (node: Element, name: string) => { const r = getComputedStyle(node); return pickScheme(r.getPropertyValue(name).trim(), r); };
 // One getComputedStyle for both reads — this runs in the FPS draw loop.
-const accentColor = (node: Element) => { const r = getComputedStyle(node); const v = (n: string) => pickScheme(r.getPropertyValue(n).trim(), r); return v("--tw-accent") || v("--tw-text-primary") || "#fff"; };
+const accentColor = (node: Element) => { const r = getComputedStyle(node); const v = (n: string) => pickScheme(r.getPropertyValue(n).trim(), r); return v("--twk-accent") || v("--twk-text-primary") || "#fff"; };
 // Select the whole value on focus (the hex field: you type a new color, never edit a digit).
 // Browsers collapse a focus-time selection on the click's own mouseup, so the first primary
 // mouseup after a pointer-initiated focus is swallowed while the whole value is still selected.
@@ -105,9 +105,9 @@ const fitCanvas = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, max
 // The modal-trigger row (color, gradient, point): a row button, label left, a preview cluster (`right`) the caller fills.
 const triggerRow = (cls: string, label: string) => {
   const root = el("div", cls);
-  const trigger = btn("tw-trigger"); trigger.setAttribute("aria-expanded", "false");
-  const right = el("span", "tw-trigger-right");
-  trigger.append(txt("span", "tw-trigger-label", label), right);
+  const trigger = btn("twk-trigger"); trigger.setAttribute("aria-expanded", "false");
+  const right = el("span", "twk-trigger-right");
+  trigger.append(txt("span", "twk-trigger-label", label), right);
   root.append(trigger);
   return { root, trigger, right };
 };
@@ -122,8 +122,8 @@ function makeGrabGuide() {
   let g: GuideEl | null = null, y = 0, x0 = 0, bx = 0;
   return {
     show(x: number, atY: number, bubbleX: number | undefined, anchor: Element) {
-      g = el("div", "tw-grab-guide tw-portal") as GuideEl;
-      g.innerHTML = `<span class="tw-grab-line"></span><span class="tw-grab-dot"></span><span class="tw-grab-arrow"></span><span class="tw-grab-bubble"></span>`;
+      g = el("div", "twk-grab-guide twk-portal") as GuideEl;
+      g.innerHTML = `<span class="twk-grab-line"></span><span class="twk-grab-dot"></span><span class="twk-grab-arrow"></span><span class="twk-grab-bubble"></span>`;
       y = atY; x0 = x; bx = bubbleX ?? x; // bubble anchors over the field center, not the cursor
       g.children[1].style.cssText = `left:${x}px;top:${y}px`;
       carrySkin(g, anchor); // the anchor panel's theme + scheme, like every portal
@@ -164,12 +164,12 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   const [lo, hi] = gridEnds(Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity, step, anchor); // on-grid ends, so fit(fit(x)) === fit(x)
   const fit = (val: number) => { const n = roundToStep(val, anchor, step); return spec.soft ? n : clamp(n, lo, hi); };
   let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
-  const root = el("div", spec.row ? "tw-row" : "tw-field");
-  const wrap = el("div", "tw-num-wrap");
-  const grab = el("span", "tw-num-grab", ICON_GRIP); grab.setAttribute("aria-hidden", "true"); grab.title = "Drag to adjust";
-  const inp = el("input", "tw-num"); inp.type = "text"; inp.inputMode = "decimal"; inp.setAttribute("aria-label", spec.unit ? `${spec.label} (${spec.unit})` : spec.label); inp.value = value.toFixed(decimals);
+  const root = el("div", spec.row ? "twk-row" : "twk-field");
+  const wrap = el("div", "twk-num-wrap");
+  const grab = el("span", "twk-num-grab", ICON_GRIP); grab.setAttribute("aria-hidden", "true"); grab.title = "Drag to adjust";
+  const inp = el("input", "twk-num"); inp.type = "text"; inp.inputMode = "decimal"; inp.setAttribute("aria-label", spec.unit ? `${spec.label} (${spec.unit})` : spec.label); inp.value = value.toFixed(decimals);
   quietFocus(inp); // click-to-edit stays ringless; Tab rings
-  wrap.append(grab, inp); if (spec.unit) wrap.append(txt("span", "tw-num-unit", spec.unit)); root.append(txt("span", spec.row ? "tw-row-label" : "tw-field-label", spec.label), wrap);
+  wrap.append(grab, inp); if (spec.unit) wrap.append(txt("span", "twk-num-unit", spec.unit)); root.append(txt("span", spec.row ? "twk-row-label" : "twk-field-label", spec.label), wrap);
   const set = (val: number | string, fire = true) => { val = +val; if (!Number.isFinite(val)) return; value = fit(val); inp.value = value.toFixed(decimals); if (fire && onChange) onChange(value); };
   // Typed text is read strictly as a whole number, as the slider's editor reads it (not parseFloat, which takes "1,000"
   // as 1 and "12abc" as 12); the field's unit may be typed along. NaN for anything else.
@@ -290,7 +290,7 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
   sharedKey: (k) => `persist: another live panel already saves under "${k}", so each overwrites the other's values; give one its own persist key`,
   pointValue: (key, comps) => `"${key}": a point value that isn't a number starts at 0 (${comps})`,
   swap: (label, min, max) =>`"${label}": min ${min} is above max ${max}, so they were swapped`,
-  theme: (key) => `theme: "${key}" isn't a --tw-* token ("--tw-accent", say) — skipped`,
+  theme: (key) => `theme: "${key}" isn't a --twk-* token (${key.startsWith("--tw-") ? `renamed "--twk-${key.slice(5)}" in 0.7` : '"--twk-accent", say'}) — skipped`,
   ambiguousPath: (key, n) => `set("${key}") is ambiguous — ${n} controls read as that path (a key holding "." beside a folder); rename one`,
   noPath: (key) => `set("${key}") — no control at that path`,
   noValue: (key, type) => `set("${key}") ignored — a ${type} holds no value to set`,

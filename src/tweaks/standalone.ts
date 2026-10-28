@@ -9,8 +9,8 @@ import type { SchemaValue, HeldValue, KnownType, MountOptions, MountedControl, C
 import type { Meta } from "./schema.js";
 import type { PickerBody, PickerOptions } from "./controls/color.js";
 
-// Outside a .tw-panel the cascade delivers none of the kit's tokens, so the wrapper carries .tw-portal.
-const scope = (cls: string) => el("div", `${cls} tw-standalone tw-portal`);
+// Outside a .twk-panel the cascade delivers none of the kit's tokens, so the wrapper carries .twk-portal.
+const scope = (cls: string) => el("div", `${cls} twk-standalone twk-portal`);
 // Run `build` once the lazy module has landed (synchronously when none is missing); the handled fork keeps a failed chunk out of the unhandled-rejection channel.
 const whenLoaded = <H>(metas: Array<Pick<Meta, "type">>, build: () => void, handle: H): Promise<H> => {
   const pend = ensureForMetas(metas);
@@ -28,7 +28,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
   if (!meta || meta.type === "folder" || meta.type === "tabs") throw new TypeError(`[tweaks] mountControl: "${key}" is not a single-control schema value`);
   if (opts.label != null) meta.label = String(opts.label); // the option wins over the derived label; "" = no label
   const valued = !VALUELESS.has(meta.type); // display/action controls carry no value: set/get are inert
-  const root = scope("tw-control"); // the control fills it in on ready
+  const root = scope("twk-control"); // the control fills it in on ready
   host.append(root);
   let ctrl: Control | null = null, destroyed = false, last: unknown = meta.value, parked: unknown, queued = false;
   // Gated the way the panel gates notify(): a same-value set() stays silent instead of echoing.
@@ -40,7 +40,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     if (meta.hint) addHintMarker(ctrl.el, meta.hint);
     // Resolved once at mount: with no siblings for a predicate to read, `get` answers undefined.
     const none: Get = () => undefined;
-    try { if (meta.render && !meta.render(none)) ctrl.el.classList.add("tw-cond-hidden"); } catch {}
+    try { if (meta.render && !meta.render(none)) ctrl.el.classList.add("twk-cond-hidden"); } catch {}
     try { const d = typeof meta.disabled === "function" ? meta.disabled(none) : meta.disabled; if (d) setDisabled(ctrl.el, true); } catch {} // each predicate fails on its own
     root.append(ctrl.el);
     if (!valued) return;
@@ -51,7 +51,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     el: root,
     set: (v) => { if (destroyed || !valued) return; if (ctrl) { ctrl.set(v); emit(ctrl.get()); } else { parked = v; queued = true; } },
     get: () => (!valued ? undefined : ctrl ? ctrl.get() : queued ? parked : meta.value),
-    destroy: () => { destroyed = true; if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy(); root.dataset.twDestroyed = ""; root.remove(); }, // onLive listeners release on their next event by this mark
+    destroy: () => { destroyed = true; if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy(); root.dataset.twkDestroyed = ""; root.remove(); }, // onLive listeners release on their next event by this mark
     ready: null,
   };
   handle.ready = whenLoaded([meta], build, handle);
@@ -60,7 +60,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
 
 /** The color editor surface alone, for a host page that brings its own swatch. */
 export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
-  const root = scope("tw-color-picker");
+  const root = scope("twk-color-picker");
   let body: PickerBody | null = null, destroyed = false, last = opts.value, parked: string, queued = false, parkedMode: ColorMode = null;
   const emit = (v: string) => { if (!valueChanged(last, v)) return; last = v; opts.onChange && opts.onChange(v); };
   const build = () => {

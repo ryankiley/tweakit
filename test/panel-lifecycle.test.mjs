@@ -10,8 +10,8 @@ globalThis.MutationObserver = window.MutationObserver; // the kit guards on the 
 const { tweaks } = await loadSingle();
 const lazy = await loadSplit();
 // The floating placement panel.ts writes: the two insets and the height cap, as custom properties.
-const pos = (p) => ["--tw-float-x", "--tw-float-y"].map((v) => p.el.style.getPropertyValue(v));
-const cap = (p) => p.el.style.getPropertyValue("--tw-float-max-h");
+const pos = (p) => ["--twk-float-x", "--twk-float-y"].map((v) => p.el.style.getPropertyValue(v));
+const cap = (p) => p.el.style.getPropertyValue("--twk-float-max-h");
 
 test("a lifted panel leaves the document with the host container that held it", async () => {
   const host = document.createElement("div"); document.body.append(host);
@@ -30,7 +30,7 @@ test("a lifted panel leaves the document with the host container that held it", 
 // click the browser fires on the capturing header once the drag ends.
 test("a press released off the header still ends", () => {
   const p = tweaks("Press", { a: 1 }); document.body.append(p.el);
-  const header = p.el.querySelector(".tw-header");
+  const header = p.el.querySelector(".twk-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};
   header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
   document.body.dispatchEvent(ptr("pointerup", { clientX: 101, clientY: 60, buttons: 0 }));
@@ -41,7 +41,7 @@ test("a press released off the header still ends", () => {
 
 test("a flick whose moves land outside the header still drags the panel", () => {
   const p = tweaks("Flick", { a: 1 }); document.body.append(p.el);
-  const header = p.el.querySelector(".tw-header");
+  const header = p.el.querySelector(".twk-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};
   header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
   document.body.dispatchEvent(ptr("pointermove", { clientX: 160, clientY: 90 }));
@@ -53,7 +53,7 @@ test("a flick whose moves land outside the header still drags the panel", () => 
 
 test("the click that ends a drag is swallowed once; the next title click still collapses", () => {
   const p = tweaks("Click", { a: 1 }); document.body.append(p.el);
-  const header = p.el.querySelector(".tw-header"), title = p.el.querySelector(".tw-header-toggle");
+  const header = p.el.querySelector(".twk-header"), title = p.el.querySelector(".twk-header-toggle");
   dragHeader(p, 40);
   // With the header holding pointer capture, the browser targets the drag-ending click at
   // the header (the common ancestor of the press on the title and the captured release).
@@ -68,7 +68,7 @@ test("the click that ends a drag is swallowed once; the next title click still c
 
 test("a click anywhere on the header but its toolbar folds the panel; a click that wobbles a few px is still a click", () => {
   const p = tweaks("Hit", { a: 1 }); document.body.append(p.el);
-  const header = p.el.querySelector(".tw-header"), toolbarBtn = p.el.querySelector(".tw-toolbar .tw-toolbar-btn");
+  const header = p.el.querySelector(".twk-header"), toolbarBtn = p.el.querySelector(".twk-toolbar .twk-toolbar-btn");
   header.setPointerCapture = header.releasePointerCapture = () => {};
   const press = (dx, dy, type = "mouse", target = header) => {
     target.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10, pointerType: type }));
@@ -93,7 +93,7 @@ test("a click anywhere on the header but its toolbar folds the panel; a click th
 // it with its last folders unreachable. Its position caps its height at the viewport below its
 // top edge, and the whole panel scrolls, header and all.
 test("a floating panel taller than the viewport caps at the viewport below its top and scrolls", async () => {
-  assert.match(distCss(), /\.tw-panel\[data-mode=floating\]\{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none\}/, "scrolling, the scrollbar hidden");
+  assert.match(distCss(), /\.twk-panel\[data-mode=floating\]\{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none\}/, "scrolling, the scrollbar hidden");
   const h = window.innerHeight; window.innerHeight = 400; // a short window
   const schema = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`folder${i}`, { a: [1, 0, 10, 1], b: [2, 0, 10, 1] }]));
   const p = tweaks("Tall", schema); document.body.append(p.el);
@@ -123,13 +123,13 @@ test("draggable: false pins a floating panel too", () => {
   const p = tweaks("Pinned", { a: 1 }, { floating: { x: 40, y: 50 }, draggable: false }); document.body.append(p.el);
   dragHeader(p, 100, 100);
   assert.deepEqual(pos(p), ["40px", "50px"], "the press moved nothing");
-  p.el.querySelector(".tw-header-toggle").click();
+  p.el.querySelector(".twk-header-toggle").click();
   assert.ok(p.el.classList.contains("is-collapsed"), "the title still collapses");
   p.destroy();
   // Nor does its header look or act like a handle: no grab cursor, and a touch swipe on it scrolls the panel.
   const css = distCss();
-  assert.match(css, /\.tw-panel\[data-draggable=true\]>\.tw-header\{touch-action:none;margin-top:-10px;padding-top:10px\}/);
-  assert.ok(!/\[data-mode=floating\]>\.tw-header[^{]*\{[^}]*(cursor|touch-action)/.test(css), "no floating-only header rule");
+  assert.match(css, /\.twk-panel\[data-draggable=true\]>\.twk-header\{touch-action:none;margin-top:-10px;padding-top:10px\}/);
+  assert.ok(!/\[data-mode=floating\]>\.twk-header[^{]*\{[^}]*(cursor|touch-action)/.test(css), "no floating-only header rule");
 });
 
 test("a floating panel's far margins are measured inside the page scrollbars", () => {
@@ -167,10 +167,10 @@ test("a pinned panel clamps from its placement, so a window that narrows and wid
   p.destroy();
 });
 
-test("the height cap keeps the floating inset as its far gap; --tw-float-gap overrides it", () => {
+test("the height cap keeps the floating inset as its far gap; --twk-float-gap overrides it", () => {
   const p = tweaks("Gap", { a: 1 }, { floating: { x: 16, y: 16 }, draggable: false }); document.body.append(p.el);
   assert.equal(cap(p), "calc(100dvh - 32px)", "16 from the top, 16 short of the bottom");
-  p.el.style.setProperty("--tw-float-gap", "40px"); // stands in for a host rule: the clamp reads the computed value
+  p.el.style.setProperty("--twk-float-gap", "40px"); // stands in for a host rule: the clamp reads the computed value
   window.dispatchEvent(new Event("resize"));
   assert.equal(cap(p), "calc(100dvh - 56px)", "the host's gap");
   p.destroy();
@@ -178,7 +178,7 @@ test("the height cap keeps the floating inset as its far gap; --tw-float-gap ove
   assert.equal(cap(q), "calc(100dvh - 32px)", "floating: true sits 16px in, and mirrors it");
   q.destroy();
   // Custom properties stay raw text unless registered: registered as a <length>, 1.5rem computes to 24px, not 1.5.
-  assert.match(distCss(), /@property --tw-float-gap\{syntax: "<length>"; inherits: true; initial-value: -1px;\}/);
+  assert.match(distCss(), /@property --twk-float-gap\{syntax: "<length>"; inherits: true; initial-value: -1px;\}/);
 });
 
 test("the far gap holds only at the placement: a dragged panel reaches the bottom margin", () => {
@@ -210,7 +210,7 @@ test("an inset of 0 is honored, not read as missing", () => {
 
 test("a panel grabbed mid-snap picks up where it visually is, and the snap's timer is its own", async () => {
   const p = tweaks("Regrab", { a: 1 }, { floating: { x: 16, y: 16 } }); document.body.append(p.el);
-  const header = p.el.querySelector(".tw-header");
+  const header = p.el.querySelector(".twk-header");
   header.setPointerCapture = header.releasePointerCapture = () => {};
   dragHeader(p, -10, 0); // dropped near the left edge: snapping
   assert.ok(p.el.classList.contains("is-snapping"));
@@ -235,11 +235,11 @@ test("a panel grabbed mid-snap picks up where it visually is, and the snap's tim
 
 test("only a draggable panel eases its shadow: a pinned one starts floated, with no transition", () => {
   const css = distCss();
-  assert.match(css, /\.tw-panel\[data-draggable=true\]\[data-mode=floating\]\{transition:box-shadow \.25s var\(--tw-ease-out\)\}/,
+  assert.match(css, /\.twk-panel\[data-draggable=true\]\[data-mode=floating\]\{transition:box-shadow \.25s var\(--twk-ease-out\)\}/,
     "only once floated: an inline panel's shadow doesn't ease on a theme or scheme change");
-  assert.match(css, /\.tw-panel:where\(\[data-mode=floating\]\)\{left:var\(--tw-float-x\);top:var\(--tw-float-y\);max-height:var\(--tw-float-max-h\);z-index:99990;box-shadow:var\(--tw-shadow-panel-lifted\)\}/,
+  assert.match(css, /\.twk-panel:where\(\[data-mode=floating\]\)\{left:var\(--twk-float-x\);top:var\(--twk-float-y\);max-height:var\(--twk-float-max-h\);z-index:99990;box-shadow:var\(--twk-shadow-panel-lifted\)\}/,
     "placement, z-index and shadow at plain class specificity, so a host class overrides them");
-  assert.ok(!/\.tw-panel(\[data-draggable=true\])?\{[^}]*transition/.test(css), "an inline panel carries no transition");
+  assert.ok(!/\.twk-panel(\[data-draggable=true\])?\{[^}]*transition/.test(css), "an inline panel carries no transition");
   const p = tweaks("Pin", { a: 1 }, { floating: true, draggable: false });
   assert.equal(p.el.dataset.draggable, undefined, "so the transition rule never matches it");
   p.destroy();
@@ -269,7 +269,7 @@ test("the floating panel touched last sits above the others", () => {
   assert.ok(b.el.classList.contains("is-raised"));
   assert.ok(!a.el.classList.contains("is-raised"), "the previous holder gives the stylesheet value back");
   assert.equal(a.el.style.zIndex + b.el.style.zIndex, "", "a class, not an inline z-index a host's own couldn't beat");
-  assert.match(distCss(), /\.tw-panel:where\(\.is-raised\)\{z-index:99991\}/);
+  assert.match(distCss(), /\.twk-panel:where\(\.is-raised\)\{z-index:99991\}/);
   a.destroy(); b.destroy();
 });
 
@@ -277,7 +277,7 @@ test("presets and undo called before a lazy panel is ready replay in order", asy
   localStorage.clear();
   const spring = { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } }; // lazy, so assemble waits on ready
   const p = lazy.tweaks("LazyPresets", { x: [1, 0, 10, 1], s: spring }, { persist: "lp" });
-  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "in the lazy window");
+  assert.ok(p.el.querySelector(".twk-toolbar-btn--reset").disabled, "in the lazy window");
   p.set("x", 4);
   assert.equal(p.savePreset("four"), true, "queued, not dropped");
   p.set("x", 9);
@@ -289,7 +289,7 @@ test("presets and undo called before a lazy panel is ready replay in order", asy
   p.destroy();
   localStorage.setItem("tw:lp2:presets", JSON.stringify({ v: 1, presets: { seven: { x: 7 } } }));
   const q = lazy.tweaks("LazyLoad", { x: [1, 0, 10, 1], b: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } }, { persist: "lp2" }); // spring is registered by now — a type the process has not loaded keeps this in the lazy window
-  assert.ok(q.el.querySelector(".tw-toolbar-btn--reset").disabled, "still in the lazy window");
+  assert.ok(q.el.querySelector(".twk-toolbar-btn--reset").disabled, "still in the lazy window");
   assert.equal(q.loadPreset("seven"), true, "a stored preset is loadable before ready");
   assert.equal(q.loadPreset("missing"), false);
   await q.ready;
@@ -331,7 +331,7 @@ test("set() on a button, monitor or separator says it holds no value, not that n
 
 test("collapsing folds the body over the height in view, not its whole content, and cleans up after", () => {
   const p = tweaks("Tall", { a: 1 }); document.body.append(p.el);
-  const body = p.el.querySelector(".tw-body"), title = p.el.querySelector(".tw-header-toggle");
+  const body = p.el.querySelector(".twk-body"), title = p.el.querySelector(".twk-header-toggle");
   // jsdom lays out nothing: a body 1874px tall starting 50px down a 768px window, so 718px of it is in view. Under a
   // fold (its rows held at 1fr) it's drawn at `drawn`.
   let drawn = 0;
@@ -353,13 +353,13 @@ test("collapsing folds the body over the height in view, not its whole content, 
 
 test("a folder's click folds over what's in view too, and a restore mid-fold turns it around", () => {
   const p = tweaks("Folders", { group: { a: 1, b: 2 } }); document.body.append(p.el);
-  const folder = p.el.querySelector(".tw-folder"), body = folder.querySelector(".tw-folder-body");
+  const folder = p.el.querySelector(".twk-folder"), body = folder.querySelector(".twk-folder-body");
   // A 306px folder body starting 700px down a 768px window: 68px of it in view. Under a fold it's drawn at `drawn`.
   let drawn = 0;
   body.getBoundingClientRect = () => ({ top: 700, height: body.style.gridTemplateRows ? drawn : folder.classList.contains("is-collapsed") ? 0 : 306 });
   const calls = [];
   body.animate = (frames, o) => { const a = { frames, o, cancel() { a.canceled = true; }, onfinish: null }; calls.push(a); return a; };
-  folder.querySelector(".tw-folder-header").click();
+  folder.querySelector(".twk-folder-header").click();
   assert.ok(folder.classList.contains("is-collapsed"));
   assert.deepEqual(calls[0].frames, [{ height: "68px" }, { height: "0px" }], "only the 68px above the window's edge");
   assert.equal(p.toJSON().ui.folders.group, true, "toJSON reads the fold's end state");

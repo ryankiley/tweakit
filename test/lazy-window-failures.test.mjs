@@ -70,7 +70,7 @@ test("a destroyed panel says nothing when its chunk later fails", async () => {
   const { mkdtemp, cp, readdir, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const path = await import("node:path");
-  const dir = await mkdtemp(path.join(tmpdir(), "tw-broken-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "twk-broken-"));
   await cp(new URL("../dist/tweaks/", import.meta.url), dir, { recursive: true });
   for (const f of await readdir(dir)) if (/^plot-.*\.js$/.test(f)) await rm(path.join(dir, f));
   const { tweaks: broken } = await import(path.join(dir, "core.js"));
@@ -105,11 +105,11 @@ test("a resize during the lazy window is applied once the panel is ready", async
   const w0 = window.innerWidth;
   const p = lazy.tweaks("RFR", { x: [1, 0, 10, 1], g: { type: "gradient", value: [["#000", 0], ["#fff", 1]] } }, { floating: { x: 900, y: 10 } });
   document.body.append(p.el);
-  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "in the lazy window");
+  assert.ok(p.el.querySelector(".twk-toolbar-btn--reset").disabled, "in the lazy window");
   try {
     window.innerWidth = 500; window.dispatchEvent(new window.Event("resize"));
     await p.ready;
-    assert.equal(p.el.style.getPropertyValue("--tw-float-x"), "492px", "clamped into the narrowed viewport at ready");
+    assert.equal(p.el.style.getPropertyValue("--twk-float-x"), "492px", "clamped into the narrowed viewport at ready");
   } finally { window.innerWidth = w0; p.destroy(); }
 });
 

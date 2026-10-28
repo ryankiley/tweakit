@@ -12,7 +12,7 @@ const clip = (el) => [el.classList.contains("is-clip-top"), el.classList.contain
 
 test("the fade follows where the overflow is: bottom at the top, both midway, top at the end, none when it fits", async () => {
   const p = tweaks("T", { notes: { type: "text", value: "a\nb\nc\nd\ne\nf", rows: 3 } }); document.body.append(p.el); await p.ready;
-  const ta = p.el.querySelector("textarea.tw-textarea"); assert.ok(ta);
+  const ta = p.el.querySelector("textarea.twk-textarea"); assert.ok(ta);
   metrics(ta, { scrollHeight: 200, clientHeight: 60, scrollTop: 0 }); ta.dispatchEvent(new window.Event("input"));
   assert.deepEqual(clip(ta), [false, true], "at the top, only the bottom fades");
   metrics(ta, { scrollTop: 50 }); ta.dispatchEvent(new window.Event("scroll"));
@@ -26,7 +26,7 @@ test("the fade follows where the overflow is: bottom at the top, both midway, to
 
 test("a single-line text field is left alone", async () => {
   const p = tweaks("T", { name: "hi" }); document.body.append(p.el); await p.ready;
-  const inp = p.el.querySelector("input.tw-text"); metrics(inp, { scrollHeight: 200, clientHeight: 20, scrollTop: 0 }); inp.dispatchEvent(new window.Event("input"));
+  const inp = p.el.querySelector("input.twk-text"); metrics(inp, { scrollHeight: 200, clientHeight: 20, scrollTop: 0 }); inp.dispatchEvent(new window.Event("input"));
   assert.deepEqual(clip(inp), [false, false]);
   p.destroy();
 });

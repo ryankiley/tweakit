@@ -21,7 +21,7 @@ tuning are color and motion:
 - **Motion editors that match Motion.** Easing, cubic-bézier and spring editors; a time-mode spring
   (`visualDuration`, `bounce`) resolves exactly as Motion does, and every one hands back a ready
   `transition` easing, a sampled `linear()` for springs.
-- **Markup mode.** `[data-tw]` elements become controls in place, no script per control.
+- **Markup mode.** `[data-twk]` elements become controls in place, no script per control.
 - **CSP-safe.** The plot control parses its expressions itself, with no `eval` or `new Function`.
 - **Values back into source.** The copy button puts the tuned values on the clipboard as JSON, and
   [AGENTS.md](https://ryankiley.github.io/tweakit/AGENTS.md) tells a coding agent how to apply them.
@@ -53,7 +53,7 @@ document.body.append(panel.el);
 panel.on((values) => { /* values.blur, values.tint, … */ });
 ```
 
-Panels can also come from `[data-tw]` markup, bound by `enhance()`. Importing `tweakit` binds
+Panels can also come from `[data-twk]` markup, bound by `enhance()`. Importing `tweakit` binds
 nothing on its own; import `tweakit/auto` instead (the same API) to bind the page's markup once it
 has parsed.
 
@@ -114,7 +114,7 @@ Verify the build.
 Every panel drags by its header and lifts into a fixed layer on the first drag. Pass `floating`
 to start it there (`true` sits 16px in from the top-left; `{ x, y }` sets the insets), and
 `draggable: false` to pin it. A draggable panel with `persist` remembers where it was dropped.
-Its placement is plain `.tw-panel` CSS, so a class of yours overrides it; the
+Its placement is plain `.twk-panel` CSS, so a class of yours overrides it; the
 [panel API page](https://ryankiley.github.io/tweakit/panel-api.html#floating) has the recipe.
 
 ## Develop

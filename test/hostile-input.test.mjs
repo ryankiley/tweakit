@@ -58,7 +58,7 @@ test("the engine bails out of an unbounded gamut map instead of bisecting foreve
 // Exactly one color token: a hex, a keyword, or one function with no nested parens.
 const ONE_TOKEN = /^(#[0-9a-f]{3,8}|[a-z][a-z-]*(?:\([\w\s.,%+\-\/]*\))?)$/i;
 const HOSTILE_STOP = "red 0%), url(https://x/p.png), linear-gradient(red";
-const gradCss = (p) => String(p.el.querySelector(".tw-gradient-grad").style.background);
+const gradCss = (p) => String(p.el.querySelector(".twk-gradient-grad").style.background);
 
 test("a gradient stop that isn't a single color token never reaches the preview's CSS", () => {
   // Pre-fix: the stop's text was concatenated as-is, and the preview's background became
@@ -112,7 +112,7 @@ test("an image value is escaped as a CSS string — one url(), however it's shap
   // became two layers: url("a.png"), url("https://x/p.png").
   const BAD = 'a.png"), url("https://x/p.png';
   const p = tweaks("I", { img: { type: "image", value: BAD } });
-  const thumb = p.el.querySelector(".tw-image-thumb");
+  const thumb = p.el.querySelector(".twk-image-thumb");
   assert.equal(layers(thumb.style.backgroundImage), 1, `got ${thumb.style.backgroundImage}`);
   assert.match(thumb.style.backgroundImage, /^url\("a\.png\\"\), url\(\\"https:\/\/x\/p\.png"\)$/);
   assert.equal(p.params.img, BAD, "the value itself is untouched — only the style is escaped");
@@ -134,10 +134,10 @@ test("an image value is escaped as a CSS string — one url(), however it's shap
 test("a gallery option URL, and an off-list value's tile, are escaped the same way: one url() each", () => {
   const BAD = 'a.png"), url("https://x/p.png';
   const p = tweaks("I", { img: { type: "image", options: [BAD, "/b.png"], value: BAD } });
-  const tiles = [...p.el.querySelectorAll(".tw-image-tile")];
+  const tiles = [...p.el.querySelectorAll(".twk-image-tile")];
   assert.equal(layers(tiles[0].style.backgroundImage), 1, `got ${tiles[0].style.backgroundImage}`);
   assert.equal(p.params.img, BAD, "the value itself is untouched");
   p.set("img", 'x\\"), url("https://x/q.png');
-  const custom = p.el.querySelector(".tw-image-custom");
+  const custom = p.el.querySelector(".twk-image-custom");
   assert.equal(layers(custom.style.backgroundImage), 1, `got ${custom.style.backgroundImage}`);
 });

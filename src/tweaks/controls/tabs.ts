@@ -7,16 +7,16 @@ export interface TabsControl { el: HTMLDivElement; bodies: HTMLDivElement[]; act
 
 let tabsSeq = 0; // unique ids for the tab ↔ tabpanel aria pairing
 function createTabs(meta: Meta): TabsControl {
-  const uid = `tw-tabs-${++tabsSeq}`;
-  const root = el("div", "tw-tabs");
-  const bar = el("div", "tw-tabs-bar"); bar.setAttribute("role", "tablist");
-  const pill = el("div", "tw-tabs-pill"); bar.append(pill);
-  const pagesWrap = el("div", "tw-tabs-pages");
+  const uid = `twk-tabs-${++tabsSeq}`;
+  const root = el("div", "twk-tabs");
+  const bar = el("div", "twk-tabs-bar"); bar.setAttribute("role", "tablist");
+  const pill = el("div", "twk-tabs-pill"); bar.append(pill);
+  const pagesWrap = el("div", "twk-tabs-pages");
   const bodies: HTMLDivElement[] = [];
   const tabs = meta.pages.map((page, i) => {
-    const tab = txt("button", "tw-tabs-tab", page.title); tab.setAttribute("role", "tab");
+    const tab = txt("button", "twk-tabs-tab", page.title); tab.setAttribute("role", "tab");
     tab.id = `${uid}-tab-${i}`; tab.setAttribute("aria-controls", `${uid}-page-${i}`);
-    const body = el("div", "tw-tabs-page tw-controls");
+    const body = el("div", "twk-tabs-page twk-controls");
     body.setAttribute("role", "tabpanel"); body.id = `${uid}-page-${i}`; body.setAttribute("aria-labelledby", tab.id);
     bodies.push(body); pagesWrap.append(body);
     tab.addEventListener("click", () => activate(i));

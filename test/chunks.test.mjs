@@ -28,7 +28,7 @@ test("every lazy control loads from the split build and registers", async () => 
   try {
     await p.ready;
     for (const key of ["number", "interval", "color", "gradient", "image", "spring", "bezier", "point", "plot", "tabs"]) assert.ok(key in p.params, `${key} built`);
-    for (const cls of ["tw-plot", "tw-monitor", "tw-fps", "tw-tabs"]) assert.ok(p.el.querySelector("." + cls), `${cls} rendered`);
+    for (const cls of ["twk-plot", "twk-monitor", "twk-fps", "twk-tabs"]) assert.ok(p.el.querySelector("." + cls), `${cls} rendered`);
   } finally {
     p.destroy(); // the monitor loops would otherwise outlive a failed assertion and pin the process open
   }
@@ -52,7 +52,7 @@ test("the split build has exactly three shared chunks, and core imports exactly 
   assert.equal(staticImports.length, 1, `core.js statically imports: ${staticImports.join(", ")}`);
 });
 
-// The markup layer (enhance() and the [data-tw] parsers) is its own lazy chunk, fetched only by a page with markup. It
+// The markup layer (enhance() and the [data-twk] parsers) is its own lazy chunk, fetched only by a page with markup. It
 // borrows core's panel modules through a kit rather than importing them: an import would hoist them into a shared chunk.
 test("the markup chunk is lazy and imports only the shared chunk; a page without markup never fetches it", async () => {
   const { readdir, readFile } = await import("node:fs/promises");
@@ -89,14 +89,14 @@ test("the split build's number control mounts standalone and from markup once it
   document.body.append(host);
   const h = mountControl(host, { type: "number", value: 3, min: 0, max: 10 });
   await h.ready;
-  assert.ok(host.querySelector(".tw-num"), "mountControl built the number field");
+  assert.ok(host.querySelector(".twk-num"), "mountControl built the number field");
   assert.equal(h.get(), 3);
   h.destroy(); host.remove();
   const mk = document.createElement("div");
-  mk.dataset.tw = "number"; mk.dataset.key = "n"; mk.dataset.value = "4";
+  mk.dataset.twk = "number"; mk.dataset.key = "n"; mk.dataset.value = "4";
   document.body.append(mk);
   await enhance(mk);
-  assert.ok(mk.querySelector(".tw-num"), "a [data-tw=number] host built its field");
+  assert.ok(mk.querySelector(".twk-num"), "a [data-twk=number] host built its field");
   assert.equal(mk._tw.ctrl.get(), 4);
   mk.remove();
 });

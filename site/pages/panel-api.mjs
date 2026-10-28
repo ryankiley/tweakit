@@ -311,9 +311,9 @@ export const examples = [
       off what it covers. It keeps that spot until it closes. In a pane's field, Escape restores
       what you typed over and a second Escape closes the pane. Escapes the panel handles stop at
       the document, so <code>window</code> listeners don't see them.</p>
-      <p>The placement, z-index and shadow sit at plain <code>.tw-panel</code> specificity,
+      <p>The placement, z-index and shadow sit at plain <code>.twk-panel</code> specificity,
       so a class of your own loaded after the stylesheet overrides them: <code>top</code>,
-      <code>right</code> and <code>left</code> for the inset, <code>--tw-float-gap</code>
+      <code>right</code> and <code>left</code> for the inset, <code>--twk-float-gap</code>
       for the far-edge gap or <code>max-height</code> for the whole cap, and
       <code>z-index</code> and <code>box-shadow</code> as usual.</p>`,
     target: `<button class="demo-btn fl-spawn" type="button">Spawn a floating panel</button>`,

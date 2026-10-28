@@ -12,14 +12,14 @@ const { tweaks, gradientCss } = await loadSingle();
 // bar's painter writes `grad.style.background = css`, so an own-property accessor on that
 // style object sees exactly the string the editor drew with.
 const barCss = (p) => {
-  const style = p.el.querySelector(".tw-gradient-grad").style;
+  const style = p.el.querySelector(".twk-gradient-grad").style;
   if (!Object.getOwnPropertyDescriptor(style, "background")) {
     let last = style.background; Object.defineProperty(style, "background", { configurable: true, get: () => last, set: (v) => { last = v; } });
-    p.el.querySelector(".tw-gradient-ease").dispatchEvent(new Event("change", { bubbles: true })); // repaint through the accessor
+    p.el.querySelector(".twk-gradient-ease").dispatchEvent(new Event("change", { bubbles: true })); // repaint through the accessor
   }
   return String(style.background);
 };
-const easeSel = (p) => p.el.querySelector(".tw-gradient-ease");
+const easeSel = (p) => p.el.querySelector(".twk-gradient-ease");
 const pick = (sel, v) => { sel.value = v; sel.dispatchEvent(new Event("change", { bubbles: true })); };
 
 test("a gradient emits easing: linear by default, and its bar is gradientCss(value) verbatim", () => {
@@ -33,7 +33,7 @@ test("the easing menu sits beside the mode select, lists the CSS keywords, and a
   const p = tweaks("G", { g: { type: "gradient", value: [["#ff0000", 0], ["#0000ff", 1]] } });
   const sel = easeSel(p);
   assert.ok(sel && sel.tagName === "SELECT");
-  assert.equal(sel.previousElementSibling.className, "tw-color-mode", "right after the mode select, in the picker's mode row");
+  assert.equal(sel.previousElementSibling.className, "twk-color-mode", "right after the mode select, in the picker's mode row");
   assert.deepEqual([...sel.options].map((o) => o.value), ["linear", "ease", "ease-in", "ease-out", "ease-in-out"]);
   let emitted = 0; p.on(() => emitted++);
   pick(sel, "ease-in-out");
@@ -51,14 +51,14 @@ test("a value carrying easing opens on it; a bezier that isn't a keyword shows a
     c: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "cubic-bezier(0.3, 0, 0.7, 1)" } },
     d: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "bogus) url(x" } },
   });
-  assert.equal(p.params.a.easing, "ease-out"); assert.equal(p.el.querySelectorAll(".tw-gradient-ease")[0].value, "ease-out");
+  assert.equal(p.params.a.easing, "ease-out"); assert.equal(p.el.querySelectorAll(".twk-gradient-ease")[0].value, "ease-out");
   assert.equal(p.params.b.easing, "cubic-bezier(0.42,0,0.58,1)"); // stored as written, not renamed
   assert.equal(p.params.c.easing, "cubic-bezier(0.3, 0, 0.7, 1)");
-  const selC = p.el.querySelectorAll(".tw-gradient-ease")[2];
+  const selC = p.el.querySelectorAll(".twk-gradient-ease")[2];
   assert.equal(selC.value, "cubic-bezier(0.3, 0, 0.7, 1)");
   assert.equal(selC.selectedOptions[0].textContent, "Custom");
   assert.equal(p.params.d.easing, "linear", "garbage reads as linear");
-  assert.ok(!barCss({ el: p.el.querySelectorAll(".tw-gradient")[3] }).includes("url("), "and never reaches the CSS");
+  assert.ok(!barCss({ el: p.el.querySelectorAll(".twk-gradient")[3] }).includes("url("), "and never reaches the CSS");
   // Picking a keyword on the custom one drops the Custom option; it comes back only for a custom value.
   pick(selC, "ease");
   assert.equal(p.params.c.easing, "ease");
@@ -83,10 +83,10 @@ test("a stop added to an eased ramp samples the eased color, so it lands on the 
   const eas = tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "#000000", pos: 0 }, { color: "#ffffff", pos: 1 }], easing: "ease-in-out" } } });
   const L = (p) => +/oklch\(([\d.]+)/.exec(p.params.g.stops[1].color)[1];
   for (const p of [lin, eas]) {
-    const first = p.el.querySelector(".tw-gradient-stop"); first.focus(); // select the first stop
-    const bar = p.el.querySelector(".tw-gradient-bar");
+    const first = p.el.querySelector(".twk-gradient-stop"); first.focus(); // select the first stop
+    const bar = p.el.querySelector(".twk-gradient-bar");
     bar.getBoundingClientRect = () => ({ left: 0, width: 100, top: 0, bottom: 28, right: 100, height: 28 });
-    p.el.querySelector(".tw-gradient-rail").getBoundingClientRect = bar.getBoundingClientRect;
+    p.el.querySelector(".twk-gradient-rail").getBoundingClientRect = bar.getBoundingClientRect;
     bar.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true, clientX: 25, clientY: 14 }));
     assert.equal(p.params.g.stops.length, 3);
     assert.ok(Math.abs(p.params.g.stops[1].pos - 0.25) < 1e-6);

@@ -31,7 +31,7 @@ export const examples = [
   {
     title: "Add the styles",
     prose: `<p>The panel's whole appearance lives in one stylesheet, built entirely on
-      <code>--tw-*</code> custom properties (see <a href="./theming.html">Theming</a>).
+      <code>--twk-*</code> custom properties (see <a href="./theming.html">Theming</a>).
       Import it through your bundler, or link the file directly.</p>`,
     code: `
       import "tweakit/css";   // bundler

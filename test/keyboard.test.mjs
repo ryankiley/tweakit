@@ -12,16 +12,16 @@ import { loadSingle, wait, key } from "./_helpers.mjs";
 const { tweaks, mountControl } = await loadSingle();
 const mount = (schema, opts) => { const p = tweaks("K", schema, opts); document.body.append(p.el); return p; };
 // Focus the color row's trigger and click it, as Enter would, then wait past the open rAF.
-const openPicker = async (p) => { const trigger = p.el.querySelector(".tw-color .tw-trigger"); trigger.focus(); trigger.click(); await wait(40); const pop = document.body.querySelector(".tw-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
+const openPicker = async (p) => { const trigger = p.el.querySelector(".twk-color .twk-trigger"); trigger.focus(); trigger.click(); await wait(40); const pop = document.body.querySelector(".twk-color-pop.is-open"); assert.ok(pop, "the popover is open"); return pop; };
 
 test("opening the color popover moves focus inside it, and Tab-out closes it", async () => {
   const p = mount({ tint: "#7c5cff" });
   const outside = document.createElement("button"); document.body.append(outside);
-  const trigger = p.el.querySelector(".tw-color .tw-trigger");
+  const trigger = p.el.querySelector(".twk-color .twk-trigger");
   trigger.focus();
   trigger.click(); // Enter on a focused button is a click — jsdom has no key activation, so the test fires the click the key would
   await wait(40); // past the open rAF (16ms here), where the pop renders at real size and takes focus
-  const pop = document.body.querySelector(".tw-color-pop.is-open");
+  const pop = document.body.querySelector(".twk-color-pop.is-open");
   assert.ok(pop, "the popover is open");
   assert.notEqual(document.activeElement, trigger, "focus left the trigger");
   assert.ok(pop.contains(document.activeElement), "focus moved into the popover");
@@ -36,7 +36,7 @@ test("opening the color popover moves focus inside it, and Tab-out closes it", a
 
 test("Escape closes the color popover and returns focus to the trigger", async () => {
   const p = mount({ tint: "#7c5cff" });
-  const trigger = p.el.querySelector(".tw-color .tw-trigger"), pop = await openPicker(p);
+  const trigger = p.el.querySelector(".twk-color .twk-trigger"), pop = await openPicker(p);
   assert.ok(pop.contains(document.activeElement));
   key(document.activeElement, { key: "Escape" });
   assert.equal(trigger.getAttribute("aria-expanded"), "false");
@@ -46,7 +46,7 @@ test("Escape closes the color popover and returns focus to the trigger", async (
 
 test("bezier handles: arrows nudge by 0.01, Shift by 0.1, Home resets, Escape blurs", () => {
   const p = mount({ curve: { type: "cubicbezier", value: [0.25, 0.1, 0.25, 1] } });
-  const [h1] = p.el.querySelectorAll(".tw-bezier-handle");
+  const [h1] = p.el.querySelectorAll(".twk-bezier-handle");
   h1.focus();
   const e = key(h1, { key: "ArrowRight" });
   assert.equal(e.defaultPrevented, true, "the handle owns its arrow keys");
@@ -57,7 +57,7 @@ test("bezier handles: arrows nudge by 0.01, Shift by 0.1, Home resets, Escape bl
   assert.equal(p.params.curve[1], 0.11);
   key(h1, { key: "ArrowDown", shiftKey: true });
   assert.equal(p.params.curve[1], 0.01);
-  assert.equal(p.el.querySelector(".tw-bezier-fields .tw-num").value, "0.36", "the X1 field follows the handle");
+  assert.equal(p.el.querySelector(".twk-bezier-fields .twk-num").value, "0.36", "the X1 field follows the handle");
   key(h1, { key: "Home" });
   assert.deepEqual(p.params.curve, [0.25, 0.1, 0.25, 1], "Home restores the schema default");
   key(h1, { key: "Escape" });
@@ -67,7 +67,7 @@ test("bezier handles: arrows nudge by 0.01, Shift by 0.1, Home resets, Escape bl
 
 test("point pad: focusable group, arrows move one step on the matching axis, Shift x10, Home resets, and a run of keys is spoken", async () => {
   const p = mount({ pos: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } });
-  const pad = p.el.querySelector(".tw-pad");
+  const pad = p.el.querySelector(".twk-pad");
   assert.equal(pad.tabIndex, 0, "the pad is a tab stop");
   assert.equal(pad.getAttribute("role"), "group");
   assert.ok(pad.getAttribute("aria-label"), "the pad is named");
@@ -82,40 +82,40 @@ test("point pad: focusable group, arrows move one step on the matching axis, Shi
   key(pad, { key: "Home" });
   assert.deepEqual(p.params.pos, { x: 0, y: 0 }, "Home restores the schema default");
   await wait(400); // spoken 250ms after the last key, written 100ms after that: aria-description is read on focus and never again
-  assert.equal(document.querySelector(".tw-sr").textContent, pad.getAttribute("aria-description"), "a run of keys ends with the pad's readout spoken");
+  assert.equal(document.querySelector(".twk-sr").textContent, pad.getAttribute("aria-description"), "a run of keys ends with the pad's readout spoken");
   p.destroy();
 });
 
 test("slider: Enter on the focused track opens the inline editor, Escape cancels it", () => {
   const p = mount({ a: [3, 0, 100, 1] });
-  const track = p.el.querySelector(".tw-slider");
+  const track = p.el.querySelector(".twk-slider");
   track.focus();
   key(track, { key: "Enter" });
-  const input = p.el.querySelector(".tw-slider-input");
+  const input = p.el.querySelector(".twk-slider-input");
   assert.ok(input, "the inline input is up");
   assert.equal(document.activeElement, input, "and focused");
   assert.equal(input.value, "3");
   key(input, { key: "Escape" });
-  assert.equal(p.el.querySelector(".tw-slider-input"), null, "Escape removed it");
-  assert.ok(p.el.querySelector(".tw-slider-value"), "the readout is back");
+  assert.equal(p.el.querySelector(".twk-slider-input"), null, "Escape removed it");
+  assert.ok(p.el.querySelector(".twk-slider-value"), "the readout is back");
   assert.equal(p.params.a, 3, "and nothing changed");
   assert.equal(document.activeElement, track, "focus returns to the track");
   track.focus();
   key(track, { key: "Enter" });
-  const input2 = p.el.querySelector(".tw-slider-input");
+  const input2 = p.el.querySelector(".twk-slider-input");
   input2.value = "42";
   key(input2, { key: "ArrowUp" });
   assert.equal(p.params.a, 3, "an arrow typed into the editor does not step the track underneath");
   key(input2, { key: "Enter" });
   assert.equal(p.params.a, 42, "Enter commits the typed value");
-  assert.equal(p.el.querySelector(".tw-slider-input"), null, "and closes the editor (the track's own Enter must not reopen it)");
+  assert.equal(p.el.querySelector(".twk-slider-input"), null, "and closes the editor (the track's own Enter must not reopen it)");
   assert.equal(document.activeElement, track);
   p.destroy();
 });
 
 test("number fields step with ArrowUp/ArrowDown (Shift x10)", () => {
   const p = mount({ n: { type: "number", value: 1, step: 0.5 } });
-  const inp = p.el.querySelector(".tw-num");
+  const inp = p.el.querySelector(".twk-num");
   inp.focus();
   const e = key(inp, { key: "ArrowUp" });
   assert.equal(e.defaultPrevented, true, "the field owns the arrow (no caret jump)");
@@ -129,7 +129,7 @@ test("number fields step with ArrowUp/ArrowDown (Shift x10)", () => {
 test("Alt+Backspace / Alt+Delete with focus inside a control resets it; plain Backspace does not", () => {
   const p = mount({ a: [1, 0, 10, 1], name: { type: "text", value: "hi" } });
   p.set("a", 7);
-  const track = p.el.querySelector(".tw-slider");
+  const track = p.el.querySelector(".twk-slider");
   track.focus();
   key(track, { key: "Backspace" });
   assert.equal(p.params.a, 7, "plain Backspace is not a reset");
@@ -139,7 +139,7 @@ test("Alt+Backspace / Alt+Delete with focus inside a control resets it; plain Ba
   p.set("a", 5);
   key(track, { key: "Delete", altKey: true });
   assert.equal(p.params.a, 1, "Alt+Delete too");
-  const text = p.el.querySelector(".tw-text");
+  const text = p.el.querySelector(".twk-text");
   text.focus(); text.value = "hello"; text.dispatchEvent(new window.Event("input", { bubbles: true })); text.dispatchEvent(new window.Event("change", { bubbles: true }));
   assert.equal(p.params.name, "hello");
   key(text, { key: "Backspace" });
@@ -151,7 +151,7 @@ test("Alt+Backspace / Alt+Delete with focus inside a control resets it; plain Ba
 
 test("gradient: focusing a stop selects it, and its label carries position + selection", async () => {
   const p = mount({ ramp: { type: "gradient", value: { stops: [{ color: "#ff0000", pos: 0 }, { color: "#00ff00", pos: 0.5 }, { color: "#0000ff", pos: 1 }] } } });
-  const stops = p.el.querySelectorAll(".tw-gradient-stop");
+  const stops = p.el.querySelectorAll(".twk-gradient-stop");
   assert.equal(stops.length, 3);
   assert.equal(stops[0].dataset.sel, "true", "the first stop starts selected");
   assert.match(stops[1].getAttribute("aria-label"), /50%/, "the label names the stop's position");
@@ -176,7 +176,7 @@ const closePicker = async (p) => { key(document.activeElement, { key: "Escape" }
 test("color hue strip: a focusable slider — arrows step 1°, Shift x10, Home/End snap to the ends", async () => {
   const p = mount({ tint: { type: "color", value: "oklch(0.6 0.2 120)" } });
   const pop = await openPicker(p);
-  const hue = pop.querySelector(".tw-wg-hue");
+  const hue = pop.querySelector(".twk-wg-hue");
   assert.equal(hue.tabIndex, 0, "the strip is a tab stop");
   assert.equal(hue.getAttribute("role"), "slider");
   assert.equal(hue.getAttribute("aria-valuenow"), "120");
@@ -199,13 +199,13 @@ test("color hue strip: a focusable slider — arrows step 1°, Shift x10, Home/E
 
 test("a closed color popover is inert — its plane is not in the tab order before it opens or after it closes", async () => {
   const p = mount({ tint: "#7c5cff" });
-  const pop = p.el.querySelector(".tw-color-pop");
+  const pop = p.el.querySelector(".twk-color-pop");
   assert.equal(pop.inert, true, "never opened: inert");
-  const trigger = p.el.querySelector(".tw-color .tw-trigger");
+  const trigger = p.el.querySelector(".twk-color .twk-trigger");
   trigger.focus(); trigger.click();
   await wait(40);
   assert.equal(pop.inert, false, "open: live");
-  assert.equal(document.activeElement, pop.querySelector(".tw-wg-area"), "a keyboard open lands on the plane, the first thing in the pop");
+  assert.equal(document.activeElement, pop.querySelector(".twk-wg-area"), "a keyboard open lands on the plane, the first thing in the pop");
   key(document.activeElement, { key: "Escape" });
   assert.equal(pop.inert, true, "closed: inert again through the fade-out");
   await wait(220); p.destroy();
@@ -215,7 +215,7 @@ test("a host mirroring values back through set() keeps the picker open while the
   const p = mount({ tint: { type: "color", value: "oklch(0.5 0.2 200)" } });
   p.on((v, last) => p.set(last, v[last])); // the echo a two-way binding makes on every change
   const pop = await openPicker(p);
-  const plane = pop.querySelector(".tw-wg-area"), trigger = p.el.querySelector(".tw-color .tw-trigger");
+  const plane = pop.querySelector(".twk-wg-area"), trigger = p.el.querySelector(".twk-color .twk-trigger");
   plane.focus();
   key(plane, { key: "ArrowUp" });
   assert.equal(oklch(p.params.tint)[0], 0.51, "the step landed");
@@ -227,13 +227,13 @@ test("a host mirroring values back through set() keeps the picker open while the
 test("color plane: a focusable group — up/down step lightness by 0.01, left/right step chroma by 1% of the row's ceiling, Shift x10", async () => {
   const p = mount({ tint: { type: "color", value: "oklch(0.5 0.2 200)" } });
   const pop = await openPicker(p);
-  const plane = pop.querySelector(".tw-wg-area");
+  const plane = pop.querySelector(".twk-wg-area");
   assert.equal(plane.tabIndex, 0, "the plane is a tab stop");
   assert.equal(plane.getAttribute("role"), "group");
   assert.ok(plane.getAttribute("aria-label"), "the plane is named");
   assert.equal(plane.getAttribute("aria-description"), "lightness 50%, chroma 0.2", "the live readout");
   plane.focus();
-  const thumb = pop.querySelector(".tw-wg-thumb"), x0 = thumb.style.left;
+  const thumb = pop.querySelector(".twk-wg-thumb"), x0 = thumb.style.left;
   const e = key(plane, { key: "ArrowUp" });
   assert.equal(e.defaultPrevented, true, "the plane owns its arrow keys");
   assert.equal(oklch(p.params.tint)[0], 0.51);
@@ -259,15 +259,15 @@ test("color plane: a focusable group — up/down step lightness by 0.01, left/ri
 
 test("color plane: a run of arrow keys ends with the plane's readout spoken", async () => {
   const p = mount({ tint: "#7c5cff" });
-  const trigger = p.el.querySelector(".tw-color .tw-trigger");
+  const trigger = p.el.querySelector(".twk-color .twk-trigger");
   trigger.focus(); trigger.click();
   await wait(40);
-  const area = document.body.querySelector(".tw-wg-area");
+  const area = document.body.querySelector(".twk-wg-area");
   assert.ok(area, "the plane is up");
   area.focus();
   key(area, { key: "ArrowUp" }); key(area, { key: "ArrowUp" });
   await wait(400); // spoken 250ms after the last key, written 100ms after that
-  const said = document.querySelector(".tw-sr").textContent;
+  const said = document.querySelector(".twk-sr").textContent;
   assert.equal(said, area.getAttribute("aria-description"), "the readout the description carries");
   assert.match(said, /^lightness \d+%, chroma /);
   key(area, { key: "Escape" });
@@ -276,7 +276,7 @@ test("color plane: a run of arrow keys ends with the plane's readout spoken", as
 
 test("number fields read typed text strictly: trailing text or a thousands comma leaves the value alone; the unit may be typed", () => {
   const p = mount({ n: { type: "number", value: 1, step: 0.5 }, w: { type: "number", value: 24, unit: "px" } });
-  const [n, w] = p.el.querySelectorAll(".tw-num");
+  const [n, w] = p.el.querySelectorAll(".twk-num");
   const type = (inp, text) => { inp.value = text; inp.dispatchEvent(new window.Event("change", { bubbles: true })); };
   type(n, "12abc");
   assert.equal(p.params.n, 1, "trailing text is not a number (parseFloat would read 12)");
@@ -299,7 +299,7 @@ test("a number field fires no change for rejected text or for the value it alrea
   const seen = [];
   const h = mountControl(host, { type: "number", value: 3 }, { onChange: (v) => seen.push(v) });
   await h.ready;
-  const f = host.querySelector(".tw-num");
+  const f = host.querySelector(".twk-num");
   const type = (text) => { f.value = text; f.dispatchEvent(new window.Event("change", { bubbles: true })); };
   type("abc");
   assert.deepEqual(seen, [], "rejected text fires nothing");
@@ -316,8 +316,8 @@ test("a number field fires no change for rejected text or for the value it alrea
 
 test("Alt+arrows on the focused title move the panel, the keyboard's drag: 10px a step, 50px with Shift, clamped to the viewport", () => {
   const p = mount({ a: [1, 0, 10, 1] });
-  const title = p.el.querySelector(".tw-header-toggle");
-  const x = () => parseFloat(p.el.style.getPropertyValue("--tw-float-x")), y = () => parseFloat(p.el.style.getPropertyValue("--tw-float-y"));
+  const title = p.el.querySelector(".twk-header-toggle");
+  const x = () => parseFloat(p.el.style.getPropertyValue("--twk-float-x")), y = () => parseFloat(p.el.style.getPropertyValue("--twk-float-y"));
   title.focus();
   key(title, { key: "ArrowRight" });
   assert.equal(p.el.dataset.mode, "inline", "a bare arrow is not a move");
@@ -354,7 +354,7 @@ test("the panel is a labeled region, renamed by setName", () => {
 // The Off/On toggle read as two radio buttons ("radio button, On, 2 of 2"); a toggle is a switch.
 test("a boolean toggle is one switch: role, aria-checked, one tab stop, Space and Enter flip it", () => {
   const p = mount({ on: true });
-  const sw = p.el.querySelector('.tw-seg[role="switch"]');
+  const sw = p.el.querySelector('.twk-seg[role="switch"]');
   assert.ok(sw, "the row is a switch");
   assert.equal(sw.getAttribute("aria-checked"), "true"); assert.equal(sw.getAttribute("aria-label"), "On");
   assert.equal(sw.tabIndex, 0);

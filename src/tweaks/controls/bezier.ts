@@ -24,18 +24,18 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   v = fit(v);
   const def = v.slice(); // fitted default; Home on a handle returns to it
 
-  const root = el("div", "tw-bezier");
-  if (meta.label) root.append(txt("div", "tw-bezier-label", meta.label)); // a caption; an explicit "" skips it
-  const graph = el("div", "tw-bezier-graph");
-  const svg = svgEl("svg", "tw-bezier-svg"); svg.setAttribute("preserveAspectRatio", "none");
-  const unitBot = svgEl("line", "tw-bezier-guide"), unitTop = svgEl("line", "tw-bezier-guide");
-  const diag = svgEl("line", "tw-bezier-diag"), line1 = svgEl("line", "tw-bezier-ctl"), line2 = svgEl("line", "tw-bezier-ctl");
-  const curve = svgEl("path", "tw-bezier-curve");
+  const root = el("div", "twk-bezier");
+  if (meta.label) root.append(txt("div", "twk-bezier-label", meta.label)); // a caption; an explicit "" skips it
+  const graph = el("div", "twk-bezier-graph");
+  const svg = svgEl("svg", "twk-bezier-svg"); svg.setAttribute("preserveAspectRatio", "none");
+  const unitBot = svgEl("line", "twk-bezier-guide"), unitTop = svgEl("line", "twk-bezier-guide");
+  const diag = svgEl("line", "twk-bezier-diag"), line1 = svgEl("line", "twk-bezier-ctl"), line2 = svgEl("line", "twk-bezier-ctl");
+  const curve = svgEl("path", "twk-bezier-curve");
   svg.append(unitBot, unitTop, diag, line1, line2, curve);
-  const h1 = btn("tw-bezier-handle"); h1.setAttribute("aria-label", "Control point 1");
-  const h2 = btn("tw-bezier-handle"); h2.setAttribute("aria-label", "Control point 2");
+  const h1 = btn("twk-bezier-handle"); h1.setAttribute("aria-label", "Control point 1");
+  const h2 = btn("twk-bezier-handle"); h2.setAttribute("aria-label", "Control point 2");
   graph.append(svg, h1, h2);
-  const fields = el("div", "tw-fields tw-bezier-fields");
+  const fields = el("div", "twk-fields twk-bezier-fields");
   root.append(graph, fields);
 
   let W = 0, H = 0;
@@ -94,7 +94,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
   drag(h1, 0); drag(h2, 1);
 
   onReady(drawGraph);
-  onLive(root, [[window, "resize"], [window, "tw-reflow"]], drawGraph); // tw-reflow: a tab page revealing this re-measures it
+  onLive(root, [[window, "resize"], [window, "twk-reflow"]], drawGraph); // twk-reflow: a tab page revealing this re-measures it
   return { el: root, set: (nv: unknown) => { const m = read(nv); if (m) { if (m.some((n) => !Number.isFinite(n))) return; v = fit(m); drawGraph(); syncFields(); } }, get: () => v.slice() }; // the build's clamp, so get() agrees with the handles
 }
 

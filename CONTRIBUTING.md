@@ -29,12 +29,12 @@ for the build (esbuild, typescript) and the tests (jsdom, fake-indexeddb, and Pl
   always-loaded controls) and `controls/*.ts` (the heavy controls, dynamic-imported on
   first use). Five more modules are lazy chunks of the code-split build, so a basic panel
   never fetches them: `heavy.ts` (the numeric field, scrub and canvas helpers only the
-  heavy controls use, plus the Number control), `markup.ts` (the `[data-tw]` parsers and
+  heavy controls use, plus the Number control), `markup.ts` (the `[data-twk]` parsers and
   the binding behind `enhance()`; `enhance.ts` is core's side of it, and `auto.ts`, the
   `tweakit/auto` entry, its opt-in run on load), `clip.ts` (a picked row's paste),
   `image-store.ts` (uploaded images in IndexedDB) and `fold.ts` (the conditional row's fold).
 - `src/wide-gamut.ts` — the OKLCH / wide-gamut color engine.
-- `src/tweaks.css` — panel styling, entirely on `--tw-*` custom properties.
+- `src/tweaks.css` — panel styling, entirely on `--twk-*` custom properties.
 - `site/` — the docs/examples site and its zero-dependency generator.
 - `test/` — the `npm test` suite; `test/browser/` the layout checks jsdom can't make (row heights, label insets, overflow, drag).
 
@@ -55,7 +55,7 @@ A few things aren't obvious from the file tree and will trip you up otherwise:
   constructor reads and validates its own fields off the meta; add a `TYPED_META` entry
   only when the form needs reshaping before the constructor sees it (a derived `value`
   for reset, nested metas, a required field whose absence means "this is a folder"), and
-  a `DATA_VALUE` entry when the `[data-tw]` dataset's strings need parsing (numbers,
+  a `DATA_VALUE` entry when the `[data-twk]` dataset's strings need parsing (numbers,
   flags, lists). Both entry points derive the same verbose meta, so a control wired once
   works on every one. `test/registry.test.mjs` cross-checks the tables and the lazy map —
   add your type's minimal fixture there and it will tell you about any table you missed.
@@ -70,9 +70,9 @@ A few things aren't obvious from the file tree and will trip you up otherwise:
   page and shown nowhere. The build also writes a Markdown mirror of every page, `llms.txt`
   and `llms-full.txt`, and a version-stamped copy of `AGENTS.md`; `test/agents-md.test.mjs`
   holds the guide to the control registry and the README to the install prompt.
-- **Theming runs entirely on `--tw-*`.** New visual values go through tokens, not
+- **Theming runs entirely on `--twk-*`.** New visual values go through tokens, not
   hardcoded colors. A color that differs by scheme is one `light-dark(light, dark)` value in
-  the token block; the panel's `color-scheme` picks the arm, and `[data-tw-scheme]` pins only
+  the token block; the panel's `color-scheme` picks the arm, and `[data-twk-scheme]` pins only
   set that. A value that isn't a color (a shadow) takes `light-dark()` on each layer's color;
   only a shadow that exists in one scheme alone (the slider handle's edge) needs its own rule.
 - **Site copy is American English** (color, not colour). The kit's public API keeps the

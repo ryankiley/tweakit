@@ -25,17 +25,17 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   let value = meta.soft && !snap ? seed : clamp(seed, min, max), pull = 0;
   const decimals = stepPrecision(step);
 
-  const wrap = el("div", "tw-slider-wrap");
-  const track = el("div", "tw-slider");
-  const hashes = el("div", "tw-slider-hashmarks");
-  const fill = el("div", "tw-slider-fill");
-  const handle = el("div", "tw-slider-handle");
-  const labelEl = txt("span", "tw-slider-label", label);
-  const valueEl = el("span", "tw-slider-value");
+  const wrap = el("div", "twk-slider-wrap");
+  const track = el("div", "twk-slider");
+  const hashes = el("div", "twk-slider-hashmarks");
+  const fill = el("div", "twk-slider-fill");
+  const handle = el("div", "twk-slider-handle");
+  const labelEl = txt("span", "twk-slider-label", label);
+  const valueEl = el("span", "twk-slider-value");
   // The readout is a text node plus a muted unit suffix; the param stays the bare number.
   const unit = typeof meta.unit === "string" ? meta.unit.trim() : "", numText = document.createTextNode("");
   const joined = !unit ? "" : /^[%°]$/.test(unit) ? unit : " " + unit; // "50%", "90°", but "24 px", "300 ms"
-  valueEl.append(numText); if (unit) valueEl.append(txt("span", "tw-slider-unit", joined));
+  valueEl.append(numText); if (unit) valueEl.append(txt("span", "twk-slider-unit", joined));
   // A format that throws or returns a non-string falls back to the digits, so it can't blank the slider.
   const format = meta.format, parse = meta.parse;
   const show = (v: number) => { if (format) { try { const s = format(v); if (typeof s === "string" && s) return s; } catch {} } return v.toFixed(decimals); };
@@ -50,7 +50,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
 
   const q = (v: number) => roundToStep(v, min, step); // min/max sit on the grid, so a clamped value rounds inside
   const marks = snap ? Array.from({ length: Math.max(0, Math.round((max - min) / step) - 1) }, (_, i) => ((i + 1) * step) / (max - min) * 100) : [];
-  for (const pct of marks) { const m = el("div", "tw-slider-hashmark"); m.style.left = pct + "%"; hashes.append(m); }
+  for (const pct of marks) { const m = el("div", "twk-slider-hashmark"); m.style.left = pct + "%"; hashes.append(m); }
 
   // value stays continuous; only the readout + emitted value round to step.
   const render = () => {
@@ -207,7 +207,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   // commits and Escape cancels, both returning focus to the track; a blur commits and leaves focus where the user sent it.
   const openEditor = () => {
     if (valueEl.classList.contains("is-editing")) return;
-    const input = el("input", "tw-slider-input"); input.type = "text"; input.inputMode = parse ? "text" : "decimal"; quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */
+    const input = el("input", "twk-slider-input"); input.type = "text"; input.inputMode = parse ? "text" : "decimal"; quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */
     input.value = parse ? show(q(value)) : q(value).toFixed(decimals); // with a parse, the field edits the formatted text
     const opened = input.value; input.style.width = opened.length + 1 + "ch"; // read back: a text field drops line breaks
     valueEl.classList.add("is-editing"); valueEl.replaceWith(input); input.focus(); input.select();
@@ -236,10 +236,10 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
 }
 
 function createToggle(meta: Meta, onChange: OnChange): Control {
-  const row = el("div", "tw-row");
+  const row = el("div", "twk-row");
   // The segmented control IS the state; this maps boolean ↔ "on"/"off" at the rim.
   const seg = createSegmented([{ value: "off", label: "Off" }, { value: "on", label: "On" }], meta.value ? "on" : "off", (v) => onChange(v === "on"), meta.label, "on");
-  row.append(txt("span", "tw-row-label", meta.label), seg.el);
+  row.append(txt("span", "twk-row-label", meta.label), seg.el);
   return { el: row, set: (v: unknown) => seg.set(v ? "on" : "off"), get: () => seg.get() === "on" };
 }
 
@@ -247,11 +247,11 @@ function createToggle(meta: Meta, onChange: OnChange): Control {
 function createRadiogrid(meta: Meta, onChange: OnChange): Control {
   const options: Option[] = meta.options || [];
   const cols = Math.min(3, Math.max(2, meta.cols || (options.length <= 3 ? options.length : options.length === 4 ? 2 : 3)));
-  const row = el("div", options.length > cols ? "tw-radiogrid is-grid" : "tw-radiogrid"); // several rows keep equal columns
-  const grid = el("div", "tw-radiogrid-grid"); grid.style.setProperty("--tw-rg-cols", cols);
+  const row = el("div", options.length > cols ? "twk-radiogrid is-grid" : "twk-radiogrid"); // several rows keep equal columns
+  const grid = el("div", "twk-radiogrid-grid"); grid.style.setProperty("--twk-rg-cols", cols);
   grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
   let value = meta.value ?? optValue(options[0]);
-  const btns = options.map((o) => { const b = radioButton("tw-radiogrid-btn", o, (v) => set(v)); grid.append(b); return b; }); // lazy `set` — it's declared below
+  const btns = options.map((o) => { const b = radioButton("twk-radiogrid-btn", o, (v) => set(v)); grid.append(b); return b; }); // lazy `set` — it's declared below
   const reflect = () => setRadioActive(btns, value);
   const set = (v: unknown, fire = true) => { if (v != null && v !== meta.value && !btns.some((b) => b._twVal === v)) return; value = v; reflect(); if (fire) onChange(v); }; // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset() restores it
   grid.addEventListener("keydown", (e) => {
@@ -260,30 +260,30 @@ function createRadiogrid(meta: Meta, onChange: OnChange): Control {
     e.preventDefault(); if (j !== i) { set(btns[j]._twVal); btns[j].focus(); } // _twVal, not dataset.value (which stringifies)
   });
   reflect();
-  row.append(txt("span", "tw-radiogrid-label", meta.label), grid);
+  row.append(txt("span", "twk-radiogrid-label", meta.label), grid);
   return { el: row, set: (v: unknown) => set(v, false), get: () => value };
 }
 
 // ── Select ──
 // An option's color: one token, no nesting, so a `)` can't close it early and splice a url() into the background shorthand.
 const COLOR_TOKEN = /^(?:#[0-9a-f]{3,8}|[a-z]+|(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch|color|var)\([^()]*\))$/i;
-const CHEVRON = chevronIcon("tw-select-chevron");
+const CHEVRON = chevronIcon("twk-select-chevron");
 function createSelect(meta: Meta, onChange: OnChange): Control {
   let value = meta.value;
   const opts = meta.options.map((o) => ({ value: optValue(o), label: optLabel(o), color: o && typeof o === "object" && typeof o.color === "string" && COLOR_TOKEN.test(o.color.trim()) ? o.color.trim() : "" }));
-  const root = el("div", "tw-select");
-  const trigger = btn("tw-select-trigger"); trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
-  const right = el("span", "tw-select-right");
+  const root = el("div", "twk-select");
+  const trigger = btn("twk-select-trigger"); trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
+  const right = el("span", "twk-select-right");
   // Option swatches sit over a checker so alpha reads.
-  const swatchCss = (c: string) => `linear-gradient(${c}, ${c}), var(--tw-checker)`;
-  const swatch = (c: string) => { const s = el("span", "tw-option-swatch"); s.style.background = swatchCss(c); return s; };
-  const valSwatch = el("span", "tw-option-swatch"), valEl = el("span", "tw-select-value");
+  const swatchCss = (c: string) => `linear-gradient(${c}, ${c}), var(--twk-checker)`;
+  const swatch = (c: string) => { const s = el("span", "twk-option-swatch"); s.style.background = swatchCss(c); return s; };
+  const valSwatch = el("span", "twk-option-swatch"), valEl = el("span", "twk-select-value");
   right.append(valSwatch, valEl);
   right.insertAdjacentHTML("beforeend", CHEVRON);
-  trigger.append(txt("span", "tw-select-label", meta.label), right);
-  const dropdown = el("div", "tw-select-dropdown"); dropdown.setAttribute("role", "listbox");
+  trigger.append(txt("span", "twk-select-label", meta.label), right);
+  const dropdown = el("div", "twk-select-dropdown"); dropdown.setAttribute("role", "listbox");
   const optButtons = opts.map((o) => {
-    const b = btn("tw-select-option"); b.setAttribute("role", "option"); if (o.color) b.append(swatch(o.color)); b.append(txt("span", "tw-option-label", o.label)); b.dataset.value = String(o.value);
+    const b = btn("twk-select-option"); b.setAttribute("role", "option"); if (o.color) b.append(swatch(o.color)); b.append(txt("span", "twk-option-label", o.label)); b.dataset.value = String(o.value);
     b.addEventListener("click", () => { set(o.value); pop.close(); });
     dropdown.append(b); return b;
   });
@@ -326,19 +326,19 @@ function createSelect(meta: Meta, onChange: OnChange): Control {
 }
 
 function createButton(meta: Meta) {
-  const b = txt("button", "tw-button", meta.label);
+  const b = txt("button", "twk-button", meta.label);
   b.addEventListener("click", () => typeof meta.action === "function" && meta.action()); // a verbose form can carry a non-function action; as the group does, ignore it
   return blade(b);
 }
 
 // ── Button group — a row of compact actions under one label. `buttons` is { label: fn } or [{label, action}]. ──
 function createButtonGroup(meta: Meta) {
-  const row = el("div", "tw-row tw-buttongroup");
-  if (meta.label) row.append(txt("span", "tw-row-label", meta.label));
-  const group = el("div", "tw-buttongroup-btns");
+  const row = el("div", "twk-row twk-buttongroup");
+  if (meta.label) row.append(txt("span", "twk-row-label", meta.label));
+  const group = el("div", "twk-buttongroup-btns");
   const list: [string, () => void][] = Array.isArray(meta.buttons) ? meta.buttons.map((b) => [b.label ?? "Button", b.action]) : Object.entries(meta.buttons || {}); // an entry with no label is still a button, not an empty pill
   for (const [lab, fn] of list) {
-    const b = txt("button", "tw-buttongroup-btn", lab);
+    const b = txt("button", "twk-buttongroup-btn", lab);
     b.addEventListener("click", () => typeof fn === "function" && fn());
     group.append(b);
   }
@@ -347,7 +347,7 @@ function createButtonGroup(meta: Meta) {
 }
 
 // ── Separator — a thin divider to break a long panel into sections. ──
-const createSeparator = () => blade(el("div", "tw-separator"));
+const createSeparator = () => blade(el("div", "twk-separator"));
 
 // ── String — a labeled text input ──
 function createString(meta: Meta, onChange: OnChange): Control {
@@ -355,8 +355,8 @@ function createString(meta: Meta, onChange: OnChange): Control {
   const str = (v: unknown) => (v == null ? "" : typeof v === "object" ? json(v) : String(v));
   let value = str(meta.value);
   const multi = meta.rows > 0;
-  const row = el("div", multi ? "tw-row tw-row-multiline" : "tw-row");
-  const input = el(multi ? "textarea" : "input", multi ? "tw-text tw-textarea" : "tw-text");
+  const row = el("div", multi ? "twk-row twk-row-multiline" : "twk-row");
+  const input = el(multi ? "textarea" : "input", multi ? "twk-text twk-textarea" : "twk-text");
   if (multi) (input as HTMLTextAreaElement).rows = meta.rows; else (input as HTMLInputElement).type = "text";
   input.value = value;
   quietFocus(input); // click-to-type stays ringless; Tab rings
@@ -365,18 +365,18 @@ function createString(meta: Meta, onChange: OnChange): Control {
   // Long text clips softly: the edge with more past it fades (a mask, so the fade is the panel's own backdrop).
   const clip = () => { const more = input.scrollHeight - input.clientHeight > 1; input.classList.toggle("is-clip-top", more && input.scrollTop > 1); input.classList.toggle("is-clip-bottom", more && input.scrollTop + input.clientHeight < input.scrollHeight - 1); };
   if (multi) { input.addEventListener("scroll", clip); input.addEventListener("input", clip); if (typeof ResizeObserver === "function") new ResizeObserver(clip).observe(input); }
-  row.append(txt("span", "tw-row-label", meta.label), input);
+  row.append(txt("span", "twk-row-label", meta.label), input);
   return { el: row, set: (v: unknown) => { value = str(v); input.value = value; if (multi) clip(); }, get: () => value }; // null → "", not the literal "undefined"
 }
 
 // ── Folder — a collapsible titled group; `body` is the inner container the caller fills. ──
 function createFolder(meta: { label: string }) {
-  const root = el("div", "tw-folder");
-  const header = btn("tw-folder-header"); header.setAttribute("aria-expanded", "true");
-  header.append(txt("span", "tw-folder-title", meta.label));
+  const root = el("div", "twk-folder");
+  const header = btn("twk-folder-header"); header.setAttribute("aria-expanded", "true");
+  header.append(txt("span", "twk-folder-title", meta.label));
   header.insertAdjacentHTML("beforeend", ICON_CHEVRON); // chevron trails the title
-  const body = el("div", "tw-folder-body");
-  const inner = el("div", "tw-controls"); body.append(inner);
+  const body = el("div", "twk-folder-body");
+  const inner = el("div", "twk-controls"); body.append(inner);
   root.append(header, body);
   const collapse = (c: boolean) => foldBody(root, header, body, c); // the shared fold: class + aria-expanded + inert on the body
   header.addEventListener("click", () => collapse(!root.classList.contains("is-collapsed")));

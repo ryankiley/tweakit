@@ -17,9 +17,9 @@ test("every field a panel builds is left alone by autofill and password managers
   document.body.append(p.el);
   try {
     // The presets menu's name field is built in a popover on <body>.
-    p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click();
-    const fields = [...p.el.querySelectorAll("input, textarea"), ...document.querySelectorAll(".tw-portal input, .tw-portal textarea")];
-    for (const cls of ["tw-text", "tw-textarea", "tw-presets-input"]) assert.ok(fields.some((f) => f.classList.contains(cls)), `a .${cls} was built`);
+    p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]').click();
+    const fields = [...p.el.querySelectorAll("input, textarea"), ...document.querySelectorAll(".twk-portal input, .twk-portal textarea")];
+    for (const cls of ["twk-text", "twk-textarea", "twk-presets-input"]) assert.ok(fields.some((f) => f.classList.contains(cls)), `a .${cls} was built`);
     for (const f of fields) {
       assert.equal(f.getAttribute("autocomplete"), "off", `.${f.className} turns autofill off`);
       assert.ok(f.hasAttribute("data-1p-ignore"), `.${f.className} asks 1Password to leave it`);
@@ -39,12 +39,12 @@ test("a press or a click on the panel or its popover never reaches the page", as
   const press = (node) => { for (const t of types) node.dispatchEvent(new window.Event(t, { bubbles: true })); };
   for (const t of types) document.addEventListener(t, onPage);
   try {
-    const presets = p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]');
+    const presets = p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]');
     press(presets);
     assert.equal(presets.getAttribute("aria-expanded"), "true", "the panel still hears its own click: the menu opened");
-    const menu = [...document.querySelectorAll(".tw-portal")].find((n) => n.querySelector(".tw-presets-input"));
+    const menu = [...document.querySelectorAll(".twk-portal")].find((n) => n.querySelector(".twk-presets-input"));
     assert.ok(menu, "the menu is portaled to <body>");
-    press(menu.querySelector(".tw-presets-input"));
+    press(menu.querySelector(".twk-presets-input"));
     assert.deepEqual(heard, [], "the page heard nothing from the panel or its menu");
     press(document.body);
     assert.deepEqual(heard, types, "and still hears its own presses");

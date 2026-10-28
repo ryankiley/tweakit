@@ -175,10 +175,10 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   // A number only: `fit: true` would read as 1 and draw every upload as one pixel.
   const fit = meta.fit === false || meta.fit === 0 ? 0 : typeof meta.fit === "number" && meta.fit >= 1 ? Math.round(meta.fit) : 2560; // false or 0: uploads as they are
   const quality = typeof meta.quality === "number" && meta.quality > 0 && meta.quality <= 1 ? meta.quality : 0.85;
-  const input = el("input", "tw-image-input"); input.type = "file"; input.accept = "image/*";
+  const input = el("input", "twk-image-input"); input.type = "file"; input.accept = "image/*";
   // A refused file's reason takes the button text's place for a moment. It is spoken from a status region beside the
   // button, not inside it: a button's children are presentational, so a live region there is never read.
-  const note = el("span", "tw-image-note"), live = el("span", "tw-image-live"); live.setAttribute("role", "status");
+  const note = el("span", "twk-image-note"), live = el("span", "twk-image-live"); live.setAttribute("role", "status");
   const notes = [note, live]; // a gallery adds its row's note, so a file refused on the closed row still shows why
   let noteTimer: ReturnType<typeof setTimeout>;
   const say = (msg: string) => { for (const n of notes) n.textContent = msg; clearTimeout(noteTimer); noteTimer = setTimeout(() => { for (const n of notes) n.textContent = ""; }, 2600); };
@@ -214,15 +214,15 @@ function createImage(meta: Meta, onChange: OnChange): Control {
   };
   input.addEventListener("change", () => { load(input.files?.[0]); input.value = ""; }); // cleared, so the same file picked again fires change
   // Both forms are a trigger row with the chosen image's thumb first, as every chip row.
-  const row = triggerRow("tw-image", meta.label), root = row.root;
-  const thumb = el("span", "tw-trigger-chip tw-image-thumb");
+  const row = triggerRow("twk-image", meta.label), root = row.root;
+  const thumb = el("span", "twk-trigger-chip twk-image-thumb");
   const paintThumb = () => { thumb.dataset.set = value ? "true" : "false"; thumb.style.backgroundImage = value ? urlCss(value) : ""; };
 
   if (!options.length) {
     // The plain row: the whole trigger is the target, a click opens the file dialog and the row is also the drop zone.
     row.trigger.removeAttribute("aria-expanded"); // opens a file dialog, not an expandable popover
     row.trigger.setAttribute("aria-label", `${meta.label}: choose an image`);
-    const text = el("span", "tw-image-text");
+    const text = el("span", "twk-image-text");
     row.right.append(thumb, note, text);
     root.append(input, live);
     render = () => { paintThumb(); text.textContent = value ? "Replace" : "Drop or choose"; };
@@ -232,27 +232,27 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     // The gallery: the row, with the chosen image's name, opens a pane of the tiles, as one radio group, over a foot with
     // the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and the pane both
     // take a dropped file.
-    const name = el("span", "tw-trigger-value"), rowNote = el("span", "tw-image-note");
+    const name = el("span", "twk-trigger-value"), rowNote = el("span", "twk-image-note");
     row.right.append(thumb, rowNote, name);
     notes.push(rowNote);
     // The pane is the gallery, with no wrapper: its padding and the gaps between tiles and foot are its drag edge.
-    const pop = el("div", "tw-color-pop tw-image-pop tw-image-gallery");
-    const upload = canUpload ? btn("tw-button tw-image-upload", ICON_UPLOAD) : null;
-    const clear = txt("button", "tw-image-clear", "Clear"); clear.type = "button"; clear.setAttribute("aria-label", `${meta.label}: clear the image`);
+    const pop = el("div", "twk-color-pop twk-image-pop twk-image-gallery");
+    const upload = canUpload ? btn("twk-button twk-image-upload", ICON_UPLOAD) : null;
+    const clear = txt("button", "twk-image-clear", "Clear"); clear.type = "button"; clear.setAttribute("aria-label", `${meta.label}: clear the image`);
     // The foot folds like a folder: a row track holds the upload button and a column track holds Clear, so either can
     // ease shut without measuring. Clear folds away when there's nothing to clear; the foot folds when it's empty.
-    const foot = el("div", "tw-image-foot"), footRow = el("div", "tw-image-foot-row"), slot = el("div", "tw-image-clear-slot");
+    const foot = el("div", "twk-image-foot"), footRow = el("div", "twk-image-foot-row"), slot = el("div", "twk-image-clear-slot");
     foot.append(footRow); slot.append(clear);
-    const grid = el("div", "tw-image-grid"); grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
+    const grid = el("div", "twk-image-grid"); grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
     const n = options.length;
     const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
-    grid.style.setProperty("--tw-img-cols", String(cols));
-    const tile = (v: string, label: string) => { const b = radioButton("tw-image-tile", v, () => commit(v)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
+    grid.style.setProperty("--twk-img-cols", String(cols));
+    const tile = (v: string, label: string) => { const b = radioButton("twk-image-tile", v, () => commit(v)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
     const names = options.map((o, i) => o.label || stem(o.value) || `Image ${i + 1}`);
     const tiles = options.map((o, i) => { const b = tile(o.value, names[i]); grid.append(b); return b; });
     // A value that is none of the options (an upload, or a host-set URL) shows as a last tile, selected. Its URL rides
     // on _twVal, not data-value: the inline style already holds one copy of a data URL, and data-value would be a second.
-    const custom: RadioBtn = btn("tw-image-tile tw-image-custom"); custom.setAttribute("role", "radio");
+    const custom: RadioBtn = btn("twk-image-tile twk-image-custom"); custom.setAttribute("role", "radio");
     const all = () => (custom.parentNode ? [...tiles, custom] : tiles); // parentNode, not isConnected: a panel not yet in the document has no connected nodes
     render = () => {
       const k = tiles.findIndex((b) => b._twVal === value);
@@ -284,7 +284,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     root.append(pop, live);
     if (upload) {
       upload.setAttribute("aria-label", `${meta.label}: upload an image`);
-      upload.append(note, txt("span", "tw-image-text", "Upload image"));
+      upload.append(note, txt("span", "twk-image-text", "Upload image"));
       upload.addEventListener("click", () => input.click());
       footRow.append(upload); root.append(input);
       dropZone(row.trigger, row.trigger); dropZone(pop, pop);

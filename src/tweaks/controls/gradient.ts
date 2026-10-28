@@ -68,18 +68,18 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   let easing = easingName(ease0); // unrecognized reads as linear
 
   // ── Trigger row — the strip is the readout; the stop count rides along for the accessibility tree. ──
-  const { root, trigger, right } = triggerRow("tw-gradient", meta.label ?? "Gradient"); // ??: an explicit "" label renders none
-  const preview = el("span", "tw-trigger-chip tw-gradient-preview"); preview.setAttribute("role", "img");
+  const { root, trigger, right } = triggerRow("twk-gradient", meta.label ?? "Gradient"); // ??: an explicit "" label renders none
+  const preview = el("span", "twk-trigger-chip twk-gradient-preview"); preview.setAttribute("role", "img");
   right.append(preview);
 
   // ── Editor popover — carries the color popover's class so it inherits its tokens and shell. ──
-  const pop = el("div", "tw-color-pop tw-gradient-pop");
-  const barRow = el("div", "tw-gradient-bar-row");
-  const bar = el("div", "tw-gradient-bar");
-  const grad = el("div", "tw-gradient-grad");
-  const rail = el("div", "tw-gradient-rail");
+  const pop = el("div", "twk-color-pop twk-gradient-pop");
+  const barRow = el("div", "twk-gradient-bar-row");
+  const bar = el("div", "twk-gradient-bar");
+  const grad = el("div", "twk-gradient-grad");
+  const rail = el("div", "twk-gradient-rail");
   bar.append(grad, rail);
-  const addBtn = btn("tw-gradient-add", ICON_PLUS); addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a color stop after the selected one");
+  const addBtn = btn("twk-gradient-add", ICON_PLUS); addBtn.title = "Add a stop after the selected one"; addBtn.setAttribute("aria-label", "Add a color stop after the selected one");
   barRow.append(bar, addBtn);
 
   const sorted = () => [...stops].sort((a, b) => a.pos - b.pos);
@@ -100,7 +100,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     paint(); emit();
   });
   // Easing sits beside the mode: both are "how the ramp blends".
-  const easeSel = el("select", "tw-color-mode tw-gradient-ease"); easeSel.setAttribute("aria-label", "Easing between stops"); easeSel.title = "How the ramp blends between stops";
+  const easeSel = el("select", "twk-color-mode twk-gradient-ease"); easeSel.setAttribute("aria-label", "Easing between stops"); easeSel.title = "How the ramp blends between stops";
   for (const [v, label] of EASINGS) { const o = document.createElement("option"); o.value = v; o.textContent = label; easeSel.append(o); }
   const reflectEase = () => {
     let custom = easeSel.querySelector<HTMLOptionElement>("option[data-custom]");
@@ -109,7 +109,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     easeSel.value = easing;
   };
   easeSel.addEventListener("change", () => { easing = easeSel.value as GradientEasing; reflectEase(); paint(); emit(); }); // reflect: picking a keyword retires the Custom option
-  body.el.querySelector(".tw-color-mode")!.after(easeSel); // after the mode select, before the gamut tag
+  body.el.querySelector(".twk-color-mode")!.after(easeSel); // after the mode select, before the gamut tag
   reflectEase();
   pop.append(barRow, body.el);
   root.append(pop);
@@ -122,7 +122,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const renderHandles = () => {
     rail.replaceChildren();
     for (const s of stops) {
-      const h: StopHandle = btn("tw-gradient-stop"); h._stop = s;
+      const h: StopHandle = btn("twk-gradient-stop"); h._stop = s;
       h.style.left = s.pos * 100 + "%"; h.style.setProperty("--stop", s.color);
       h.dataset.sel = String(s === selStop); labelStop(h);
       // Focus is selection: tabbing onto a stop points the picker at it.
@@ -193,7 +193,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   addBtn.addEventListener("click", (e) => { e.stopPropagation(); addStop(); });
   // Double-click, not single, so it never fights grabbing a stop; a double-click on a stop falls through to its own handler.
   bar.addEventListener("dblclick", (e) => {
-    if ((e.target as Element).closest(".tw-gradient-stop")) return;
+    if ((e.target as Element).closest(".twk-gradient-stop")) return;
     e.preventDefault();
     insertStopAt(posFromX(e.clientX));
   });

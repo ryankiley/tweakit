@@ -97,7 +97,7 @@ test("monitor: a negative `rows` doesn't spin the buffer trim into an infinite l
   const p = tweaks("M", { m: { type: "monitor", rows: -5, get: () => "tick", interval: 30 } });
   document.body.append(p.el);
   await wait(100); // several poll ticks at the 30ms floor
-  const buf = p.el.querySelector(".tw-monitor-buffer");
+  const buf = p.el.querySelector(".twk-monitor-buffer");
   assert.ok(buf, "buffer rendered");
   assert.ok(buf.textContent.split("\n").length <= 2, "buffer stayed bounded under a negative rows");
   p.destroy();
@@ -109,7 +109,7 @@ test("destroy() releases a monitor's poll even on a panel that never mounted", a
   p.destroy();                                  // never mounted
   document.body.append(p.el);                   // re-attach the dead node: a live poll would find it connected and tick
   await wait(150); // several intervals at the 30ms floor
-  assert.equal(p.el.querySelector(".tw-fps-val").textContent, "—", "the poll was released, so it never wrote a value");
+  assert.equal(p.el.querySelector(".twk-fps-val").textContent, "—", "the poll was released, so it never wrote a value");
   p.el.remove();
 });
 
@@ -140,12 +140,12 @@ test("a slider survives a step too fine for toFixed", () => {
 test("markup mode echoes an object-valued control as its components, not [object Object]", async () => {
   // Regression: data-value got ctrl.get() as is, so a point or spring wrote [object Object] into the attribute its parser reads.
   const holder = document.createElement("div");
-  holder.innerHTML = `<div data-tw="point" data-label="Offset" data-components="X,Y" data-value="3,4" data-step="1"></div>`;
+  holder.innerHTML = `<div data-twk="point" data-label="Offset" data-components="X,Y" data-value="3,4" data-step="1"></div>`;
   document.body.append(holder);
   await enhance(holder);
-  const host = holder.querySelector('[data-tw="point"]');
+  const host = holder.querySelector('[data-twk="point"]');
   host._tw.ctrl.set({ x: 7, y: 9 });
-  host._tw.ctrl.el.querySelector(".tw-num").dispatchEvent(new Event("change", { bubbles: true })); // nudge a field so the control emits
+  host._tw.ctrl.el.querySelector(".twk-num").dispatchEvent(new Event("change", { bubbles: true })); // nudge a field so the control emits
   assert.ok(!/object Object/.test(host.dataset.value), `data-value stayed parseable, got "${host.dataset.value}"`);
   assert.match(host.dataset.value, /^[\d.,-]+$/, "components, comma-joined — the form the point parser reads");
   holder.remove();
@@ -154,14 +154,14 @@ test("markup mode echoes an object-valued control as its components, not [object
 test("markup mode's copy keys by data-key and suffixes duplicates", async () => {
   // Regression: the copy keyed hosts by label, so two with one label overwrote each other.
   const holder = document.createElement("div");
-  holder.innerHTML = `<div class="tw-panel" data-mode="inline"><div class="tw-header"><span class="tw-title">P</span></div><div class="tw-controls">
-    <div data-tw="slider" data-label="Size" data-value="1" data-min="0" data-max="10"></div>
-    <div data-tw="slider" data-label="Size" data-value="2" data-min="0" data-max="10"></div>
-    <div data-tw="slider" data-key="depth" data-label="Size" data-value="3" data-min="0" data-max="10"></div>
+  holder.innerHTML = `<div class="twk-panel" data-mode="inline"><div class="twk-header"><span class="twk-title">P</span></div><div class="twk-controls">
+    <div data-twk="slider" data-label="Size" data-value="1" data-min="0" data-max="10"></div>
+    <div data-twk="slider" data-label="Size" data-value="2" data-min="0" data-max="10"></div>
+    <div data-twk="slider" data-key="depth" data-label="Size" data-value="3" data-min="0" data-max="10"></div>
   </div></div>`;
   document.body.append(holder);
   await enhance(holder);
-  assert.deepEqual([...holder.querySelectorAll("[data-tw]")].map((h) => h._tw.key), ["Size", "Size", "depth"], "data-key wins over the label when present");
+  assert.deepEqual([...holder.querySelectorAll("[data-twk]")].map((h) => h._tw.key), ["Size", "Size", "depth"], "data-key wins over the label when present");
 
   // Drive the real copy button and read what it actually put on the clipboard.
   const vals = JSON.parse(await copyFrom(holder));
@@ -234,7 +234,7 @@ test("spring set() with both key groups restores the physics cache for a later t
   // for the active value, but the physics cache must be restored too.
   p.set("s", { visualDuration: 0.5, bounce: 0.2, stiffness: 250, damping: 22, mass: 2 });
   assert.equal(p.params.s.visualDuration, 0.5);   // active = time
-  const physBtn = [...p.el.querySelectorAll(".tw-spring .tw-seg-btn")].find((b) => b.textContent.trim() === "Physics");
+  const physBtn = [...p.el.querySelectorAll(".twk-spring .twk-seg-btn")].find((b) => b.textContent.trim() === "Physics");
   physBtn.click();                                  // toggle to Physics
   assert.deepEqual(p.params.s, { stiffness: 250, damping: 22, mass: 2 }); // restored, not stale {100,12,1}
   p.destroy();
@@ -247,9 +247,9 @@ test("toJSON captures values + folder/tab UI; fromJSON restores them; JSON.strin
     pages: { type: "tabs", pages: { First: { x: [1, 0, 10, 1] }, Second: { y: [2, 0, 10, 1] } } },
   });
   document.body.append(p.el);
-  const tabBtns = () => [...p.el.querySelectorAll(".tw-tabs-tab")];
+  const tabBtns = () => [...p.el.querySelectorAll(".twk-tabs-tab")];
   p.set("blur", 42);
-  p.el.querySelector(".tw-folder-header").click();                       // collapse the shadow folder
+  p.el.querySelector(".twk-folder-header").click();                       // collapse the shadow folder
   tabBtns().find((t) => t.textContent.trim() === "Second").click();      // activate page "Second" (key "second")
 
   const state = p.toJSON();
@@ -261,13 +261,13 @@ test("toJSON captures values + folder/tab UI; fromJSON restores them; JSON.strin
 
   // drift away from the saved state, then restore
   p.set("blur", 0);
-  p.el.querySelector(".tw-folder-header").click();                       // expand
+  p.el.querySelector(".twk-folder-header").click();                       // expand
   tabBtns().find((t) => t.textContent.trim() === "First").click();
-  assert.ok(!p.el.querySelector(".tw-folder").classList.contains("is-collapsed"));
+  assert.ok(!p.el.querySelector(".twk-folder").classList.contains("is-collapsed"));
 
   p.fromJSON(state);
   assert.equal(p.params.blur, 42);
-  assert.ok(p.el.querySelector(".tw-folder").classList.contains("is-collapsed"));
+  assert.ok(p.el.querySelector(".twk-folder").classList.contains("is-collapsed"));
   assert.equal(tabBtns().find((t) => t.dataset.active === "true").textContent.trim(), "Second");
   p.destroy();
 });
@@ -287,7 +287,7 @@ test("a header press released off the header can't leave the panel dragging on h
   // Regression: capture starts past the 4px threshold, so a release off the header left dragId set and the next hover dragged.
   const p = tweaks("Drag", { a: [1, 0, 10, 1] });
   document.body.append(p.el);
-  const header = p.el.querySelector(".tw-header"), body = p.el.querySelector(".tw-body");
+  const header = p.el.querySelector(".twk-header"), body = p.el.querySelector(".twk-body");
   header.setPointerCapture = header.releasePointerCapture = () => {};
 
   header.dispatchEvent(ptr("pointerdown", { clientX: 100, clientY: 10 }));
@@ -305,18 +305,18 @@ test("double-clicking a slider readout resets it even once the hover armed the e
   const p = tweaks("DblEdit", { x: [5, 0, 100, 1] });
   document.body.append(p.el);
   p.set("x", 42);
-  const val = p.el.querySelector(".tw-slider-value");
+  const val = p.el.querySelector(".twk-slider-value");
   val.dispatchEvent(new Event("mouseenter", { bubbles: true }));
   await wait(850); // arm the hover-to-edit gate
   assert.ok(val.classList.contains("is-editable"), "editing armed");
 
   val.dispatchEvent(new Event("click", { bubbles: true }));      // click #1 opens the editor…
-  const input = p.el.querySelector(".tw-slider-input");
+  const input = p.el.querySelector(".twk-slider-input");
   assert.ok(input, "the inline editor opened");
   input.dispatchEvent(new Event("dblclick", { bubbles: true })); // …so the dblclick retargets to it
 
   assert.equal(p.params.x, 5, "reset to the schema default");
-  assert.equal(p.el.querySelector(".tw-slider-input"), null, "the editor closed behind it");
+  assert.equal(p.el.querySelector(".twk-slider-input"), null, "the editor closed behind it");
   p.destroy();
 });
 
@@ -332,13 +332,13 @@ test("every button the kit renders is type=button, never a form submit", async (
   }, { persist: "t-button-types" });
   document.body.append(p.el);
   p.savePreset("button-type-probe"); // so the presets menu renders a Load + Delete row, not only "No presets yet"
-  p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click(); // portals the presets menu to <body>
+  p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]').click(); // portals the presets menu to <body>
   await wait(30); // its list renders in the popover's onOpen, a frame later
-  const menu = [...document.querySelectorAll(".tw-presets-menu")].find((m) => m.textContent.includes("button-type-probe"));
+  const menu = [...document.querySelectorAll(".twk-presets-menu")].find((m) => m.textContent.includes("button-type-probe"));
   assert.ok(menu, "this panel's presets menu rendered its rows");
   const buttons = [...p.el.querySelectorAll("button"), ...menu.querySelectorAll("button")];
   const kinds = new Set(buttons.map((b) => b.className.split(" ")[0]));
-  for (const k of ["tw-header-toggle", "tw-toolbar-btn", "tw-button", "tw-buttongroup-btn", "tw-seg-btn", "tw-radiogrid-btn", "tw-select-trigger", "tw-select-option", "tw-tabs-tab", "tw-presets-savebtn", "tw-presets-load", "tw-presets-del"]) assert.ok(kinds.has(k), `${k} rendered`);
+  for (const k of ["twk-header-toggle", "twk-toolbar-btn", "twk-button", "twk-buttongroup-btn", "twk-seg-btn", "twk-radiogrid-btn", "twk-select-trigger", "twk-select-option", "twk-tabs-tab", "twk-presets-savebtn", "twk-presets-load", "twk-presets-del"]) assert.ok(kinds.has(k), `${k} rendered`);
   for (const b of buttons) assert.equal(b.type, "button", `<button class="${b.className}"> is type=${b.type}`);
   p.destroy();
 });
@@ -347,8 +347,8 @@ test("destroy() in the same tick as opening a popover leaves no stray menu, focu
   // Regression: the open's deferred work didn't re-check `open`, so a close in between was undone.
   const p = tweaks("Race", { a: 1 }, { persist: "t-popover-race" });
   document.body.append(p.el);
-  p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]').click();
-  const menu = [...document.querySelectorAll(".tw-presets-menu")].at(-1);
+  p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]').click();
+  const menu = [...document.querySelectorAll(".twk-presets-menu")].at(-1);
   assert.ok(menu && menu.isConnected, "the menu portaled to <body>");
   p.destroy(); // same tick as the open
   const added = [];
@@ -366,7 +366,7 @@ test("the toolbar's copy emits the values snapshot (nested) and its reset restor
   document.body.append(p.el);
   p.set("a", 7); p.set("f.b", 9);
   assert.deepEqual(JSON.parse(await copyFrom(p.el)), { a: 7, f: { b: 9 } });
-  p.el.querySelector(".tw-toolbar-btn--reset").click();
+  p.el.querySelector(".twk-toolbar-btn--reset").click();
   assert.equal(p.params.a, 1);
   assert.equal(p.params.f.b, 2);
   p.destroy();
@@ -390,7 +390,7 @@ test("a keyboard step during a snap slider's settle doesn't leave it lit", async
   // Regression: only the settle dropped .is-active, and an arrow key cancels the settle.
   const p = tweaks("Settle", { snap: [3, 0, 6, 1] });
   document.body.append(p.el);
-  const track = p.el.querySelector(".tw-slider");
+  const track = p.el.querySelector(".twk-slider");
   track.setPointerCapture = () => {};
   track.parentNode.getBoundingClientRect = () => ({ left: 0, top: 0, right: 200, bottom: 32, width: 200, height: 32 }); // jsdom lays out nothing; a press needs a real track width
   track.dispatchEvent(ptr("pointerdown", { clientX: 120 }));
@@ -429,7 +429,7 @@ test("reset() restores the value a control opened on, not the raw schema value i
   p.reset();                                            // used to leave "x", 8, and a time-mode spring
   assert.deepEqual(p.toJSON().values, opened);
   document.body.append(p.el);
-  const timeBtn = [...p.el.querySelectorAll(".tw-spring .tw-seg-btn")].find((b) => b.textContent.trim() === "Time");
+  const timeBtn = [...p.el.querySelectorAll(".twk-spring .twk-seg-btn")].find((b) => b.textContent.trim() === "Time");
   timeBtn.click();                                      // the time cache is the schema's pair again, not the 0.6/0.1 edit
   assert.equal(p.params.s.visualDuration, 0.4);
   assert.equal(p.params.s.bounce, 0.3);
@@ -440,9 +440,9 @@ test("reset() re-parses the authored color exactly, whatever mode the picker is 
   // Regression: the default was the readout's rounded string, a step off the authored color.
   const p = tweaks("Cx", { c: "#00ff00" });
   document.body.append(p.el);
-  const mode = p.el.querySelector(".tw-color-mode");
+  const mode = p.el.querySelector(".twk-color-mode");
   mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
-  assert.equal(p.el.querySelector(".tw-color-chan-input").value, "#00FF00"); // (params keep the last emitted string until a value changes)
+  assert.equal(p.el.querySelector(".twk-color-chan-input").value, "#00FF00"); // (params keep the last emitted string until a value changes)
   p.set("c", "#123456");
   p.reset();
   assert.equal(p.params.c, "#00ff00");                  // not #29ff0e, the re-parse of the rounded readout string
@@ -452,7 +452,7 @@ test("reset() re-parses the authored color exactly, whatever mode the picker is 
 test("reset() restores both of a spring's caches from the schema", () => {
   const p = tweaks("Sc", { s: { type: "spring", value: { stiffness: 85, damping: 12, mass: 2, visualDuration: 0.4, bounce: 0.3 } } }); // time inferred
   document.body.append(p.el);
-  const btn = (t) => [...p.el.querySelectorAll(".tw-spring .tw-seg-btn")].find((b) => b.textContent.trim() === t);
+  const btn = (t) => [...p.el.querySelectorAll(".twk-spring .twk-seg-btn")].find((b) => b.textContent.trim() === t);
   btn("Physics").click();
   assert.deepEqual(p.params.s, { stiffness: 85, damping: 12, mass: 2 });
   btn("Time").click();
@@ -467,7 +467,7 @@ test("reset() restores both of a spring's caches from the schema", () => {
 test("a hard slider's range is its reachable grid, so its ends, keys and value agree", () => {
   const p = tweaks("Ends", { x: [5, 0, 14.6, 1], s: [5, 0, 14.6, 5], soft: { type: "slider", value: 5, min: 0, max: 14.6, step: 1, soft: true } });
   document.body.append(p.el);
-  const track = (k) => p.el.querySelectorAll(".tw-slider")[k];
+  const track = (k) => p.el.querySelectorAll(".twk-slider")[k];
   assert.equal(track(0).getAttribute("aria-valuemax"), "14");
   track(0).dispatchEvent(Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), { key: "End" }));
   assert.equal(p.params.x, 14);
@@ -500,9 +500,9 @@ test("a restore refuses a function as a control value", () => {
 test("a hint survives a leave and a blur queued within its grace, then a re-enter", async () => {
   const p = tweaks("Hint", { h: { type: "slider", value: 1, min: 0, max: 2, hint: "a hint" } });
   document.body.append(p.el);
-  const mark = p.el.querySelector(".tw-hint");
+  const mark = p.el.querySelector(".twk-hint");
   mark.dispatchEvent(new Event("pointerenter"));
-  const tip = document.querySelector(".tw-tip");
+  const tip = document.querySelector(".twk-tip");
   assert.ok(tip.classList.contains("is-open"));
   mark.dispatchEvent(new Event("pointerleave"));
   mark.dispatchEvent(new Event("blur"));                // a second pending hide, which the re-enter below used to leave ticking
@@ -516,27 +516,27 @@ test("a hint survives a leave and a blur queued within its grace, then a re-ente
 });
 
 test("the grab guide carries the panel's pinned scheme like every other portal", () => {
-  const host = document.createElement("div"); host.setAttribute("data-tw-scheme", "light"); document.body.append(host);
+  const host = document.createElement("div"); host.setAttribute("data-twk-scheme", "light"); document.body.append(host);
   const p = tweaks("Guide", { n: { type: "number", value: 1 } });
   host.append(p.el);
-  const grab = p.el.querySelector(".tw-num-grab");
+  const grab = p.el.querySelector(".twk-num-grab");
   grab.dispatchEvent(ptr("pointerdown", { clientX: 10, clientY: 10 }));
-  const guide = document.querySelector(".tw-grab-guide");
+  const guide = document.querySelector(".twk-grab-guide");
   assert.ok(guide, "the guide is up during a scrub");
-  assert.equal(guide.getAttribute("data-tw-scheme"), "light");
+  assert.equal(guide.getAttribute("data-twk-scheme"), "light");
   grab.dispatchEvent(ptr("pointerup", { buttons: 0 }));
-  assert.ok(!document.querySelector(".tw-grab-guide"));
+  assert.ok(!document.querySelector(".twk-grab-guide"));
   p.destroy(); host.remove();
 });
 
 test("the hex field catches up on blur after a plane tap while it was focused", () => {
   const p = tweaks("Stale", { c: "#ff0000" });
   document.body.append(p.el);
-  const mode = p.el.querySelector(".tw-color-mode");
+  const mode = p.el.querySelector(".twk-color-mode");
   mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
-  const inp = p.el.querySelector(".tw-color-chan-input");
+  const inp = p.el.querySelector(".twk-color-chan-input");
   inp.focus();
-  const hue = p.el.querySelector(".tw-wg-hue");
+  const hue = p.el.querySelector(".twk-wg-hue");
   hue.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 10, right: 100, bottom: 10 });
   hue.dispatchEvent(ptr("pointerdown", { clientX: 50, clientY: 5 }));
   hue.dispatchEvent(ptr("pointerup", { clientX: 50, clientY: 5, buttons: 0 }));
@@ -595,9 +595,9 @@ test("a control holding undefined serializes as null, so undo/redo and the copy 
 test("a click into the color picker's hex field selects the whole value", () => {
   const p = tweaks("Hex", { c: "#ff0000" });
   document.body.append(p.el);
-  const mode = p.el.querySelector(".tw-color-mode");
+  const mode = p.el.querySelector(".twk-color-mode");
   mode.value = "hex"; mode.dispatchEvent(new Event("change", { bubbles: true }));
-  const inp = p.el.querySelector(".tw-color-chan-input");
+  const inp = p.el.querySelector(".twk-color-chan-input");
   assert.equal(inp.value, "#FF0000");
   const mid = ptr("mouseup", { button: 1 });
   inp.dispatchEvent(ptr("pointerdown", { button: 1 }));                    // a middle click into the unfocused field: its mouseup carries the X11 paste
@@ -620,17 +620,17 @@ test("a click into the color picker's hex field selects the whole value", () => 
 test("text-field focus is quiet after a pointer press, ringed after a key press", () => {
   const p = tweaks("F", { note: "hello" });
   document.body.append(p.el);
-  const input = p.el.querySelector(".tw-text");
+  const input = p.el.querySelector(".twk-text");
   // mouse path: a pointer press marks the next focus quiet (no keyboard ring)
   document.dispatchEvent(new Event("pointerdown", { bubbles: true }));
   input.focus();
-  assert.ok(input.classList.contains("tw-focus-quiet"));
+  assert.ok(input.classList.contains("twk-focus-quiet"));
   input.blur();
-  assert.ok(!input.classList.contains("tw-focus-quiet")); // cleared on blur
+  assert.ok(!input.classList.contains("twk-focus-quiet")); // cleared on blur
   // keyboard path: any key restores the ring for the next focus
   document.dispatchEvent(new Event("keydown", { bubbles: true }));
   input.focus();
-  assert.ok(!input.classList.contains("tw-focus-quiet"));
+  assert.ok(!input.classList.contains("twk-focus-quiet"));
   p.destroy();
 });
 
@@ -652,12 +652,12 @@ test("⌘Z inside a text field is left to the field's native undo", () => {
   // Regression: the panel took every ⌘Z inside it, the text field's own included.
   const p = tweaks("Undo", { label: { type: "text", value: "hi" }, x: [1, 0, 10, 1] }, { undo: true });
   document.body.append(p.el);
-  const input = p.el.querySelector(".tw-text");
+  const input = p.el.querySelector(".twk-text");
   input.focus();
   assert.equal(document.activeElement, input);
   const inField = key(input, { key: "z", metaKey: true });
   assert.equal(inField.defaultPrevented, false, "the field keeps its native undo");
-  const track = p.el.querySelector(".tw-slider");
+  const track = p.el.querySelector(".twk-slider");
   track.focus();
   const onControl = key(track, { key: "z", metaKey: true });
   assert.equal(onControl.defaultPrevented, true, "the panel still owns ⌘Z on a non-text control");
@@ -668,13 +668,13 @@ test("double-clicking inside the plot's expression box selects a word, not a res
   // Regression: the plot had no reset label, so its root was the target and a dblclick in the field wiped the expression.
   const p = tweaks("Plot", { f: { type: "plot", expr: "x*x", label: "Curve" } });
   document.body.append(p.el);
-  const root = p.el.querySelector(".tw-plot");
-  assert.ok(root.querySelector(".tw-plot-label").classList.contains("tw-resettable"), "the label is the reset target");
-  assert.ok(!root.classList.contains("tw-resettable"), "the control root is not");
+  const root = p.el.querySelector(".twk-plot");
+  assert.ok(root.querySelector(".twk-plot-label").classList.contains("twk-resettable"), "the label is the reset target");
+  assert.ok(!root.classList.contains("twk-resettable"), "the control root is not");
   p.set("f", "sin(x)");
-  root.querySelector(".tw-plot-input").dispatchEvent(new Event("dblclick", { bubbles: true, cancelable: true }));
+  root.querySelector(".twk-plot-input").dispatchEvent(new Event("dblclick", { bubbles: true, cancelable: true }));
   assert.equal(p.params.f, "sin(x)", "the expression survived the dblclick");
-  root.querySelector(".tw-plot-label").dispatchEvent(new Event("dblclick", { bubbles: true, cancelable: true }));
+  root.querySelector(".twk-plot-label").dispatchEvent(new Event("dblclick", { bubbles: true, cancelable: true }));
   assert.equal(p.params.f, "x*x", "the label still resets");
   p.destroy();
 });
@@ -683,44 +683,44 @@ test("a radio group whose value matches no option still has a tab stop and a key
   // Regression: with nothing matched every button sat at tabIndex -1 and the arrows bailed.
   const p = tweaks("Radio", { pick: { type: "radiogrid", options: ["a", "b", "c"], value: "zzz" } });
   document.body.append(p.el);
-  const btns = [...p.el.querySelectorAll(".tw-radiogrid-btn")];
+  const btns = [...p.el.querySelectorAll(".twk-radiogrid-btn")];
   assert.deepEqual(btns.map((b) => b.tabIndex), [0, -1, -1], "the first button is the tab stop");
   assert.deepEqual(btns.map((b) => b.getAttribute("aria-checked")), ["false", "false", "false"], "nothing reads as checked");
-  key(p.el.querySelector(".tw-radiogrid-grid"), { key: "ArrowRight" });
+  key(p.el.querySelector(".twk-radiogrid-grid"), { key: "ArrowRight" });
   assert.equal(p.params.pick, "b", "arrow keys start from the first button");
   p.destroy();
 });
 
 test("a control revealed by a render condition asks for a re-measure", async () => {
-  // Tabs dispatch tw-reflow when a page shows; a control revealed by its condition must too, or a
+  // Tabs dispatch twk-reflow when a page shows; a control revealed by its condition must too, or a
   // bezier/plot/segmented built while hidden keeps its zero-width measurements.
   let reflows = 0; const count = () => reflows++;
-  window.addEventListener("tw-reflow", count);
+  window.addEventListener("twk-reflow", count);
   const p = tweaks("Reveal", { show: false, b: { type: "slider", value: 1, min: 0, max: 2, render: (get) => get("show") }, c: [1, 0, 10, 1] });
   document.body.append(p.el);
-  const hidden = p.el.querySelectorAll(".tw-slider")[0].closest(".tw-cond-hidden");
+  const hidden = p.el.querySelectorAll(".twk-slider")[0].closest(".twk-cond-hidden");
   assert.ok(hidden, "b starts hidden");
   await wait(40); reflows = 0;
   p.set("show", true);
   await wait(40);
-  assert.ok(!p.el.querySelector(".tw-cond-hidden"), "b is revealed");
-  assert.equal(reflows, 1, "one tw-reflow for the reveal");
+  assert.ok(!p.el.querySelector(".twk-cond-hidden"), "b is revealed");
+  assert.equal(reflows, 1, "one twk-reflow for the reveal");
   p.set("show", false); await wait(40);
   assert.equal(reflows, 1, "hiding does not reflow");
-  window.removeEventListener("tw-reflow", count);
+  window.removeEventListener("twk-reflow", count);
   p.destroy();
 });
 
 test("a global listener on a panel built before it mounted survives an event in that window", () => {
   // Regression: onLive dropped its listeners on the first event before the host appended the panel.
   const p = tweaks("Live", { a: 1 }, { floating: { x: 500, y: 16 } });
-  assert.equal(p.el.style.getPropertyValue("--tw-float-x"), "500px");
+  assert.equal(p.el.style.getPropertyValue("--twk-float-x"), "500px");
   window.dispatchEvent(new Event("resize"));      // fires while the panel is not yet connected
   document.body.append(p.el);
   const w = window.innerWidth;
   window.innerWidth = 100;
   try { window.dispatchEvent(new Event("resize")); } finally { window.innerWidth = w; }
-  assert.equal(p.el.style.getPropertyValue("--tw-float-x"), "92px", "the clamp still listens after mount");
+  assert.equal(p.el.style.getPropertyValue("--twk-float-x"), "92px", "the clamp still listens after mount");
   p.destroy();
 });
 
@@ -754,11 +754,11 @@ test("destroy() closes its own popover and hint, not another panel's", async () 
   const a = tweaks("A", { a: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "a hint" } }, { persist: "t-popover-a" });
   const b = tweaks("B", { b: 1, h: { type: "slider", value: 1, min: 0, max: 2, hint: "b hint" } }, { persist: "t-popover-b" });
   document.body.append(a.el, b.el);
-  const presets = (p) => p.el.querySelector('.tw-toolbar-btn[aria-label="Presets"]');
+  const presets = (p) => p.el.querySelector('.twk-toolbar-btn[aria-label="Presets"]');
   presets(b).click();
   assert.equal(presets(b).getAttribute("aria-expanded"), "true", "B's menu is open");
-  b.el.querySelector(".tw-hint").dispatchEvent(new Event("pointerenter"));
-  const tip = document.querySelector(".tw-tip");
+  b.el.querySelector(".twk-hint").dispatchEvent(new Event("pointerenter"));
+  const tip = document.querySelector(".twk-tip");
   assert.ok(tip.classList.contains("is-open"), "B's hint is up");
   a.destroy();
   assert.equal(presets(b).getAttribute("aria-expanded"), "true", "destroying A left B's menu open");
@@ -774,8 +774,8 @@ test("copy and presets announce what they did to a screen reader, from one hidde
   localStorage.clear();
   const p = tweaks("Heard", { blur: [24, 0, 100, 1] }, { persist: true });
   document.body.append(p.el); await p.ready;
-  const said = async (act) => { act(); await wait(150); return document.querySelector(".tw-sr[role=status]")?.textContent; };
-  const copy = p.el.querySelector(".tw-toolbar-btn--swap");
+  const said = async (act) => { act(); await wait(150); return document.querySelector(".twk-sr[role=status]")?.textContent; };
+  const copy = p.el.querySelector(".twk-toolbar-btn--swap");
   await withClipboard(async () => {
     assert.equal(await said(() => copy.click()), "Values copied");
     assert.equal(await said(() => copy.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }))), "Nothing has changed");
@@ -783,11 +783,11 @@ test("copy and presets announce what they did to a screen reader, from one hidde
     assert.equal(await said(() => copy.dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }))), "1 changed value copied");
   });
   p.el.querySelector('[aria-label="Presets"]').click(); await wait(30);
-  const input = document.querySelector(".tw-presets-input"); input.value = "Warm";
-  assert.equal(await said(() => document.querySelector(".tw-presets-savebtn").click()), "Saved preset Warm");
-  assert.equal(await said(() => document.querySelector(".tw-presets-load").click()), "Loaded preset Warm");
-  const sr = document.querySelector(".tw-sr[role=status]");
-  assert.deepEqual([sr.getAttribute("role"), sr.classList.contains("tw-portal"), document.querySelectorAll(".tw-sr[role=status]").length], ["status", false, 1], "one status region for the page, not a visible surface");
+  const input = document.querySelector(".twk-presets-input"); input.value = "Warm";
+  assert.equal(await said(() => document.querySelector(".twk-presets-savebtn").click()), "Saved preset Warm");
+  assert.equal(await said(() => document.querySelector(".twk-presets-load").click()), "Loaded preset Warm");
+  const sr = document.querySelector(".twk-sr[role=status]");
+  assert.deepEqual([sr.getAttribute("role"), sr.classList.contains("twk-portal"), document.querySelectorAll(".twk-sr[role=status]").length], ["status", false, 1], "one status region for the page, not a visible surface");
   p.destroy(); localStorage.clear();
 });
 
@@ -797,18 +797,18 @@ test("setName() moves the header, and leaves the storage key on the built-with n
   localStorage.clear();
   const p = tweaks("Card", { blur: [24, 0, 100, 1] }, { persist: true });
   document.body.append(p.el); await p.ready;
-  assert.equal(p.el.querySelector(".tw-title").textContent, "Card");
+  assert.equal(p.el.querySelector(".twk-title").textContent, "Card");
   p.setName("Lock screen");
-  assert.equal(p.el.querySelector(".tw-title").textContent, "Lock screen", "the header follows");
+  assert.equal(p.el.querySelector(".twk-title").textContent, "Lock screen", "the header follows");
   assert.ok(await copyFrom(p.el), "the copy still writes");
-  assert.equal(document.querySelector(".tw-toast"), null, "and shows no toast");
+  assert.equal(document.querySelector(".twk-toast"), null, "and shows no toast");
   // Persisted values stay under the original key.
   p.set("blur", 40); await wait(200); // past the persist debounce
   assert.equal(saved("tw:Card").blur, 40, "saved under the built-with name");
   assert.equal(localStorage.getItem("tw:Lock screen"), null, "nothing moved to the new name");
   p.destroy();
   p.setName("Gone");
-  assert.equal(p.el.querySelector(".tw-title").textContent, "Lock screen", "inert after destroy");
+  assert.equal(p.el.querySelector(".twk-title").textContent, "Lock screen", "inert after destroy");
   localStorage.clear();
 });
 
@@ -819,7 +819,7 @@ test("the copy button survives a bag value JSON can't take", () => quiet(async (
   const rejections = []; const onRej = (e) => rejections.push(e);
   process.on("unhandledRejection", onRej);
   try {
-    p.el.querySelector(".tw-toolbar-btn--swap").click();
+    p.el.querySelector(".twk-toolbar-btn--swap").click();
     await wait(30);
     assert.deepEqual(rejections.map((e) => String((e && e.message) || e)), [], "the copy click handler rejected");
   } finally { process.off("unhandledRejection", onRej); p.destroy(); }
@@ -827,9 +827,9 @@ test("the copy button survives a bag value JSON can't take", () => quiet(async (
 
 test("the markup toolbar's copy keeps a host keyed __proto__", async () => {
   const holder = document.createElement("div");
-  holder.innerHTML = `<div class="tw-panel" data-mode="inline"><div class="tw-header"><span class="tw-title">P</span></div><div class="tw-controls">
-    <div data-tw="slider" data-key="__proto__" data-label="Size" data-value="1" data-min="0" data-max="10"></div>
-    <div data-tw="slider" data-key="a" data-label="Size" data-value="2" data-min="0" data-max="10"></div>
+  holder.innerHTML = `<div class="twk-panel" data-mode="inline"><div class="twk-header"><span class="twk-title">P</span></div><div class="twk-controls">
+    <div data-twk="slider" data-key="__proto__" data-label="Size" data-value="1" data-min="0" data-max="10"></div>
+    <div data-twk="slider" data-key="a" data-label="Size" data-value="2" data-min="0" data-max="10"></div>
   </div></div>`;
   document.body.append(holder);
   await enhance(holder);

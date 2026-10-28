@@ -1,5 +1,5 @@
 /* Tweaks — a dependency-free real-time parameter panel. The public entry: tweaks() builds a
- * live panel from a plain schema object, enhance() turns [data-tw] markup into live controls,
+ * live panel from a plain schema object, enhance() turns [data-twk] markup into live controls,
  * and mountControl() / createColorPicker() / gradientCss() are the controls without the panel. */
 export { tweaks } from "./panel.js";
 export { enhance } from "./enhance.js";

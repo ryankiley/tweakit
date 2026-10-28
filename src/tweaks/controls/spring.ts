@@ -43,11 +43,11 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   const time: SpringTime = { visualDuration: clampDur(init.visualDuration), bounce: clampBounce(init.bounce) };
   let phys = clampS({ stiffness: init.stiffness, damping: init.damping, mass: init.mass });
 
-  const root = el("div", "tw-spring");
-  const viz = el("div", "tw-spring-viz");
-  const canvas = document.createElement("canvas"); canvas.className = "tw-spring-canvas"; viz.append(canvas);
-  const physFields = el("div", "tw-fields");
-  const timeFields = el("div", "tw-fields");
+  const root = el("div", "twk-spring");
+  const viz = el("div", "twk-spring-viz");
+  const canvas = document.createElement("canvas"); canvas.className = "twk-spring-canvas"; viz.append(canvas);
+  const physFields = el("div", "twk-fields");
+  const timeFields = el("div", "twk-fields");
   const ctx = canvas.getContext("2d");
 
   // The preview and the emitted value both read this, so they can never disagree.
@@ -63,7 +63,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     const peak = Math.max(1.05, ...pts), pad = 8; // the bezier editor's PAD, so the two previews inset alike
     const X = (i: number) => pad + (i / (pts.length - 1)) * (w - 2 * pad);
     const Y = (v: number) => h - pad - (v / peak) * (h - 2 * pad);
-    ctx.strokeStyle = cssVar(root, "--tw-surface-active") || "rgba(255,255,255,0.1)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = cssVar(root, "--twk-surface-active") || "rgba(255,255,255,0.1)"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pad, Y(1)); ctx.lineTo(w - pad, Y(1)); ctx.stroke(); // target (=1)
     ctx.strokeStyle = accentColor(root); ctx.lineWidth = 1.5; ctx.lineJoin = ctx.lineCap = "round";
     ctx.beginPath(); pts.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)))); ctx.stroke();
@@ -85,10 +85,10 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   const showMode = () => { timeFields.style.display = mode === "time" ? "" : "none"; physFields.style.display = mode === "physics" ? "" : "none"; };
   const switchMode = (m: unknown) => { if ((m !== "time" && m !== "physics") || m === mode) return; mode = m; showMode(); draw(); emit(); };
   const modeToggle = createSegmented([{ value: "time", label: "Time" }, { value: "physics", label: "Physics" }], mode, switchMode, "Spring mode");
-  const modeRow = el("div", "tw-row");
-  modeRow.append(txt("span", "tw-row-label", "Mode"), modeToggle.el);
+  const modeRow = el("div", "twk-row");
+  modeRow.append(txt("span", "twk-row-label", "Mode"), modeToggle.el);
   // A caption, so two springs in one panel can be told apart and the filter matches shown text.
-  if (meta.label) root.append(txt("div", "tw-spring-label", meta.label));
+  if (meta.label) root.append(txt("div", "twk-spring-label", meta.label));
   root.append(viz, modeRow, physFields, timeFields);
 
   // Drag the preview to tune by feel: horizontal sets stiffness or duration, vertical sets damping or bounce.
@@ -112,17 +112,17 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   });
   showMode();
   onReady(draw);
-  // The canvas reads theme tokens at draw time: redraw on resize, on a tab page revealing it (tw-reflow; it built at
+  // The canvas reads theme tokens at draw time: redraw on resize, on a tab page revealing it (twk-reflow; it built at
   // 0×0 while hidden), on an OS scheme flip and on a host re-theme — CSS re-themes the SVG controls, a canvas keeps a stale color.
-  onLive(canvas, [[window, "resize"], [window, "tw-reflow"], [matchMedia("(prefers-color-scheme: dark)"), "change"], [window, "tw-retheme"]], draw);
-  // A host flipping [data-tw-scheme] re-themes through CSS alone; the canvas needs a redraw. Let go once mounted and removed.
+  onLive(canvas, [[window, "resize"], [window, "twk-reflow"], [matchMedia("(prefers-color-scheme: dark)"), "change"], [window, "twk-retheme"]], draw);
+  // A host flipping [data-twk-scheme] re-themes through CSS alone; the canvas needs a redraw. Let go once mounted and removed.
   let schemeObs: MutationObserver | null = null, wasMounted = false;
   if (typeof MutationObserver === "function") {
     schemeObs = new MutationObserver(() => {
       if (canvas.isConnected) { wasMounted = true; draw(); }
       else if (wasMounted) { schemeObs.disconnect(); schemeObs = null; }
     });
-    schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-tw-scheme"] });
+    schemeObs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-twk-scheme"] });
   }
   return {
     el: root,

@@ -11,9 +11,9 @@ import { loadSingle, distCss, wait, quiet, warnings } from "./_helpers.mjs";
 const { tweaks, enhance } = await loadSingle();
 const css = distCss();
 
-// Every class a control renders its own label into (not .tw-field-label — those are the
+// Every class a control renders its own label into (not .twk-field-label — those are the
 // inner captions of a picker's channels or a point's components, never the control's label).
-const LABELS = ".tw-slider-label, .tw-row-label, .tw-select-label, .tw-radiogrid-label, .tw-trigger-label, .tw-fps-label, .tw-plot-label, .tw-spring-label, .tw-bezier-label, .tw-folder-title";
+const LABELS = ".twk-slider-label, .twk-row-label, .twk-select-label, .twk-radiogrid-label, .twk-trigger-label, .twk-fps-label, .twk-plot-label, .twk-spring-label, .twk-bezier-label, .twk-folder-title";
 const labelText = (root) => [...root.querySelectorAll(LABELS)].map((e) => e.textContent);
 
 test("a verbose slider / interval without min/max derives its range from the value, like the shorthand", () => {
@@ -37,14 +37,14 @@ test("a verbose slider / interval without min/max derives its range from the val
   assert.deepEqual(p.params.i, [0, 200]);
   // The markup path agrees: one meta derivation for every entry point.
   const host = document.createElement("div");
-  host.innerHTML = '<div data-tw="slider" data-value="50"></div>';
+  host.innerHTML = '<div data-twk="slider" data-value="50"></div>';
   document.body.append(host); enhance(host);
   const m = host.querySelector("[role=slider]");
   assert.equal(m.getAttribute("aria-valuenow"), "50");
   assert.equal(m.getAttribute("aria-valuemax"), "150");
   host.remove();
   const ih = document.createElement("div");
-  ih.innerHTML = '<div data-tw="interval" data-value="20,80"></div>';
+  ih.innerHTML = '<div data-twk="interval" data-value="20,80"></div>';
   document.body.append(ih); enhance(ih);
   for (const h of ih.querySelectorAll("[role=slider]")) assert.equal(h.getAttribute("aria-valuemax"), "240");
   ih.remove();
@@ -153,8 +153,8 @@ test("every verbose form honors `label`, and `label: \"\"` shows no label text",
     assert.deepEqual(leaked, [], "an explicit empty label must not fall back to the title-cased key");
     // The empty label element takes no space: the stylesheet hides it, and the control it
     // sat beside keeps the row's right edge.
-    assert.match(css, /\.tw-row-label:empty/);
-    assert.match(css, /\.tw-trigger-label:empty/);
+    assert.match(css, /\.twk-row-label:empty/);
+    assert.match(css, /\.twk-trigger-label:empty/);
   } finally { blank.destroy(); }
 });
 
@@ -167,16 +167,16 @@ test("the derived title-case label stays the default when `label` is undefined",
 
 test("spring and cubic-bezier render a label row", () => {
   const p = tweaks("S", { sp: { type: "spring", label: "Bouncy" }, bz: { type: "cubicbezier", label: "Ease" }, wobble: { type: "spring" } });
-  assert.equal(p.el.querySelector(".tw-spring .tw-spring-label")?.textContent, "Bouncy");
-  assert.equal(p.el.querySelector(".tw-bezier .tw-bezier-label")?.textContent, "Ease");
-  const springLabels = [...p.el.querySelectorAll(".tw-spring-label")].map((e) => e.textContent);
+  assert.equal(p.el.querySelector(".twk-spring .twk-spring-label")?.textContent, "Bouncy");
+  assert.equal(p.el.querySelector(".twk-bezier .twk-bezier-label")?.textContent, "Ease");
+  const springLabels = [...p.el.querySelectorAll(".twk-spring-label")].map((e) => e.textContent);
   assert.deepEqual(springLabels, ["Bouncy", "Wobble"]); // two springs in one panel can be told apart
 });
 
 test("cubic-bezier clamps its initial value the way set() does", () => {
   const p = tweaks("Bz", { bz: { type: "cubicbezier", value: [1.5, 3, -0.2, -2] } });
   assert.deepEqual(p.params.bz, [1, 2, 0, -1]); // x to [0,1], y to the editor's range, −1 to 2
-  const fields = [...p.el.querySelectorAll(".tw-bezier .tw-num")].map((i) => +i.value);
+  const fields = [...p.el.querySelectorAll(".twk-bezier .twk-num")].map((i) => +i.value);
   assert.deepEqual(fields, [1, 2, 0, -1]); // the fields agree with get()
 });
 
@@ -190,7 +190,7 @@ test("a point without min/max/step is continuous, not a -1/0/1 grid", () => {
 test("a point value outside the default pad range widens the range instead of pinning to the edge", () => {
   const p = tweaks("Pw", { pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 5 }] } });
   assert.deepEqual(p.params.pt, { x: 0, y: 5 });
-  const thumb = p.el.querySelector(".tw-pad-thumb");
+  const thumb = p.el.querySelector(".twk-pad-thumb");
   const top = parseFloat(thumb.style.top);
   assert.ok(top > 0 && top < 50, `the thumb should sit inside the pad, above center (top=${thumb.style.top})`);
 });
@@ -201,15 +201,15 @@ test("string option labels show as written, in every option control and in marku
   const opts = ["sRGB", "display-p3", "iOS", "macOS", "px", "fontSize", "XS"];
   for (const type of ["radiogrid", "segmented", "list"]) {
     const p = tweaks("L", { space: { type, options: opts, value: "px" } }); document.body.append(p.el); await p.ready;
-    const shown = [...p.el.querySelectorAll(".tw-radiogrid-btn, .tw-seg-btn, .tw-select-option")].map((b) => b.textContent);
+    const shown = [...p.el.querySelectorAll(".twk-radiogrid-btn, .twk-seg-btn, .twk-select-option")].map((b) => b.textContent);
     assert.deepEqual(shown, opts, type);
     assert.equal(p.params.space, "px", "the value is unchanged");
     p.destroy();
   }
   const host = document.createElement("div");
-  host.innerHTML = '<div data-tw="radiogrid" data-key="space" data-options="sRGB,display-p3,px"></div>';
+  host.innerHTML = '<div data-twk="radiogrid" data-key="space" data-options="sRGB,display-p3,px"></div>';
   document.body.append(host); enhance(host);
-  assert.deepEqual([...host.querySelectorAll(".tw-radiogrid-btn")].map((b) => b.textContent), ["sRGB", "display-p3", "px"]);
+  assert.deepEqual([...host.querySelectorAll(".twk-radiogrid-btn")].map((b) => b.textContent), ["sRGB", "display-p3", "px"]);
   host.remove();
 });
 
@@ -218,7 +218,7 @@ test("string option labels show as written, in every option control and in marku
 test("key labels: camel humps split, capital runs stay together, sRGB and macOS stay as written", async () => {
   const keys = { XS: 1, "2XL": 1, RGB: 1, fontSize: 1, small: 1, myURLParser: 1, level2Up: 1, HTMLParser: 1, x1: 1, offsetX: 1, sRGB: 1, iOS: 1, macOS: 1, aOK: 1 };
   const p = tweaks("K", keys); document.body.append(p.el); await p.ready;
-  assert.deepEqual([...p.el.querySelectorAll(".tw-slider-label")].map((l) => l.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up", "HTML Parser", "X1", "Offset X", "sRGB", "iOS", "macOS", "aOK"]);
+  assert.deepEqual([...p.el.querySelectorAll(".twk-slider-label")].map((l) => l.textContent), ["XS", "2XL", "RGB", "Font Size", "Small", "My URL Parser", "Level2 Up", "HTML Parser", "X1", "Offset X", "sRGB", "iOS", "macOS", "aOK"]);
   p.destroy();
 });
 
@@ -227,7 +227,7 @@ test("key labels: camel humps split, capital runs stay together, sRGB and macOS 
 test("key labels: a word ending in an acronym splits, and sRGB or iOS opening a key stays whole", async () => {
   const keys = { showFPS: 1, useHDR: 1, baseURL: 1, maxDPR: 1, enableGPU: 1, isOK: 1, useSRGB: 1, iOSVersion: 1, sRGBGamut: 1, macOSVersion: 1, tvOS: 1, watchOS: 1, iPadOS: 1, visionOS: 1 };
   const p = tweaks("K2", keys); document.body.append(p.el); await p.ready;
-  assert.deepEqual([...p.el.querySelectorAll(".tw-slider-label")].map((l) => l.textContent), ["Show FPS", "Use HDR", "Base URL", "Max DPR", "Enable GPU", "Is OK", "Use SRGB", "iOS Version", "sRGB Gamut", "macOS Version", "tvOS", "watchOS", "iPadOS", "visionOS"]);
+  assert.deepEqual([...p.el.querySelectorAll(".twk-slider-label")].map((l) => l.textContent), ["Show FPS", "Use HDR", "Base URL", "Max DPR", "Enable GPU", "Is OK", "Use SRGB", "iOS Version", "sRGB Gamut", "macOS Version", "tvOS", "watchOS", "iPadOS", "visionOS"]);
   p.destroy();
 });
 
@@ -359,14 +359,14 @@ test("a number with no step infers one its default sits on, 1 for a whole number
   const p = tweaks("Num", { half: { type: "number", value: 0.5 }, pi: { type: "number", value: 3.14159 }, whole: { type: "number", value: 7 }, given: { type: "number", value: 0.5, step: 1 } });
   await p.ready;
   assert.deepEqual([p.params.half, p.params.pi, p.params.whole, p.params.given], [0.5, 3.14159, 7, 1], "an explicit step still wins");
-  const [half, pi, whole] = p.el.querySelectorAll(".tw-num");
+  const [half, pi, whole] = p.el.querySelectorAll(".twk-num");
   press(half, "ArrowUp"); press(pi, "ArrowUp"); press(whole, "ArrowUp");
   assert.deepEqual([p.params.half, p.params.pi, p.params.whole], [0.6, 3.1416, 8]);
   p.destroy();
   const host = document.createElement("div");
-  host.innerHTML = '<div data-tw="number" data-value="0.5"></div>';
+  host.innerHTML = '<div data-twk="number" data-value="0.5"></div>';
   document.body.append(host); await enhance(host);
-  assert.equal(host.querySelector(".tw-num").value, "0.5");
+  assert.equal(host.querySelector(".twk-num").value, "0.5");
   host.remove();
 });
 
@@ -375,7 +375,7 @@ test("a number or point with a computed default steps at its fourth digit, as a 
   const p = tweaks("Rep", { third: { type: "number", value: 1 / 3 }, pi: { type: "number", value: Math.PI }, big: { type: "number", value: 200 / 3 }, kept: { type: "number", value: 1234.5678 }, pt: { type: "point", value: { x: 1 / 3, y: 0 } }, s: 1 / 3 });
   await p.ready;
   assert.deepEqual([p.params.third, p.params.pi, p.params.big, p.params.kept, p.params.pt.x, p.params.s], [0.3333, 3.142, 66.67, 1234.5678, 0.3333, 0.3333], "eight written digits still fit exactly");
-  const [third, pi, big] = p.el.querySelectorAll(".tw-row .tw-num");
+  const [third, pi, big] = p.el.querySelectorAll(".twk-row .twk-num");
   press(third, "ArrowUp"); press(pi, "ArrowUp"); press(big, "ArrowUp");
   assert.deepEqual([p.params.third, p.params.pi, p.params.big, third.value], [0.3334, 3.143, 66.68, "0.3334"]);
   p.destroy();
@@ -386,7 +386,7 @@ test("a point component's derived step keeps its default", async () => {
   const p = tweaks("PtStep", { pt: { type: "point", components: [{ key: "a", value: 337 }, { key: "b", value: 1234 }, { key: "c", value: 3.14159 }] } });
   await p.ready;
   assert.deepEqual(p.params.pt, { a: 337, b: 1234, c: 3.14159 });
-  const [a] = p.el.querySelectorAll(".tw-point .tw-num");
+  const [a] = p.el.querySelectorAll(".twk-point .twk-num");
   press(a, "ArrowUp");
   assert.equal(p.params.pt.a, 338);
   p.destroy();

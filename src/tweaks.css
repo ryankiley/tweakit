@@ -1,71 +1,71 @@
 /* Tweaks — a dependency-free real-time parameter panel. One stylesheet, namespaced
- * under `tw-` / `--tw-`, themed entirely through CSS custom properties. */
-/* Design tokens, for the panel and for every portaled node (all carry .tw-portal). Each
+ * under `twk-` / `--twk-`, themed entirely through CSS custom properties. */
+/* Design tokens, for the panel and for every portaled node (all carry .twk-portal). Each
  * color is one light-dark(light, dark) pair, resolved by the color-scheme of the element that
  * paints it (see "Scheme resolution" below), so a token keeps one name and one meaning in both
  * schemes and a theme override wins in both. */
-.tw-panel, .tw-portal {
+.twk-panel, .twk-portal {
   /* Surfaces — faint films over the base. Light: items a step brighter than the off-white
    * base; hover/active darken for contrast. */
-  --tw-surface: light-dark(rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.04));
-  --tw-surface-hover: light-dark(rgba(0, 0, 0, 0.04), rgba(255, 255, 255, 0.075));
-  --tw-surface-active: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.13));
+  --twk-surface: light-dark(rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.04));
+  --twk-surface-hover: light-dark(rgba(0, 0, 0, 0.04), rgba(255, 255, 255, 0.075));
+  --twk-surface-active: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.13));
   /* Text — secondary/tertiary style 10–12px text, so they sit at WCAG 4.5:1 on the base. */
-  --tw-text-root: light-dark(#1a1a1a, #fafafa);
-  --tw-text-section: light-dark(rgba(0, 0, 0, 0.62), rgba(255, 255, 255, 0.64));
-  --tw-text-label: light-dark(rgba(0, 0, 0, 0.58), rgba(255, 255, 255, 0.64));
-  --tw-text-focus: light-dark(#000000, #ffffff);
-  --tw-text-primary: light-dark(rgba(0, 0, 0, 0.88), rgba(255, 255, 255, 0.92));
-  --tw-text-secondary: light-dark(rgba(0, 0, 0, 0.58), rgba(255, 255, 255, 0.56));
-  --tw-text-tertiary: light-dark(rgba(0, 0, 0, 0.55), rgba(255, 255, 255, 0.5)); /* light .54 sat at 4.48:1 on the base */
+  --twk-text-root: light-dark(#1a1a1a, #fafafa);
+  --twk-text-section: light-dark(rgba(0, 0, 0, 0.62), rgba(255, 255, 255, 0.64));
+  --twk-text-label: light-dark(rgba(0, 0, 0, 0.58), rgba(255, 255, 255, 0.64));
+  --twk-text-focus: light-dark(#000000, #ffffff);
+  --twk-text-primary: light-dark(rgba(0, 0, 0, 0.88), rgba(255, 255, 255, 0.92));
+  --twk-text-secondary: light-dark(rgba(0, 0, 0, 0.58), rgba(255, 255, 255, 0.56));
+  --twk-text-tertiary: light-dark(rgba(0, 0, 0, 0.55), rgba(255, 255, 255, 0.5)); /* light .54 sat at 4.48:1 on the base */
   /* Text drawn on the accent; resolveTheme overrides it to black/white by the accent's
    * luminance when a theme sets `accent`. */
-  --tw-on-accent: var(--tw-text-primary);
+  --twk-on-accent: var(--twk-text-primary);
   /* Borders — faint; the panel leans on its shadow for definition. */
-  --tw-border: light-dark(rgba(0, 0, 0, 0.045), rgba(255, 255, 255, 0.045));
-  --tw-border-hover: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.11));
+  --twk-border: light-dark(rgba(0, 0, 0, 0.045), rgba(255, 255, 255, 0.045));
+  --twk-border-hover: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.11));
   /* Text-selection wash, not the browser's blue. */
-  --tw-selection: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.22));
+  --twk-selection: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.22));
   /* Base — the panel background and recessed insets; opaque, a step brighter than a dark page. */
-  --tw-base: light-dark(#f3f3f3, #242424);
-  --tw-checker: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; /* the alpha checker under swatches and strips */
-  --tw-dropdown-bg: light-dark(#f6f6f6, #292929);
-  --tw-radius: 8px;
-  --tw-row-height: 32px;
-  --tw-width: 256px; /* the panel's width (theme `width`) */
+  --twk-base: light-dark(#f3f3f3, #242424);
+  --twk-checker: repeating-conic-gradient(#6b6b6b 0% 25%, #9a9a9a 0% 50%) 0 0 / 8px 8px; /* the alpha checker under swatches and strips */
+  --twk-dropdown-bg: light-dark(#f6f6f6, #292929);
+  --twk-radius: 8px;
+  --twk-row-height: 32px;
+  --twk-width: 256px; /* the panel's width (theme `width`) */
   /* A shadow isn't a color, so light-dark() goes on each layer's color. */
-  --tw-shadow-dropdown: 0 12px 32px -8px light-dark(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.6));
+  --twk-shadow-dropdown: 0 12px 32px -8px light-dark(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.6));
   /* Elevation — on dark a 1px rim-light, since a black shadow alone can't separate the
    * panel; on light a dark hairline edge, as a bright rim reads oddly there. -lifted deepens
    * it while floating or dragged. The two schemes' drop layers differ in geometry, not just
    * color, so each scheme's pair is listed and goes transparent in the other: a transparent
    * layer paints nothing, and both lists keep one length, so the lift still interpolates. */
-  --tw-shadow-panel: 0 0 0 1px light-dark(var(--tw-border), rgba(255, 255, 255, 0.06)),
+  --twk-shadow-panel: 0 0 0 1px light-dark(var(--twk-border), rgba(255, 255, 255, 0.06)),
     0 8px 28px -8px light-dark(transparent, rgba(0, 0, 0, 0.5)), 0 18px 48px -16px light-dark(transparent, rgba(0, 0, 0, 0.38)),
     0 2px 8px -2px light-dark(rgba(0, 0, 0, 0.08), transparent), 0 18px 44px -12px light-dark(rgba(0, 0, 0, 0.16), transparent);
-  --tw-shadow-panel-lifted: 0 0 0 1px light-dark(var(--tw-border-hover), rgba(255, 255, 255, 0.08)),
+  --twk-shadow-panel-lifted: 0 0 0 1px light-dark(var(--twk-border-hover), rgba(255, 255, 255, 0.08)),
     0 12px 32px -8px light-dark(transparent, rgba(0, 0, 0, 0.55)), 0 28px 64px -16px light-dark(transparent, rgba(0, 0, 0, 0.45)),
     0 6px 16px -3px light-dark(rgba(0, 0, 0, 0.12), transparent), 0 30px 70px -16px light-dark(rgba(0, 0, 0, 0.2), transparent);
   /* Success (the copy check) and danger (the plot's invalid cue). */
-  --tw-success: light-dark(#15803d, #86efac);
-  --tw-danger: light-dark(#c23232, #ff5f5f);
+  --twk-success: light-dark(#15803d, #86efac);
+  --twk-danger: light-dark(#c23232, #ff5f5f);
   /* Type — the system UI font, unbound from host tokens; mono is declared so the fontMono
    * theme lever has a token to land on. */
-  --tw-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --tw-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --twk-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --twk-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   /* Motion — one shared easing vocabulary: --out decelerates, --spring settles, --pop
    * overshoots on release, --inout is symmetric for longer mechanical moves. */
-  --tw-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
-  --tw-ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
-  --tw-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --tw-ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --twk-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --twk-ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --twk-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --twk-ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
   /* --fold is a spring (visualDuration 0.35s, bounce 0.1) sampled into linear(); it starts
    * from rest, so folder children dissolve in step with the height. Pairs with 0.35s. */
-  --tw-ease-fold: linear(0, 0.077, 0.237, 0.411, 0.570, 0.699, 0.797, 0.869, 0.918, 0.952, 0.973, 0.986, 0.994, 0.998, 1);
+  --twk-ease-fold: linear(0, 0.077, 0.237, 0.411, 0.570, 0.699, 0.797, 0.869, 0.918, 0.952, 0.973, 0.986, 0.994, 0.998, 1);
   /* Press: a dip in three tiers by size, so every control's edge moves about 1.5–2px. */
-  --tw-press-icon: 0.88; --tw-press-chip: 0.95; --tw-press-row: 0.985;
+  --twk-press-icon: 0.88; --twk-press-chip: 0.95; --twk-press-row: 0.985;
 
-  font-family: var(--tw-font-sans);
+  font-family: var(--twk-font-sans);
   /* Buttons use `font: inherit`, so a host's global line-height would ride into every
    * control; pin it. */
   line-height: normal;
@@ -77,883 +77,883 @@
   color-scheme: light dark;
   box-sizing: border-box;
 }
-.tw-panel {
-  width: var(--tw-width);
-  background: var(--tw-base);
-  box-shadow: var(--tw-shadow-panel);
+.twk-panel {
+  width: var(--twk-width);
+  background: var(--twk-base);
+  box-shadow: var(--twk-shadow-panel);
   /* Concentric with the controls: control radius + padding, 8 + 10 = 18. */
-  border-radius: calc(var(--tw-radius) + 10px);
+  border-radius: calc(var(--twk-radius) + 10px);
   /* No backdrop-filter: it would make the panel the containing block for the
    * popovers' position:fixed, detaching them from their triggers. */
   padding: 10px;
 }
-.tw-panel *,
-.tw-panel *::before,
-.tw-panel *::after { box-sizing: border-box; }
+.twk-panel *,
+.twk-panel *::before,
+.twk-panel *::after { box-sizing: border-box; }
 
-:is(.tw-panel, .tw-portal) ::selection { background: var(--tw-selection); color: var(--tw-text-focus); }
+:is(.twk-panel, .twk-portal) ::selection { background: var(--twk-selection); color: var(--twk-text-focus); }
 
 /* Floating mode. The z ladder (panel 99990 < popovers 99999 < tip 100000 < grab
  * guide 100001) sits above the 100–9999 band host sticky headers occupy. The placement
- * (panel.ts apply() writes the --tw-float-* insets and height cap), z-index and shadow sit at
- * plain .tw-panel specificity, so a host class loaded after this sheet overrides any of them. */
-.tw-panel[data-mode="floating"] { position: fixed; }
-.tw-panel:where([data-mode="floating"]) { left: var(--tw-float-x); top: var(--tw-float-y); max-height: var(--tw-float-max-h); z-index: 99990; box-shadow: var(--tw-shadow-panel-lifted); }
-.tw-panel:where(.is-raised) { z-index: 99991; } /* the floating panel touched last (panel.ts raise()) */
+ * (panel.ts apply() writes the --twk-float-* insets and height cap), z-index and shadow sit at
+ * plain .twk-panel specificity, so a host class loaded after this sheet overrides any of them. */
+.twk-panel[data-mode="floating"] { position: fixed; }
+.twk-panel:where([data-mode="floating"]) { left: var(--twk-float-x); top: var(--twk-float-y); max-height: var(--twk-float-max-h); z-index: 99990; box-shadow: var(--twk-shadow-panel-lifted); }
+.twk-panel:where(.is-raised) { z-index: 99991; } /* the floating panel touched last (panel.ts raise()) */
 /* The lift into the floating shadow eases on a draggable panel only: a pinned one starts floated, with nothing to ease,
  * and an inline one keeps its shadow still. */
-.tw-panel[data-draggable="true"][data-mode="floating"] { transition: box-shadow 0.25s var(--tw-ease-out); }
-/* Registered as a <length>, so a host's --tw-float-gap in rem, vh or calc() computes to px for panel.ts to read; the
+.twk-panel[data-draggable="true"][data-mode="floating"] { transition: box-shadow 0.25s var(--twk-ease-out); }
+/* Registered as a <length>, so a host's --twk-float-gap in rem, vh or calc() computes to px for panel.ts to read; the
  * negative initial value reads as unset. */
-@property --tw-float-gap { syntax: "<length>"; inherits: true; initial-value: -1px; }
+@property --twk-float-gap { syntax: "<length>"; inherits: true; initial-value: -1px; }
 /* The footprint a lifted panel leaves in its old slot, so the host layout holds still. */
-.tw-lift-slot { display: block; flex: none; pointer-events: none; }
+.twk-lift-slot { display: block; flex: none; pointer-events: none; }
 /* The header is the drag handle. The negative margin (canceled by an equal padding-top)
  * stretches its hit area up through the panel's top padding to the edge. Draggable panels
  * only: a pinned floating one keeps a plain cursor, and a swipe on its header scrolls it. */
-.tw-panel[data-draggable="true"] > .tw-header,
-.tw-panel[data-draggable="true"] > .tw-header .tw-header-toggle { cursor: grab; }
-.tw-panel[data-draggable="true"] > .tw-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
+.twk-panel[data-draggable="true"] > .twk-header,
+.twk-panel[data-draggable="true"] > .twk-header .twk-header-toggle { cursor: grab; }
+.twk-panel[data-draggable="true"] > .twk-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
 /* A drop near an edge eases the rest of the way to the margin (panel.ts endDrag()). */
-.tw-panel.is-snapping { transition: left 0.32s var(--tw-ease-spring), top 0.32s var(--tw-ease-spring), right 0.32s var(--tw-ease-spring), bottom 0.32s var(--tw-ease-spring); }
-.tw-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--tw-shadow-panel-lifted); z-index: 99991; }
-/* A floating panel scrolls, header and all, inside the height cap its position sets (--tw-float-max-h). The scrollbar
+.twk-panel.is-snapping { transition: left 0.32s var(--twk-ease-spring), top 0.32s var(--twk-ease-spring), right 0.32s var(--twk-ease-spring), bottom 0.32s var(--twk-ease-spring); }
+.twk-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--twk-shadow-panel-lifted); z-index: 99991; }
+/* A floating panel scrolls, header and all, inside the height cap its position sets (--twk-float-max-h). The scrollbar
  * is hidden: wheel, trackpad, touch and keyboard focus still scroll it. A slider covers its row and takes every touch;
  * here a vertical swipe pans, a sideways one scrubs. */
-.tw-panel[data-mode="floating"] { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
-.tw-panel[data-mode="floating"]::-webkit-scrollbar { display: none; } /* Safari before scrollbar-width */
-.tw-panel[data-mode="floating"] .tw-slider { touch-action: pan-y; }
-.tw-panel.is-dragging > .tw-header,
-.tw-panel.is-dragging > .tw-header .tw-header-toggle { cursor: grabbing; }
+.twk-panel[data-mode="floating"] { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.twk-panel[data-mode="floating"]::-webkit-scrollbar { display: none; } /* Safari before scrollbar-width */
+.twk-panel[data-mode="floating"] .twk-slider { touch-action: pan-y; }
+.twk-panel.is-dragging > .twk-header,
+.twk-panel.is-dragging > .twk-header .twk-header-toggle { cursor: grabbing; }
 
 /* Every :hover rule sits inside `@media (hover: hover) and (pointer: fine)`: a touch
  * screen keeps :hover on after a tap, so an unguarded hover style sticks. */
 /* A pane drags by its edge (popover() in shared.ts); its parts keep their own cursors. */
-:is(.tw-color-pop, .tw-presets-menu) { cursor: grab; }
-:is(.tw-color-pop, .tw-presets-menu) > * { cursor: auto; }
-:is(.tw-color-pop, .tw-presets-menu).is-moving, :is(.tw-color-pop, .tw-presets-menu).is-moving * { cursor: grabbing; }
+:is(.twk-color-pop, .twk-presets-menu) { cursor: grab; }
+:is(.twk-color-pop, .twk-presets-menu) > * { cursor: auto; }
+:is(.twk-color-pop, .twk-presets-menu).is-moving, :is(.twk-color-pop, .twk-presets-menu).is-moving * { cursor: grabbing; }
 
 /* ── Header (root folder title) ── */
-.tw-header {
+.twk-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 9px;
   margin-bottom: 8px;
-  border-bottom: 1px solid var(--tw-border); /* a surface film would read white on a light panel */
+  border-bottom: 1px solid var(--twk-border); /* a surface film would read white on a light panel */
 }
-.tw-title {
+.twk-title {
   font-size: 14px;
   font-weight: 500;
   line-height: 17px; /* not normal: a toolbar-less header is 37px whatever the font (44 with the toolbar's 24px buttons) */
-  color: var(--tw-text-root);
+  color: var(--twk-text-root);
   min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.tw-header-toggle {
+.twk-header-toggle {
   display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
   background: none; border: none; padding: 0; margin: 0; cursor: pointer; color: inherit; font: inherit; text-align: left;
 }
-.tw-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
-.tw-panel.is-collapsed .tw-chevron { transform: rotate(-90deg); }
-.tw-toolbar { display: flex; align-items: center; gap: 4px; }
+.twk-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--twk-text-section); transition: transform 0.2s var(--twk-ease-out), color 0.15s; }
+.twk-panel.is-collapsed .twk-chevron { transform: rotate(-90deg); }
+.twk-toolbar { display: flex; align-items: center; gap: 4px; }
 /* Hint marker. pointer-events:auto overrides the slider label's pointer-events:none. */
-.tw-hint { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 4px; padding: 0; vertical-align: -2px; flex: none; background: none; border: none; color: var(--tw-text-tertiary); cursor: help; pointer-events: auto; transition: color 0.15s, transform 0.18s var(--tw-ease-spring); }
-.tw-hint:focus-visible { color: var(--tw-text-secondary); transform: scale(1.2); }
+.twk-hint { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 4px; padding: 0; vertical-align: -2px; flex: none; background: none; border: none; color: var(--twk-text-tertiary); cursor: help; pointer-events: auto; transition: color 0.15s, transform 0.18s var(--twk-ease-spring); }
+.twk-hint:focus-visible { color: var(--twk-text-secondary); transform: scale(1.2); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-hint:hover { color: var(--tw-text-secondary); transform: scale(1.2); }
+  .twk-hint:hover { color: var(--twk-text-secondary); transform: scale(1.2); }
 }
-.tw-hint:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; border-radius: 999px; }
-.tw-hint svg { width: 13px; height: 13px; display: block; }
-.tw-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 8px 12px; font-size: 12px; line-height: 1.4; color: var(--tw-text-primary); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); border-radius: 8px; box-shadow: var(--tw-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
-.tw-tip.is-open { opacity: 1; transform: none; }
+.twk-hint:focus-visible { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: 1px; border-radius: 999px; }
+.twk-hint svg { width: 13px; height: 13px; display: block; }
+.twk-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 8px 12px; font-size: 12px; line-height: 1.4; color: var(--twk-text-primary); background: var(--twk-dropdown-bg); border: 1px solid var(--twk-border); border-radius: 8px; box-shadow: var(--twk-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
+.twk-tip.is-open { opacity: 1; transform: none; }
 /* The screen-reader status region (announce() in shared.ts): in the page, drawn as nothing. */
-.tw-sr, .tw-image-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.twk-sr, .twk-image-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Collapse: grid-rows 1fr→0fr animates the body height. foldBody (shared.ts) animates only the visible part; this is the fallback. */
-.tw-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s var(--tw-ease-fold); }
+.twk-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s var(--twk-ease-fold); }
 /* Clip y only, so a slider rubber-banding past its end still shows. Must be `clip`,
  * not `hidden`: `hidden` on one axis forces the other to compute to `auto`. */
 /* The 3px padding, offset by an equal negative margin so nothing moves, sets the clip edges out far enough not to cut a
  * first or last row's pick band (3px past the row). A collapsed panel drops the pair, or its 0fr row would show 3px of
  * the first row. */
-.tw-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding-block: 3px; margin-block: -3px; }
-.tw-panel.is-collapsed .tw-body > .tw-controls { padding-block: 0; margin-block: 0; }
-.tw-panel.is-collapsed .tw-body { grid-template-rows: 0fr; }
-.tw-header { transition: margin-bottom 0.35s var(--tw-ease-fold), padding-bottom 0.35s var(--tw-ease-fold), border-color 0.35s var(--tw-ease-fold); }
+.twk-body > .twk-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding-block: 3px; margin-block: -3px; }
+.twk-panel.is-collapsed .twk-body > .twk-controls { padding-block: 0; margin-block: 0; }
+.twk-panel.is-collapsed .twk-body { grid-template-rows: 0fr; }
+.twk-header { transition: margin-bottom 0.35s var(--twk-ease-fold), padding-bottom 0.35s var(--twk-ease-fold), border-color 0.35s var(--twk-ease-fold); }
 /* Collapsed, the header is the whole panel; drop its separator so the padding is even. */
-.tw-panel.is-collapsed .tw-header { margin-bottom: 0; padding-bottom: 0; border-color: transparent; }
+.twk-panel.is-collapsed .twk-header { margin-bottom: 0; padding-bottom: 0; border-color: transparent; }
 /* A first folder brings its own spacing; the header's 8px gap would stack on it. */
-.tw-header:has(+ .tw-body > .tw-controls > .tw-folder:first-child) { margin-bottom: 0; }
-.tw-toolbar-btn {
+.twk-header:has(+ .twk-body > .twk-controls > .twk-folder:first-child) { margin-bottom: 0; }
+.twk-toolbar-btn {
   position: relative; display: flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; padding: 0; flex-shrink: 0;
-  background: var(--tw-surface); border: none; border-radius: calc(var(--tw-radius) - 2px);
-  color: var(--tw-text-label); cursor: pointer;
+  background: var(--twk-surface); border: none; border-radius: calc(var(--twk-radius) - 2px);
+  color: var(--twk-text-label); cursor: pointer;
   will-change: transform; /* keep the layer standing (Safari pixel-snap) */
-  transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
+  transition: background 0.15s, color 0.15s, transform 0.24s var(--twk-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-toolbar-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .twk-toolbar-btn:hover { background: var(--twk-surface-hover); color: var(--twk-text-primary); }
 }
-.tw-toolbar-btn:disabled { cursor: default; } /* the lazy window is "not yet", not "never" */
+.twk-toolbar-btn:disabled { cursor: default; } /* the lazy window is "not yet", not "never" */
 /* The press dip shrinks the box, so a cursor near the edge would lose :hover mid-press;
  * ::after keeps the resting footprint hot ((24+4)·0.88 ≈ 24.6 ≥ 24). */
-.tw-toolbar-btn::after { content: ""; position: absolute; inset: -2px; }
-.tw-toolbar-btn:active { transform: scale(var(--tw-press-icon)); transition: transform 0.08s ease-out; }
-.tw-toolbar-btn svg { width: 14px; height: 14px; display: block; }
+.twk-toolbar-btn::after { content: ""; position: absolute; inset: -2px; }
+.twk-toolbar-btn:active { transform: scale(var(--twk-press-icon)); transition: transform 0.08s ease-out; }
+.twk-toolbar-btn svg { width: 14px; height: 14px; display: block; }
 /* Copy ⇄ check cross-fade. Safari: will-change and a resting blur(0), never none —
  * WebKit demotes the layer when a transform/filter animation ends and re-snaps the
  * raster to device pixels, which read as a ~1px icon shift. */
-.tw-toolbar-btn__icons { position: relative; display: block; width: 14px; height: 14px; }
-.tw-toolbar-btn__icons svg { position: absolute; inset: 0; will-change: transform, filter; filter: blur(0); transition: opacity 0.25s var(--tw-ease-inout), transform 0.25s var(--tw-ease-inout), filter 0.25s var(--tw-ease-inout); }
-.tw-toolbar-btn__check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: var(--tw-success); }
-.tw-toolbar-btn--swap.is-copied .tw-toolbar-btn__copy { opacity: 0; transform: scale(0.25); filter: blur(2px); }
-.tw-toolbar-btn--swap.is-copied .tw-toolbar-btn__check { opacity: 1; transform: none; filter: blur(0); }
-/* Reset: hover sets --tw-wind, each click adds −360deg to --tw-spin (JS spinReset). A
+.twk-toolbar-btn__icons { position: relative; display: block; width: 14px; height: 14px; }
+.twk-toolbar-btn__icons svg { position: absolute; inset: 0; will-change: transform, filter; filter: blur(0); transition: opacity 0.25s var(--twk-ease-inout), transform 0.25s var(--twk-ease-inout), filter 0.25s var(--twk-ease-inout); }
+.twk-toolbar-btn__check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: var(--twk-success); }
+.twk-toolbar-btn--swap.is-copied .twk-toolbar-btn__copy { opacity: 0; transform: scale(0.25); filter: blur(2px); }
+.twk-toolbar-btn--swap.is-copied .twk-toolbar-btn__check { opacity: 1; transform: none; filter: blur(0); }
+/* Reset: hover sets --twk-wind, each click adds −360deg to --twk-spin (JS spinReset). A
  * transition, not keyframes, so a second click mid-spin retargets from the current angle. */
-.tw-toolbar-btn--reset svg { --tw-spin: 0deg; --tw-wind: 0deg; will-change: transform; transform: rotate(calc(var(--tw-spin) + var(--tw-wind))); transition: transform 0.34s cubic-bezier(0.34, 1.55, 0.5, 1); }
+.twk-toolbar-btn--reset svg { --twk-spin: 0deg; --twk-wind: 0deg; will-change: transform; transform: rotate(calc(var(--twk-spin) + var(--twk-wind))); transition: transform 0.34s cubic-bezier(0.34, 1.55, 0.5, 1); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-toolbar-btn--reset:not(:disabled):hover svg { --tw-wind: 22deg; }
+  .twk-toolbar-btn--reset:not(:disabled):hover svg { --twk-wind: 22deg; }
 }
-.tw-toolbar-btn--reset.is-spinning svg { transition-duration: 0.5s; transition-timing-function: var(--tw-ease-inout); }
+.twk-toolbar-btn--reset.is-spinning svg { transition-duration: 0.5s; transition-timing-function: var(--twk-ease-inout); }
 /* Icon parts move on hover (icons.ts): the button sets the distances, the parts read them. */
-.tw-copy-back { transform: translate(calc(-1 * var(--tw-fan, 0px)), calc(-1 * var(--tw-fan, 0px))); }
-.tw-copy-front { transform: translate(var(--tw-fan, 0px), var(--tw-fan, 0px)); }
-.tw-layer-top { transform: translateY(calc(-1 * var(--tw-lift, 0px))); }
-.tw-copy-back, .tw-copy-front, .tw-layer-top { transition: transform 0.3s var(--tw-ease-pop); }
+.twk-copy-back { transform: translate(calc(-1 * var(--twk-fan, 0px)), calc(-1 * var(--twk-fan, 0px))); }
+.twk-copy-front { transform: translate(var(--twk-fan, 0px), var(--twk-fan, 0px)); }
+.twk-layer-top { transform: translateY(calc(-1 * var(--twk-lift, 0px))); }
+.twk-copy-back, .twk-copy-front, .twk-layer-top { transition: transform 0.3s var(--twk-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-toolbar-btn:not(:disabled):hover { --tw-fan: 1px; --tw-lift: 1.75px; } /* a disabled button (the lazy window) holds still */
+  .twk-toolbar-btn:not(:disabled):hover { --twk-fan: 1px; --twk-lift: 1.75px; } /* a disabled button (the lazy window) holds still */
 }
-.tw-toolbar-btn[aria-expanded="true"] { --tw-lift: 1.75px; }
+.twk-toolbar-btn[aria-expanded="true"] { --twk-lift: 1.75px; }
 
 /* Focus rings. Inset inside the controls stack, which clips for the collapse; outset
  * on the chips and handles. :focus-visible matches a clicked text field too, so
- * quietFocus (shared.ts) marks pointer-origin focus with .tw-focus-quiet. */
-.tw-trigger:focus-visible, .tw-select-trigger:focus-visible, .tw-button:focus-visible,
-.tw-seg-btn:focus-visible, .tw-seg[role="switch"]:focus-visible, .tw-header-toggle:focus-visible, .tw-folder-header:focus-visible,
-.tw-slider:focus-visible, .tw-pad:focus-visible, .tw-motion-stage:focus-visible, .tw-sides-link:focus-visible, .tw-radiogrid-btn:focus-visible, .tw-buttongroup-btn:focus-visible, .tw-tabs-tab:focus-visible,
-.tw-image-clear:focus-visible,
-.tw-text:focus-visible:not(.tw-focus-quiet), .tw-num:focus-visible:not(.tw-focus-quiet),
-.tw-color-chan-input:focus-visible:not(.tw-focus-quiet), .tw-color-mode:focus-visible,
-.tw-presets-load:focus-visible, .tw-presets-savebtn:focus-visible, .tw-presets-del:focus-visible, .tw-presets-input:focus-visible:not(.tw-focus-quiet) {
-  outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px;
+ * quietFocus (shared.ts) marks pointer-origin focus with .twk-focus-quiet. */
+.twk-trigger:focus-visible, .twk-select-trigger:focus-visible, .twk-button:focus-visible,
+.twk-seg-btn:focus-visible, .twk-seg[role="switch"]:focus-visible, .twk-header-toggle:focus-visible, .twk-folder-header:focus-visible,
+.twk-slider:focus-visible, .twk-pad:focus-visible, .twk-motion-stage:focus-visible, .twk-sides-link:focus-visible, .twk-radiogrid-btn:focus-visible, .twk-buttongroup-btn:focus-visible, .twk-tabs-tab:focus-visible,
+.twk-image-clear:focus-visible,
+.twk-text:focus-visible:not(.twk-focus-quiet), .twk-num:focus-visible:not(.twk-focus-quiet),
+.twk-color-chan-input:focus-visible:not(.twk-focus-quiet), .twk-color-mode:focus-visible,
+.twk-presets-load:focus-visible, .twk-presets-savebtn:focus-visible, .twk-presets-del:focus-visible, .twk-presets-input:focus-visible:not(.twk-focus-quiet) {
+  outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: -2px;
 }
-.tw-toolbar-btn:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; }
-.tw-gradient-stop:focus-visible, .tw-gradient-add:focus-visible, .tw-bezier-handle:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
+.twk-toolbar-btn:focus-visible { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: 1px; }
+.twk-gradient-stop:focus-visible, .twk-gradient-add:focus-visible, .twk-bezier-handle:focus-visible { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: 2px; }
 
 /* ── Controls stack ── */
-.tw-controls { display: flex; flex-direction: column; gap: 6px; }
+.twk-controls { display: flex; flex-direction: column; gap: 6px; }
 /* A flex item's floor is its min-content width; one nowrap child would widen every row. */
-.tw-controls > * { min-width: 0; }
-.tw-cond-hidden { display: none !important; }
+.twk-controls > * { min-width: 0; }
+.twk-cond-hidden { display: none !important; }
 .is-disabled { opacity: 0.4; cursor: not-allowed; }
 .is-disabled * { pointer-events: none; } /* the row stays a target for the not-allowed cursor */
 /* Reset target (double-click). touch-action: manipulation drops double-tap-to-zoom. */
-.tw-resettable { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.twk-resettable { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* Hold-to-reset fill. A transition, so an early release drains it. Doubled class: targets
- * like .tw-slider-value declare their own `transition: color`, which would win on order. */
-.tw-resettable.tw-resettable { transition: color 0.15s, background-color 0.3s ease-out; }
-.tw-resettable.tw-reset-holding { border-radius: calc(var(--tw-radius) - 4px); background-color: var(--tw-surface-active); transition: color 0.15s, background-color 0.5s ease-out; }
+ * like .twk-slider-value declare their own `transition: color`, which would win on order. */
+.twk-resettable.twk-resettable { transition: color 0.15s, background-color 0.3s ease-out; }
+.twk-resettable.twk-reset-holding { border-radius: calc(var(--twk-radius) - 4px); background-color: var(--twk-surface-active); transition: color 0.15s, background-color 0.5s ease-out; }
 
 /* ── Slider ── */
-.tw-slider-wrap { position: relative; height: var(--tw-row-height); }
-.tw-slider {
+.twk-slider-wrap { position: relative; height: var(--twk-row-height); }
+.twk-slider {
   position: absolute; inset: 0;
   cursor: pointer; user-select: none; -webkit-user-select: none; overflow: hidden;
-  background: var(--tw-surface); border-radius: var(--tw-radius);
+  background: var(--twk-surface); border-radius: var(--twk-radius);
   touch-action: none;
 }
-.tw-slider-hashmarks { position: absolute; inset: 0; pointer-events: none; }
-.tw-slider-hashmark {
+.twk-slider-hashmarks { position: absolute; inset: 0; pointer-events: none; }
+.twk-slider-hashmark {
   position: absolute; top: 50%; width: 1px; height: 8px; border-radius: 999px;
   transform: translateX(-50%) translateY(-50%);
   background: rgba(255, 255, 255, 0); transition: background 200ms;
 }
-.tw-slider.is-active .tw-slider-hashmark { background: var(--tw-border-hover); }
-.tw-slider.is-active .tw-slider-value { color: var(--tw-text-focus); }
-.tw-slider-fill {
+.twk-slider.is-active .twk-slider-hashmark { background: var(--twk-border-hover); }
+.twk-slider.is-active .twk-slider-value { color: var(--twk-text-focus); }
+.twk-slider-fill {
   position: absolute; top: 0; bottom: 0; left: 0; width: 0;
-  background: var(--tw-surface-active); transition: background 0.15s; pointer-events: none;
+  background: var(--twk-surface-active); transition: background 0.15s; pointer-events: none;
 }
-.tw-slider.is-active .tw-slider-fill { background: var(--tw-accent, var(--tw-border-hover)); }
-.tw-slider-handle {
+.twk-slider.is-active .twk-slider-fill { background: var(--twk-accent, var(--twk-border-hover)); }
+.twk-slider-handle {
   position: absolute; top: 50%; left: 0; width: 3px; height: 20px;
-  border-radius: 999px; background: var(--tw-text-primary);
+  border-radius: 999px; background: var(--twk-text-primary);
   transform: translateY(-50%) scaleX(0.25); opacity: 0; pointer-events: none;
-  transition: opacity 0.15s, transform 0.2s var(--tw-ease-spring);
+  transition: opacity 0.15s, transform 0.2s var(--twk-ease-spring);
 }
 /* .is-hover is set in JS (pointerenter/leave) as a companion to :hover. */
-.tw-slider.is-hover .tw-slider-handle,
-.tw-slider:focus-within .tw-slider-handle { opacity: 0.5; transform: translateY(-50%) scaleX(1); }
+.twk-slider.is-hover .twk-slider-handle,
+.twk-slider:focus-within .twk-slider-handle { opacity: 0.5; transform: translateY(-50%) scaleX(1); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-slider:hover .tw-slider-handle { opacity: 0.5; transform: translateY(-50%) scaleX(1); }
+  .twk-slider:hover .twk-slider-handle { opacity: 0.5; transform: translateY(-50%) scaleX(1); }
 }
-.tw-slider.is-active .tw-slider-handle { opacity: 0.9; transform: translateY(-50%) scaleX(1); }
+.twk-slider.is-active .twk-slider-handle { opacity: 0.9; transform: translateY(-50%) scaleX(1); }
 /* Interval handles are focusable; the single slider's are decorative. */
-.tw-slider-handle:focus-visible { opacity: 0.9; transform: translateY(-50%) scaleX(1); outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
+.twk-slider-handle:focus-visible { opacity: 0.9; transform: translateY(-50%) scaleX(1); outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: 2px; }
 /* The dodge: the handle yields under the label or value text. */
-.tw-slider.is-active.is-dodge .tw-slider-handle,
-.tw-slider.is-hover.is-dodge .tw-slider-handle { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
+.twk-slider.is-active.is-dodge .twk-slider-handle,
+.twk-slider.is-hover.is-dodge .twk-slider-handle { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-slider:hover.is-dodge .tw-slider-handle { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
+  .twk-slider:hover.is-dodge .twk-slider-handle { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
 }
 /* Interval has two handles, so the dodge is per-handle (the one under the text). */
-.tw-interval.is-active .tw-slider-handle.is-dodge { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
-.tw-slider-label {
+.twk-interval.is-active .twk-slider-handle.is-dodge { opacity: 0.1; transform: translateY(-50%) scaleX(1) scaleY(0.75); }
+.twk-slider-label {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%); /* 12px = the row's left padding */
   max-width: calc(100% - 64px);
-  font-size: 12px; font-weight: 500; color: var(--tw-text-label); transition: color 0.15s;
+  font-size: 12px; font-weight: 500; color: var(--twk-text-label); transition: color 0.15s;
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.tw-interval .tw-slider-label { max-width: calc(100% - 112px); } /* the control tightens this inline on render */
-.tw-slider-value {
+.twk-interval .twk-slider-label { max-width: calc(100% - 112px); } /* the control tightens this inline on render */
+.twk-slider-value {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   font-size: 12px; font-weight: 500;
-  color: var(--tw-text-label); pointer-events: auto;
+  color: var(--twk-text-label); pointer-events: auto;
   transition: color 0.15s;
 }
 /* The 800ms hover arms editing; the underline makes click-to-type discoverable. */
-.tw-slider-value.is-editable { cursor: text; color: var(--tw-text-focus); text-decoration: underline; text-decoration-color: var(--tw-text-tertiary); text-underline-offset: 3px; }
-.tw-slider-input {
+.twk-slider-value.is-editable { cursor: text; color: var(--twk-text-focus); text-decoration: underline; text-decoration-color: var(--twk-text-tertiary); text-underline-offset: 3px; }
+.twk-slider-input {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   min-width: 4ch; max-width: 60%; /* the editor sizes its width to the text it opens on */
-  font-size: 12px; font-weight: 500; font-family: var(--tw-font-sans);
-  color: var(--tw-text-label); background: transparent; border: none;
+  font-size: 12px; font-weight: 500; font-family: var(--twk-font-sans);
+  color: var(--twk-text-label); background: transparent; border: none;
   padding: 0; outline: none; text-align: right;
 }
-.tw-slider-input:focus { color: var(--tw-text-focus); }
+.twk-slider-input:focus { color: var(--twk-text-focus); }
 
 /* ── Labeled row (label + control side by side) ── */
-.tw-row {
+.twk-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  height: var(--tw-row-height); padding: 2px 10px 2px 12px;
-  background: var(--tw-surface); border-radius: var(--tw-radius);
+  height: var(--twk-row-height); padding: 2px 10px 2px 12px;
+  background: var(--twk-surface); border-radius: var(--twk-radius);
 }
-.tw-row-label {
-  font-size: 12px; font-weight: 500; line-height: 17px; color: var(--tw-text-label); transition: color 0.15s;
+.twk-row-label {
+  font-size: 12px; font-weight: 500; line-height: 17px; color: var(--twk-text-label); transition: color 0.15s;
   min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* Every row lights its label on hover, never its value. */
 @media (hover: hover) and (pointer: fine) {
-  .tw-slider-wrap:not(.is-disabled):hover .tw-slider-label,
-  :is(.tw-row, .tw-sides, .tw-radiogrid):not(.is-disabled):hover :is(.tw-row-label, .tw-radiogrid-label),
-  :is(.tw-spring, .tw-bezier, .tw-plot):not(.is-disabled):hover :is(.tw-spring-label, .tw-bezier-label, .tw-plot-label) { color: var(--tw-text-primary); }
+  .twk-slider-wrap:not(.is-disabled):hover .twk-slider-label,
+  :is(.twk-row, .twk-sides, .twk-radiogrid):not(.is-disabled):hover :is(.twk-row-label, .twk-radiogrid-label),
+  :is(.twk-spring, .twk-bezier, .twk-plot):not(.is-disabled):hover :is(.twk-spring-label, .twk-bezier-label, .twk-plot-label) { color: var(--twk-text-primary); }
 }
 /* An explicit `label: ""` hides the element so it takes no gap. */
-.tw-slider-label:empty, .tw-row-label:empty, .tw-select-label:empty, .tw-radiogrid-label:empty, .tw-trigger-label:empty, .tw-fps-label:empty { display: none; }
-.tw-row-label:empty + *, .tw-select-label:empty + *, .tw-trigger-label:empty + * { margin-left: auto; }
+.twk-slider-label:empty, .twk-row-label:empty, .twk-select-label:empty, .twk-radiogrid-label:empty, .twk-trigger-label:empty, .twk-fps-label:empty { display: none; }
+.twk-row-label:empty + *, .twk-select-label:empty + *, .twk-trigger-label:empty + * { margin-left: auto; }
 
 /* ── Segmented control (also the Off/On toggle) ── */
-.tw-seg { position: relative; display: flex; gap: 2px; padding: 2px; border-radius: var(--tw-radius); }
+.twk-seg { position: relative; display: flex; gap: 2px; padding: 2px; border-radius: var(--twk-radius); }
 /* The pill sits 4px off the top and bottom, so -8px (the row's 10px right padding, less
  * the 4px gap, less the seg's 2px pad) puts it 4px off the right too. */
-.tw-row .tw-seg { flex-shrink: 0; margin-right: -8px; }
-.tw-seg-pill {
+.twk-row .twk-seg { flex-shrink: 0; margin-right: -8px; }
+.twk-seg-pill {
   position: absolute; top: 2px; bottom: 2px; left: 0; width: 0;
-  background: var(--tw-accent, var(--tw-surface-active)); border-radius: calc(var(--tw-radius) - 2px); z-index: 0; pointer-events: none;
+  background: var(--twk-accent, var(--twk-surface-active)); border-radius: calc(var(--twk-radius) - 2px); z-index: 0; pointer-events: none;
 }
-.tw-seg.is-ready .tw-seg-pill { transition: left 0.24s var(--tw-ease-out), width 0.24s var(--tw-ease-out); }
-.tw-seg-btn {
+.twk-seg.is-ready .twk-seg-pill { transition: left 0.24s var(--twk-ease-out), width 0.24s var(--twk-ease-out); }
+.twk-seg-btn {
   position: relative; z-index: 1; flex: 0 0 auto; min-width: 40px; padding: 6px 8px; text-align: center;
   font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; /* 14px, not normal: the same height whatever the font */
   background: transparent; border: none; cursor: pointer;
-  color: var(--tw-text-label); transition: color 0.15s, transform 0.24s var(--tw-ease-pop);
+  color: var(--twk-text-label); transition: color 0.15s, transform 0.24s var(--twk-ease-pop);
 }
-.tw-seg-btn[data-active="true"] { color: var(--tw-on-accent); }
+.twk-seg-btn[data-active="true"] { color: var(--twk-on-accent); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-seg-btn:not([data-active="true"]):hover, .tw-tabs-tab:not([data-active="true"]):hover { color: var(--tw-text-primary); } /* a tab's label lights like a segment's */
+  .twk-seg-btn:not([data-active="true"]):hover, .twk-tabs-tab:not([data-active="true"]):hover { color: var(--twk-text-primary); } /* a tab's label lights like a segment's */
 }
 /* A press squashes the label; the pill itself does the liquid stretch (JS, WAAPI). */
-.tw-seg-btn:active { transform: scale(var(--tw-press-chip)); transition: transform 0.08s ease-out; }
+.twk-seg-btn:active { transform: scale(var(--twk-press-chip)); transition: transform 0.08s ease-out; }
 /* In a row the buttons hug their text; 5px padding matches the tabs' pill height. */
-.tw-row .tw-seg .tw-seg-btn { min-width: 0; padding: 5px; }
+.twk-row .twk-seg .twk-seg-btn { min-width: 0; padding: 5px; }
 
 /* ── Radio grid — a segmented control wrapped into a 2- or 3-column grid ── */
 /* A 4px frame round the cells: one row is 24px cell + 8px frame = the 32px row height. */
-.tw-radiogrid {
+.twk-radiogrid {
   display: flex; align-items: flex-start; gap: 10px; /* a two-line grid keeps its label on the first line, as every tall row does */
-  min-height: var(--tw-row-height); padding: 4px 4px 4px 12px;
-  background: var(--tw-surface); border-radius: var(--tw-radius);
+  min-height: var(--twk-row-height); padding: 4px 4px 4px 12px;
+  background: var(--twk-surface); border-radius: var(--twk-radius);
 }
-.tw-radiogrid-label {
+.twk-radiogrid-label {
   flex: 1 1 5ch; min-width: 5ch; line-height: 24px; /* a cell's height: its text lands 9px down */
-  font-size: 12px; font-weight: 500; color: var(--tw-text-label); transition: color 0.15s;
+  font-size: 12px; font-weight: 500; color: var(--twk-text-label); transition: color 0.15s;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* One row of choices: each cell hugs its word like the Off/On toggle's segments, and a tight row
  * shortens the label to 5ch before it cuts a cell. */
-.tw-radiogrid-grid {
+.twk-radiogrid-grid {
   flex: 0 1 auto; min-width: 0; margin-left: auto;
-  display: grid; grid-template-columns: repeat(var(--tw-rg-cols, 3), minmax(0, auto)); gap: 4px;
+  display: grid; grid-template-columns: repeat(var(--twk-rg-cols, 3), minmax(0, auto)); gap: 4px;
 }
 /* Several rows: equal columns beside a label that keeps its width; a grid too wide for the row
  * shrinks its cells, since a choice that long belongs in a list. */
-.tw-radiogrid.is-grid .tw-radiogrid-label { flex: 0 1 auto; min-width: 0; }
-.tw-radiogrid.is-grid .tw-radiogrid-grid { flex: 1 1 0; max-width: max-content; grid-template-columns: repeat(var(--tw-rg-cols, 3), minmax(0, 1fr)); }
-.tw-radiogrid-btn {
+.twk-radiogrid.is-grid .twk-radiogrid-label { flex: 0 1 auto; min-width: 0; }
+.twk-radiogrid.is-grid .twk-radiogrid-grid { flex: 1 1 0; max-width: max-content; grid-template-columns: repeat(var(--twk-rg-cols, 3), minmax(0, 1fr)); }
+.twk-radiogrid-btn {
   font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; font-variant-numeric: tabular-nums; /* 14px, not normal: the pill is 24px whatever the font */
   min-width: 24px; padding: 5px; text-align: center; /* 5px, the 24px pill height shared with the toggle; at least as wide, so a glyph cell is square */
-  color: var(--tw-text-label); background: transparent;
-  border: none; border-radius: calc(var(--tw-radius) - 2px);
-  cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
+  color: var(--twk-text-label); background: transparent;
+  border: none; border-radius: calc(var(--twk-radius) - 2px);
+  cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--twk-ease-pop);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-radiogrid-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .twk-radiogrid-btn:hover { background: var(--twk-surface-hover); color: var(--twk-text-primary); }
 }
-.tw-radiogrid-btn:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
-.tw-radiogrid-btn[data-active="true"] { background: var(--tw-accent, var(--tw-surface-active)); color: var(--tw-on-accent); }
+.twk-radiogrid-btn:active { transform: scale(var(--twk-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.twk-radiogrid-btn[data-active="true"] { background: var(--twk-accent, var(--twk-surface-active)); color: var(--twk-on-accent); }
 
 /* ── Button (action) ── */
-.tw-button {
+.twk-button {
   display: flex; align-items: center; justify-content: center;
-  width: 100%; height: var(--tw-row-height); padding: 0 16px; font: inherit; font-size: 12px; font-weight: 500;
-  color: var(--tw-text-secondary); background: var(--tw-surface);
-  border: none; border-radius: var(--tw-radius); cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop);
+  width: 100%; height: var(--twk-row-height); padding: 0 16px; font: inherit; font-size: 12px; font-weight: 500;
+  color: var(--twk-text-secondary); background: var(--twk-surface);
+  border: none; border-radius: var(--twk-radius); cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.24s var(--twk-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-button:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); } /* a whole-row button also lights its fill */
+  .twk-button:hover { background: var(--twk-surface-hover); color: var(--twk-text-primary); } /* a whole-row button also lights its fill */
 }
-.tw-button:active { background: var(--tw-surface-active); transform: scale(var(--tw-press-row)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.twk-button:active { background: var(--twk-surface-active); transform: scale(var(--twk-press-row)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 
 /* ── Button group — compact actions under one label ── */
 /* -6px (the row's 10px right padding, less the 4px gap) sits the buttons 4px off the right
  * like the top and bottom; a button is never narrower than its label, so many buttons wrap
  * rather than cut their words. */
-.tw-buttongroup { height: auto; min-height: var(--tw-row-height); padding-top: 4px; padding-bottom: 4px; } /* 4px above and below a wrapped group too, not only a one-line one */
-.tw-buttongroup-btns { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; margin-right: -6px; }
-.tw-buttongroup:not(:has(> .tw-row-label)) { padding-left: 4px; } /* with no label, the left matches the other three sides */
-.tw-buttongroup-btn { flex: 1 1 0; min-width: min-content; padding: 5px 8px; font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface-active); border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
+.twk-buttongroup { height: auto; min-height: var(--twk-row-height); padding-top: 4px; padding-bottom: 4px; } /* 4px above and below a wrapped group too, not only a one-line one */
+.twk-buttongroup-btns { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; margin-right: -6px; }
+.twk-buttongroup:not(:has(> .twk-row-label)) { padding-left: 4px; } /* with no label, the left matches the other three sides */
+.twk-buttongroup-btn { flex: 1 1 0; min-width: min-content; padding: 5px 8px; font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; color: var(--twk-text-label); background: var(--twk-surface-active); border: none; border-radius: calc(var(--twk-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s, transform 0.24s var(--twk-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-buttongroup-btn:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .twk-buttongroup-btn:hover { background: var(--twk-surface-hover); color: var(--twk-text-primary); }
 }
-.tw-buttongroup-btn:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.twk-buttongroup-btn:active { transform: scale(var(--twk-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 
 /* ── Separator — a thin divider between sections ── */
-.tw-separator { height: 1px; margin: 3px 2px; background: var(--tw-border); }
+.twk-separator { height: 1px; margin: 3px 2px; background: var(--twk-border); }
 
 /* ── Tabs — paged controls with a sliding pill ── */
-.tw-tabs { display: flex; flex-direction: column; gap: 8px; }
-.tw-tabs-bar { position: relative; display: flex; gap: 4px; padding: 4px; min-width: 0; /* the rows' 4px frame round 24px pills: a 32px row */ background: var(--tw-surface); border-radius: var(--tw-radius); }
-.tw-tabs-pill { position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; background: var(--tw-surface-active); border-radius: calc(var(--tw-radius) - 2px); z-index: 0; transition: left 0.24s var(--tw-ease-out), width 0.24s var(--tw-ease-out); }
-.tw-tabs-tab { position: relative; z-index: 1; flex: 1; min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; color: var(--tw-text-label); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.15s, transform 0.24s var(--tw-ease-pop); }
-.tw-tabs-tab[data-active="true"] { color: var(--tw-text-primary); }
-.tw-tabs-tab:active { transform: scale(var(--tw-press-chip)); transition: color 0.15s, transform 0.08s ease-out; }
-.tw-tabs-page { display: none; flex-direction: column; gap: 6px; }
+.twk-tabs { display: flex; flex-direction: column; gap: 8px; }
+.twk-tabs-bar { position: relative; display: flex; gap: 4px; padding: 4px; min-width: 0; /* the rows' 4px frame round 24px pills: a 32px row */ background: var(--twk-surface); border-radius: var(--twk-radius); }
+.twk-tabs-pill { position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; background: var(--twk-surface-active); border-radius: calc(var(--twk-radius) - 2px); z-index: 0; transition: left 0.24s var(--twk-ease-out), width 0.24s var(--twk-ease-out); }
+.twk-tabs-tab { position: relative; z-index: 1; flex: 1; min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; color: var(--twk-text-label); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.15s, transform 0.24s var(--twk-ease-pop); }
+.twk-tabs-tab[data-active="true"] { color: var(--twk-text-primary); }
+.twk-tabs-tab:active { transform: scale(var(--twk-press-chip)); transition: color 0.15s, transform 0.08s ease-out; }
+.twk-tabs-page { display: none; flex-direction: column; gap: 6px; }
 /* The page's entrance replays on every activation (display flips). */
-.tw-tabs-page[data-active="true"] { display: flex; animation: tw-page-in 0.3s var(--tw-ease-out); }
-@keyframes tw-page-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.twk-tabs-page[data-active="true"] { display: flex; animation: twk-page-in 0.3s var(--twk-ease-out); }
+@keyframes twk-page-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
 /* ── Select ── */
-.tw-select { position: relative; }
-.tw-select-trigger {
+.twk-select { position: relative; }
+.twk-select-trigger {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; /* the gap holds once the value can shrink to the label */
-  height: var(--tw-row-height); padding: 0 10px 0 12px; /* the row idiom: 12 left, 10 right */
-  font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label);
-  background: var(--tw-surface); border: none; border-radius: var(--tw-radius);
-  cursor: pointer; transition: background 0.15s, transform 0.24s var(--tw-ease-pop);
+  height: var(--twk-row-height); padding: 0 10px 0 12px; /* the row idiom: 12 left, 10 right */
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-label);
+  background: var(--twk-surface); border: none; border-radius: var(--twk-radius);
+  cursor: pointer; transition: background 0.15s, transform 0.24s var(--twk-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-select-trigger:hover { background: var(--tw-surface-hover); } /* the whole row is the button */
-  .tw-select-trigger:hover .tw-select-label, .tw-select-trigger:hover .tw-select-chevron { color: var(--tw-text-primary); } /* the chevron lights like a folder's */
+  .twk-select-trigger:hover { background: var(--twk-surface-hover); } /* the whole row is the button */
+  .twk-select-trigger:hover .twk-select-label, .twk-select-trigger:hover .twk-select-chevron { color: var(--twk-text-primary); } /* the chevron lights like a folder's */
 }
-.tw-select-trigger:active { transform: scale(var(--tw-press-row)); transition: background 0.15s, transform 0.08s ease-out; }
-.tw-select.is-open .tw-select-trigger { background: var(--tw-surface-active); }
-.tw-select-label { transition: color 0.15s; font-weight: 500; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a rigid label took the chevron out of the panel */
-.tw-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
-.tw-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.twk-select-trigger:active { transform: scale(var(--twk-press-row)); transition: background 0.15s, transform 0.08s ease-out; }
+.twk-select.is-open .twk-select-trigger { background: var(--twk-surface-active); }
+.twk-select-label { transition: color 0.15s; font-weight: 500; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a rigid label took the chevron out of the panel */
+.twk-select-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
+.twk-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The folder's 15px chevron; the glyph sits 3.75px inside its box, so pull it out by that side-bearing. */
-.tw-select-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--tw-text-section); opacity: 0.6; margin-right: -3.75px; transition: transform 0.2s var(--tw-ease-out), color 0.15s; }
-.tw-select.is-open .tw-select-chevron { transform: rotate(180deg); }
+.twk-select-chevron { width: 15px; height: 15px; flex-shrink: 0; color: var(--twk-text-section); opacity: 0.6; margin-right: -3.75px; transition: transform 0.2s var(--twk-ease-out), color 0.15s; }
+.twk-select.is-open .twk-select-chevron { transform: rotate(180deg); }
 /* The three portaled panes' shell (list dropdown, presets menu, color pop): fixed on <body> and placed by JS, the dropdown
  * surface, and the entrance. Each one's own rule below sets its size, radius and origin. */
-:is(.tw-select-dropdown, .tw-presets-menu, .tw-color-pop) {
+:is(.twk-select-dropdown, .twk-presets-menu, .twk-color-pop) {
   position: fixed; z-index: 99999;
-  background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); box-shadow: var(--tw-shadow-dropdown);
-  opacity: 0; transform: translateY(-6px) scale(var(--tw-pop-s)); pointer-events: none;
-  transition: opacity 0.16s var(--tw-ease-out), transform 0.24s var(--tw-ease-spring);
+  background: var(--twk-dropdown-bg); border: 1px solid var(--twk-border); box-shadow: var(--twk-shadow-dropdown);
+  opacity: 0; transform: translateY(-6px) scale(var(--twk-pop-s)); pointer-events: none;
+  transition: opacity 0.16s var(--twk-ease-out), transform 0.24s var(--twk-ease-spring);
 }
-.tw-select-dropdown {
-  padding: 4px; border-radius: calc(var(--tw-radius) + 2px); /* concentric: option (radius − 2) + padding 4 */
+.twk-select-dropdown {
+  padding: 4px; border-radius: calc(var(--twk-radius) + 2px); /* concentric: option (radius − 2) + padding 4 */
   max-height: 60vh; overflow-y: auto;
   transform-origin: top; transition-duration: 0.16s, 0.22s;
 }
 /* A pane matches its row, but never runs past the window's 8px margins. */
-:is(.tw-select-dropdown, .tw-color-pop) { max-width: calc(100vw - 16px); }
+:is(.twk-select-dropdown, .twk-color-pop) { max-width: calc(100vw - 16px); }
 /* Opened above the trigger: grow up from it. */
-:is(.tw-select-dropdown, .tw-color-pop)[data-side="above"] { transform-origin: bottom; transform: translateY(6px) scale(var(--tw-pop-s)); }
-.tw-select-option {
+:is(.twk-select-dropdown, .twk-color-pop)[data-side="above"] { transform-origin: bottom; transform: translateY(6px) scale(var(--twk-pop-s)); }
+.twk-select-option {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; font: inherit; font-size: 12px; font-weight: 500;
   line-height: 14px; /* not normal: a 30px option whatever the font, the chips' 14px */
-  color: var(--tw-text-label); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px);
+  color: var(--twk-text-label); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px);
   cursor: pointer; text-align: left; transition: background 0.15s, color 0.15s;
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-select-option:hover { background: var(--tw-surface-hover); }
+  .twk-select-option:hover { background: var(--twk-surface-hover); }
 }
-.tw-select-option:focus-visible { background: var(--tw-surface-hover); color: var(--tw-text-primary); outline: none; } /* roving focus reads as the hover highlight */
-.tw-select-option[data-selected="true"] { color: var(--tw-on-accent); background: var(--tw-accent, var(--tw-surface-active)); }
-.tw-option-swatch { flex-shrink: 0; width: 12px; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
-.tw-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.twk-select-option:focus-visible { background: var(--twk-surface-hover); color: var(--twk-text-primary); outline: none; } /* roving focus reads as the hover highlight */
+.twk-select-option[data-selected="true"] { color: var(--twk-on-accent); background: var(--twk-accent, var(--twk-surface-active)); }
+.twk-option-swatch { flex-shrink: 0; width: 12px; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--twk-border-hover); }
+.twk-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* A row or folder picked for ⌘C / ⌘V (a press beside it): a filled band behind it, edge to edge across the panel at any
  * depth (the panel clips it to its rounded edge while something is picked). A row's band reaches 3px past it, halfway
  * across the 6px gap to its neighbors, the same on both sides wherever it sits; nothing moves. A folder's band runs
  * between its own rules. */
-.tw-panel:not([data-mode="floating"]):has(.is-picked) { overflow: clip; } /* both axes, so it follows the rounded corners; a floating panel already clips, scrolling */
-.tw-panel .is-picked { position: relative; isolation: isolate; }
-.tw-panel .is-picked::before { content: ""; position: absolute; inset: -3px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 5%, transparent); }
-.tw-panel .tw-folder.is-picked::before { inset-block: 0; }
+.twk-panel:not([data-mode="floating"]):has(.is-picked) { overflow: clip; } /* both axes, so it follows the rounded corners; a floating panel already clips, scrolling */
+.twk-panel .is-picked { position: relative; isolation: isolate; }
+.twk-panel .is-picked::before { content: ""; position: absolute; inset: -3px -100vmax; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--twk-accent, var(--twk-text-focus)) 5%, transparent); }
+.twk-panel .twk-folder.is-picked::before { inset-block: 0; }
 /* A paste onto the pick answers on the band: a brief brightening when it lands, a brief danger tint when nothing fits. */
-.tw-panel .is-picked::before { transition: background 0.35s var(--tw-ease-out); }
-.tw-panel .is-picked.is-pasted::before { background: color-mix(in srgb, var(--tw-accent, var(--tw-text-focus)) 20%, transparent); transition-duration: 0.08s; }
-.tw-panel .is-picked.is-refused::before { background: color-mix(in srgb, var(--tw-danger) 18%, transparent); transition-duration: 0.08s; }
+.twk-panel .is-picked::before { transition: background 0.35s var(--twk-ease-out); }
+.twk-panel .is-picked.is-pasted::before { background: color-mix(in srgb, var(--twk-accent, var(--twk-text-focus)) 20%, transparent); transition-duration: 0.08s; }
+.twk-panel .is-picked.is-refused::before { background: color-mix(in srgb, var(--twk-danger) 18%, transparent); transition-duration: 0.08s; }
 
 /* ── Presets menu — portaled; save / load / delete named snapshots ── */
-.tw-presets-menu {
+.twk-presets-menu {
   width: 208px;
   display: flex; flex-direction: column; gap: 6px; padding: 8px;
-  border-radius: calc(var(--tw-radius) + 4px); /* concentric: inner picker surface (radius) + padding 4 */
+  border-radius: calc(var(--twk-radius) + 4px); /* concentric: inner picker surface (radius) + padding 4 */
   transform-origin: top right;
 }
-.tw-presets-menu[data-side="above"] { transform-origin: bottom right; transform: translateY(6px) scale(var(--tw-pop-s)); }
+.twk-presets-menu[data-side="above"] { transform-origin: bottom right; transform: translateY(6px) scale(var(--twk-pop-s)); }
 /* Open: after every pane's [data-side] origin, which it must beat at the same specificity. */
-:is(.tw-select-dropdown, .tw-presets-menu, .tw-color-pop).is-open { opacity: 1; transform: none; pointer-events: auto; }
-.tw-presets-save { display: flex; gap: 6px; }
-.tw-presets-input { flex: 1; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 6px 8px; outline: none; }
-.tw-presets-input:focus { border-color: var(--tw-border-hover); }
-.tw-presets-input::placeholder { color: var(--tw-text-tertiary); }
-.tw-presets-savebtn { flex-shrink: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background: var(--tw-surface); border: none; border-radius: calc(var(--tw-radius) - 2px); padding: 6px 10px; cursor: pointer; transition: background 0.15s, transform 0.24s var(--tw-ease-pop); }
+:is(.twk-select-dropdown, .twk-presets-menu, .twk-color-pop).is-open { opacity: 1; transform: none; pointer-events: auto; }
+.twk-presets-save { display: flex; gap: 6px; }
+.twk-presets-input { flex: 1; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-primary); background: var(--twk-surface); border: 1px solid var(--twk-border); border-radius: calc(var(--twk-radius) - 2px); padding: 6px 8px; outline: none; }
+.twk-presets-input:focus { border-color: var(--twk-border-hover); }
+.twk-presets-input::placeholder { color: var(--twk-text-tertiary); }
+.twk-presets-savebtn { flex-shrink: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-primary); background: var(--twk-surface); border: none; border-radius: calc(var(--twk-radius) - 2px); padding: 6px 10px; cursor: pointer; transition: background 0.15s, transform 0.24s var(--twk-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-presets-savebtn:hover { background: var(--tw-surface-hover); }
+  .twk-presets-savebtn:hover { background: var(--twk-surface-hover); }
 }
-.tw-presets-list { display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto; }
-.tw-presets-empty { padding: 8px; font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); text-align: center; }
-.tw-presets-row { display: flex; align-items: center; gap: 2px; }
-.tw-presets-load { flex: 1; min-width: 0; text-align: left; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); padding: 6px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s; }
+.twk-presets-list { display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto; }
+.twk-presets-empty { padding: 8px; font-size: 12px; font-weight: 500; color: var(--twk-text-tertiary); text-align: center; }
+.twk-presets-row { display: flex; align-items: center; gap: 2px; }
+.twk-presets-load { flex: 1; min-width: 0; text-align: left; font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-label); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px); padding: 6px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s; }
 @media (hover: hover) and (pointer: fine) {
-  .tw-presets-load:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .twk-presets-load:hover { background: var(--twk-surface-hover); color: var(--twk-text-primary); }
 }
-.tw-presets-del { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
+.twk-presets-del { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--twk-text-tertiary); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--twk-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-presets-del:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .twk-presets-del:hover { background: var(--twk-surface-hover); color: var(--twk-text-primary); }
 }
-.tw-presets-del:active { transform: scale(var(--tw-press-icon)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
-.tw-presets-savebtn:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, transform 0.08s ease-out; }
-.tw-presets-del svg { width: 12px; height: 12px; display: block; }
+.twk-presets-del:active { transform: scale(var(--twk-press-icon)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.twk-presets-savebtn:active { transform: scale(var(--twk-press-chip)); transition: background 0.15s, transform 0.08s ease-out; }
+.twk-presets-del svg { width: 12px; height: 12px; display: block; }
 /* Clear, in the gallery's head: a small text button the label's size, quiet until hovered; its text ends 10px in, as a row's value. */
-.tw-image-clear { flex-shrink: 0; height: 24px; padding: 0 6px; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
+.twk-image-clear { flex-shrink: 0; height: 24px; padding: 0 6px; font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-tertiary); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.24s var(--twk-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-image-clear:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .twk-image-clear:hover { background: var(--twk-surface-hover); color: var(--twk-text-primary); }
 }
-.tw-image-clear:active { transform: scale(var(--tw-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
+.twk-image-clear:active { transform: scale(var(--twk-press-chip)); transition: background 0.15s, color 0.15s, transform 0.08s ease-out; }
 
 /* ── Trigger rows — the row button behind the color, gradient and point controls ── */
-.tw-trigger {
+.twk-trigger {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
-  height: var(--tw-row-height); padding: 0 10px 0 12px; /* the row idiom: 12 left, 10 right */
-  font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); cursor: pointer;
-  background: var(--tw-surface); border: none; border-radius: var(--tw-radius); transition: background 0.15s, transform 0.24s var(--tw-ease-pop);
+  height: var(--twk-row-height); padding: 0 10px 0 12px; /* the row idiom: 12 left, 10 right */
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-label); cursor: pointer;
+  background: var(--twk-surface); border: none; border-radius: var(--twk-radius); transition: background 0.15s, transform 0.24s var(--twk-ease-pop);
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-trigger:hover { background: var(--tw-surface-hover); } /* the whole row is the button */
-  .tw-trigger:hover .tw-trigger-label { color: var(--tw-text-primary); }
+  .twk-trigger:hover { background: var(--twk-surface-hover); } /* the whole row is the button */
+  .twk-trigger:hover .twk-trigger-label { color: var(--twk-text-primary); }
 }
-.tw-trigger:active { transform: scale(var(--tw-press-row)); transition: background 0.15s, transform 0.08s ease-out; }
-.is-open > .tw-trigger { background: var(--tw-surface-active); }
+.twk-trigger:active { transform: scale(var(--twk-press-row)); transition: background 0.15s, transform 0.08s ease-out; }
+.is-open > .twk-trigger { background: var(--twk-surface-active); }
 /* The label takes what the right cluster leaves, down to 5ch; shrink weights instead
  * shaved a fraction of a pixel off the readout and drew an ellipsis over a value that fit. */
-.tw-trigger-label { transition: color 0.15s; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a <button> centers its text by default */
-.tw-trigger-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
+.twk-trigger-label { transition: color 0.15s; flex: 1 1 0; min-width: 5ch; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* a <button> centers its text by default */
+.twk-trigger-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: calc(100% - 5ch - 10px); }
 /* word-spacing separates a multi-part readout ("60% 0.23 286") into columns; visual only. */
-.tw-trigger-value { word-spacing: 0.1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 20ch; }
+.twk-trigger-value { word-spacing: 0.1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 20ch; }
 /* The 18px preview chip — swatch, gradient strip or mini pad. */
-.tw-trigger-chip { height: 18px; flex-shrink: 0; border-radius: calc(var(--tw-radius) - 4px); box-shadow: inset 0 0 0 1px var(--tw-border-hover); transition: transform 0.2s var(--tw-ease-spring); }
-.is-open > .tw-trigger .tw-trigger-chip { transform: scale(1.07); } /* 1.14 read as a jump on the wider chips */
+.twk-trigger-chip { height: 18px; flex-shrink: 0; border-radius: calc(var(--twk-radius) - 4px); box-shadow: inset 0 0 0 1px var(--twk-border-hover); transition: transform 0.2s var(--twk-ease-spring); }
+.is-open > .twk-trigger .twk-trigger-chip { transform: scale(1.07); } /* 1.14 read as a jump on the wider chips */
 
 /* ── Color — a trigger row that opens the picker ── */
-.tw-color { position: relative; }
-.tw-color-swatch { width: 18px; }
+.twk-color { position: relative; }
+.twk-color-swatch { width: 18px; }
 
 /* Portaled surfaces open on <body>, escaping any ancestor that becomes a containing block
- * for position:fixed (a transform or filter) and the panel's overflow. Each carries .tw-portal,
+ * for position:fixed (a transform or filter) and the panel's overflow. Each carries .twk-portal,
  * which hands it the tokens, font and line-height above. */
-.tw-portal *, .tw-portal *::before, .tw-portal *::after { box-sizing: border-box; }
+.twk-portal *, .twk-portal *::before, .twk-portal *::after { box-sizing: border-box; }
 /* Entrance scale from the height placeBelow() records: the far edge moves ~5px at any height, so a tall pop doesn't zoom. */
-.tw-portal { --tw-pop-s: max(0.96, calc(1 - 5 / var(--tw-pop-h, 125))); }
+.twk-portal { --twk-pop-s: max(0.96, calc(1 - 5 / var(--twk-pop-h, 125))); }
 
 /* the color dropdown */
-.tw-color-pop {
+.twk-color-pop {
   min-width: 236px; /* the default panel's row width */
   display: flex; flex-direction: column; gap: 8px; padding: 10px;
-  border-radius: calc(var(--tw-radius) + 10px); /* concentric: inner radius + padding 10 */
+  border-radius: calc(var(--twk-radius) + 10px); /* concentric: inner radius + padding 10 */
   max-height: calc(100dvh - 16px); overflow-y: auto; overflow-x: clip; /* a short viewport scrolls the picker */
   transform-origin: top;
 }
 /* The picker body as one column, so the gradient pop can mount it under the stop bar. */
-.tw-color-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.tw-color-mode-row { display: flex; align-items: center; gap: 8px; }
-.tw-color-mode { appearance: none; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-primary); background-color: var(--tw-surface); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6.25px center; border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 4px 26px 4px 10px; line-height: 14px; cursor: pointer; outline: none; } /* 14px, not normal: 24px tall whatever the font, the chips' 14px. The folder's 15px chevron: right 6.25px + its 3.75px side-bearing = 10 */
+.twk-color-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.twk-color-mode-row { display: flex; align-items: center; gap: 8px; }
+.twk-color-mode { appearance: none; font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-primary); background-color: var(--twk-surface); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6.25px center; border: 1px solid var(--twk-border); border-radius: calc(var(--twk-radius) - 2px); padding: 4px 26px 4px 10px; line-height: 14px; cursor: pointer; outline: none; } /* 14px, not normal: 24px tall whatever the font, the chips' 14px. The folder's 15px chevron: right 6.25px + its 3.75px side-bearing = 10 */
 @media (hover: hover) and (pointer: fine) {
-  .tw-color-mode:hover { background-color: var(--tw-surface-hover); }
+  .twk-color-mode:hover { background-color: var(--twk-surface-hover); }
 }
-.tw-color-mode:focus-visible { border-color: var(--tw-border-hover); } /* match the channel inputs' focus cue */
-.tw-color-gamut { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--tw-text-tertiary); }
-.tw-color-channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.tw-color-channels--hex { grid-template-columns: 1fr; }
-.tw-color-chan { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.tw-color-chan-label { font-size: 10px; font-weight: 600; letter-spacing: 0.03em; color: var(--tw-text-tertiary); text-transform: uppercase; }
-.tw-color-chan-input { width: 100%; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--tw-text-label); background: var(--tw-surface); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 5px 6px; outline: none; text-transform: uppercase; }
-.tw-color-chan-input:focus { color: var(--tw-text-focus); border-color: var(--tw-border-hover); }
+.twk-color-mode:focus-visible { border-color: var(--twk-border-hover); } /* match the channel inputs' focus cue */
+.twk-color-gamut { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--twk-text-tertiary); }
+.twk-color-channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.twk-color-channels--hex { grid-template-columns: 1fr; }
+.twk-color-chan { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.twk-color-chan-label { font-size: 10px; font-weight: 600; letter-spacing: 0.03em; color: var(--twk-text-tertiary); text-transform: uppercase; }
+.twk-color-chan-input { width: 100%; min-width: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-label); background: var(--twk-surface); border: 1px solid var(--twk-border); border-radius: calc(var(--twk-radius) - 2px); padding: 5px 6px; outline: none; text-transform: uppercase; }
+.twk-color-chan-input:focus { color: var(--twk-text-focus); border-color: var(--twk-border-hover); }
 
 /* The plane and strips: no overflow:hidden, since the thumbs ride the edges. */
-.tw-wg-area { position: relative; width: 100%; height: 140px; border-radius: var(--tw-radius); cursor: crosshair; touch-action: none; box-shadow: inset 0 0 0 1px var(--tw-border); }
-.tw-wg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
+.twk-wg-area { position: relative; width: 100%; height: 140px; border-radius: var(--twk-radius); cursor: crosshair; touch-action: none; box-shadow: inset 0 0 0 1px var(--twk-border); }
+.twk-wg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
 /* Thumbs are positioned by left/top, not transform, so the grab scale doesn't lag the drag. */
-.tw-wg-thumb { position: absolute; width: 14px; height: 14px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
-.tw-wg-hue, .tw-wg-alpha { position: relative; width: 100%; height: 14px; border-radius: 999px; cursor: ew-resize; touch-action: none; box-shadow: inset 0 0 0 1px var(--tw-border); }
-.tw-wg-alpha { background: var(--tw-checker); }
-.tw-wg-hue-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
-.tw-wg-hue-thumb { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
-.tw-wg-area.is-grabbing .tw-wg-thumb, .tw-wg-hue.is-grabbing .tw-wg-hue-thumb, .tw-wg-alpha.is-grabbing .tw-wg-hue-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
-.tw-wg-alpha-grad { position: absolute; inset: 0; border-radius: inherit; }
+.twk-wg-thumb { position: absolute; width: 14px; height: 14px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--twk-ease-spring), box-shadow 0.18s; }
+.twk-wg-hue, .twk-wg-alpha { position: relative; width: 100%; height: 14px; border-radius: 999px; cursor: ew-resize; touch-action: none; box-shadow: inset 0 0 0 1px var(--twk-border); }
+.twk-wg-alpha { background: var(--twk-checker); }
+.twk-wg-hue-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
+.twk-wg-hue-thumb { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--twk-ease-spring), box-shadow 0.18s; }
+.twk-wg-area.is-grabbing .twk-wg-thumb, .twk-wg-hue.is-grabbing .twk-wg-hue-thumb, .twk-wg-alpha.is-grabbing .twk-wg-hue-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.45); }
+.twk-wg-alpha-grad { position: absolute; inset: 0; border-radius: inherit; }
 
 /* ── Gradient — a trigger row that opens a stop bar + picker body ── */
-.tw-gradient { position: relative; }
-.tw-gradient-preview { width: 72px; background: var(--tw-checker); }
+.twk-gradient { position: relative; }
+.twk-gradient-preview { width: 72px; background: var(--twk-checker); }
 
 /* Native selects size to their widest option, so two in one row need tight padding to fit the 236px floor. */
-.tw-gradient-pop .tw-color-mode-row { gap: 4px; }
-.tw-gradient-pop .tw-color-mode { padding-left: 6px; padding-right: 20px; }
-.tw-gradient-bar-row { display: flex; align-items: stretch; gap: 6px; }
-.tw-gradient-bar-row > .tw-gradient-bar { flex: 1; min-width: 0; }
-.tw-gradient-bar { position: relative; width: 100%; height: 28px; border-radius: var(--tw-radius); box-shadow: inset 0 0 0 1px var(--tw-border); background: var(--tw-checker); }
-.tw-gradient-grad { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
-.tw-gradient-rail { position: absolute; left: 0; right: 0; bottom: -5px; height: 14px; pointer-events: none; }
-.tw-gradient-stop { position: absolute; top: 0; width: 13px; height: 13px; padding: 0; transform: translateX(-50%); border-radius: calc(var(--tw-radius) - 4px); background: var(--stop); border: 2px solid var(--tw-dropdown-bg); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 1px 3px rgba(0, 0, 0, 0.4); cursor: ew-resize; touch-action: none; pointer-events: auto; transition: opacity 0.12s ease, transform 0.16s var(--tw-ease-spring), box-shadow 0.16s; }
-.tw-gradient-stop[data-sel="true"] { box-shadow: 0 0 0 2px var(--tw-accent, var(--tw-text-focus)), 0 1px 3px rgba(0, 0, 0, 0.4); z-index: 1; }
+.twk-gradient-pop .twk-color-mode-row { gap: 4px; }
+.twk-gradient-pop .twk-color-mode { padding-left: 6px; padding-right: 20px; }
+.twk-gradient-bar-row { display: flex; align-items: stretch; gap: 6px; }
+.twk-gradient-bar-row > .twk-gradient-bar { flex: 1; min-width: 0; }
+.twk-gradient-bar { position: relative; width: 100%; height: 28px; border-radius: var(--twk-radius); box-shadow: inset 0 0 0 1px var(--twk-border); background: var(--twk-checker); }
+.twk-gradient-grad { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+.twk-gradient-rail { position: absolute; left: 0; right: 0; bottom: -5px; height: 14px; pointer-events: none; }
+.twk-gradient-stop { position: absolute; top: 0; width: 13px; height: 13px; padding: 0; transform: translateX(-50%); border-radius: calc(var(--twk-radius) - 4px); background: var(--stop); border: 2px solid var(--twk-dropdown-bg); box-shadow: 0 0 0 1px var(--twk-border-hover), 0 1px 3px rgba(0, 0, 0, 0.4); cursor: ew-resize; touch-action: none; pointer-events: auto; transition: opacity 0.12s ease, transform 0.16s var(--twk-ease-spring), box-shadow 0.16s; }
+.twk-gradient-stop[data-sel="true"] { box-shadow: 0 0 0 2px var(--twk-accent, var(--twk-text-focus)), 0 1px 3px rgba(0, 0, 0, 0.4); z-index: 1; }
 /* Hit targets: an invisible padded pseudo-element takes the press from ~21px around. */
-.tw-gradient-stop::before, .tw-bezier-handle::before { content: ""; position: absolute; inset: -4px; border-radius: inherit; }
+.twk-gradient-stop::before, .twk-bezier-handle::before { content: ""; position: absolute; inset: -4px; border-radius: inherit; }
 @media (hover: hover) and (pointer: fine) {
-  .tw-gradient-stop:hover { transform: translateX(-50%) scale(1.2); }
+  .twk-gradient-stop:hover { transform: translateX(-50%) scale(1.2); }
 }
 /* A stop dragged clear of the bar: release to remove. */
-.tw-gradient-stop[data-removing="true"] { opacity: 0.3; transform: translateX(-50%) scale(0.7); }
-.tw-gradient-add { display: flex; align-items: center; justify-content: center; flex: none; width: 28px; padding: 0; border: none; border-radius: var(--tw-radius); background: var(--tw-surface); color: var(--tw-text-primary); cursor: pointer; will-change: transform; transition: background 0.15s, transform 0.24s var(--tw-ease-pop); } /* will-change: the Safari pixel-snap fix */
-.tw-gradient-add:active { transform: scale(var(--tw-press-icon)); transition: background 0.15s, transform 0.08s ease-out; }
-.tw-gradient-add svg { width: 16px; height: 16px; display: block; will-change: transform; transition: transform 0.2s var(--tw-ease-pop); }
+.twk-gradient-stop[data-removing="true"] { opacity: 0.3; transform: translateX(-50%) scale(0.7); }
+.twk-gradient-add { display: flex; align-items: center; justify-content: center; flex: none; width: 28px; padding: 0; border: none; border-radius: var(--twk-radius); background: var(--twk-surface); color: var(--twk-text-primary); cursor: pointer; will-change: transform; transition: background 0.15s, transform 0.24s var(--twk-ease-pop); } /* will-change: the Safari pixel-snap fix */
+.twk-gradient-add:active { transform: scale(var(--twk-press-icon)); transition: background 0.15s, transform 0.08s ease-out; }
+.twk-gradient-add svg { width: 16px; height: 16px; display: block; will-change: transform; transition: transform 0.2s var(--twk-ease-pop); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-gradient-add:hover { background: var(--tw-surface-hover); }
-  .tw-gradient-add:hover svg { transform: scale(1.2); }
+  .twk-gradient-add:hover { background: var(--twk-surface-hover); }
+  .twk-gradient-add:hover svg { transform: scale(1.2); }
 }
 
 /* ── Text + number rows (string / number blades) ── */
-.tw-text, .tw-num {
+.twk-text, .twk-num {
   flex: 1; min-width: 0; font: inherit; font-size: 12px; font-weight: 500;
-  color: var(--tw-text-label); background: transparent; border: none; outline: none;
+  color: var(--twk-text-label); background: transparent; border: none; outline: none;
   text-align: right; cursor: text; padding: 0;
-  border-radius: calc(var(--tw-radius) - 4px); /* rounds the focus ring (outline follows radius) */
+  border-radius: calc(var(--twk-radius) - 4px); /* rounds the focus ring (outline follows radius) */
 }
-.tw-text:focus, .tw-num:focus { color: var(--tw-text-focus); }
-.tw-text::placeholder { color: var(--tw-text-tertiary); }
-.tw-row-multiline { position: relative; flex-direction: column; align-items: stretch; height: auto; gap: 4px; padding: 7.5px 10px 10px 12px; } /* top: the label's text 9px down, as a 32px row's; bottom 10 > the 8px radius keeps the grip clear */
-.tw-textarea { flex: none; width: 100%; resize: vertical; min-height: 3em; padding: 0; line-height: 1.45; text-align: left; }
+.twk-text:focus, .twk-num:focus { color: var(--twk-text-focus); }
+.twk-text::placeholder { color: var(--twk-text-tertiary); }
+.twk-row-multiline { position: relative; flex-direction: column; align-items: stretch; height: auto; gap: 4px; padding: 7.5px 10px 10px 12px; } /* top: the label's text 9px down, as a 32px row's; bottom 10 > the 8px radius keeps the grip clear */
+.twk-textarea { flex: none; width: 100%; resize: vertical; min-height: 3em; padding: 0; line-height: 1.45; text-align: left; }
 /* The native resizer grip is invisible on mobile Safari, so draw one; a mask lets it
  * take the token color in both schemes. */
-.tw-textarea::-webkit-resizer { background: transparent; }
+.twk-textarea::-webkit-resizer { background: transparent; }
 /* Text past the field's edges fades rather than cuts (basic.ts clip()). */
-.tw-textarea:is(.is-clip-top, .is-clip-bottom) { --tw-clip-top: 0px; --tw-clip-bottom: 0px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--tw-clip-top), #000 calc(100% - var(--tw-clip-bottom)), transparent); mask-image: linear-gradient(to bottom, transparent, #000 var(--tw-clip-top), #000 calc(100% - var(--tw-clip-bottom)), transparent); }
-.tw-textarea.is-clip-top { --tw-clip-top: 14px; }
-.tw-textarea.is-clip-bottom { --tw-clip-bottom: 14px; }
-.tw-row-multiline::after {
+.twk-textarea:is(.is-clip-top, .is-clip-bottom) { --twk-clip-top: 0px; --twk-clip-bottom: 0px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--twk-clip-top), #000 calc(100% - var(--twk-clip-bottom)), transparent); mask-image: linear-gradient(to bottom, transparent, #000 var(--twk-clip-top), #000 calc(100% - var(--twk-clip-bottom)), transparent); }
+.twk-textarea.is-clip-top { --twk-clip-top: 14px; }
+.twk-textarea.is-clip-bottom { --twk-clip-bottom: 14px; }
+.twk-row-multiline::after {
   content: ""; position: absolute; right: 8px; bottom: 8px; width: 11px; height: 11px;
-  pointer-events: none; background-color: var(--tw-text-tertiary);
-  --tw-grip: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M11 3 3 11M11 7 7 11' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-  -webkit-mask: var(--tw-grip) right bottom / contain no-repeat; mask: var(--tw-grip) right bottom / contain no-repeat;
+  pointer-events: none; background-color: var(--twk-text-tertiary);
+  --twk-grip: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M11 3 3 11M11 7 7 11' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask: var(--twk-grip) right bottom / contain no-repeat; mask: var(--twk-grip) right bottom / contain no-repeat;
 }
 
 /* ── Image — a trigger row that is also the drop zone; with options, a gallery: the plot's stack of a flush label, the tiles and the kit's button ── */
-.tw-image { position: relative; }
-.tw-image-input { display: none; }
-.tw-image-text, .tw-image-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tw-image-note:empty { display: none; }
-.tw-image-note:not(:empty) + :is(.tw-image-text, .tw-trigger-value) { display: none; } /* a refused file's reason takes the text's place for a moment */
-.tw-image-thumb { width: 24px; background: var(--tw-base) center / cover no-repeat; } /* 24 × 18: the tiles' 4:3 */
-.tw-image-thumb[data-set="false"] { background: var(--tw-checker); }
+.twk-image { position: relative; }
+.twk-image-input { display: none; }
+.twk-image-text, .twk-image-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.twk-image-note:empty { display: none; }
+.twk-image-note:not(:empty) + :is(.twk-image-text, .twk-trigger-value) { display: none; } /* a refused file's reason takes the text's place for a moment */
+.twk-image-thumb { width: 24px; background: var(--twk-base) center / cover no-repeat; } /* 24 × 18: the tiles' 4:3 */
+.twk-image-thumb[data-set="false"] { background: var(--twk-checker); }
 /* JS toggles [data-over] on the trigger, or on the gallery root, while a file is dragged over it. */
-.tw-image .tw-trigger[data-over="true"], .tw-image-gallery[data-over="true"] .tw-image-upload { background: var(--tw-surface-hover); outline: 1.5px dashed var(--tw-border-hover); outline-offset: -2px; }
-.tw-image .tw-trigger[data-over="true"] .tw-image-thumb { transform: scale(1.14); }
-.tw-image-gallery { display: flex; flex-direction: column; gap: 6px; }
+.twk-image .twk-trigger[data-over="true"], .twk-image-gallery[data-over="true"] .twk-image-upload { background: var(--twk-surface-hover); outline: 1.5px dashed var(--twk-border-hover); outline-offset: -2px; }
+.twk-image .twk-trigger[data-over="true"] .twk-image-thumb { transform: scale(1.14); }
+.twk-image-gallery { display: flex; flex-direction: column; gap: 6px; }
 /* Under the tiles: the upload button, then Clear, as tall as the button. They fold the way a folder does, on its curve:
  * Clear folds sideways when there's nothing to clear and the upload button eases into its room; a foot with nothing in
  * it folds up, and the pane eases shorter. The foot's own space is part of the pane's drag edge; its buttons still take
  * their own presses. The focus rings are inset, so the clipping leaves them whole. */
-.tw-image-foot { display: grid; grid-template-rows: 1fr; pointer-events: none; transition: grid-template-rows 0.35s var(--tw-ease-fold), margin-top 0.35s var(--tw-ease-fold); }
-.tw-image-foot[data-open="false"] { grid-template-rows: 0fr; margin-top: -6px; } /* -6px takes back the pane's gap above it */
-.tw-image-foot-row { display: flex; align-items: stretch; justify-content: flex-end; min-height: 0; overflow: hidden; }
-.tw-image-foot-row > * { pointer-events: auto; }
-.tw-image-foot .tw-image-upload { flex: 1; min-width: 0; }
-.tw-image-clear-slot { display: grid; grid-template-columns: 1fr; margin-left: 6px; overflow: hidden; transition: grid-template-columns 0.35s var(--tw-ease-fold), margin-left 0.35s var(--tw-ease-fold), opacity 0.35s var(--tw-ease-fold); } /* the fade too, as a folder's content */
-.tw-image-clear-slot[data-open="false"] { grid-template-columns: 0fr; margin-left: 0; opacity: 0; }
-.tw-image-clear-slot .tw-image-clear { height: auto; min-height: 24px; min-width: 0; padding: 0 10px; white-space: nowrap; transition: padding 0.35s var(--tw-ease-fold), background 0.15s, color 0.15s, transform 0.24s var(--tw-ease-pop); }
-.tw-image-clear-slot[data-open="false"] .tw-image-clear { padding: 0; } /* its padding folds too, or 20px of it would stay */
-.tw-image-grid { display: grid; grid-template-columns: repeat(var(--tw-img-cols, 2), minmax(0, 1fr)); gap: 6px; }
+.twk-image-foot { display: grid; grid-template-rows: 1fr; pointer-events: none; transition: grid-template-rows 0.35s var(--twk-ease-fold), margin-top 0.35s var(--twk-ease-fold); }
+.twk-image-foot[data-open="false"] { grid-template-rows: 0fr; margin-top: -6px; } /* -6px takes back the pane's gap above it */
+.twk-image-foot-row { display: flex; align-items: stretch; justify-content: flex-end; min-height: 0; overflow: hidden; }
+.twk-image-foot-row > * { pointer-events: auto; }
+.twk-image-foot .twk-image-upload { flex: 1; min-width: 0; }
+.twk-image-clear-slot { display: grid; grid-template-columns: 1fr; margin-left: 6px; overflow: hidden; transition: grid-template-columns 0.35s var(--twk-ease-fold), margin-left 0.35s var(--twk-ease-fold), opacity 0.35s var(--twk-ease-fold); } /* the fade too, as a folder's content */
+.twk-image-clear-slot[data-open="false"] { grid-template-columns: 0fr; margin-left: 0; opacity: 0; }
+.twk-image-clear-slot .twk-image-clear { height: auto; min-height: 24px; min-width: 0; padding: 0 10px; white-space: nowrap; transition: padding 0.35s var(--twk-ease-fold), background 0.15s, color 0.15s, transform 0.24s var(--twk-ease-pop); }
+.twk-image-clear-slot[data-open="false"] .twk-image-clear { padding: 0; } /* its padding folds too, or 20px of it would stay */
+.twk-image-grid { display: grid; grid-template-columns: repeat(var(--twk-img-cols, 2), minmax(0, 1fr)); gap: 6px; }
 /* A tile is its image; a hairline ring set off by a gap marks the chosen one, so the picture stays readable.
  * The gap is outline-offset, which shows the panel behind it. */
-.tw-image-tile {
-  aspect-ratio: 4 / 3; padding: 0; background: var(--tw-surface) center / cover no-repeat;
-  border: none; border-radius: calc(var(--tw-radius) - 2px); box-shadow: inset 0 0 0 1px var(--tw-border-hover);
-  cursor: pointer; transition: transform 0.24s var(--tw-ease-pop), box-shadow 0.15s;
+.twk-image-tile {
+  aspect-ratio: 4 / 3; padding: 0; background: var(--twk-surface) center / cover no-repeat;
+  border: none; border-radius: calc(var(--twk-radius) - 2px); box-shadow: inset 0 0 0 1px var(--twk-border-hover);
+  cursor: pointer; transition: transform 0.24s var(--twk-ease-pop), box-shadow 0.15s;
 }
-.tw-image-tile:active { transform: scale(var(--tw-press-chip)); transition: transform 0.08s ease-out; }
-.tw-image-tile[data-active="true"] { outline: 1.5px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 1px; }
+.twk-image-tile:active { transform: scale(var(--twk-press-chip)); transition: transform 0.08s ease-out; }
+.twk-image-tile[data-active="true"] { outline: 1.5px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: 1px; }
 /* The kit's inner focus ring, after the chosen tile's rule so it wins there too. An outline, not a shadow: the hover
  * hairline is a shadow and would replace it, a host's own button:focus-visible outline would add a second ring, and
  * forced colors drop shadows. */
-.tw-image-tile:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
-.tw-image-upload { gap: 6px; } /* a .tw-button, plus the icon's gap */
-.tw-image-upload svg { width: 14px; height: 14px; flex: none; }
+.twk-image-tile:focus-visible { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: -2px; }
+.twk-image-upload { gap: 6px; } /* a .twk-button, plus the icon's gap */
+.twk-image-upload svg { width: 14px; height: 14px; flex: none; }
 @media (hover: hover) and (pointer: fine) {
-  .tw-image-tile:hover { box-shadow: inset 0 0 0 1px var(--tw-text-tertiary); } /* the hairline lights, nothing moves; the chosen tile too: on, and about to be pressed, are two states */
+  .twk-image-tile:hover { box-shadow: inset 0 0 0 1px var(--twk-text-tertiary); } /* the hairline lights, nothing moves; the chosen tile too: on, and about to be pressed, are two states */
 }
 
 /* ── FPS graph (monitor blade) ── */
-.tw-fps {
+.twk-fps {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 8px;
-  background: var(--tw-surface); border-radius: var(--tw-radius); padding: 9px 10px 10px 12px; /* the row idiom: 12 left / 10 right; the label's text 9px down */
+  background: var(--twk-surface); border-radius: var(--twk-radius); padding: 9px 10px 10px 12px; /* the row idiom: 12 left / 10 right; the label's text 9px down */
   line-height: 14px; /* not normal: a graphless monitor is 33px whatever the font, the chips' 14px */
 }
-.tw-fps-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); }
-.tw-fps-val { font-size: 12px; color: var(--tw-text-primary); text-align: right; }
-.tw-fps-canvas { grid-column: 1 / -1; width: 100%; height: 40px; display: block; margin-top: 6px; }
+.twk-fps-label { font-size: 12px; font-weight: 500; color: var(--twk-text-label); }
+.twk-fps-val { font-size: 12px; color: var(--twk-text-primary); text-align: right; }
+.twk-fps-canvas { grid-column: 1 / -1; width: 100%; height: 40px; display: block; margin-top: 6px; }
 /* Monitor string buffer — the last N values, newest at the bottom. */
-.tw-monitor-buffer { grid-column: 1 / -1; margin: 6px 0 0; height: calc(var(--tw-monitor-rows, 4) * 1.45em); overflow: hidden; font-family: var(--tw-font-sans); font-variant-numeric: tabular-nums; font-size: 11px; line-height: 1.45; color: var(--tw-text-secondary); white-space: pre; word-break: break-all; }
+.twk-monitor-buffer { grid-column: 1 / -1; margin: 6px 0 0; height: calc(var(--twk-monitor-rows, 4) * 1.45em); overflow: hidden; font-family: var(--twk-font-sans); font-variant-numeric: tabular-nums; font-size: 11px; line-height: 1.45; color: var(--twk-text-secondary); white-space: pre; word-break: break-all; }
 
 /* ── Number grab handle (drag to scrub) ── */
-.tw-num-wrap { display: flex; align-items: center; gap: 4px; }
-.tw-slider-unit { color: var(--tw-text-tertiary); } /* the slider readout's unit ("24 px") */
+.twk-num-wrap { display: flex; align-items: center; gap: 4px; }
+.twk-slider-unit { color: var(--twk-text-tertiary); } /* the slider readout's unit ("24 px") */
 /* The unit shares the input's size and line box, so centering lands both on one baseline. */
-.tw-num-unit { flex-shrink: 0; font-size: 12px; line-height: normal; color: var(--tw-text-tertiary); padding-right: 2px; user-select: none; -webkit-user-select: none; }
-.tw-num-wrap .tw-num { flex: 0 0 auto; width: 6ch; text-overflow: ellipsis; } /* a wide value shows it is cut */
-.tw-row > .tw-num-wrap .tw-num { width: 9ch; } /* the Number row has room a field grid lacks */
-.tw-num-grab { display: flex; align-items: center; justify-content: center; width: 12px; height: 18px; flex-shrink: 0; color: var(--tw-text-tertiary); cursor: ew-resize; touch-action: none; transition: color 0.15s, transform 0.18s var(--tw-ease-spring); }
-.tw-num-grab svg { width: 12px; height: 12px; display: block; }
-.tw-num-grab.is-dragging { color: var(--tw-text-primary); transform: scale(1.2); }
+.twk-num-unit { flex-shrink: 0; font-size: 12px; line-height: normal; color: var(--twk-text-tertiary); padding-right: 2px; user-select: none; -webkit-user-select: none; }
+.twk-num-wrap .twk-num { flex: 0 0 auto; width: 6ch; text-overflow: ellipsis; } /* a wide value shows it is cut */
+.twk-row > .twk-num-wrap .twk-num { width: 9ch; } /* the Number row has room a field grid lacks */
+.twk-num-grab { display: flex; align-items: center; justify-content: center; width: 12px; height: 18px; flex-shrink: 0; color: var(--twk-text-tertiary); cursor: ew-resize; touch-action: none; transition: color 0.15s, transform 0.18s var(--twk-ease-spring); }
+.twk-num-grab svg { width: 12px; height: 12px; display: block; }
+.twk-num-grab.is-dragging { color: var(--twk-text-primary); transform: scale(1.2); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-num-grab:hover { color: var(--tw-text-primary); transform: scale(1.2); }
+  .twk-num-grab:hover { color: var(--twk-text-primary); transform: scale(1.2); }
 }
 /* Grab guide — portaled to <body> while scrubbing a number field. */
-.tw-grab-guide { position: fixed; inset: 0; z-index: 100001; pointer-events: none; } /* tops the kit's z ladder */
+.twk-grab-guide { position: fixed; inset: 0; z-index: 100001; pointer-events: none; } /* tops the kit's z ladder */
 /* round dots with a controllable gap (`dotted` packs them too tightly) */
-.tw-grab-line { position: fixed; height: 2px; border: 0; transform: translateY(-50%); background: radial-gradient(circle closest-side, var(--tw-text-label) 99%, transparent) 0 50% / var(--tw-grab-gap, 7px) 2px repeat-x; }
-.tw-grab-dot { position: fixed; width: 5px; height: 5px; border-radius: 50%; background: var(--tw-text-label); transform: translate(-50%, -50%); }
-.tw-grab-bubble { position: fixed; transform: translate(-50%, -100%); padding: 2px 7px; border-radius: calc(var(--tw-radius) - 2px); background: var(--tw-dropdown-bg); border: 1px solid var(--tw-border); box-shadow: var(--tw-shadow-dropdown); color: var(--tw-text-primary); font-size: 11px; font-weight: 500; white-space: nowrap; transform-origin: bottom center; animation: tw-bubble-in 0.18s var(--tw-ease-pop); }
-@keyframes tw-bubble-in { from { opacity: 0; transform: translate(-50%, -100%) scale(0.8); } to { opacity: 1; transform: translate(-50%, -100%) scale(1); } }
-.tw-grab-arrow { position: fixed; width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 7px solid var(--tw-text-label); }
+.twk-grab-line { position: fixed; height: 2px; border: 0; transform: translateY(-50%); background: radial-gradient(circle closest-side, var(--twk-text-label) 99%, transparent) 0 50% / var(--twk-grab-gap, 7px) 2px repeat-x; }
+.twk-grab-dot { position: fixed; width: 5px; height: 5px; border-radius: 50%; background: var(--twk-text-label); transform: translate(-50%, -50%); }
+.twk-grab-bubble { position: fixed; transform: translate(-50%, -100%); padding: 2px 7px; border-radius: calc(var(--twk-radius) - 2px); background: var(--twk-dropdown-bg); border: 1px solid var(--twk-border); box-shadow: var(--twk-shadow-dropdown); color: var(--twk-text-primary); font-size: 11px; font-weight: 500; white-space: nowrap; transform-origin: bottom center; animation: twk-bubble-in 0.18s var(--twk-ease-pop); }
+@keyframes twk-bubble-in { from { opacity: 0; transform: translate(-50%, -100%) scale(0.8); } to { opacity: 1; transform: translate(-50%, -100%) scale(1); } }
+.twk-grab-arrow { position: fixed; width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 7px solid var(--twk-text-label); }
 
 /* ── Folder — collapsible titled group ── */
 /* Consecutive folders share one rule; the first and last drop their outer rule. */
-.tw-folder { display: flex; flex-direction: column; border-top: 1px solid var(--tw-border); border-bottom: 1px solid var(--tw-border); }
-.tw-folder + .tw-folder { border-top: none; margin-top: -6px; } /* cancel the 6px stack gap so the rules merge */
-.tw-folder .tw-folder { margin-left: 10px; }
-.tw-controls > .tw-folder:first-child { border-top: none; }
-.tw-folder:last-child { border-bottom: none; }
-.tw-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: var(--tw-row-height); padding: 0; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
-.tw-folder-title { font-size: 12px; font-weight: 600; color: var(--tw-text-section); letter-spacing: -0.01em; transition: color 0.15s; }
+.twk-folder { display: flex; flex-direction: column; border-top: 1px solid var(--twk-border); border-bottom: 1px solid var(--twk-border); }
+.twk-folder + .twk-folder { border-top: none; margin-top: -6px; } /* cancel the 6px stack gap so the rules merge */
+.twk-folder .twk-folder { margin-left: 10px; }
+.twk-controls > .twk-folder:first-child { border-top: none; }
+.twk-folder:last-child { border-bottom: none; }
+.twk-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: var(--twk-row-height); padding: 0; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
+.twk-folder-title { font-size: 12px; font-weight: 600; color: var(--twk-text-section); letter-spacing: -0.01em; transition: color 0.15s; }
 @media (hover: hover) and (pointer: fine) {
-  .tw-folder-header:hover .tw-folder-title { color: var(--tw-text-primary); }
-  .tw-folder-header:hover .tw-chevron { color: var(--tw-text-primary); }
+  .twk-folder-header:hover .twk-folder-title { color: var(--twk-text-primary); }
+  .twk-folder-header:hover .twk-chevron { color: var(--twk-text-primary); }
 }
 /* The 15px box carries 3.75px of side-bearing; pull it out so the glyph lands 2px in. The
  * caret rides the body's 0.35s --fold clock so it turns in step with the fade. */
-.tw-folder-header .tw-chevron { color: var(--tw-text-section); opacity: 0.6; margin-right: -1.75px; transition: transform 0.35s var(--tw-ease-fold), color 0.15s; }
-.tw-folder.is-collapsed .tw-folder-header .tw-chevron { transform: rotate(180deg); }
+.twk-folder-header .twk-chevron { color: var(--twk-text-section); opacity: 0.6; margin-right: -1.75px; transition: transform 0.35s var(--twk-ease-fold), color 0.15s; }
+.twk-folder.is-collapsed .twk-folder-header .twk-chevron { transform: rotate(180deg); }
 /* contain: layout isolates the fold's per-frame re-layout from the rest of the panel. */
-.tw-folder-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s var(--tw-ease-fold); contain: layout; }
-.tw-folder.is-collapsed .tw-folder-body { grid-template-rows: 0fr; }
-/* Height and opacity share the --fold clock; y-clip only, as on .tw-body > .tw-controls. */
-.tw-folder-body > .tw-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding: 3px 0 8px; margin-top: -3px; opacity: 1; /* top: the pick band's clip edge, as on .tw-body */ transition: opacity 0.35s var(--tw-ease-fold), padding-bottom 0.35s var(--tw-ease-fold), margin-bottom 0.35s var(--tw-ease-fold); }
+.twk-folder-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s var(--twk-ease-fold); contain: layout; }
+.twk-folder.is-collapsed .twk-folder-body { grid-template-rows: 0fr; }
+/* Height and opacity share the --fold clock; y-clip only, as on .twk-body > .twk-controls. */
+.twk-folder-body > .twk-controls { overflow-x: visible; overflow-y: clip; min-height: 0; min-width: 0; padding: 3px 0 8px; margin-top: -3px; opacity: 1; /* top: the pick band's clip edge, as on .twk-body */ transition: opacity 0.35s var(--twk-ease-fold), padding-bottom 0.35s var(--twk-ease-fold), margin-bottom 0.35s var(--twk-ease-fold); }
 /* Collapse the padding too, so a collapsed group is exactly its header. */
-.tw-folder.is-collapsed .tw-folder-body > .tw-controls { opacity: 0; padding-bottom: 0; }
+.twk-folder.is-collapsed .twk-folder-body > .twk-controls { opacity: 0; padding-bottom: 0; }
 /* The 8px only clears the bottom hairline, which the last folder drops. */
-.tw-folder:last-child .tw-folder-body > .tw-controls { padding-bottom: 0; }
-.tw-folder:last-child:not(.is-collapsed) .tw-folder-body > .tw-controls { padding-bottom: 3px; margin-bottom: -3px; } /* the pick band's clip edge; both fold away together */
+.twk-folder:last-child .twk-folder-body > .twk-controls { padding-bottom: 0; }
+.twk-folder:last-child:not(.is-collapsed) .twk-folder-body > .twk-controls { padding-bottom: 3px; margin-bottom: -3px; } /* the pick band's clip edge; both fold away together */
 /* In a flex column the rows would shrink to fit the folding track; keep their height. */
-.tw-body > .tw-controls > *, .tw-folder-body > .tw-controls > * { flex-shrink: 0; }
+.twk-body > .twk-controls > *, .twk-folder-body > .twk-controls > * { flex-shrink: 0; }
 
 /* ── Shadow, sides, motion and spring ── */
 /* The shadow control (shadow.ts). */
-.tw-shadow-chip, .tw-motion-chip { width: 26px; background: var(--tw-base); overflow: hidden; } /* the two drawn chips: a tile with the shadow, a curve */
-.tw-shadow-chip { display: flex; align-items: center; justify-content: center; }
-.tw-shadow-chip-tile { width: 12px; height: 8px; border-radius: 2px; background: var(--tw-dropdown-bg); }
-.tw-shadow-stage { display: flex; align-items: center; justify-content: center; height: 84px; border-radius: var(--tw-radius); background: var(--tw-base); overflow: hidden; }
-.tw-shadow-card { width: 64px; height: 40px; border-radius: 9px; background: var(--tw-dropdown-bg); }
-.tw-shadow-color { width: 100%; } /* the color row in the pop discloses the picker body */
-.tw-shadow-color .tw-trigger-right, .tw-shadow-color .tw-trigger-value { max-width: none; } /* the row has the pop's full width */
-.tw-shadow-pop .tw-color-body[hidden] { display: none; } /* display: flex would beat the hidden attribute */
-.tw-shadow-chevron { flex-shrink: 0; width: 12px; height: 12px; color: var(--tw-text-tertiary); transition: transform 0.2s var(--tw-ease-pop); }
-.tw-shadow-color[aria-expanded="true"] .tw-shadow-chevron { transform: rotate(180deg); }
-.tw-shadow-pop .tw-color-body { margin-top: 2px; }
+.twk-shadow-chip, .twk-motion-chip { width: 26px; background: var(--twk-base); overflow: hidden; } /* the two drawn chips: a tile with the shadow, a curve */
+.twk-shadow-chip { display: flex; align-items: center; justify-content: center; }
+.twk-shadow-chip-tile { width: 12px; height: 8px; border-radius: 2px; background: var(--twk-dropdown-bg); }
+.twk-shadow-stage { display: flex; align-items: center; justify-content: center; height: 84px; border-radius: var(--twk-radius); background: var(--twk-base); overflow: hidden; }
+.twk-shadow-card { width: 64px; height: 40px; border-radius: 9px; background: var(--twk-dropdown-bg); }
+.twk-shadow-color { width: 100%; } /* the color row in the pop discloses the picker body */
+.twk-shadow-color .twk-trigger-right, .twk-shadow-color .twk-trigger-value { max-width: none; } /* the row has the pop's full width */
+.twk-shadow-pop .twk-color-body[hidden] { display: none; } /* display: flex would beat the hidden attribute */
+.twk-shadow-chevron { flex-shrink: 0; width: 12px; height: 12px; color: var(--twk-text-tertiary); transition: transform 0.2s var(--twk-ease-pop); }
+.twk-shadow-color[aria-expanded="true"] .twk-shadow-chevron { transform: rotate(180deg); }
+.twk-shadow-pop .twk-color-body { margin-top: 2px; }
 /* The sides control (sides.ts). */
-.tw-sides-link { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; color: var(--tw-text-tertiary); background: transparent; border: none; border-radius: calc(var(--tw-radius) - 3px); cursor: pointer; transition: color 0.15s, background 0.15s, transform 0.24s var(--tw-ease-pop); }
-.tw-sides-link svg { width: 14px; height: 14px; }
-.tw-sides-link[aria-pressed="true"] { color: var(--tw-accent, var(--tw-text-primary)); }
+.twk-sides-link { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; color: var(--twk-text-tertiary); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 3px); cursor: pointer; transition: color 0.15s, background 0.15s, transform 0.24s var(--twk-ease-pop); }
+.twk-sides-link svg { width: 14px; height: 14px; }
+.twk-sides-link[aria-pressed="true"] { color: var(--twk-accent, var(--twk-text-primary)); }
 @media (hover: hover) and (pointer: fine) {
-  .tw-sides-link:hover { background: var(--tw-surface-hover); color: var(--tw-text-primary); }
+  .twk-sides-link:hover { background: var(--twk-surface-hover); color: var(--twk-text-primary); }
 }
-.tw-sides-link:active { transform: scale(var(--tw-press-icon)); transition: color 0.15s, background 0.15s, transform 0.08s ease-out; }
-.tw-sides > .tw-row .tw-num-wrap { margin-left: auto; } /* the link is last in the row too, at the pixels the head's link takes */
-.tw-sides.is-linked .tw-sides-multi, .tw-sides:not(.is-linked) > .tw-row { display: none; }
+.twk-sides-link:active { transform: scale(var(--twk-press-icon)); transition: color 0.15s, background 0.15s, transform 0.08s ease-out; }
+.twk-sides > .twk-row .twk-num-wrap { margin-left: auto; } /* the link is last in the row too, at the pixels the head's link takes */
+.twk-sides.is-linked .twk-sides-multi, .twk-sides:not(.is-linked) > .twk-row { display: none; }
 /* The open block: a head with the row's exact geometry (so label and link stay put on toggle), then four fields in a
  * line. Four across leaves ~38px inside a field — room for the grab and three digits, not the unit, which the head
  * shows once after the readout, ending 14px from the link like the row's "px" does. */
-.tw-sides-multi { display: flex; flex-direction: column; gap: 6px; padding: 0 10px 10px 12px; background: var(--tw-surface); border-radius: var(--tw-radius); }
-.tw-sides-head { display: flex; align-items: center; gap: 12px; height: var(--tw-row-height); }
-.tw-fields.tw-shadow-fields { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } /* 2×2: four across left one digit showing */
-.tw-sides-multi .tw-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; direction: ltr; } /* the places are physical; an rtl host must not mirror them */
-.tw-sides-multi .tw-field .tw-num-wrap { padding: 3px 5px; }
-.tw-sides-multi .tw-field .tw-num-unit { display: none; }
-.tw-sides-glyph { display: flex; align-items: center; height: 12px; } /* the glyph sits in a text label's line */
-.tw-sides-glyph svg { width: 12px; height: 12px; }
-.tw-sides-glyph[data-at="top-right"] svg, .tw-sides-glyph[data-at="right"] svg { transform: rotate(90deg); }
-.tw-sides-glyph[data-at="bottom-right"] svg, .tw-sides-glyph[data-at="bottom"] svg { transform: rotate(180deg); }
-.tw-sides-glyph[data-at="bottom-left"] svg, .tw-sides-glyph[data-at="left"] svg { transform: rotate(270deg); }
+.twk-sides-multi { display: flex; flex-direction: column; gap: 6px; padding: 0 10px 10px 12px; background: var(--twk-surface); border-radius: var(--twk-radius); }
+.twk-sides-head { display: flex; align-items: center; gap: 12px; height: var(--twk-row-height); }
+.twk-fields.twk-shadow-fields { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } /* 2×2: four across left one digit showing */
+.twk-sides-multi .twk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; direction: ltr; } /* the places are physical; an rtl host must not mirror them */
+.twk-sides-multi .twk-field .twk-num-wrap { padding: 3px 5px; }
+.twk-sides-multi .twk-field .twk-num-unit { display: none; }
+.twk-sides-glyph { display: flex; align-items: center; height: 12px; } /* the glyph sits in a text label's line */
+.twk-sides-glyph svg { width: 12px; height: 12px; }
+.twk-sides-glyph[data-at="top-right"] svg, .twk-sides-glyph[data-at="right"] svg { transform: rotate(90deg); }
+.twk-sides-glyph[data-at="bottom-right"] svg, .twk-sides-glyph[data-at="bottom"] svg { transform: rotate(180deg); }
+.twk-sides-glyph[data-at="bottom-left"] svg, .twk-sides-glyph[data-at="left"] svg { transform: rotate(270deg); }
 /* The readout is set like the row's field — the digits' tone and weight, the unit's 4px gap, weight and inset — so a
  * toggle swaps one for the other without a glyph moving or changing tone. */
-.tw-sides-sum { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--tw-text-label); word-spacing: 0.1em; }
-.tw-sides-unit { margin-left: 4px; padding-right: 2px; font-weight: 400; color: var(--tw-text-tertiary); }
+.twk-sides-sum { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--twk-text-label); word-spacing: 0.1em; }
+.twk-sides-unit { margin-left: 4px; padding-right: 2px; font-weight: 400; color: var(--twk-text-tertiary); }
 /* The motion control (motion.ts). */
-.tw-motion-chip { position: relative; }
-.tw-motion-chip svg { display: block; width: 100%; height: 100%; }
-.tw-motion-chip path { fill: none; stroke: var(--tw-accent, var(--tw-text-primary)); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; } /* non-scaling: 1.25 CSS px whatever the viewBox */
-.tw-motion-body, .tw-motion-pane { display: flex; flex-direction: column; gap: 8px; }
-.tw-motion-pop .tw-bezier-graph, .tw-motion-pop .tw-spring-viz { height: 120px; } /* the popover has the room the inline editors don't */
-.tw-motion-pane .tw-spring > .tw-row { display: none; } /* duration + bounce only (motion.ts springTime) */
-.tw-motion-stage { display: flex; align-items: center; height: 56px; padding: 0 16px; border-radius: var(--tw-radius); background: var(--tw-surface); overflow: hidden; cursor: pointer; } /* padding: STAGE_PAD in motion.ts, room for overshoot */
-.tw-motion-box { width: 24px; height: 24px; border-radius: 7px; background: var(--tw-accent, var(--tw-text-primary)); will-change: transform; }
-.tw-spring { display: flex; flex-direction: column; gap: 6px; }
-.tw-spring-viz { width: 100%; height: 96px; border-radius: var(--tw-radius); background: var(--tw-surface); overflow: hidden; cursor: crosshair; touch-action: none; transition: background 0.15s; }
+.twk-motion-chip { position: relative; }
+.twk-motion-chip svg { display: block; width: 100%; height: 100%; }
+.twk-motion-chip path { fill: none; stroke: var(--twk-accent, var(--twk-text-primary)); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; } /* non-scaling: 1.25 CSS px whatever the viewBox */
+.twk-motion-body, .twk-motion-pane { display: flex; flex-direction: column; gap: 8px; }
+.twk-motion-pop .twk-bezier-graph, .twk-motion-pop .twk-spring-viz { height: 120px; } /* the popover has the room the inline editors don't */
+.twk-motion-pane .twk-spring > .twk-row { display: none; } /* duration + bounce only (motion.ts springTime) */
+.twk-motion-stage { display: flex; align-items: center; height: 56px; padding: 0 16px; border-radius: var(--twk-radius); background: var(--twk-surface); overflow: hidden; cursor: pointer; } /* padding: STAGE_PAD in motion.ts, room for overshoot */
+.twk-motion-box { width: 24px; height: 24px; border-radius: 7px; background: var(--twk-accent, var(--twk-text-primary)); will-change: transform; }
+.twk-spring { display: flex; flex-direction: column; gap: 6px; }
+.twk-spring-viz { width: 100%; height: 96px; border-radius: var(--twk-radius); background: var(--twk-surface); overflow: hidden; cursor: crosshair; touch-action: none; transition: background 0.15s; }
 @media (hover: hover) and (pointer: fine) {
-  .tw-spring-viz:hover { background: var(--tw-surface-hover); }
+  .twk-spring-viz:hover { background: var(--twk-surface-hover); }
 }
 /* No resting border, so the grab cue is an inset ring. */
-.tw-spring-viz.is-dragging { background: var(--tw-surface-hover); box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
-.tw-spring-canvas { width: 100%; height: 100%; display: block; }
+.twk-spring-viz.is-dragging { background: var(--twk-surface-hover); box-shadow: inset 0 0 0 1px var(--twk-border-hover); }
+.twk-spring-canvas { width: 100%; height: 100%; display: block; }
 /* Labeled numeric fields — shared by Spring, Point and Bezier */
-.tw-fields { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+.twk-fields { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
 /* ── Point — a trigger row that opens the 2D pad ── */
-.tw-point { position: relative; }
+.twk-point { position: relative; }
 /* The mini pad's radius equals the dot's (2.5px), so a cornered dot sits concentric. */
-.tw-point-preview { position: relative; width: 18px; border-radius: 2.5px; background: var(--tw-base); overflow: hidden; }
-.tw-point-preview-dot { position: absolute; width: 5px; height: 5px; border-radius: 999px; background: var(--tw-accent, var(--tw-text-primary)); transform: translate(-50%, -50%); }
-.tw-point-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.tw-point-pop .tw-pad { max-width: 240px; margin: 0 auto; } /* fill the pane, square, up to 240px */
+.twk-point-preview { position: relative; width: 18px; border-radius: 2.5px; background: var(--twk-base); overflow: hidden; }
+.twk-point-preview-dot { position: absolute; width: 5px; height: 5px; border-radius: 999px; background: var(--twk-accent, var(--twk-text-primary)); transform: translate(-50%, -50%); }
+.twk-point-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.twk-point-pop .twk-pad { max-width: 240px; margin: 0 auto; } /* fill the pane, square, up to 240px */
 /* ── 2D point pad — overflow:visible so the thumb may overhang at the extremes ── */
-.tw-pad { position: relative; width: 100%; max-width: 176px; aspect-ratio: 1; margin: 0 auto 8px; border-radius: var(--tw-radius); background: var(--tw-base); box-shadow: inset 0 0 0 1px var(--tw-border); cursor: crosshair; touch-action: none; overflow: visible; }
-.tw-pad-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.tw-pad-line line { stroke: var(--tw-accent, var(--tw-text-tertiary)); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-linecap: round; }
-.tw-pad-axis { position: absolute; background: var(--tw-border); pointer-events: none; }
-.tw-pad-axis-x { left: 0; right: 0; top: 50%; height: 1px; transform: translateY(-50%); }
-.tw-pad-axis-y { top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); }
-.tw-pad-thumb { position: absolute; width: 14px; height: 14px; border-radius: 999px; background: var(--tw-accent, var(--tw-text-primary)); border: 2px solid var(--tw-base); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 1px 3px rgba(0, 0, 0, 0.3); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s; }
-.tw-pad.is-grabbing .tw-pad-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px var(--tw-border-hover), 0 3px 9px rgba(0, 0, 0, 0.4); }
-.tw-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.tw-field-label { font-size: 10px; line-height: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--tw-text-tertiary); text-transform: uppercase; }
-.tw-field .tw-num-wrap { background: var(--tw-base); border: 1px solid var(--tw-border); border-radius: calc(var(--tw-radius) - 2px); padding: 3px 4px; gap: 2px; line-height: 15px; transition: border-color 0.15s; }
-.tw-field .tw-num-unit { line-height: inherit; } /* the input's 15px line box; with the label's 12px, a field is 42px whatever the font */
-.tw-field .tw-num-wrap:focus-within { border-color: var(--tw-border-hover); }
+.twk-pad { position: relative; width: 100%; max-width: 176px; aspect-ratio: 1; margin: 0 auto 8px; border-radius: var(--twk-radius); background: var(--twk-base); box-shadow: inset 0 0 0 1px var(--twk-border); cursor: crosshair; touch-action: none; overflow: visible; }
+.twk-pad-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.twk-pad-line line { stroke: var(--twk-accent, var(--twk-text-tertiary)); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.twk-pad-axis { position: absolute; background: var(--twk-border); pointer-events: none; }
+.twk-pad-axis-x { left: 0; right: 0; top: 50%; height: 1px; transform: translateY(-50%); }
+.twk-pad-axis-y { top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); }
+.twk-pad-thumb { position: absolute; width: 14px; height: 14px; border-radius: 999px; background: var(--twk-accent, var(--twk-text-primary)); border: 2px solid var(--twk-base); box-shadow: 0 0 0 1px var(--twk-border-hover), 0 1px 3px rgba(0, 0, 0, 0.3); transform: translate(-50%, -50%); pointer-events: none; transition: transform 0.18s var(--twk-ease-spring), box-shadow 0.18s; }
+.twk-pad.is-grabbing .twk-pad-thumb { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 1px var(--twk-border-hover), 0 3px 9px rgba(0, 0, 0, 0.4); }
+.twk-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.twk-field-label { font-size: 10px; line-height: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--twk-text-tertiary); text-transform: uppercase; }
+.twk-field .twk-num-wrap { background: var(--twk-base); border: 1px solid var(--twk-border); border-radius: calc(var(--twk-radius) - 2px); padding: 3px 4px; gap: 2px; line-height: 15px; transition: border-color 0.15s; }
+.twk-field .twk-num-unit { line-height: inherit; } /* the input's 15px line box; with the label's 12px, a field is 42px whatever the font */
+.twk-field .twk-num-wrap:focus-within { border-color: var(--twk-border-hover); }
 /* Keyboard focus rings the whole boxed field, not the input alone inside it. */
-.tw-field .tw-num-wrap:has(> .tw-num:focus-visible:not(.tw-focus-quiet)), .tw-field .tw-num-wrap:has(> .tw-color-chan-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -1px; }
-.tw-field .tw-num-wrap > .tw-num:focus-visible, .tw-field .tw-num-wrap > .tw-color-chan-input:focus-visible { outline: none; }
+.twk-field .twk-num-wrap:has(> .twk-num:focus-visible:not(.twk-focus-quiet)), .twk-field .twk-num-wrap:has(> .twk-color-chan-input:focus-visible:not(.twk-focus-quiet)) { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: -1px; }
+.twk-field .twk-num-wrap > .twk-num:focus-visible, .twk-field .twk-num-wrap > .twk-color-chan-input:focus-visible { outline: none; }
 /* The same for the plot's expression field and a slider's inline number field. */
-.tw-plot-field:has(> .tw-plot-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
-.tw-slider:has(.tw-slider-input:focus-visible:not(.tw-focus-quiet)) { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: -2px; }
-.tw-wg-area:focus-visible, .tw-wg-hue:focus-visible, .tw-wg-alpha:focus-visible { outline: 2px solid var(--tw-accent, var(--tw-text-focus)); outline-offset: 2px; }
-.tw-field .tw-num { flex: 1; width: auto; min-width: 0; }
-.tw-field .tw-num-grab { width: 10px; }
+.twk-plot-field:has(> .twk-plot-input:focus-visible:not(.twk-focus-quiet)) { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: -2px; }
+.twk-slider:has(.twk-slider-input:focus-visible:not(.twk-focus-quiet)) { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: -2px; }
+.twk-wg-area:focus-visible, .twk-wg-hue:focus-visible, .twk-wg-alpha:focus-visible { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: 2px; }
+.twk-field .twk-num { flex: 1; width: auto; min-width: 0; }
+.twk-field .twk-num-grab { width: 10px; }
 
 /* ── Cubic bezier — interactive curve editor ── */
-.tw-bezier { display: flex; flex-direction: column; gap: 6px; }
-.tw-bezier-graph { position: relative; width: 100%; height: 96px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; touch-action: none; }
-.tw-bezier-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.tw-bezier-guide { stroke: var(--tw-border); stroke-width: 1; }
-.tw-bezier-diag { stroke: var(--tw-surface-active); stroke-width: 1; stroke-dasharray: 2 3; }
-.tw-bezier-ctl { stroke: var(--tw-text-tertiary); stroke-width: 1.5; }
-.tw-bezier-curve { fill: none; stroke: var(--tw-accent, var(--tw-text-primary)); stroke-width: 2; stroke-linecap: round; }
-.tw-bezier-handle {
+.twk-bezier { display: flex; flex-direction: column; gap: 6px; }
+.twk-bezier-graph { position: relative; width: 100%; height: 96px; background: var(--twk-surface); border-radius: var(--twk-radius); overflow: hidden; touch-action: none; }
+.twk-bezier-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.twk-bezier-guide { stroke: var(--twk-border); stroke-width: 1; }
+.twk-bezier-diag { stroke: var(--twk-surface-active); stroke-width: 1; stroke-dasharray: 2 3; }
+.twk-bezier-ctl { stroke: var(--twk-text-tertiary); stroke-width: 1.5; }
+.twk-bezier-curve { fill: none; stroke: var(--twk-accent, var(--twk-text-primary)); stroke-width: 2; stroke-linecap: round; }
+.twk-bezier-handle {
   position: absolute; width: 14px; height: 14px; margin: 0; padding: 0; /* 14px, as the color-area and point-pad thumbs */
   transform: translate(-50%, -50%); border-radius: 999px;
-  background: var(--tw-text-primary); border: 2px solid var(--tw-base);
+  background: var(--twk-text-primary); border: 2px solid var(--twk-base);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); cursor: grab; touch-action: none;
-  transition: transform 0.18s var(--tw-ease-spring), box-shadow 0.18s;
+  transition: transform 0.18s var(--twk-ease-spring), box-shadow 0.18s;
 }
 @media (hover: hover) and (pointer: fine) {
-  .tw-bezier-handle:hover { transform: translate(-50%, -50%) scale(1.2); }
+  .twk-bezier-handle:hover { transform: translate(-50%, -50%) scale(1.2); }
 }
-.tw-bezier-handle.is-dragging { cursor: grabbing; transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 3px 9px rgba(0, 0, 0, 0.45); }
-.tw-bezier-fields { gap: 4px; }
+.twk-bezier-handle.is-dragging { cursor: grabbing; transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 3px 9px rgba(0, 0, 0, 0.45); }
+.twk-bezier-fields { gap: 4px; }
 
 /* Plot — a function graph with an editable, safely-parsed expression. */
-.tw-plot { display: flex; flex-direction: column; gap: 6px; }
-.tw-plot-label, .tw-spring-label, .tw-bezier-label { font-size: 12px; font-weight: 500; color: var(--tw-text-label); padding: 0; transition: color 0.15s; } /* flush with the full-width graph below */
+.twk-plot { display: flex; flex-direction: column; gap: 6px; }
+.twk-plot-label, .twk-spring-label, .twk-bezier-label { font-size: 12px; font-weight: 500; color: var(--twk-text-label); padding: 0; transition: color 0.15s; } /* flush with the full-width graph below */
 /* As a panel row, a graph sits in a row's frame, as a radio grid does: 4px round the graph, the label
  * 12px in like every row's. (The motion pane's editors aren't rows, and stay flush.) */
-:is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-spring, .tw-bezier, .tw-plot) { padding: 4px; background: var(--tw-surface); border-radius: var(--tw-radius); } /* a markup panel's control sits in its host */
+:is(.twk-controls, .twk-controls > [data-twk]) > :is(.twk-spring, .twk-bezier, .twk-plot) { padding: 4px; background: var(--twk-surface); border-radius: var(--twk-radius); } /* a markup panel's control sits in its host */
 /* A 24px line for the label: in the 4px frame its text lands 9px down, where a
  * 32px row's centered label does. */
-:is(.tw-controls, .tw-controls > [data-tw]) > :is(.tw-spring, .tw-bezier, .tw-plot) > :is(.tw-spring-label, .tw-bezier-label, .tw-plot-label) { padding-left: 8px; line-height: 24px; }
-.tw-plot-graph { position: relative; width: 100%; height: 140px; background: var(--tw-surface); border-radius: var(--tw-radius); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tw-border); }
-.tw-plot-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.tw-plot-axis { stroke: var(--tw-border); stroke-width: 1; }
-.tw-plot-curve { fill: none; stroke: var(--tw-accent, var(--tw-text-primary)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.tw-plot-field { display: flex; align-items: center; gap: 7px; height: var(--tw-row-height); padding: 0 10px 0 12px; background: var(--tw-surface); border-radius: var(--tw-radius); box-shadow: inset 0 0 0 1px transparent; transition: box-shadow 0.15s; } /* the row idiom: 12 left, 10 right */
-.tw-plot-field:focus-within { box-shadow: inset 0 0 0 1px var(--tw-border-hover); }
-.tw-plot-fx { flex: none; font-size: 12px; color: var(--tw-text-tertiary); font-variant-numeric: tabular-nums; -webkit-user-select: none; user-select: none; }
-.tw-plot-input { flex: 1; min-width: 0; padding: 0; background: none; border: none; outline: none; color: var(--tw-text-primary); font-family: var(--tw-font-mono); font-size: 12px; }
-.tw-plot-input::placeholder { color: var(--tw-text-tertiary); }
-.tw-plot.is-invalid .tw-plot-curve { opacity: 0.25; }
-.tw-plot.is-invalid .tw-plot-field { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tw-danger) 60%, transparent); }
-.tw-plot.is-invalid .tw-plot-fx { color: color-mix(in srgb, var(--tw-danger) 80%, transparent); }
+:is(.twk-controls, .twk-controls > [data-twk]) > :is(.twk-spring, .twk-bezier, .twk-plot) > :is(.twk-spring-label, .twk-bezier-label, .twk-plot-label) { padding-left: 8px; line-height: 24px; }
+.twk-plot-graph { position: relative; width: 100%; height: 140px; background: var(--twk-surface); border-radius: var(--twk-radius); overflow: hidden; box-shadow: inset 0 0 0 1px var(--twk-border); }
+.twk-plot-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.twk-plot-axis { stroke: var(--twk-border); stroke-width: 1; }
+.twk-plot-curve { fill: none; stroke: var(--twk-accent, var(--twk-text-primary)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.twk-plot-field { display: flex; align-items: center; gap: 7px; height: var(--twk-row-height); padding: 0 10px 0 12px; background: var(--twk-surface); border-radius: var(--twk-radius); box-shadow: inset 0 0 0 1px transparent; transition: box-shadow 0.15s; } /* the row idiom: 12 left, 10 right */
+.twk-plot-field:focus-within { box-shadow: inset 0 0 0 1px var(--twk-border-hover); }
+.twk-plot-fx { flex: none; font-size: 12px; color: var(--twk-text-tertiary); font-variant-numeric: tabular-nums; -webkit-user-select: none; user-select: none; }
+.twk-plot-input { flex: 1; min-width: 0; padding: 0; background: none; border: none; outline: none; color: var(--twk-text-primary); font-family: var(--twk-font-mono); font-size: 12px; }
+.twk-plot-input::placeholder { color: var(--twk-text-tertiary); }
+.twk-plot.is-invalid .twk-plot-curve { opacity: 0.25; }
+.twk-plot.is-invalid .twk-plot-field { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--twk-danger) 60%, transparent); }
+.twk-plot.is-invalid .twk-plot-fx { color: color-mix(in srgb, var(--twk-danger) 80%, transparent); }
 
 /* ── Scheme resolution ──────────────────────────────────────────────────────────
  * Panels and portals follow the OS (color-scheme: light dark, above), dark when it asks for
- * dark. A [data-tw-scheme="dark"] or "light" pin on the node or any ancestor sets the scheme
+ * dark. A [data-twk-scheme="dark"] or "light" pin on the node or any ancestor sets the scheme
  * instead, and a light pin outranks a dark one wherever they nest: it comes later at the same
  * specificity, so a dark pin inside a light scope cannot re-darken its subtree. The pins set
  * color-scheme on the kit's own nodes only, never on the host element that carries the
  * attribute. The :where() keeps both rules at base class specificity. */
-.tw-panel:where([data-tw-scheme="dark"], [data-tw-scheme="dark"] *), .tw-portal:where([data-tw-scheme="dark"], [data-tw-scheme="dark"] *) { color-scheme: dark; }
-.tw-panel:where([data-tw-scheme="light"], [data-tw-scheme="light"] *), .tw-portal:where([data-tw-scheme="light"], [data-tw-scheme="light"] *) { color-scheme: light; }
+.twk-panel:where([data-twk-scheme="dark"], [data-twk-scheme="dark"] *), .twk-portal:where([data-twk-scheme="dark"], [data-twk-scheme="dark"] *) { color-scheme: dark; }
+.twk-panel:where([data-twk-scheme="light"], [data-twk-scheme="light"] *), .twk-portal:where([data-twk-scheme="light"], [data-twk-scheme="light"] *) { color-scheme: light; }
 /* The one rule light-dark() can't carry: on light the slider handle takes an edge for definition, and on dark it has no
  * shadow at all (a transparent one still moves the antialiasing of its rounded ends). So it picks the scheme the way the
  * pins above do: light under the OS unless a dark pin covers it, or under a light pin anywhere. */
-@media (prefers-color-scheme: light) { .tw-slider-handle:where(:not([data-tw-scheme="dark"] *)) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08); } }
-.tw-slider-handle:where([data-tw-scheme="light"] *) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08); }
+@media (prefers-color-scheme: light) { .twk-slider-handle:where(:not([data-twk-scheme="dark"] *)) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08); } }
+.twk-slider-handle:where([data-twk-scheme="light"] *) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08); }
 /* Tabular figures on the readouts. After the control rules: `font: inherit` also clears
  * font-variant-numeric, so this has to win on source order. */
-.tw-slider-value, .tw-slider-input, .tw-fps-val, .tw-num, .tw-grab-bubble,
-.tw-trigger-value, .tw-color-gamut, .tw-color-chan-input, .tw-sides-sum {
+.twk-slider-value, .twk-slider-input, .twk-fps-val, .twk-num, .twk-grab-bubble,
+.twk-trigger-value, .twk-color-gamut, .twk-color-chan-input, .twk-sides-sum {
   font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tw-panel, .tw-panel *, .tw-portal, .tw-portal * { transition: none !important; }
+  .twk-panel, .twk-panel *, .twk-portal, .twk-portal * { transition: none !important; }
   /* the transition kill doesn't touch animations */
-  .tw-tabs-page[data-active="true"], .tw-grab-bubble { animation: none; }
+  .twk-tabs-page[data-active="true"], .twk-grab-bubble { animation: none; }
 }
 
 /* Forced colors flatten every background, so state shown only by background needs an
  * outline or border in the system Highlight, which survives. */
 @media (forced-colors: active) {
-  .tw-seg-pill, .tw-tabs-pill, .tw-slider-fill { outline: 2px solid Highlight; outline-offset: -2px; }
-  .tw-radiogrid-btn[data-active="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
-  .tw-image-tile[data-active="true"] { outline-color: Highlight; }
-  .tw-gradient-stop[data-sel="true"] { border-color: Highlight; }
-  .tw-select-option:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; } /* the roving focus is a background, flattened here */
+  .twk-seg-pill, .twk-tabs-pill, .twk-slider-fill { outline: 2px solid Highlight; outline-offset: -2px; }
+  .twk-radiogrid-btn[data-active="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .twk-image-tile[data-active="true"] { outline-color: Highlight; }
+  .twk-gradient-stop[data-sel="true"] { border-color: Highlight; }
+  .twk-select-option:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; } /* the roving focus is a background, flattened here */
   /* Where the color is the content, keep it: a swatch, strip, bar or thumb flattened to Canvas shows nothing. */
-  .tw-color-swatch, .tw-option-swatch, .tw-image-thumb, .tw-gradient-preview, .tw-gradient-bar, .tw-gradient-stop, .tw-wg-area, .tw-wg-hue, .tw-wg-alpha, .tw-pad-thumb { forced-color-adjust: none; }
+  .twk-color-swatch, .twk-option-swatch, .twk-image-thumb, .twk-gradient-preview, .twk-gradient-bar, .twk-gradient-stop, .twk-wg-area, .twk-wg-hue, .twk-wg-alpha, .twk-pad-thumb { forced-color-adjust: none; }
   /* …but their focus ring is still the system's: opting out would leave it in the accent, which may match the flattened background. */
-  .tw-gradient-stop:focus-visible, .tw-wg-area:focus-visible, .tw-wg-hue:focus-visible, .tw-wg-alpha:focus-visible { outline-color: Highlight; }
+  .twk-gradient-stop:focus-visible, .twk-wg-area:focus-visible, .twk-wg-hue:focus-visible, .twk-wg-alpha:focus-visible { outline-color: Highlight; }
 }

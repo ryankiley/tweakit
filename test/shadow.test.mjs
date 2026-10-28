@@ -17,8 +17,8 @@ test("defaults, the value shape, and the CSS it resolves to", async () => {
   assert.deepEqual({ ...v, color: undefined, css: undefined }, { inset: false, x: 0, y: 8, blur: 24, spread: 0, color: undefined, css: undefined });
   assert.match(v.color, /^rgb\(0 0 0 \/ 0\.18\)$/, "the default color, as the control writes it");
   assert.equal(v.css, `0px 8px 24px 0px ${v.color}`);
-  assert.equal(p.el.querySelector(".tw-shadow .tw-trigger-value").textContent, "0 8 24", "the summary skips a zero spread");
-  assert.equal(p.el.querySelector(".tw-shadow-card").style.boxShadow, v.css, "the preview card wears the value");
+  assert.equal(p.el.querySelector(".twk-shadow .twk-trigger-value").textContent, "0 8 24", "the summary skips a zero spread");
+  assert.equal(p.el.querySelector(".twk-shadow-card").style.boxShadow, v.css, "the preview card wears the value");
   p.destroy();
 });
 
@@ -51,11 +51,11 @@ test("hostile input never reaches the CSS: extra layers, url(), named colors, ca
 
 test("the popover: one editor surface with the picker inline, the position switch emits, changes() and reset see it", async () => {
   const p = await mount({ s: { type: "shadow" } });
-  const trigger = p.el.querySelector(".tw-shadow .tw-trigger"); trigger.focus(); trigger.click(); await wait(40);
-  const pop = document.body.querySelector(".tw-shadow-pop.is-open");
-  assert.ok(pop, "the popover is open"); assert.ok(pop.querySelector(".tw-color-body"), "the picker body sits inside it");
-  assert.equal(document.body.querySelectorAll(".tw-color-pop.is-open").length, 1, "no nested popover");
-  [...pop.querySelectorAll(".tw-seg-btn")].find((b) => b.textContent.trim() === "Inner").click();
+  const trigger = p.el.querySelector(".twk-shadow .twk-trigger"); trigger.focus(); trigger.click(); await wait(40);
+  const pop = document.body.querySelector(".twk-shadow-pop.is-open");
+  assert.ok(pop, "the popover is open"); assert.ok(pop.querySelector(".twk-color-body"), "the picker body sits inside it");
+  assert.equal(document.body.querySelectorAll(".twk-color-pop.is-open").length, 1, "no nested popover");
+  [...pop.querySelectorAll(".twk-seg-btn")].find((b) => b.textContent.trim() === "Inner").click();
   assert.equal(p.params.s.inset, true); assert.deepEqual(Object.keys(p.changes()), ["s"]);
   p.reset(); assert.equal(p.params.s.inset, false); assert.equal(p.changes().s, undefined);
   document.activeElement.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(220); p.destroy();
@@ -63,10 +63,10 @@ test("the popover: one editor surface with the picker inline, the position switc
 
 test("markup: data-value as a box-shadow string, or the fields as attributes", async () => {
   const holder = document.createElement("div");
-  holder.innerHTML = `<div data-tw="shadow" data-label="Lift" data-value="0 8px 24px #0003"></div><div data-tw="shadow" data-label="Inner" data-inset="true" data-y="1" data-blur="0" data-color="#fff"></div>`;
+  holder.innerHTML = `<div data-twk="shadow" data-label="Lift" data-value="0 8px 24px #0003"></div><div data-twk="shadow" data-label="Inner" data-inset="true" data-y="1" data-blur="0" data-color="#fff"></div>`;
   document.body.append(holder);
   await enhance(holder);
-  const [a, b] = [...holder.querySelectorAll('[data-tw="shadow"]')].map((h) => h._tw.ctrl.get());
+  const [a, b] = [...holder.querySelectorAll('[data-twk="shadow"]')].map((h) => h._tw.ctrl.get());
   assert.deepEqual([a.x, a.y, a.blur, a.spread], [0, 8, 24, 0]);
   assert.equal(b.inset, true); assert.equal(b.y, 1); assert.equal(b.blur, 0);
   holder.remove();
@@ -74,7 +74,7 @@ test("markup: data-value as a box-shadow string, or the fields as attributes", a
 
 test("review follow-up: a fractional length is emitted as the field fitted it, so the value, the CSS and the field agree", async () => {
   const p = await mount({ s: { type: "shadow", x: 2.5, blur: 24.4 } });
-  const fields = () => [...p.el.querySelectorAll(".tw-shadow-pop .tw-fields .tw-num")].map((i) => i.value);
+  const fields = () => [...p.el.querySelectorAll(".twk-shadow-pop .twk-fields .twk-num")].map((i) => i.value);
   assert.deepEqual([p.params.s.x, p.params.s.blur], [3, 24]); assert.deepEqual(fields(), ["3", "8", "24", "0"]);
   p.set("s", { y: 7.4, spread: -0.6 });
   assert.deepEqual([p.params.s.y, p.params.s.spread], [7, -1]); assert.deepEqual(fields(), ["3", "7", "24", "-1"]);
@@ -84,24 +84,24 @@ test("review follow-up: a fractional length is emitted as the field fitted it, s
 
 test("the color is a row that discloses the picker; the row reads the picker's color", async () => {
   const p = tweaks("S", { lift: { type: "shadow", color: "#ff0000" } }); document.body.append(p.el); await p.ready;
-  const root = p.el.querySelector(".tw-shadow"), pop = root.querySelector(".tw-shadow-pop"), row = pop.querySelector(".tw-shadow-color"), body = pop.querySelector(".tw-color-body");
+  const root = p.el.querySelector(".twk-shadow"), pop = root.querySelector(".twk-shadow-pop"), row = pop.querySelector(".twk-shadow-color"), body = pop.querySelector(".twk-color-body");
   assert.ok(row && body, "a color row and the picker body are in the pop");
   assert.equal(body.hidden, true, "the picker starts disclosed away"); assert.equal(row.getAttribute("aria-expanded"), "false");
-  assert.ok(row.querySelector(".tw-color-swatch").compareDocumentPosition(row.querySelector(".tw-trigger-value")) & 4, "swatch before the readout");
-  assert.match(row.querySelector(".tw-trigger-value").textContent, /\S/, "the row shows a readout");
+  assert.ok(row.querySelector(".twk-color-swatch").compareDocumentPosition(row.querySelector(".twk-trigger-value")) & 4, "swatch before the readout");
+  assert.match(row.querySelector(".twk-trigger-value").textContent, /\S/, "the row shows a readout");
   row.click(); assert.equal(body.hidden, false); assert.equal(row.getAttribute("aria-expanded"), "true");
-  const before = row.querySelector(".tw-trigger-value").textContent;
-  p.set("lift", { color: "#00ff00" }); assert.notEqual(row.querySelector(".tw-trigger-value").textContent, before, "set() repaints the row");
+  const before = row.querySelector(".twk-trigger-value").textContent;
+  p.set("lift", { color: "#00ff00" }); assert.notEqual(row.querySelector(".twk-trigger-value").textContent, before, "set() repaints the row");
   row.click(); assert.equal(body.hidden, true);
   p.destroy();
 });
 
 test("the four length fields sit two by two (X Y / Blur Spread), not four across the popover", async () => {
   const p = await mount({ s: { type: "shadow" } });
-  const fields = document.querySelector(".tw-shadow-pop .tw-shadow-fields");
+  const fields = document.querySelector(".twk-shadow-pop .twk-shadow-fields");
   assert.ok(fields, "the shadow's field row carries its own class");
-  assert.deepEqual([...fields.querySelectorAll(".tw-field-label")].map((l) => l.textContent), ["X", "Y", "Blur", "Spread"]);
-  // It has to win the cascade, not just exist: the generic .tw-fields rule (four across) comes
+  assert.deepEqual([...fields.querySelectorAll(".twk-field-label")].map((l) => l.textContent), ["X", "Y", "Blur", "Spread"]);
+  // It has to win the cascade, not just exist: the generic .twk-fields rule (four across) comes
   // later in the sheet, so the 2×2 rule needs more classes than it, or a later place. (jsdom's
   // getComputedStyle doesn't settle this the way a browser does, so the test reasons it out.)
   const css = (distCss()).replace(/@media[^{]*\{([^{}]*\{[^{}]*\})*[^{}]*\}/g, "");

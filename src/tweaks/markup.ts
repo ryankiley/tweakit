@@ -1,4 +1,4 @@
-/* Markup-driven enhancement — the work behind enhance(): it turns [data-tw] hosts into live controls, sharing the
+/* Markup-driven enhancement — the work behind enhance(): it turns [data-twk] hosts into live controls, sharing the
  * panel's meta derivation through the kit. A lazy chunk in the code-split build, fetched by the first enhance() on a page
  * with markup (single.ts imports it statically). It imports shared.ts alone: a panel module imported here as well as by
  * core would become a shared chunk every basic panel fetches, so core lends what it needs (enhance.ts builds the kit). */
@@ -16,7 +16,7 @@ export interface MarkupKit {
   makeCopyBtn: typeof makeCopyBtn; makeResetBtn: typeof makeResetBtn; addHintMarker: typeof addHintMarker;
 }
 
-// ── The markup forms — each [data-tw] type parses its dataset into the same verbose
+// ── The markup forms — each [data-twk] type parses its dataset into the same verbose
 // schema value TYPED_META consumes, then rides metaFor: ONE derivation, so markup defaults can't drift. ──
 const springData = (d: DOMStringMap) => ({ ...Object.fromEntries(SPRING_KEYS.map((k) => [k, num(d[k])])), mode: d.mode }); // the motion control reads the same markup
 const choices = (d: DOMStringMap) => ({ options: splitList(d.options), value: d.value, cols: num(d.cols) }); // the radio grid, by either name
@@ -52,15 +52,15 @@ const num = (s: string | undefined) => { if (s == null || s === "") return undef
 const flag = (s: string | undefined) => s === "true" || s === "";    // boolean attributes: data-x / data-x="true"
 const splitList = (s: string | undefined) => (s || "").split(",").map((t) => t.trim()).filter(Boolean);
 const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
-  const d = host.dataset, type = d.tw;
+  const d = host.dataset, type = d.twk;
   // Tabs are panel-only, so a tabs host is left untouched, as the markup page says; built, it fell through to a folder
   // whose missing get() threw out of enhance() and left every later host claimed but empty.
   if (type === "tabs") return null;
   const label = d.label ?? titleCase(d.key || type); // data-label="" means no label, like `label: ""`
   // A lazy type with no parser takes the dataset as its fields.
   const v = hasOwn(DATA_VALUE, type) ? DATA_VALUE[type]!(d, host, label) : (kit.LAZY_IMPORT[type] || getControl(type)) ? { ...d } : null;
-  // A typo (`data-tw="slidr"`) rendered nothing and said nothing. The list names what markup builds, so not tabs.
-  if (!v) { import("./heavy.js").then((m) => m.unknownType(`data-tw="${type}"`, String(type), [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()].filter((t) => t !== "tabs"), "markup"), () => {}); return null; }
+  // A typo (`data-twk="slidr"`) rendered nothing and said nothing. The list names what markup builds, so not tabs.
+  if (!v) { import("./heavy.js").then((m) => m.unknownType(`data-twk="${type}"`, String(type), [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()].filter((t) => t !== "tabs"), "markup"), () => {}); return null; }
   // The label rides the verbose value; v spreads after, so a parser's own type or label wins. A form that comes back a
   // folder (a lazy type's verbose form missing the field it hinges on) is no control either.
   const m = kit.metaFor("v", { type, label, ...v });
@@ -68,7 +68,7 @@ const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
 };
 
 
-/** The handle enhance() hangs on a bound [data-tw] host: its control, the reset pair and its key. */
+/** The handle enhance() hangs on a bound [data-twk] host: its control, the reset pair and its key. */
 interface HostHandle { ctrl: Control; raw: unknown; def: unknown; key: string; host: HTMLElement; reset: () => void }
 interface HostEl extends HTMLElement { _tw?: HostHandle }
 
@@ -77,32 +77,32 @@ interface HostEl extends HTMLElement { _tw?: HostHandle }
 const writeDataValue = (host: HTMLElement, v: unknown) => {
   host.dataset.value = v == null ? "" : Array.isArray(v) ? v.join(",") : typeof v === "object" ? Object.values(v).join(",") : String(v);
 };
-// One change path for a markup host: echo onto data-value, then a bubbling tw:change with { key, value }.
+// One change path for a markup host: echo onto data-value, then a bubbling twk:change with { key, value }.
 const announce = (host: HTMLElement, key: string, v: unknown) => {
   writeDataValue(host, v);
-  host.dispatchEvent(new CustomEvent("tw:change", { bubbles: true, detail: { key, value: v } }));
+  host.dispatchEvent(new CustomEvent("twk:change", { bubbles: true, detail: { key, value: v } }));
 };
 // querySelectorAll sees descendants only — a root that is itself a host counts too (a Document has no matches()).
 const select = <T extends Element = HTMLElement>(root: Document | Element, sel: string): T[] => [...(typeof (root as Element).matches === "function" && (root as Element).matches(sel) ? [root as T] : []), ...root.querySelectorAll<T>(sel)];
-/** Bind every unbound [data-tw] host under `root`. */
+/** Bind every unbound [data-twk] host under `root`. */
 async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> {
   const { createFolder, createControl, makeCopyBtn, makeResetBtn, addHintMarker, ensureForMetas } = kit;
-  // Static showcase panels collapse like the real one: wrap the controls in a .tw-body, make the title the toggle.
-  select(root, '.tw-panel[data-mode="inline"]:not([data-tw-panel-bound])').forEach((panel) => {
-    const header = panel.querySelector(":scope > .tw-header");
-    const controls = panel.querySelector(":scope > .tw-controls");
+  // Static showcase panels collapse like the real one: wrap the controls in a .twk-body, make the title the toggle.
+  select(root, '.twk-panel[data-mode="inline"]:not([data-twk-panel-bound])').forEach((panel) => {
+    const header = panel.querySelector(":scope > .twk-header");
+    const controls = panel.querySelector(":scope > .twk-controls");
     if (!header || !controls) return;
-    panel.setAttribute("data-tw-panel-bound", "");
-    const body = el("div", "tw-body"); panel.insertBefore(body, controls); body.append(controls);
-    let toggle = header.querySelector<HTMLButtonElement>(".tw-header-toggle");
-    const title = header.querySelector(".tw-title");
-    if (!toggle && title) { toggle = btn("tw-header-toggle"); title.replaceWith(toggle); toggle.append(title); }
+    panel.setAttribute("data-twk-panel-bound", "");
+    const body = el("div", "twk-body"); panel.insertBefore(body, controls); body.append(controls);
+    let toggle = header.querySelector<HTMLButtonElement>(".twk-header-toggle");
+    const title = header.querySelector(".twk-title");
+    if (!toggle && title) { toggle = btn("twk-header-toggle"); title.replaceWith(toggle); toggle.append(title); }
     if (!toggle) return;
     toggle.setAttribute("aria-expanded", "true");
     toggle.addEventListener("click", () => foldBody(panel, toggle, body, !panel.classList.contains("is-collapsed")));
-    // The same toolbar tweaks() builds, over this panel's own [data-tw] controls (gathered at click time).
-    if (!header.querySelector(".tw-toolbar")) {
-      const live = () => [...panel.querySelectorAll<HostEl>("[data-tw]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);
+    // The same toolbar tweaks() builds, over this panel's own [data-twk] controls (gathered at click time).
+    if (!header.querySelector(".twk-toolbar")) {
+      const live = () => [...panel.querySelectorAll<HostEl>("[data-twk]")].map((h) => h._tw).filter((t) => t && t.ctrl.get() !== undefined);
       // Two hosts can share a key (a repeated data-key, or the same label): suffix the duplicates.
       const values = () => {
         const vals: Record<string, unknown> = Object.create(null); // null-proto: a "__proto__" data-key is an ordinary key
@@ -113,22 +113,22 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
         return JSON.stringify(vals, null, 2);
       };
       const reset = () => { for (const t of live()) t.reset(); };
-      const toolbar = el("div", "tw-toolbar");
+      const toolbar = el("div", "twk-toolbar");
       toolbar.append(makeCopyBtn(() => [values(), -1]), makeResetBtn(reset)); header.append(toolbar); // no defaults to diff against: the copy is every value
     }
   });
   // Folders first: move child hosts into the collapsible chrome.
-  select(root, '[data-tw="folder"]:not([data-tw-bound])').forEach((host) => {
-    host.setAttribute("data-tw-bound", "");
+  select(root, '[data-twk="folder"]:not([data-twk-bound])').forEach((host) => {
+    host.setAttribute("data-twk-bound", "");
     const f = createFolder({ label: host.dataset.label || "Folder" });
     [...host.children].forEach((c) => f.body.append(c));
     host.append(f.el);
   });
   // Claim each host synchronously, so a re-entrant enhance can't double-bind; then load and build.
-  const hosts = select<HostEl>(root, "[data-tw]:not([data-tw-bound])")
+  const hosts = select<HostEl>(root, "[data-twk]:not([data-twk-bound])")
     .map((h) => ({ host: h, meta: dataMeta(kit, h) }))
     .filter((x) => x.meta);
-  hosts.forEach(({ host }) => host.setAttribute("data-tw-bound", ""));
+  hosts.forEach(({ host }) => host.setAttribute("data-twk-bound", ""));
   const pend = ensureForMetas(hosts.map((x) => x.meta));
   if (pend) await pend.catch(() => {}); // a failed chunk skips its controls instead of rejecting
   // One host that fails to build costs only itself: the rest still bind.
@@ -139,14 +139,14 @@ async function enhance(root: Document | Element, kit: MarkupKit): Promise<void> 
     const emit = (v: unknown) => { if (!valueChanged(last, v)) return; last = v; announce(host, key, v); };
     const ctrl = createControl(meta, emit);
     if (!ctrl) continue;
-    if (!host.closest(".tw-panel, .tw-portal")) host.classList.add("tw-portal"); // a bare host gets the token scope
+    if (!host.closest(".twk-panel, .twk-portal")) host.classList.add("twk-portal"); // a bare host gets the token scope
     host.append(ctrl.el); if (host.dataset.hint) addHintMarker(ctrl.el, host.dataset.hint);
     // raw = the markup's value, def = the form the control opened on: the panel's reset pair.
     const def = ctrl.get(); last = def;
     // The handle's set() runs the change path too, where the bare control's set() is silent.
     const handle = { ...ctrl, set: (v: unknown) => { ctrl.set(v); emit(ctrl.get()); } };
     host._tw = { ctrl: handle, raw: meta.value, def, key, host, reset: () => { restoreDefault(ctrl, meta.value, def); emit(ctrl.get()); } };
-  } catch (err) { console.error(`[tweaks] data-tw="${host.dataset.tw}" could not be built — skipped:`, err); }
+  } catch (err) { console.error(`[tweaks] data-twk="${host.dataset.twk}" could not be built — skipped:`, err); }
 }
 
 setMarkup(enhance);

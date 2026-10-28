@@ -16,12 +16,12 @@ const unclock = (s) => { const [hm, ap] = s.trim().toUpperCase().split(/\s+/); c
 const build = async (opts) => {
   const p = tweaks("Format", { time: { type: "slider", value: 450, min: 0, max: 1425, step: 15, ...opts } });
   document.body.append(p.el); await p.ready;
-  const track = p.el.querySelector(".tw-slider"), readout = () => p.el.querySelector(".tw-slider-value").textContent;
+  const track = p.el.querySelector(".twk-slider"), readout = () => p.el.querySelector(".twk-slider-value").textContent;
   return { p, track, readout };
 };
 const typeIn = (track, text) => {
   track.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  const input = track.querySelector(".tw-slider-input");
+  const input = track.querySelector(".twk-slider-input");
   const opened = { shown: input.value, mode: input.inputMode, width: input.style.width };
   input.value = text;
   input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));

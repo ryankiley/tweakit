@@ -12,7 +12,7 @@ const { tweaks } = await loadSplit();
 // that needs only that type assembles synchronously and the window these tests exercise is
 // gone. Each test therefore needs a lazy type no earlier test loaded, and asserts the window
 // is open — the toolbar stays disabled until assemble() runs.
-const inLazyWindow = (p) => p.el.querySelector(".tw-toolbar-btn--reset").disabled;
+const inLazyWindow = (p) => p.el.querySelector(".twk-toolbar-btn--reset").disabled;
 
 test("set() during the lazy window replays once ready", async () => {
   // interval is a lazy control, so assemble defers behind panel.ready
@@ -85,8 +85,8 @@ test("a header drag lifts the panel before the lazy chunks have landed", async (
   // the first chunk landed a header drag did nothing. shadow is a lazy type no test above loads.
   const p = tweaks("Early", { x: [1, 0, 10, 1], s: { type: "shadow" } });
   document.body.append(p.el);
-  assert.ok(p.el.querySelector(".tw-toolbar-btn--reset").disabled, "in the lazy window");
-  const header = p.el.querySelector(".tw-header");
+  assert.ok(p.el.querySelector(".twk-toolbar-btn--reset").disabled, "in the lazy window");
+  const header = p.el.querySelector(".twk-header");
   pointer("pointerdown", header, 10, 10);
   pointer("pointermove", header, 40, 30);
   pointer("pointerup", header, 40, 30, { buttons: 0 });
