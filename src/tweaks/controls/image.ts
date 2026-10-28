@@ -7,100 +7,181 @@ import type { Control } from "../types.js";
 
 // Escape for a CSS string literal: the quote, the backslash and control characters (a raw newline ends a CSS string),
 // so a stored `a.png"), url("https://x/p.png` is one broken image, not a second background layer and a fetch.
-const cssString = (s: string) => String(s).replace(/[\\"]/g, "\\$&").replace(/[\x00-\x1f\x7f]/g, (c) => "\\" + c.charCodeAt(0).toString(16) + " ");
+const cssString = (s: string) =>
+  String(s)
+    .replace(/[\\"]/g, "\\$&")
+    .replace(/[\x00-\x1f\x7f]/g, (c) => "\\" + c.charCodeAt(0).toString(16) + " ");
 const urlCss = (s: string) => `url("${cssString(s)}")`;
 const MB = 1 << 20;
-const size = (n: number) => (n >= MB ? `${Math.round((n / MB) * 10) / 10} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
+const size = (n: number) =>
+  n >= MB ? `${Math.round((n / MB) * 10) / 10} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`;
 // A tile's accessible name when its option has no label: the URL's file stem; a data URL has none.
-const stem = (url: string) => { if (/^data:/i.test(url)) return ""; const s = url.split(/[?#]/)[0].split("/").pop()!.replace(/\.\w+$/, ""); try { return decodeURIComponent(s); } catch { return s; } };
-// Pixels, not bytes, are what make an upload heavy: a phone photo is ~4 MB as a data URL, and storage holds ~5 MB an origin,
-// so one upload could keep every value from saving. A picture longer than `fit` on its long side is drawn down to it before
-// it becomes the param, and one within `fit` but heavier than 1.5 MB is redrawn at its size. A JPEG stays a JPEG, at `quality`. Anything else is tried as a PNG first, so a screenshot or text
-// isn't smudged, and kept as one up to 1.5 MB: a photo's PNG at 2560px is several times that, while a screenshot's is not.
-// (It's weighed by size, not against the JPEG: drawn down, even a screenshot's PNG runs about twice its JPEG.) Past that it
-// is a JPEG, or with transparency a WebP where the browser writes one, whichever is smaller than the PNG. An SVG has no
-// pixels to fit, and a GIF, an animated WebP or an APNG would keep only its first frame, so they are taken as they are.
-// Resolves "" to take the file as it is: it fits and is light, its format is kept, the browser can't decode or draw it, or
-// the redraw came out no smaller.
+const stem = (url: string) => {
+  if (/^data:/i.test(url)) return "";
+  const s = url
+    .split(/[?#]/)[0]
+    .split("/")
+    .pop()!
+    .replace(/\.\w+$/, "");
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+};
+// Pixels, not bytes, are what make an upload heavy: a phone photo is ~4 MB as a data URL, and storage holds ~5 MB an
+// origin, so one upload could keep every value from saving. A picture longer than `fit` on its long side is drawn down
+// to it before it becomes the param, and one within `fit` but heavier than 1.5 MB is redrawn at its size. A JPEG stays
+// a JPEG, at `quality`. Anything else is tried as a PNG first, so a screenshot or text isn't smudged, and kept as one
+// up to 1.5 MB: a photo's PNG at 2560px is several times that, while a screenshot's is not.
+// (It's weighed by size, not against the JPEG: drawn down, even a screenshot's PNG runs about twice its JPEG.) Past
+// that it is a JPEG, or with transparency a WebP where the browser writes one, whichever is smaller than the PNG. An
+// SVG has no pixels to fit, and a GIF, an animated WebP or an APNG would keep only its first frame, so they are taken
+// as they are.
+// Resolves "" to take the file as it is: it fits and is light, its format is kept, the browser can't decode or draw it,
+// or the redraw came out no smaller.
 const KEEP = /^image\/(gif|svg\+xml)$/i;
 const PNG_BUDGET = 1.5 * MB;
 const PNG_SIG = "\x89PNG\r\n\x1a\n";
-const ascii = (b: Uint8Array, at: number, s: string) => { for (let k = 0; k < s.length; k++) if (b[at + k] !== s.charCodeAt(k)) return false; return true; };
+const ascii = (b: Uint8Array, at: number, s: string) => {
+  for (let k = 0; k < s.length; k++) if (b[at + k] !== s.charCodeAt(k)) return false;
+  return true;
+};
 // The file says it's animated before its first frame: WebP in VP8X's animation flag or an ANIM chunk, a PNG in an acTL
 // chunk ahead of its first IDAT. Only chunk headers are read, never the frames, however many chunks come first.
 export const animated = async (file: Blob) => {
   const at = async (i: number, n: number) => new Uint8Array(await file.slice(i, i + n).arrayBuffer());
-  const h = await at(0, 21), webp = ascii(h, 0, "RIFF") && ascii(h, 8, "WEBP");
+  const h = await at(0, 21),
+    webp = ascii(h, 0, "RIFF") && ascii(h, 8, "WEBP");
   if (webp && ascii(h, 12, "VP8X") && h[20] & 2) return true;
   if (!webp && !ascii(h, 0, PNG_SIG)) return false;
-  for (let i = webp ? 12 : 8; ; ) {
-    const c = await at(i, 8); if (c.length < 8) return false;
+  for (let i = webp ? 12 : 8; ;) {
+    const c = await at(i, 8);
+    if (c.length < 8) return false;
     const type = String.fromCharCode(...c.subarray(webp ? 0 : 4, webp ? 4 : 8));
     if (type === (webp ? "ANIM" : "acTL")) return true;
     if (webp ? /^(VP8 |VP8L|ANMF)$/.test(type) : type === "IDAT") return false; // the picture has begun
-    const n = new DataView(c.buffer).getUint32(webp ? 4 : 0, webp); // a WebP chunk's size is little-endian and padded to even
+    // a WebP chunk's size is little-endian and padded to even
+    const n = new DataView(c.buffer).getUint32(webp ? 4 : 0, webp);
     i += webp ? 8 + n + (n & 1) : 12 + n; // at least a header on, so the end of the file comes
   }
 };
-// A picture taken as it is keeps its bytes, and a phone's carry where it was taken: Exif's GPS, and XMP, which can repeat
-// it. The value is stored and copied as JSON into source, so those blocks are cut from the bytes, losslessly: the ICC
-// profile, which carries a wide gamut, and everything else stays. Exif's Orientation decides which way up the picture
-// shows, so a turned one gets a bare Exif back holding only that tag. A redraw needs none of this: a canvas writes no Exif.
+// A picture taken as it is keeps its bytes, and a phone's carry where it was taken: Exif's GPS, and XMP, which can
+// repeat it. The value is stored and copied as JSON into source, so those blocks are cut from the bytes, losslessly:
+// the ICC profile, which carries a wide gamut, and everything else stays. Exif's Orientation decides which way up the
+// picture shows, so a turned one gets a bare Exif back holding only that tag. A redraw needs none of this: a canvas
+// writes no Exif.
 // Each parser hands back the bytes left, or null to keep the file whole: nothing to cut, or a block it can't read.
 const orientation = (t: Uint8Array) => {
-  const le = ascii(t, 0, "II"), v = new DataView(t.buffer, t.byteOffset, t.byteLength); if (!le && !ascii(t, 0, "MM")) return null;
+  const le = ascii(t, 0, "II"),
+    v = new DataView(t.buffer, t.byteOffset, t.byteLength);
+  if (!le && !ascii(t, 0, "MM")) return null;
+  // an offset past the end
   try {
     const ifd = v.getUint32(4, le);
-    for (let k = 0, n = v.getUint16(ifd, le); k < n; k++) if (v.getUint16(ifd + 2 + k * 12, le) === 0x112) { const o = v.getUint16(ifd + 10 + k * 12, le); return o > 1 && o <= 8 ? o : 1; }
+    for (let k = 0, n = v.getUint16(ifd, le); k < n; k++)
+      if (v.getUint16(ifd + 2 + k * 12, le) === 0x112) {
+        const o = v.getUint16(ifd + 10 + k * 12, le);
+        return o > 1 && o <= 8 ? o : 1;
+      }
     return 1;
-  } catch { return null; } // an offset past the end
+  } catch {
+    return null;
+  }
 };
 // A big-endian TIFF header and one IFD with the one entry: Orientation, a SHORT.
-const bareExif = (o: number) => new Uint8Array([77, 77, 0, 42, 0, 0, 0, 8, 0, 1, 1, 0x12, 0, 3, 0, 0, 0, 1, 0, o, 0, 0, 0, 0, 0, 0]);
+const bareExif = (o: number) =>
+  new Uint8Array([77, 77, 0, 42, 0, 0, 0, 8, 0, 1, 1, 0x12, 0, 3, 0, 0, 0, 1, 0, o, 0, 0, 0, 0, 0, 0]);
 type Bytes = Uint8Array<ArrayBuffer>; // what a Blob takes: never a SharedArrayBuffer
-const crc32 = (b: Uint8Array) => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
-// An Ultra HDR JPEG's XMP carries its gain map (hdrgm:), the HDR itself, so it stays when every namespace it declares and
-// every prefix it uses is the gain map's or its container's: nothing there can say where or who. Anything more, and it's cut.
+const crc32 = (b: Uint8Array) => {
+  let c = ~0;
+  for (const x of b) {
+    c ^= x;
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+  }
+  return ~c >>> 0;
+};
+// An Ultra HDR JPEG's XMP carries its gain map (hdrgm:), the HDR itself, so it stays when every namespace it declares
+// and every prefix it uses is the gain map's or its container's: nothing there can say where or who. Anything more, and
+// it's cut.
 const XMP = "http://ns.adobe.com/xap/1.0/\0";
-const GAIN_NS = ["adobe:ns:meta/", "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "http://ns.adobe.com/hdr-gain-map/1.0/", "http://ns.google.com/photos/1.0/container/", "http://ns.google.com/photos/1.0/container/item/"];
+const GAIN_NS = [
+  "adobe:ns:meta/",
+  "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+  "http://ns.adobe.com/hdr-gain-map/1.0/",
+  "http://ns.google.com/photos/1.0/container/",
+  "http://ns.google.com/photos/1.0/container/item/",
+];
 const gainMapOnly = (b: Uint8Array) => {
-  const x = new TextDecoder("latin1").decode(b), ok = new Set(["xmlns", "xml"]);
+  const x = new TextDecoder("latin1").decode(b),
+    ok = new Set(["xmlns", "xml"]);
   if (!x.includes(GAIN_NS[2])) return false;
-  for (const [, p, ns] of x.matchAll(/xmlns(?::([\w.-]+))?\s*=\s*["']([^"']*)["']/g)) { if (!GAIN_NS.includes(ns)) return false; if (p) ok.add(p); }
+  for (const [, p, ns] of x.matchAll(/xmlns(?::([\w.-]+))?\s*=\s*["']([^"']*)["']/g)) {
+    if (!GAIN_NS.includes(ns)) return false;
+    if (p) ok.add(p);
+  }
   for (const [, p] of x.matchAll(/[<\s/]([\w.-]+):[\w.-]/g)) if (!ok.has(p)) return false;
   return true;
 };
 // An MPF JPEG (Ultra HDR's gain map, a camera's preview) indexes the images after the first by their offset from its MP
-// header, so a cut between that header and the first image's end moves them all up by the bytes cut. A list that doesn't
-// read is left as it was. The images after the first are left whole, their own Exif or XMP with them: the MP index and
-// the gain-map XMP's Item:Length both record their sizes, so cutting into them means rewriting both, and a gain map's XMP
-// is its HDR.
+// header, so a cut between that header and the first image's end moves them all up by the bytes cut. A list that
+// doesn't read is left as it was. The images after the first are left whole, their own Exif or XMP with them: the MP
+// index and the gain-map XMP's Item:Length both record their sizes, so cutting into them means rewriting both, and a
+// gain map's XMP is its HDR.
 const mpfShift = (seg: Uint8Array, by: number) => {
-  const le = ascii(seg, 0, "II"), v = new DataView(seg.buffer, seg.byteOffset, seg.byteLength); if (!le && !ascii(seg, 0, "MM")) return;
+  const le = ascii(seg, 0, "II"),
+    v = new DataView(seg.buffer, seg.byteOffset, seg.byteLength);
+  if (!le && !ascii(seg, 0, "MM")) return;
   try {
     const ifd = v.getUint32(4, le);
     for (let k = 0, n = v.getUint16(ifd, le); k < n; k++) {
-      const e = ifd + 2 + k * 12; if (v.getUint16(e, le) !== 0xb002) continue; // MPEntry: 16 bytes an image, its offset at 8
-      const list = v.getUint32(e + 8, le), count = v.getUint32(e + 4, le) >>> 4;
+      // MPEntry: 16 bytes an image, its offset at 8
+      const e = ifd + 2 + k * 12;
+      if (v.getUint16(e, le) !== 0xb002) continue;
+      const list = v.getUint32(e + 8, le),
+        count = v.getUint32(e + 4, le) >>> 4;
       if (count) v.getUint32(list + count * 16 - 4, le); // the whole list is in the segment, or nothing is written
-      for (let j = 0; j < count; j++) { const o = list + j * 16 + 8, off = v.getUint32(o, le); if (off > by) v.setUint32(o, off - by, le); }
+      for (let j = 0; j < count; j++) {
+        const o = list + j * 16 + 8,
+          off = v.getUint32(o, le);
+        if (off > by) v.setUint32(o, off - by, le);
+      }
     }
-  } catch { /* an offset past the segment */ }
+  } catch {
+    /* an offset past the segment */
+  }
 };
 const jpegCut = (b: Bytes) => {
   if (b[0] !== 0xff || b[1] !== 0xd8) return null;
-  const out: Bytes[] = []; let i = 2, from = 0, turned = 0, mpf: Uint8Array | null = null, moved = 0;
+  const out: Bytes[] = [];
+  let i = 2,
+    from = 0,
+    turned = 0,
+    mpf: Uint8Array | null = null,
+    moved = 0;
   for (;;) {
     while (b[i] === 0xff && b[i + 1] === 0xff) i++; // fill bytes before a marker (T.81 B.1.1.2) stay with what's kept
-    const m = b[i + 1], end = i + 2 + ((b[i + 2] << 8) | b[i + 3]);
-    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length) return null; // a marker out of place
+    const m = b[i + 1],
+      end = i + 2 + ((b[i + 2] << 8) | b[i + 3]);
+    // a marker out of place
+    if (b[i] !== 0xff || m === 0xff || m === 1 || (m >= 0xd0 && m <= 0xd9) || end < i + 4 || end > b.length)
+      return null;
     if (m === 0xda) break; // start of scan: the picture itself, kept to the end
     if (m === 0xe2 && ascii(b, i + 4, "MPF\0")) mpf = b.subarray(i + 8, end);
     const exif = m === 0xe1 && ascii(b, i + 4, "Exif\0");
-    if (exif || (m === 0xe1 && ascii(b, i + 4, "http://ns.adobe.com/x") && !(ascii(b, i + 4, XMP) && gainMapOnly(b.subarray(i + 4 + XMP.length, end))))) { // XMP, and its extension
-      const o = exif ? orientation(b.subarray(i + 10, end)) : 1; if (o === null) return null;
-      out.push(b.subarray(from, i)); from = end;
-      const bare = o > 1 && !turned++; if (bare) out.push(new Uint8Array([0xff, 0xe1, 0, 34, 69, 120, 105, 102, 0, 0, ...bareExif(o)]));
+    // XMP, and its extension
+    if (
+      exif ||
+      (m === 0xe1 &&
+        ascii(b, i + 4, "http://ns.adobe.com/x") &&
+        !(ascii(b, i + 4, XMP) && gainMapOnly(b.subarray(i + 4 + XMP.length, end))))
+    ) {
+      const o = exif ? orientation(b.subarray(i + 10, end)) : 1;
+      if (o === null) return null;
+      out.push(b.subarray(from, i));
+      from = end;
+      const bare = o > 1 && !turned++;
+      if (bare) out.push(new Uint8Array([0xff, 0xe1, 0, 34, 69, 120, 105, 102, 0, 0, ...bareExif(o)]));
       if (mpf) moved += end - i - (bare ? 36 : 0);
     }
     i = end;
@@ -110,19 +191,31 @@ const jpegCut = (b: Bytes) => {
 };
 const pngCut = (b: Bytes) => {
   if (!ascii(b, 0, PNG_SIG)) return null;
-  const v = new DataView(b.buffer, b.byteOffset, b.byteLength), out: Bytes[] = [];
-  let i = 8, from = 0, turned = 0;
-  for (let type = ""; type !== "IEND"; ) {
-    const end = i + 12 > b.length ? Infinity : i + 12 + v.getUint32(i); if (end > b.length) return null;
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength),
+    out: Bytes[] = [];
+  let i = 8,
+    from = 0,
+    turned = 0;
+  for (let type = ""; type !== "IEND";) {
+    const end = i + 12 > b.length ? Infinity : i + 12 + v.getUint32(i);
+    if (end > b.length) return null;
     type = String.fromCharCode(...b.subarray(i + 4, i + 8));
     // A text chunk is metadata by its keyword: XMP's, or ImageMagick's raw Exif and XMP. Other text stays.
-    const key = /^[tiz]TXt$/.test(type) ? String.fromCharCode(...b.subarray(i + 8, Math.min(end - 4, i + 88))).split("\0")[0] : "";
+    const key = /^[tiz]TXt$/.test(type)
+      ? String.fromCharCode(...b.subarray(i + 8, Math.min(end - 4, i + 88))).split("\0")[0]
+      : "";
     if (type === "eXIf" || /^(XML:com\.adobe\.xmp|Raw profile type (exif|app1|xmp))$/i.test(key)) {
-      const o = type === "eXIf" ? orientation(b.subarray(i + 8, end - 4)) : 1; if (o === null) return null;
-      out.push(b.subarray(from, i)); from = end;
+      const o = type === "eXIf" ? orientation(b.subarray(i + 8, end - 4)) : 1;
+      if (o === null) return null;
+      out.push(b.subarray(from, i));
+      from = end;
       if (o > 1 && !turned++) {
-        const c = new Uint8Array(38), cv = new DataView(c.buffer);
-        cv.setUint32(0, 26); c.set([101, 88, 73, 102], 4); c.set(bareExif(o), 8); cv.setUint32(34, crc32(c.subarray(4, 34)));
+        const c = new Uint8Array(38),
+          cv = new DataView(c.buffer);
+        cv.setUint32(0, 26);
+        c.set([101, 88, 73, 102], 4);
+        c.set(bareExif(o), 8);
+        cv.setUint32(34, crc32(c.subarray(4, 34)));
         out.push(c);
       }
     }
@@ -131,28 +224,64 @@ const pngCut = (b: Bytes) => {
   return out.length ? [...out, b.subarray(from)] : null;
 };
 export const strip = async (file: File): Promise<Blob> => {
-  try { const b = new Uint8Array(await file.arrayBuffer()), parts = jpegCut(b) || pngCut(b); return parts ? new Blob(parts, { type: file.type }) : file; } catch { return file; }
+  try {
+    const b = new Uint8Array(await file.arrayBuffer()),
+      parts = jpegCut(b) || pngCut(b);
+    return parts ? new Blob(parts, { type: file.type }) : file;
+  } catch {
+    return file;
+  }
 };
-const hasAlpha = (ctx: CanvasRenderingContext2D, w: number, h: number) => { const d = ctx.getImageData(0, 0, w, h).data; for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true; return false; };
-// toBlob encodes off the main thread where the browser can. null when it can't write that type (it hands back a PNG instead).
-const encode = (c: HTMLCanvasElement, type: string, q?: number) => new Promise<Blob | null>((r) => c.toBlob((b) => r(b && b.type === type ? b : null), type, q));
-const dataUrl = (b: Blob) => new Promise<string>((r, j) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result)); fr.onerror = j; fr.readAsDataURL(b); });
+const hasAlpha = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+  const d = ctx.getImageData(0, 0, w, h).data;
+  for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true;
+  return false;
+};
+// toBlob encodes off the main thread where the browser can. null when it can't write that type (it hands back a PNG
+// instead).
+const encode = (c: HTMLCanvasElement, type: string, q?: number) =>
+  new Promise<Blob | null>((r) => c.toBlob((b) => r(b && b.type === type ? b : null), type, q));
+const dataUrl = (b: Blob) =>
+  new Promise<string>((r, j) => {
+    const fr = new FileReader();
+    fr.onload = () => r(String(fr.result));
+    fr.onerror = j;
+    fr.readAsDataURL(b);
+  });
 // A 2D context is sRGB unless asked, and a Display P3 photo (every iPhone's) drawn into it is flattened to sRGB. A P3
 // canvas keeps the gamut, and toBlob tags what it writes with the P3 profile. A browser that doesn't know the option
 // ignores it and hands back sRGB, as before; one that refuses the value throws, and gets the plain context.
-const context = (c: HTMLCanvasElement) => { try { const ctx = c.getContext("2d", { colorSpace: "display-p3" }); if (ctx) return ctx; } catch { /* the plain context */ } return c.getContext("2d"); };
+const context = (c: HTMLCanvasElement) => {
+  try {
+    const ctx = c.getContext("2d", { colorSpace: "display-p3" });
+    if (ctx) return ctx;
+  } catch {
+    /* the plain context */
+  }
+  return c.getContext("2d");
+};
 const shrink = async (file: File, fit: number, quality: number): Promise<string> => {
-  if (!fit || KEEP.test(file.type) || typeof Image === "undefined" || typeof URL.createObjectURL !== "function") return "";
+  if (!fit || KEEP.test(file.type) || typeof Image === "undefined" || typeof URL.createObjectURL !== "function")
+    return "";
   let src = "";
   try {
     if (await animated(file)) return "";
     src = URL.createObjectURL(file);
-    const img = new Image(); img.src = src; await img.decode();
-    const iw = img.naturalWidth, ih = img.naturalHeight, k = Math.min(1, fit / Math.max(iw, ih));
-    if (!(iw > 0 && ih > 0) || (k === 1 && file.size <= PNG_BUDGET)) return ""; // within fit and light: a picture already shrunk is never redrawn
-    const c = document.createElement("canvas"), w = (c.width = Math.max(1, Math.round(iw * k))), h = (c.height = Math.max(1, Math.round(ih * k)));
-    const ctx = context(c); if (!ctx) return "";
-    ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, 0, 0, w, h);
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const iw = img.naturalWidth,
+      ih = img.naturalHeight,
+      k = Math.min(1, fit / Math.max(iw, ih));
+    // within fit and light: a picture already shrunk is never redrawn
+    if (!(iw > 0 && ih > 0) || (k === 1 && file.size <= PNG_BUDGET)) return "";
+    const c = document.createElement("canvas"),
+      w = (c.width = Math.max(1, Math.round(iw * k))),
+      h = (c.height = Math.max(1, Math.round(ih * k)));
+    const ctx = context(c);
+    if (!ctx) return "";
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, w, h);
     const jpeg = /^image\/jpe?g$/i.test(file.type);
     let out = jpeg ? null : await encode(c, "image/png");
     if (!out || out.size > PNG_BUDGET) {
@@ -160,64 +289,122 @@ const shrink = async (file: File, fit: number, quality: number): Promise<string>
       if (alt && (!out || alt.size < out.size)) out = alt;
     }
     return out && out.size < file.size ? await dataUrl(out) : "";
-  } catch { return ""; } finally { if (src) URL.revokeObjectURL(src); }
+  } catch {
+    return "";
+  } finally {
+    if (src) URL.revokeObjectURL(src);
+  }
 };
 const ICON_UPLOAD = icon('<path d="M12 15V4m-4.5 4.5L12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>');
 
 function createImage(meta: Meta, onChange: OnChange): Control {
   const tr = words();
   let value = typeof meta.value === "string" ? meta.value : "";
-  // Options: URLs, or { value, label }; anything but a non-empty string value is skipped, and a repeated URL keeps its first.
+  // Options: URLs, or { value, label }; anything but a non-empty string value is skipped, and a repeated URL keeps its
+  // first.
   const seen = new Set<string>();
-  const options = (Array.isArray(meta.options) ? meta.options : []).map((o) => ({ value: optValue(o), label: o && typeof o === "object" && o.label != null ? String(o.label) : "" })).filter((o): o is { value: string; label: string } => typeof o.value === "string" && !!o.value && !seen.has(o.value) && !!seen.add(o.value));
-  const canUpload = meta.upload !== false || !options.length; // the plain row is the upload: there is nothing else to leave
+  const options = (Array.isArray(meta.options) ? meta.options : [])
+    .map((o) => ({ value: optValue(o), label: o && typeof o === "object" && o.label != null ? String(o.label) : "" }))
+    .filter(
+      (o): o is { value: string; label: string } =>
+        typeof o.value === "string" && !!o.value && !seen.has(o.value) && !!seen.add(o.value),
+    );
+  // the plain row is the upload: there is nothing else to leave
+  const canUpload = meta.upload !== false || !options.length;
   const canClear = meta.clear !== false; // false: a required choice, with no Clear and no Delete to empty it
   const maxSize = +meta.maxSize! > 0 ? +meta.maxSize! : 10 * MB;
   // A number only: `fit: true` would read as 1 and draw every upload as one pixel.
-  const fit = meta.fit === false || meta.fit === 0 ? 0 : typeof meta.fit === "number" && meta.fit >= 1 ? Math.round(meta.fit) : 2560; // false or 0: uploads as they are
+  // false or 0: uploads as they are
+  const fit =
+    meta.fit === false || meta.fit === 0
+      ? 0
+      : typeof meta.fit === "number" && meta.fit >= 1
+        ? Math.round(meta.fit)
+        : 2560;
   const quality = typeof meta.quality === "number" && meta.quality > 0 && meta.quality <= 1 ? meta.quality : 0.85;
-  const input = el("input", "twk-image-input"); input.type = "file"; input.accept = "image/*";
+  const input = el("input", "twk-image-input");
+  input.type = "file";
+  input.accept = "image/*";
   // A refused file's reason takes the button text's place for a moment. It is spoken from a status region beside the
   // button, not inside it: a button's children are presentational, so a live region there is never read.
-  const note = el("span", "twk-image-note"), live = el("span", "twk-image-live"); live.setAttribute("role", "status");
+  const note = el("span", "twk-image-note"),
+    live = el("span", "twk-image-live");
+  live.setAttribute("role", "status");
   const notes = [note, live]; // a gallery adds its row's note, so a file refused on the closed row still shows why
   let noteTimer: ReturnType<typeof setTimeout>;
-  const say = (msg: string) => { for (const n of notes) n.textContent = msg; clearTimeout(noteTimer); noteTimer = setTimeout(() => { for (const n of notes) n.textContent = ""; }, 2600); };
+  const say = (msg: string) => {
+    for (const n of notes) n.textContent = msg;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => {
+      for (const n of notes) n.textContent = "";
+    }, 2600);
+  };
   // An off-list value's name: its file stem, else what it is. A blob: URL's stem is a UUID, so it counts as an upload.
-  const customName = (v: string) => (/^blob:/i.test(v) ? "" : stem(v)) || (/^(data|blob):/i.test(v) ? tr("uploadedImage", "Uploaded image") : tr("customImage", "Custom image"));
+  const customName = (v: string) =>
+    (/^blob:/i.test(v) ? "" : stem(v)) ||
+    (/^(data|blob):/i.test(v) ? tr("uploadedImage", "Uploaded image") : tr("customImage", "Custom image"));
   let render: () => void;
   // Every commit bumps gen, so a file read that lands after a tile was picked, a reset or a host set() is dropped.
   let gen = 0;
-  const commit = (v: string, fire = true) => { gen++; value = v; render(); if (fire) onChange(value); };
+  const commit = (v: string, fire = true) => {
+    gen++;
+    value = v;
+    render();
+    if (fire) onChange(value);
+  };
   const load = (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) return say(tr("notAnImage", "Not an image"));
-    if (file.size > maxSize) return say(tr("tooLarge", "{size}, max {max}", { size: size(file.size), max: size(maxSize) }));
-    // One commit, of the shrunk picture when there is one, else of the file as it is less its metadata: one change event, one save.
+    if (file.size > maxSize)
+      return say(tr("tooLarge", "{size}, max {max}", { size: size(file.size), max: size(maxSize) }));
+    // One commit, of the shrunk picture when there is one, else of the file as it is less its metadata: one change
+    // event, one save.
     const at = ++gen;
     shrink(file, fit, quality).then(async (url) => {
       if (gen !== at) return;
       if (url) return commit(url);
       const fr = new FileReader();
-      fr.onload = () => { if (gen === at) commit(String(fr.result)); };
+      fr.onload = () => {
+        if (gen === at) commit(String(fr.result));
+      };
       fr.onerror = () => say(tr("unreadable", "Couldn't read the file"));
       fr.readAsDataURL(await strip(file));
     });
   };
-  // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the children doesn't drop the outline.
+  // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the
+  // children doesn't drop the outline.
   // A disabled control's root stays hit-testable (only its children go inert), so the zone checks for itself; on the
   // control's root, since the gallery's pane is portaled out of the panel while open.
   const dropZone = (zone: HTMLElement, over: HTMLElement) => {
     const off = () => !!root.closest(".is-disabled");
-    zone.addEventListener("dragover", (e) => { if (off()) return; e.preventDefault(); over.dataset.over = "true"; });
-    zone.addEventListener("dragleave", () => { over.dataset.over = "false"; });
-    zone.addEventListener("drop", (e) => { over.dataset.over = "false"; if (off()) return; e.preventDefault(); load(e.dataTransfer?.files[0]); });
+    zone.addEventListener("dragover", (e) => {
+      if (off()) return;
+      e.preventDefault();
+      over.dataset.over = "true";
+    });
+    zone.addEventListener("dragleave", () => {
+      over.dataset.over = "false";
+    });
+    zone.addEventListener("drop", (e) => {
+      over.dataset.over = "false";
+      if (off()) return;
+      e.preventDefault();
+      load(e.dataTransfer?.files[0]);
+    });
   };
-  input.addEventListener("change", () => { load(input.files?.[0]); input.value = ""; }); // cleared, so the same file picked again fires change
+  // cleared, so the same file picked again fires change
+  input.addEventListener("change", () => {
+    load(input.files?.[0]);
+    input.value = "";
+  });
   // Both forms are a trigger row with the chosen image's thumb first, as every chip row.
-  const row = triggerRow("twk-image", meta.label), root = row.root;
+  const row = triggerRow("twk-image", meta.label),
+    root = row.root;
   const thumb = el("span", "twk-trigger-chip twk-image-thumb");
-  const paintThumb = () => { thumb.dataset.set = value ? "true" : "false"; thumb.style.backgroundImage = value ? urlCss(value) : ""; };
+  const paintThumb = () => {
+    thumb.dataset.set = value ? "true" : "false";
+    thumb.style.backgroundImage = value ? urlCss(value) : "";
+  };
 
   if (!options.length) {
     // The plain row: the whole trigger is the target, a click opens the file dialog and the row is also the drop zone.
@@ -226,75 +413,143 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const text = el("span", "twk-image-text");
     row.right.append(thumb, note, text);
     root.append(input, live);
-    render = () => { paintThumb(); text.textContent = value ? tr("replace", "Replace") : tr("dropOrChoose", "Drop or choose"); };
+    render = () => {
+      paintThumb();
+      text.textContent = value ? tr("replace", "Replace") : tr("dropOrChoose", "Drop or choose");
+    };
     row.trigger.addEventListener("click", () => input.click());
     dropZone(row.trigger, row.trigger);
   } else {
-    // The gallery: the row, with the chosen image's name, opens a pane of the tiles, as one radio group, over a foot with
-    // the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and the pane both
-    // take a dropped file.
-    const name = el("span", "twk-trigger-value"), rowNote = el("span", "twk-image-note");
+    // The gallery: the row, with the chosen image's name, opens a pane of the tiles, as one radio group, over a foot
+    // with the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and the pane
+    // both take a dropped file.
+    const name = el("span", "twk-trigger-value"),
+      rowNote = el("span", "twk-image-note");
     row.right.append(thumb, rowNote, name);
     notes.push(rowNote);
     // The pane is the gallery, with no wrapper: its padding and the gaps between tiles and foot are its drag edge.
     const pop = el("div", "twk-color-pop twk-image-pop twk-image-gallery");
     const upload = canUpload ? btn("twk-button twk-image-upload", ICON_UPLOAD) : null;
-    const clear = txt("button", "twk-image-clear", tr("clear", "Clear")); clear.type = "button"; clear.setAttribute("aria-label", tr("clearImage", "{label}: clear the image", { label: meta.label }));
+    const clear = txt("button", "twk-image-clear", tr("clear", "Clear"));
+    clear.type = "button";
+    clear.setAttribute("aria-label", tr("clearImage", "{label}: clear the image", { label: meta.label }));
     // The foot folds like a folder: a row track holds the upload button and a column track holds Clear, so either can
     // ease shut without measuring. Clear folds away when there's nothing to clear; the foot folds when it's empty.
-    const foot = el("div", "twk-image-foot"), footRow = el("div", "twk-image-foot-row"), slot = el("div", "twk-image-clear-slot");
-    foot.append(footRow); slot.append(clear);
-    const grid = el("div", "twk-image-grid"); grid.setAttribute("role", "radiogroup"); grid.setAttribute("aria-label", meta.label);
+    const foot = el("div", "twk-image-foot"),
+      footRow = el("div", "twk-image-foot-row"),
+      slot = el("div", "twk-image-clear-slot");
+    foot.append(footRow);
+    slot.append(clear);
+    const grid = el("div", "twk-image-grid");
+    grid.setAttribute("role", "radiogroup");
+    grid.setAttribute("aria-label", meta.label);
     const n = options.length;
-    const cols = Math.min(6, Math.max(1, (meta.cols! | 0) || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
+    const cols = Math.min(6, Math.max(1, meta.cols! | 0 || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
     grid.style.setProperty("--twk-img-cols", String(cols));
-    const tile = (v: string, label: string) => { const b = radioButton("twk-image-tile", v, () => commit(v)); b.textContent = ""; b.setAttribute("aria-label", label); b.style.backgroundImage = urlCss(v); return b; };
+    const tile = (v: string, label: string) => {
+      const b = radioButton("twk-image-tile", v, () => commit(v));
+      b.textContent = "";
+      b.setAttribute("aria-label", label);
+      b.style.backgroundImage = urlCss(v);
+      return b;
+    };
     const names = options.map((o, i) => o.label || stem(o.value) || tr("imageN", "Image {n}", { n: i + 1 }));
-    const tiles = options.map((o, i) => { const b = tile(o.value, names[i]); grid.append(b); return b; });
+    const tiles = options.map((o, i) => {
+      const b = tile(o.value, names[i]);
+      grid.append(b);
+      return b;
+    });
     // A value that is none of the options (an upload, or a host-set URL) shows as a last tile, selected. Its URL rides
-    // on _twVal, not data-value: the inline style already holds one copy of a data URL, and data-value would be a second.
-    const custom: RadioBtn = btn("twk-image-tile twk-image-custom"); custom.setAttribute("role", "radio");
-    const all = () => (custom.parentNode ? [...tiles, custom] : tiles); // parentNode, not isConnected: a panel not yet in the document has no connected nodes
+    // on _twVal, not data-value: the inline style already holds one copy of a data URL, and data-value would be a
+    // second.
+    const custom: RadioBtn = btn("twk-image-tile twk-image-custom");
+    custom.setAttribute("role", "radio");
+    // parentNode, not isConnected: a panel not yet in the document has no connected nodes
+    const all = () => (custom.parentNode ? [...tiles, custom] : tiles);
     render = () => {
       const k = tiles.findIndex((b) => b._twVal === value);
       if (value && k < 0) {
-        custom._twVal = value; custom.style.backgroundImage = urlCss(value); custom.setAttribute("aria-label", customName(value));
+        custom._twVal = value;
+        custom.style.backgroundImage = urlCss(value);
+        custom.setAttribute("aria-label", customName(value));
         if (!custom.parentNode) grid.append(custom); // re-appending an attached node moves it, and a move blurs it
       } else {
-        // The focused tile is leaving (undo, a preset, set()): focus moves on first, since removing a focused node blurs
-        // it to <body>, and that blur closes the pane.
+        // The focused tile is leaving (undo, a preset, set()): focus moves on first, since removing a focused node
+        // blurs it to <body>, and that blur closes the pane.
         if (custom.matches(":focus")) tiles[Math.max(0, k)].focus();
         custom.remove();
       }
-      const btns = all(), stop = Math.max(0, btns.findIndex((b) => b._twVal === value)); // the roving tab stop: the chosen tile, else the first
-      btns.forEach((b, j) => { const on = !!value && b._twVal === value; b.dataset.active = String(on); b.setAttribute("aria-checked", String(on)); b.tabIndex = j === stop ? 0 : -1; });
-      slot.dataset.open = String(!!value); slot.inert = !value; // nothing to clear: Clear folds away, out of the tab order
-      foot.dataset.open = String(!!upload || (canClear && !!value)); foot.inert = foot.dataset.open === "false"; // an empty foot folds to nothing
+      // the roving tab stop: the chosen tile, else the first
+      const btns = all(),
+        stop = Math.max(
+          0,
+          btns.findIndex((b) => b._twVal === value),
+        );
+      btns.forEach((b, j) => {
+        const on = !!value && b._twVal === value;
+        b.dataset.active = String(on);
+        b.setAttribute("aria-checked", String(on));
+        b.tabIndex = j === stop ? 0 : -1;
+      });
+      // nothing to clear: Clear folds away, out of the tab order
+      slot.dataset.open = String(!!value);
+      slot.inert = !value;
+      // an empty foot folds to nothing
+      foot.dataset.open = String(!!upload || (canClear && !!value));
+      foot.inert = foot.dataset.open === "false";
       paintThumb();
       name.textContent = !value ? tr("none", "None") : k >= 0 ? names[k] : customName(value);
     };
     grid.addEventListener("keydown", (e) => {
-      const btns = all(), i = btns.indexOf(e.target as RadioBtn); if (i < 0) return;
+      const btns = all(),
+        i = btns.indexOf(e.target as RadioBtn);
+      if (i < 0) return;
       // Focus moves before the commit: the commit can remove the focused tile (the custom one) or hide Clear.
-      if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); tiles[0].focus(); commit(""); return; } // a modifier+Delete is the panel's reset, not a clear
-      const j = navIndex(e.key, i, btns.length, cols); if (j < 0) return;
-      e.preventDefault(); if (j !== i) { btns[j].focus(); commit(btns[j]._twVal as string); } // a tile holds its URL
+      // a modifier+Delete is the panel's reset, not a clear
+      if (canClear && (e.key === "Delete" || e.key === "Backspace") && !e.altKey && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        tiles[0].focus();
+        commit("");
+        return;
+      }
+      const j = navIndex(e.key, i, btns.length, cols);
+      if (j < 0) return;
+      e.preventDefault();
+      // a tile holds its URL
+      if (j !== i) {
+        btns[j].focus();
+        commit(btns[j]._twVal as string);
+      }
     });
-    clear.addEventListener("click", () => { (upload || tiles[0]).focus(); commit(""); }); // Clear hides itself: hand focus on first, not to the body
+    // Clear hides itself: hand focus on first, not to the body
+    clear.addEventListener("click", () => {
+      (upload || tiles[0]).focus();
+      commit("");
+    });
     pop.append(grid, foot);
     root.append(pop, live);
     if (upload) {
       upload.setAttribute("aria-label", tr("uploadImage", "{label}: upload an image", { label: meta.label }));
       upload.append(note, txt("span", "twk-image-text", tr("upload", "Upload image")));
       upload.addEventListener("click", () => input.click());
-      footRow.append(upload); root.append(input);
-      dropZone(row.trigger, row.trigger); dropZone(pop, pop);
+      footRow.append(upload);
+      root.append(input);
+      dropZone(row.trigger, row.trigger);
+      dropZone(pop, pop);
     }
     if (canClear) footRow.append(slot);
     popover(root, row.trigger, pop, { fallbackH: 220, initialFocus: () => all().find((b) => b.tabIndex === 0) });
   }
   render();
-  return { el: root, set: (v: string | null | undefined) => { if (v != null && typeof v !== "string") return; commit(v || "", false); }, get: () => value, note: say };
+  return {
+    el: root,
+    set: (v: string | null | undefined) => {
+      if (v != null && typeof v !== "string") return;
+      commit(v || "", false);
+    },
+    get: () => value,
+    note: say,
+  };
 }
 
 registerControl("image", createImage);

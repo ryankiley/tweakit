@@ -24,7 +24,9 @@ async function examplesCss() {
 // Every selector containing :hover, with the at-rule preludes it sits under. Comments,
 // strings and url() are blanked first so nothing inside them reads as structure.
 function hoverSelectors(css) {
-  const quiet = css.replace(/\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|url\([^)]*\)/g, (m) => m.replace(/[^\n]/g, " "));
+  const quiet = css.replace(/\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|url\([^)]*\)/g, (m) =>
+    m.replace(/[^\n]/g, " "),
+  );
   const found = [];
   const stack = []; // open at-rule preludes; null for a style rule
   let prelude = "";
@@ -32,7 +34,8 @@ function hoverSelectors(css) {
     if (ch === "{") {
       const head = prelude.trim().replace(/\s+/g, " ");
       stack.push(head.startsWith("@") ? head : null);
-      if (!head.startsWith("@") && head.includes(":hover")) found.push({ selector: head, atRules: stack.filter(Boolean) });
+      if (!head.startsWith("@") && head.includes(":hover"))
+        found.push({ selector: head, atRules: stack.filter(Boolean) });
       prelude = "";
     } else if (ch === "}") {
       stack.pop();
@@ -53,7 +56,10 @@ const SOURCES = [
 for (const [name, source] of SOURCES) {
   test(`${name}: every :hover rule sits inside ${GUARD}`, async () => {
     const bare = hoverSelectors(await source()).filter((r) => !r.atRules.includes(GUARD));
-    assert.deepEqual(bare.map((r) => r.selector), []);
+    assert.deepEqual(
+      bare.map((r) => r.selector),
+      [],
+    );
   });
 }
 
@@ -64,7 +70,11 @@ test("the hover walker reads nesting, not just presence", () => {
     /* .x:hover {} */ .y::after { content: ":hover"; }`;
   assert.deepEqual(
     hoverSelectors(css).map((r) => [r.selector, r.atRules.includes(GUARD)]),
-    [[".a:hover", true], [".b:hover", false], [".c:hover", true]],
+    [
+      [".a:hover", true],
+      [".b:hover", false],
+      [".c:hover", true],
+    ],
   );
 });
 
@@ -73,8 +83,19 @@ test("the hover walker reads nesting, not just presence", () => {
 // past the panel and over its neighbors. This keeps the floors in place.
 test("src/tweaks.css: the control stack and its children can shrink below their content", async () => {
   const css = (await read("src/tweaks.css")).replace(/\/\*[\s\S]*?\*\//g, "");
-  const rule = (selector) => { const m = css.match(new RegExp(`(^|[\\n}])\\s*${selector.replace(/[.*+?^${}()|[\]\\>]/g, "\\$&")}\\s*\\{([^}]*)\\}`)); return m ? m[2] : ""; };
-  for (const sel of [".twk-body > .twk-controls", ".twk-controls > *", ".twk-folder-body > .twk-controls", ".twk-tabs-bar", ".twk-select-value"]) {
+  const rule = (selector) => {
+    const m = css.match(
+      new RegExp(`(^|[\\n}])\\s*${selector.replace(/[.*+?^${}()|[\]\\>]/g, "\\$&")}\\s*\\{([^}]*)\\}`),
+    );
+    return m ? m[2] : "";
+  };
+  for (const sel of [
+    ".twk-body > .twk-controls",
+    ".twk-controls > *",
+    ".twk-folder-body > .twk-controls",
+    ".twk-tabs-bar",
+    ".twk-select-value",
+  ]) {
     assert.match(rule(sel), /min-width:\s*0\b/, `${sel} needs min-width: 0`);
   }
 });

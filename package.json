@@ -32,7 +32,9 @@
     "prepublishOnly": "npm test",
     "prepack": "node build.mjs",
     "serve": "node build.mjs && python3 -m http.server 4330 --directory dist",
-    "test:browser": "node build.mjs && node --test \"test/browser/*.test.mjs\""
+    "test:browser": "node build.mjs && node --test \"test/browser/*.test.mjs\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "exports": {
     ".": {
@@ -83,6 +85,7 @@
     "fake-indexeddb": "^6.2.6",
     "jsdom": "^30.1.2",
     "playwright": "^1.64.1",
+    "prettier": "3.9.10",
     "typescript": "^7.0.2"
   }
 }

@@ -14,11 +14,19 @@ const dom = new JSDOM("<!doctype html><body></body>", {
 const { window } = dom;
 
 globalThis.window = window;
-for (const k of ["document", "HTMLElement", "Element", "Node", "CustomEvent", "Event", "localStorage"]) globalThis[k] = window[k];
+for (const k of ["document", "HTMLElement", "Element", "Node", "CustomEvent", "Event", "localStorage"])
+  globalThis[k] = window[k];
 globalThis.getComputedStyle = window.getComputedStyle.bind(window);
 const matchMedia = window.matchMedia
   ? window.matchMedia.bind(window)
-  : (q) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+  : (q) => ({
+      matches: false,
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+    });
 globalThis.matchMedia = matchMedia;
 window.matchMedia = matchMedia;
 globalThis.requestAnimationFrame = (fn) => setTimeout(() => fn(Date.now()), 16);

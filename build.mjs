@@ -5,8 +5,8 @@
  *   dist/types/       .d.ts declarations
  *   dist/*.html       the docs site, from site/
  * TW_SPLIT is an esbuild define that picks the code path in core.ts. Every script ships a linked .map pointing into the
- * package's src/, so a stack trace from a user's app names the kit's source lines; it adds to the npm download, not to an
- * app's bundle. */
+ * package's src/, so a stack trace from a user's app names the kit's source lines; it adds to the npm download, not to
+ * an app's bundle. */
 import { mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { execFile } from "node:child_process";
@@ -17,22 +17,34 @@ import { fileURLToPath } from "node:url";
 const run = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const p = (...s) => path.join(ROOT, ...s);
-const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
+const fail = (msg) => {
+  console.error("✗ " + msg);
+  process.exit(1);
+};
 
 await rm(p("dist"), { recursive: true, force: true });
 await mkdir(p("dist"), { recursive: true });
 
 const esbuild = await import("esbuild");
 const sourcemap = "linked"; // a .map beside each script, in the package too: a user's stack trace names src/ lines
-// The package ships src/ once, which the maps point at, rather than a copy of it inside every map (two builds, ~825 KB).
+// The package ships src/ once, which the maps point at, rather than a copy of it inside every map (two builds,
+// ~825 KB).
 const sourcesContent = false;
 
 // 1) code-split chunks → dist/tweaks/; the metafile finds the shared chunk for the size report
 const splitBuild = await esbuild.build({
   entryPoints: [p("src/tweaks/core.ts")],
   outdir: p("dist/tweaks"),
-  bundle: true, splitting: true, format: "esm", minify: true, target: "es2020",
-  legalComments: "none", define: { TW_SPLIT: "true" }, metafile: true, sourcemap, sourcesContent,
+  bundle: true,
+  splitting: true,
+  format: "esm",
+  minify: true,
+  target: "es2020",
+  legalComments: "none",
+  define: { TW_SPLIT: "true" },
+  metafile: true,
+  sourcemap,
+  sourcesContent,
 });
 
 // 1b) tweakit/auto → dist/tweaks/auto.js: core re-exported, plus enhance(document) on load. Unbundled, so it imports
@@ -40,17 +52,32 @@ const splitBuild = await esbuild.build({
 await esbuild.build({
   entryPoints: [p("src/tweaks/auto.ts")],
   outfile: p("dist/tweaks/auto.js"),
-  bundle: false, format: "esm", minify: true, target: "es2020", legalComments: "none", sourcemap, sourcesContent,
+  bundle: false,
+  format: "esm",
+  minify: true,
+  target: "es2020",
+  legalComments: "none",
+  sourcemap,
+  sourcesContent,
 });
 
 // 2) single self-contained file → dist/tweaks.js, the drop-in that needs no bundler
 await esbuild.build({
   entryPoints: [p("src/tweaks/single.ts")],
   outfile: p("dist/tweaks.js"),
-  bundle: true, splitting: false, format: "esm", minify: true, target: "es2020",
-  legalComments: "none", define: { TW_SPLIT: "false" }, sourcemap, sourcesContent,
+  bundle: true,
+  splitting: false,
+  format: "esm",
+  minify: true,
+  target: "es2020",
+  legalComments: "none",
+  define: { TW_SPLIT: "false" },
+  sourcemap,
+  sourcesContent,
   // The copyable file carries the notice the MIT license requires in every copy.
-  banner: { js: "/* tweakit — MIT © Ryan Kiley. Toolbar and control icons from Hugeicons (MIT); see THIRD-PARTY-NOTICES.md in the tweakit package. */" },
+  banner: {
+    js: "/* tweakit — MIT © Ryan Kiley. Toolbar and control icons from Hugeicons (MIT); see THIRD-PARTY-NOTICES.md in the tweakit package. */",
+  },
 });
 
 // 3) panel CSS → dist/tweaks.css, minified. Both schemes live in one token block as light-dark() pairs.
@@ -59,16 +86,19 @@ await esbuild.build({
   // own --twk-* on that host override it; the panel and portals inside skip the original. Only the kit's own hosts: a
   // page's web component that loads this stylesheet keeps its display and its tokens. What inherits is what a light
   // panel inherits.
-  const src = await readFile(p("src/tweaks.css"), "utf8"), TOKENS = ":where(.twk-panel, .twk-portal):not(.twk-in-shadow) {";
-  const at = src.indexOf(TOKENS), end = src.indexOf("\n}", at);
-  if (at < 0 || end < 0) throw new Error("tweaks.css: the token rule's selector changed; build.mjs copies that rule onto :host");
+  const src = await readFile(p("src/tweaks.css"), "utf8"),
+    TOKENS = ":where(.twk-panel, .twk-portal):not(.twk-in-shadow) {";
+  const at = src.indexOf(TOKENS),
+    end = src.indexOf("\n}", at);
+  if (at < 0 || end < 0)
+    throw new Error("tweaks.css: the token rule's selector changed; build.mjs copies that rule onto :host");
   const css = `${src.slice(0, end + 2)}\n:host(.twk-host), :host(.twk-portal-host) { display: block;${src.slice(at + TOKENS.length, end)}\n}\n:host(.twk-host[hidden]) { display: none; }${src.slice(end + 2)}`;
   const { code } = await esbuild.transform(css, { minify: true, loader: "css" });
   await writeFile(p("dist/tweaks.css"), code);
   // So a TS consumer can `import "tweakit/css"` without TS2307; a subpath isn't matched by a *.css ambient.
   await writeFile(
     p("dist/tweaks.css.d.ts"),
-    '// tweakit/css — the panel stylesheet, imported for its side effect:\n//   import "tweakit/css";\nexport {};\n'
+    '// tweakit/css — the panel stylesheet, imported for its side effect:\n//   import "tweakit/css";\nexport {};\n',
   );
 }
 
@@ -84,29 +114,43 @@ try {
 {
   const keep = new Set();
   const walk = async (rel) => {
-    if (keep.has(rel)) return; keep.add(rel);
-    for (const m of (await readFile(p("dist/types", rel), "utf8")).matchAll(/from "(\.[^"]+)"/g)) await walk(path.join(path.dirname(rel), m[1].replace(/\.js$/, ".d.ts")));
+    if (keep.has(rel)) return;
+    keep.add(rel);
+    for (const m of (await readFile(p("dist/types", rel), "utf8")).matchAll(/from "(\.[^"]+)"/g))
+      await walk(path.join(path.dirname(rel), m[1].replace(/\.js$/, ".d.ts")));
   };
   await walk(path.join("tweaks", "core.d.ts"));
-  for (const f of await readdir(p("dist/types"), { recursive: true })) if (f.endsWith(".d.ts") && !keep.has(f)) await rm(p("dist/types", f));
+  for (const f of await readdir(p("dist/types"), { recursive: true }))
+    if (f.endsWith(".d.ts") && !keep.has(f)) await rm(p("dist/types", f));
 }
 
 // 4b) gzip sizes for the docs site's {{size-*}} tokens. Split = core + the shared chunk it
 // statically imports; dynamic imports aren't counted.
 const gz = async (rel) => gzipSync(await readFile(p(rel))).length;
 const coreOut = Object.keys(splitBuild.metafile.outputs).find((k) => k.endsWith("tweaks/core.js"));
-const sharedChunks = (splitBuild.metafile.outputs[coreOut].imports || []).filter((im) => im.kind === "import-statement").map((im) => im.path);
+const sharedChunks = (splitBuild.metafile.outputs[coreOut].imports || [])
+  .filter((im) => im.kind === "import-statement")
+  .map((im) => im.path);
 let splitBytes = await gz(coreOut);
 for (const c of sharedChunks) splitBytes += await gz(c);
 const kb = (b) => `~${Math.round(b / 1024)} KB`;
 const sizes = { split: kb(splitBytes), single: kb(await gz("dist/tweaks.js")), css: kb(await gz("dist/tweaks.css")) };
-console.log(`sizes (gzip): code-split ${sizes.split} (core + shared chunk) · single ${sizes.single} · css ${sizes.css}`);
+console.log(
+  `sizes (gzip): code-split ${sizes.split} (core + shared chunk) · single ${sizes.single} · css ${sizes.css}`,
+);
 
 // 5) docs site → dist/*.html. Page modules are imported raw, never through esbuild: each run
 // function is toString()-serialized into both the snippet and the page script.
 const { buildSite } = await import("./site/build-site.mjs");
-const chunks = [...Object.keys(splitBuild.metafile.outputs).filter((k) => k.endsWith(".js")).map((k) => path.basename(k)), "auto.js"]; // every split file; the pages preload them
-const { version, homepage } = JSON.parse(await readFile(p("package.json"), "utf8")); // the sidebar shows the version; the Markdown files link by the homepage
+// every split file; the pages preload them
+const chunks = [
+  ...Object.keys(splitBuild.metafile.outputs)
+    .filter((k) => k.endsWith(".js"))
+    .map((k) => path.basename(k)),
+  "auto.js",
+];
+// the sidebar shows the version; the Markdown files link by the homepage
+const { version, homepage } = JSON.parse(await readFile(p("package.json"), "utf8"));
 await buildSite({ outDir: p("dist"), esbuild, sizes, chunks, version, site: (homepage || "").replace(/\/$/, "") });
 
 console.log("Built tweakit → dist/");

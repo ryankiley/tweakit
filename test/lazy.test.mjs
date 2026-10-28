@@ -16,10 +16,12 @@ const inLazyWindow = (p) => p.el.querySelector(".twk-toolbar-btn--reset").disabl
 
 test("set() during the lazy window replays once ready", async () => {
   // interval is a lazy control, so assemble defers behind panel.ready
-  const p = tweaks("Lazy", { folder: { r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 }, y: [1, 0, 10, 1] } });
+  const p = tweaks("Lazy", {
+    folder: { r: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 }, y: [1, 0, 10, 1] },
+  });
   assert.ok(inLazyWindow(p));
   p.set("folder.y", 7); // dotted — used to warn + drop
-  p.set("r", [3, 6]);   // bare nested — used to mint a top-level orphan
+  p.set("r", [3, 6]); // bare nested — used to mint a top-level orphan
   await p.ready;
   assert.equal(p.params.folder.y, 7);
   assert.deepEqual(p.params.folder.r, [3, 6]);
@@ -29,10 +31,13 @@ test("set() during the lazy window replays once ready", async () => {
 test("during the lazy window, a later fromJSON() beats an earlier set() (replay keeps call order)", async () => {
   // spring is a lazy control unused above, so assemble() defers behind ready — set() and
   // fromJSON() both queue, and must replay in the order they were called (last write wins).
-  const p = tweaks("Order", { x: [1, 0, 10, 1], s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } } });
+  const p = tweaks("Order", {
+    x: [1, 0, 10, 1],
+    s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } },
+  });
   assert.ok(inLazyWindow(p));
-  p.set("x", 4);                     // queued first
-  p.fromJSON({ values: { x: 9 } });  // queued later → must win
+  p.set("x", 4); // queued first
+  p.fromJSON({ values: { x: 9 } }); // queued later → must win
   await p.ready;
   assert.equal(p.params.x, 9);
 });
@@ -40,15 +45,23 @@ test("during the lazy window, a later fromJSON() beats an earlier set() (replay 
 test("during the lazy window, setMany() replays as ONE batch — a single notify", async () => {
   // cubicbezier is lazy (spring was loaded by the test above) → assemble() defers; the whole
   // setMany batch queues as one entry and must replay as a single setMany (one notify).
-  const p = tweaks("Batch", { a: [1, 0, 10, 1], b: [1, 0, 10, 1], c: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] } });
+  const p = tweaks("Batch", {
+    a: [1, 0, 10, 1],
+    b: [1, 0, 10, 1],
+    c: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] },
+  });
   assert.ok(inLazyWindow(p));
-  let calls = 0, lastKey;
-  p.on((params, last) => { calls++; lastKey = last; });
+  let calls = 0,
+    lastKey;
+  p.on((params, last) => {
+    calls++;
+    lastKey = last;
+  });
   p.setMany({ a: 5, b: 7 });
   await p.ready;
   assert.equal(p.params.a, 5);
   assert.equal(p.params.b, 7);
-  assert.equal(calls, 1);     // ONE notify for the batch on replay, not one per key
+  assert.equal(calls, 1); // ONE notify for the batch on replay, not one per key
   assert.equal(lastKey, undefined); // several changed at once: no one key is named, as after a restore
 });
 
@@ -56,17 +69,26 @@ test("reset() during the lazy window replays, in order with the sets around it",
   // Regression: reset() forwarded to the toolbar button, and the toolbar is disabled until
   // assemble() — .click() is a no-op on a disabled control, so every reset() made in the
   // lazy window vanished silently while set()/setMany()/fromJSON() all queued.
-  const p = tweaks("Reset", { x: [1, 0, 10, 1], pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } });
+  const p = tweaks("Reset", {
+    x: [1, 0, 10, 1],
+    pt: {
+      type: "point",
+      components: [
+        { key: "x", value: 0 },
+        { key: "y", value: 0 },
+      ],
+    },
+  });
   assert.ok(inLazyWindow(p));
   p.set("x", 7);
-  p.reset();      // queued after the set → must win
+  p.reset(); // queued after the set → must win
   await p.ready;
   assert.equal(p.params.x, 1, "the queued reset replayed after the set it followed");
 
   const q = tweaks("Reset2", { x: [1, 0, 10, 1], pl: { type: "plot", expr: "x" } });
   assert.ok(inLazyWindow(q));
   q.reset();
-  q.set("x", 7);  // queued after the reset → must win
+  q.set("x", 7); // queued after the reset → must win
   await q.ready;
   assert.equal(q.params.x, 7, "call order is preserved both ways");
 });
@@ -78,11 +100,22 @@ test("ready resolves with the api on the warmed-up synchronous path too", async 
   assert.deepEqual(p.params.r, [2, 8]);
 });
 
-const pointer = (type, target, x, y, extra = {}) => target.dispatchEvent(Object.assign(new window.Event(type, { bubbles: true }), { pointerId: 1, button: 0, buttons: 1, clientX: x, clientY: y, isPrimary: true, ...extra }));
+const pointer = (type, target, x, y, extra = {}) =>
+  target.dispatchEvent(
+    Object.assign(new window.Event(type, { bubbles: true }), {
+      pointerId: 1,
+      button: 0,
+      buttons: 1,
+      clientX: x,
+      clientY: y,
+      isPrimary: true,
+      ...extra,
+    }),
+  );
 
 test("a header drag lifts the panel before the lazy chunks have landed", async () => {
-  // The shell's own wiring doesn't wait for the lazy chunks: it used to be wired inside the deferred assemble(), so until
-  // the first chunk landed a header drag did nothing. shadow is a lazy type no test above loads.
+  // The shell's own wiring doesn't wait for the lazy chunks: it used to be wired inside the deferred assemble(), so
+  // until the first chunk landed a header drag did nothing. shadow is a lazy type no test above loads.
   const p = tweaks("Early", { x: [1, 0, 10, 1], s: { type: "shadow" } });
   document.body.append(p.el);
   assert.ok(p.el.querySelector(".twk-toolbar-btn--reset").disabled, "in the lazy window");

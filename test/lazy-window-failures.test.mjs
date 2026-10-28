@@ -18,23 +18,43 @@ const lazy = await loadSplit();
 const uncoercible = () => Object.create(null);
 
 // ── The failure path ──
-test("a failed build's controls release their window listeners once the panel is destroyed", () => quiet(async () => {
-  const added = new Set(), removed = new Set();
-  const add = window.addEventListener.bind(window), remove = window.removeEventListener.bind(window);
-  window.addEventListener = (t, fn, o) => { if (t === "resize") added.add(fn); return add(t, fn, o); };
-  window.removeEventListener = (t, fn, o) => { if (t === "resize") removed.add(fn); return remove(t, fn, o); };
-  const leftover = () => [...added].filter((fn) => !removed.has(fn)).length;
-  try {
-    const p = lazy.tweaks("R7C", { s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } }, n: { type: "number", value: 1 } });
-    document.body.append(p.el);
-    p.params.n = uncoercible(); // the spring builds and registers its window listener; the number field's set() then throws out of build()
-    await assert.rejects(p.ready, TypeError);
-    assert.ok(added.size >= 1, "the spring registered a resize listener before the build threw");
-    p.destroy();
-    window.dispatchEvent(new window.Event("resize"));
-    assert.equal(leftover(), 0, "the spring's resize listener is still registered after the failed build and destroy()");
-  } finally { window.addEventListener = add; window.removeEventListener = remove; }
-}));
+test("a failed build's controls release their window listeners once the panel is destroyed", () =>
+  quiet(async () => {
+    const added = new Set(),
+      removed = new Set();
+    const add = window.addEventListener.bind(window),
+      remove = window.removeEventListener.bind(window);
+    window.addEventListener = (t, fn, o) => {
+      if (t === "resize") added.add(fn);
+      return add(t, fn, o);
+    };
+    window.removeEventListener = (t, fn, o) => {
+      if (t === "resize") removed.add(fn);
+      return remove(t, fn, o);
+    };
+    const leftover = () => [...added].filter((fn) => !removed.has(fn)).length;
+    try {
+      const p = lazy.tweaks("R7C", {
+        s: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } },
+        n: { type: "number", value: 1 },
+      });
+      document.body.append(p.el);
+      // the spring builds and registers its window listener; the number field's set() then throws out of build()
+      p.params.n = uncoercible();
+      await assert.rejects(p.ready, TypeError);
+      assert.ok(added.size >= 1, "the spring registered a resize listener before the build threw");
+      p.destroy();
+      window.dispatchEvent(new window.Event("resize"));
+      assert.equal(
+        leftover(),
+        0,
+        "the spring's resize listener is still registered after the failed build and destroy()",
+      );
+    } finally {
+      window.addEventListener = add;
+      window.removeEventListener = remove;
+    }
+  }));
 test("a build that throws at its first control is reported as a build that threw", async () => {
   let p;
   const warns = await warnings(async () => {
@@ -50,21 +70,34 @@ test("a build that throws at its first control is reported as a build that threw
 // The lift watchdog (the MutationObserver that pulls a dragged-out panel off <body> when its
 // host slot leaves the document) is one of the shell's own cleanups; a failed build must
 // leave those to destroy().
-test("a failed build keeps the shell's own attachments: a lifted panel still leaves with its host", () => quiet(async () => {
-  const host = document.createElement("div"); document.body.append(host);
-  try {
-    const p = lazy.tweaks("R7E", { n: { type: "number", value: 1 }, pt: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] } });
-    host.append(p.el);
-    dragHeader(p, 40); // lift before ready: the header is live from the shell
-    assert.equal(p.el.parentNode, document.body, "lifted to body");
-    p.params.n = uncoercible();
-    await assert.rejects(p.ready, TypeError);
-    host.remove();
-    await tick(30);
-    assert.ok(!p.el.isConnected, "the panel is stranded on <body> after its host slot left the document");
-    p.destroy();
-  } finally { host.remove(); }
-}));
+test("a failed build keeps the shell's own attachments: a lifted panel still leaves with its host", () =>
+  quiet(async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    try {
+      const p = lazy.tweaks("R7E", {
+        n: { type: "number", value: 1 },
+        pt: {
+          type: "point",
+          components: [
+            { key: "x", value: 0 },
+            { key: "y", value: 0 },
+          ],
+        },
+      });
+      host.append(p.el);
+      dragHeader(p, 40); // lift before ready: the header is live from the shell
+      assert.equal(p.el.parentNode, document.body, "lifted to body");
+      p.params.n = uncoercible();
+      await assert.rejects(p.ready, TypeError);
+      host.remove();
+      await tick(30);
+      assert.ok(!p.el.isConnected, "the panel is stranded on <body> after its host slot left the document");
+      p.destroy();
+    } finally {
+      host.remove();
+    }
+  }));
 
 test("a destroyed panel says nothing when its chunk later fails", async () => {
   const { mkdtemp, cp, readdir, rm } = await import("node:fs/promises");
@@ -74,7 +107,8 @@ test("a destroyed panel says nothing when its chunk later fails", async () => {
   await cp(new URL("../dist/tweaks/", import.meta.url), dir, { recursive: true });
   for (const f of await readdir(dir)) if (/^plot-.*\.js$/.test(f)) await rm(path.join(dir, f));
   const { tweaks: broken } = await import(path.join(dir, "core.js"));
-  const err = console.error; console.error = () => {};
+  const err = console.error;
+  console.error = () => {};
   try {
     const warns = await warnings(async () => {
       const p = broken("Gone", { x: [1, 0, 10, 1], pl: { type: "plot", expr: "x" } });
@@ -82,41 +116,76 @@ test("a destroyed panel says nothing when its chunk later fails", async () => {
       await assert.rejects(p.ready);
     });
     assert.ok(!warns.some((m) => m.includes("inert")), "no inert warning for a panel the host already tore down");
-  } finally { console.error = err; await rm(dir, { recursive: true, force: true }); }
+  } finally {
+    console.error = err;
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 // A color value: a chunk nothing above has loaded.
 test("a listener that destroys the panel on the persisted restore leaves no listener behind", async () => {
-  localStorage.clear(); localStorage.setItem("tw:rf-d", JSON.stringify({ v: 1, values: { x: 4 } }));
+  localStorage.clear();
+  localStorage.setItem("tw:rf-d", JSON.stringify({ v: 1, values: { x: 4 } }));
   const counts = { add: 0, remove: 0 };
-  const add = document.addEventListener.bind(document), remove = document.removeEventListener.bind(document);
-  document.addEventListener = (t, fn, o) => { if (t === "keydown") counts.add++; return add(t, fn, o); };
-  document.removeEventListener = (t, fn, o) => { if (t === "keydown") counts.remove++; return remove(t, fn, o); };
+  const add = document.addEventListener.bind(document),
+    remove = document.removeEventListener.bind(document);
+  document.addEventListener = (t, fn, o) => {
+    if (t === "keydown") counts.add++;
+    return add(t, fn, o);
+  };
+  document.removeEventListener = (t, fn, o) => {
+    if (t === "keydown") counts.remove++;
+    return remove(t, fn, o);
+  };
   try {
     const p = lazy.tweaks("RFD", { x: [1, 0, 10, 1], c: "#7c5cff" }, { persist: "rf-d", undo: true, floating: true });
     document.body.append(p.el);
     p.on(() => p.destroy());
     await p.ready;
-    assert.equal(counts.add, 0, "the undo listener never registered on the panel the restore's listener had destroyed"); // (the hint teardown removes a keydown listener unconditionally, so removes are not a usable count)
-  } finally { document.addEventListener = add; document.removeEventListener = remove; }
+    // (the hint teardown removes a keydown listener unconditionally, so removes are not a usable count)
+    assert.equal(counts.add, 0, "the undo listener never registered on the panel the restore's listener had destroyed");
+  } finally {
+    document.addEventListener = add;
+    document.removeEventListener = remove;
+  }
 });
 
 test("a resize during the lazy window is applied once the panel is ready", async () => {
   const w0 = window.innerWidth;
-  const p = lazy.tweaks("RFR", { x: [1, 0, 10, 1], g: { type: "gradient", value: [["#000", 0], ["#fff", 1]] } }, { floating: { x: 900, y: 10 } });
+  const p = lazy.tweaks(
+    "RFR",
+    {
+      x: [1, 0, 10, 1],
+      g: {
+        type: "gradient",
+        value: [
+          ["#000", 0],
+          ["#fff", 1],
+        ],
+      },
+    },
+    { floating: { x: 900, y: 10 } },
+  );
   document.body.append(p.el);
   assert.ok(p.el.querySelector(".twk-toolbar-btn--reset").disabled, "in the lazy window");
   try {
-    window.innerWidth = 500; window.dispatchEvent(new window.Event("resize"));
+    window.innerWidth = 500;
+    window.dispatchEvent(new window.Event("resize"));
     await p.ready;
     assert.equal(p.el.style.getPropertyValue("--twk-float-x"), "492px", "clamped into the narrowed viewport at ready");
-  } finally { window.innerWidth = w0; p.destroy(); }
+  } finally {
+    window.innerWidth = w0;
+    p.destroy();
+  }
 });
 
 test("a value parked on params stays out of every snapshot, so one JSON can't take breaks none", async () => {
   const warns = await warnings(async () => {
     const p = lazy.tweaks("RFT", { x: [1, 0, 10, 1], im: { type: "image" } }, { undo: true, persist: "rf-t" });
-    const loop = {}; loop.self = loop; p.params.loop = loop; // parked before ready; the undo seed, the persist timer and toJSON all snapshot
+    // parked before ready; the undo seed, the persist timer and toJSON all snapshot
+    const loop = {};
+    loop.self = loop;
+    p.params.loop = loop;
     await p.ready;
     p.set("x", 5);
     assert.equal(p.params.x, 5, "the panel works");
@@ -127,11 +196,18 @@ test("a value parked on params stays out of every snapshot, so one JSON can't ta
 });
 
 test("a stored key no control has is left alone by a restore", async () => {
-  localStorage.clear(); localStorage.setItem("tw:r6-ro", JSON.stringify({ v: 1, values: { x: 4, ro: 9 } }));
+  localStorage.clear();
+  localStorage.setItem("tw:r6-ro", JSON.stringify({ v: 1, values: { x: 4, ro: 9 } }));
   const p = lazy.tweaks("R6", { x: [1, 0, 10, 1], sh: { type: "shadow" } }, { persist: "r6-ro" });
   Object.defineProperty(p.params, "ro", { get: () => 1, configurable: true, enumerable: true });
-  const errs = []; const err = console.error; console.error = (...a) => errs.push(String(a[0]));
-  try { await p.ready; } finally { console.error = err; }
+  const errs = [];
+  const err = console.error;
+  console.error = (...a) => errs.push(String(a[0]));
+  try {
+    await p.ready;
+  } finally {
+    console.error = err;
+  }
   assert.equal(p.params.x, 4, "the restore landed the control's value");
   assert.equal(p.params.ro, 1, "and never wrote the key no control owns");
   assert.deepEqual(errs, []);

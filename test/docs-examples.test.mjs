@@ -22,7 +22,14 @@ const files = (await readdir(pagesDir)).filter((f) => f.endsWith(".mjs")).sort()
 const snapFile = new URL("./docs-snapshot.json", import.meta.url);
 const update = !!process.env.TW_UPDATE_DOCS_SNAPSHOT;
 let baseline = {};
-try { baseline = JSON.parse(await readFile(snapFile, "utf8")); } catch { if (!update) throw new Error("test/docs-snapshot.json is missing — write it with TW_UPDATE_DOCS_SNAPSHOT=1 node --test test/docs-examples.test.mjs"); }
+try {
+  baseline = JSON.parse(await readFile(snapFile, "utf8"));
+} catch {
+  if (!update)
+    throw new Error(
+      "test/docs-snapshot.json is missing — write it with TW_UPDATE_DOCS_SNAPSHOT=1 node --test test/docs-examples.test.mjs",
+    );
+}
 const fresh = {};
 
 for (const file of files) {
@@ -35,12 +42,23 @@ for (const file of files) {
       stage.innerHTML = `<div class="ex-target">${ex.html ?? ex.target ?? ""}</div>${ex.noMount ? "" : '<div class="ex-mount"></div>'}`;
       document.body.append(stage);
       const made = [];
-      const tw = (...a) => { const p = tweaks(...a); made.push(p); return p; };
+      const tw = (...a) => {
+        const p = tweaks(...a);
+        made.push(p);
+        return p;
+      };
       const errors = [];
       const onError = (e) => errors.push(e.error || e.message);
       window.addEventListener("error", onError);
       try {
-        if (ex.run) ex.run({ tweaks: tw, enhance, gradientCss, mount: stage.querySelector(".ex-mount"), target: stage.querySelector(".ex-target") });
+        if (ex.run)
+          ex.run({
+            tweaks: tw,
+            enhance,
+            gradientCss,
+            mount: stage.querySelector(".ex-mount"),
+            target: stage.querySelector(".ex-target"),
+          });
         else await enhance(stage);
         await Promise.all(made.map((p) => p.ready));
         await new Promise((r) => setTimeout(r, 40)); // a couple of frames for measure passes and first draws
@@ -48,13 +66,22 @@ for (const file of files) {
         // The example's state once settled: every panel's toJSON(), or the markup hosts' values.
         const state = ex.run
           ? made.map((p) => p.toJSON())
-          : [...stage.querySelectorAll("[data-twk]")].map((h) => ({ key: h.dataset.key ?? h.dataset.label ?? h.dataset.twk, value: h.dataset.value ?? null }));
+          : [...stage.querySelectorAll("[data-twk]")].map((h) => ({
+              key: h.dataset.key ?? h.dataset.label ?? h.dataset.twk,
+              value: h.dataset.value ?? null,
+            }));
         fresh[name] = JSON.parse(JSON.stringify(state));
-        if (!update) assert.deepEqual(fresh[name], baseline[name], `${name}: the example's settled state changed — if that is intended, rewrite the baseline with TW_UPDATE_DOCS_SNAPSHOT=1`);
+        if (!update)
+          assert.deepEqual(
+            fresh[name],
+            baseline[name],
+            `${name}: the example's settled state changed — if that is intended, rewrite the baseline with TW_UPDATE_DOCS_SNAPSHOT=1`,
+          );
       } finally {
         window.removeEventListener("error", onError);
         for (const p of made) p.destroy();
-        for (const el of document.querySelectorAll(".twk-panel")) el.remove(); // panels built straight into body (floating examples)
+        // panels built straight into body (floating examples)
+        for (const el of document.querySelectorAll(".twk-panel")) el.remove();
         stage.remove();
       }
     });
@@ -62,4 +89,12 @@ for (const file of files) {
 }
 
 // One line per example, so a changed example is a one-line diff.
-after(async () => { if (update) await writeFile(snapFile, `{\n${Object.entries(fresh).map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(",\n")}\n}\n`); });
+after(async () => {
+  if (update)
+    await writeFile(
+      snapFile,
+      `{\n${Object.entries(fresh)
+        .map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`)
+        .join(",\n")}\n}\n`,
+    );
+});

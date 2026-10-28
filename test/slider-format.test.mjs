@@ -10,13 +10,22 @@ import { loadSingle } from "./_helpers.mjs";
 const { tweaks } = await loadSingle();
 
 // Minutes of the day as a clock, and back.
-const clock = (m) => { const h = Math.floor(m / 60) % 24; return `${h % 12 || 12}:${String(m % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
-const unclock = (s) => { const [hm, ap] = s.trim().toUpperCase().split(/\s+/); const [h, m = "0"] = hm.split(":"); return ((+h % 12) + (ap === "PM" ? 12 : 0)) * 60 + +m; };
+const clock = (m) => {
+  const h = Math.floor(m / 60) % 24;
+  return `${h % 12 || 12}:${String(m % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+};
+const unclock = (s) => {
+  const [hm, ap] = s.trim().toUpperCase().split(/\s+/);
+  const [h, m = "0"] = hm.split(":");
+  return ((+h % 12) + (ap === "PM" ? 12 : 0)) * 60 + +m;
+};
 
 const build = async (opts) => {
   const p = tweaks("Format", { time: { type: "slider", value: 450, min: 0, max: 1425, step: 15, ...opts } });
-  document.body.append(p.el); await p.ready;
-  const track = p.el.querySelector(".twk-slider"), readout = () => p.el.querySelector(".twk-slider-value").textContent;
+  document.body.append(p.el);
+  await p.ready;
+  const track = p.el.querySelector(".twk-slider"),
+    readout = () => p.el.querySelector(".twk-slider-value").textContent;
   return { p, track, readout };
 };
 const typeIn = (track, text) => {
@@ -41,7 +50,11 @@ test("format draws the readout and its aria-valuetext; the param stays the numbe
 
 test("with parse, the editor shows the formatted text and reads a typed one back", async () => {
   const { p, track, readout } = await build({ format: clock, parse: unclock });
-  assert.deepEqual(typeIn(track, "9:15 am"), { shown: "7:30 AM", mode: "text", width: "8ch" }, "the field opens on the readout, sized to it");
+  assert.deepEqual(
+    typeIn(track, "9:15 am"),
+    { shown: "7:30 AM", mode: "text", width: "8ch" },
+    "the field opens on the readout, sized to it",
+  );
   assert.equal(p.params.time, 555);
   assert.equal(readout(), "9:15 AM");
   p.destroy();
@@ -56,7 +69,13 @@ test("with only format, the editor edits the digits", async () => {
 });
 
 test("a format that throws, or returns anything but a non-empty string, falls back to the digits", async () => {
-  for (const format of [() => { throw new Error("no"); }, () => 12, () => ""]) {
+  for (const format of [
+    () => {
+      throw new Error("no");
+    },
+    () => 12,
+    () => "",
+  ]) {
     const { p, track, readout } = await build({ format });
     assert.equal(readout(), "450", `format ${format}`);
     assert.equal(track.getAttribute("aria-valuetext"), "450");
@@ -67,7 +86,15 @@ test("a format that throws, or returns anything but a non-empty string, falls ba
 test("text the parse can't read leaves the value where it was", async () => {
   // A parse's answer is final: a throw, NaN, Infinity, a null "can't tell" or a numeric
   // string is not a value, and the typed text is not read as a plain number instead.
-  for (const parse of [() => { throw new Error("no"); }, () => NaN, () => Infinity, () => null, () => "300"]) {
+  for (const parse of [
+    () => {
+      throw new Error("no");
+    },
+    () => NaN,
+    () => Infinity,
+    () => null,
+    () => "300",
+  ]) {
     const { p, track, readout } = await build({ format: clock, parse });
     typeIn(track, "300");
     assert.equal(p.params.time, 450, `parse ${parse}`);
@@ -106,7 +133,13 @@ test("without a parse, typed text must all be a number; the unit is dropped", as
 });
 
 test("a unit still follows a formatted readout", async () => {
-  const { p, track, readout } = await build({ format: (v) => v.toLocaleString("en-US"), unit: "ms", value: 1500, max: 3000, step: 100 });
+  const { p, track, readout } = await build({
+    format: (v) => v.toLocaleString("en-US"),
+    unit: "ms",
+    value: 1500,
+    max: 3000,
+    step: 100,
+  });
   assert.equal(readout(), "1,500 ms");
   assert.equal(track.getAttribute("aria-valuetext"), "1,500 ms");
   p.destroy();

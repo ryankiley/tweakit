@@ -14,21 +14,35 @@ test("every lazy control loads from the split build and registers", async () => 
     number: { type: "number", value: 1 },
     interval: { type: "interval", value: [2, 8], min: 0, max: 10, step: 1 },
     color: "#7c5cff",
-    gradient: { type: "gradient", value: [["#000", 0], ["#fff", 1]] },
+    gradient: {
+      type: "gradient",
+      value: [
+        ["#000", 0],
+        ["#fff", 1],
+      ],
+    },
     image: { type: "image" },
     fps: { type: "fpsgraph" },
     monitor: { type: "monitor", value: 1 },
     spring: { type: "spring", value: { stiffness: 100, damping: 12, mass: 1 } },
     bezier: { type: "cubicbezier", value: [0.4, 0, 0.2, 1] },
-    point: { type: "point", components: [{ key: "x", value: 0 }, { key: "y", value: 0 }] },
+    point: {
+      type: "point",
+      components: [
+        { key: "x", value: 0 },
+        { key: "y", value: 0 },
+      ],
+    },
     plot: { type: "plot", expr: "sin(x)" },
     tabs: { type: "tabs", pages: { A: { a: 1 }, B: { b: 2 } } },
   });
   document.body.append(p.el);
   try {
     await p.ready;
-    for (const key of ["number", "interval", "color", "gradient", "image", "spring", "bezier", "point", "plot", "tabs"]) assert.ok(key in p.params, `${key} built`);
-    for (const cls of ["twk-plot", "twk-monitor", "twk-fps", "twk-tabs"]) assert.ok(p.el.querySelector("." + cls), `${cls} rendered`);
+    for (const key of ["number", "interval", "color", "gradient", "image", "spring", "bezier", "point", "plot", "tabs"])
+      assert.ok(key in p.params, `${key} built`);
+    for (const cls of ["twk-plot", "twk-monitor", "twk-fps", "twk-tabs"])
+      assert.ok(p.el.querySelector("." + cls), `${cls} rendered`);
   } finally {
     p.destroy(); // the monitor loops would otherwise outlive a failed assertion and pin the process open
   }
@@ -46,36 +60,59 @@ test("the split build has exactly three shared chunks, and core imports exactly 
   const { readdir, readFile } = await import("node:fs/promises");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const chunks = (await readdir(dir)).filter((f) => /^chunk-[\w-]+\.js$/.test(f));
-  assert.equal(chunks.length, 3, `shared chunks: ${chunks.join(", ")} — a core-only module is being imported from a lazy control`);
+  assert.equal(
+    chunks.length,
+    3,
+    `shared chunks: ${chunks.join(", ")} — a core-only module is being imported from a lazy control`,
+  );
   const core = await readFile(new URL("core.js", dir), "utf8");
   const staticImports = [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]);
   assert.equal(staticImports.length, 1, `core.js statically imports: ${staticImports.join(", ")}`);
 });
 
 // The markup layer (enhance() and the [data-twk] parsers) is its own lazy chunk, fetched only by a page with markup. It
-// borrows core's panel modules through a kit rather than importing them: an import would hoist them into a shared chunk.
+// borrows core's panel modules through a kit rather than importing them: an import would hoist them into a shared
+// chunk.
 test("the markup chunk is lazy and imports only the shared chunk; a page without markup never fetches it", async () => {
   const { readdir, readFile } = await import("node:fs/promises");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const markup = (await readdir(dir)).find((f) => /^markup-[\w-]+\.js$/.test(f));
   assert.ok(markup, "dist/tweaks has a markup chunk");
   const core = await readFile(new URL("core.js", dir), "utf8");
-  assert.ok(!new RegExp(`from\\s*"\\./${markup}"`).test(core) && core.includes(`import("./${markup}")`), "core loads it dynamically");
-  const imports = [...(await readFile(new URL(markup, dir), "utf8")).matchAll(/from\s*"\.\/([\w-]+\.js)"/g)].map((m) => m[1]);
-  assert.deepEqual(imports, [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]), "only the shared chunk core imports");
+  assert.ok(
+    !new RegExp(`from\\s*"\\./${markup}"`).test(core) && core.includes(`import("./${markup}")`),
+    "core loads it dynamically",
+  );
+  const imports = [...(await readFile(new URL(markup, dir), "utf8")).matchAll(/from\s*"\.\/([\w-]+\.js)"/g)].map(
+    (m) => m[1],
+  );
+  assert.deepEqual(
+    imports,
+    [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]),
+    "only the shared chunk core imports",
+  );
 });
 
-// The presets menu is its own chunk too, fetched on the Presets button's first hover, focus or press. Like markup it takes
-// announce() and its icon from core as arguments, so it imports only the shared chunk.
+// The presets menu is its own chunk too, fetched on the Presets button's first hover, focus or press. Like markup it
+// takes announce() and its icon from core as arguments, so it imports only the shared chunk.
 test("the presets menu chunk is lazy and imports only the shared chunk", async () => {
   const { readdir, readFile } = await import("node:fs/promises");
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const presets = (await readdir(dir)).find((f) => /^presets-[\w-]+\.js$/.test(f));
   assert.ok(presets, "dist/tweaks has a presets chunk");
   const core = await readFile(new URL("core.js", dir), "utf8");
-  assert.ok(core.includes(`import("./${presets}")`) && !core.includes("twk-presets-menu"), "core loads it dynamically and holds none of it");
-  const imports = [...(await readFile(new URL(presets, dir), "utf8")).matchAll(/from\s*"\.\/([\w-]+\.js)"/g)].map((m) => m[1]);
-  assert.deepEqual(imports, [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]), "only the shared chunk core imports");
+  assert.ok(
+    core.includes(`import("./${presets}")`) && !core.includes("twk-presets-menu"),
+    "core loads it dynamically and holds none of it",
+  );
+  const imports = [...(await readFile(new URL(presets, dir), "utf8")).matchAll(/from\s*"\.\/([\w-]+\.js)"/g)].map(
+    (m) => m[1],
+  );
+  assert.deepEqual(
+    imports,
+    [...core.matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)].map((m) => m[1]),
+    "only the shared chunk core imports",
+  );
 });
 
 // The budget a basic panel's download is held to: core.js + the shared chunk it statically
@@ -91,7 +128,8 @@ test("a basic panel's code-split download stays under 25 KiB gzip", async () => 
   const dir = new URL("../dist/tweaks/", import.meta.url);
   const core = await readFile(new URL("core.js", dir));
   let bytes = gzipSync(core).length;
-  for (const [, c] of String(core).matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g)) bytes += gzipSync(await readFile(new URL(c, dir))).length;
+  for (const [, c] of String(core).matchAll(/from\s*"\.\/(chunk-[\w-]+\.js)"/g))
+    bytes += gzipSync(await readFile(new URL(c, dir))).length;
   assert.ok(bytes < 25600, `core + shared chunk is ${bytes} B gzip — over the 25 KiB budget`);
 });
 
@@ -104,9 +142,12 @@ test("the split build's number control mounts standalone and from markup once it
   await h.ready;
   assert.ok(host.querySelector(".twk-num"), "mountControl built the number field");
   assert.equal(h.get(), 3);
-  h.destroy(); host.remove();
+  h.destroy();
+  host.remove();
   const mk = document.createElement("div");
-  mk.dataset.twk = "number"; mk.dataset.key = "n"; mk.dataset.value = "4";
+  mk.dataset.twk = "number";
+  mk.dataset.key = "n";
+  mk.dataset.value = "4";
   document.body.append(mk);
   await enhance(mk);
   assert.ok(mk.querySelector(".twk-num"), "a [data-twk=number] host built its field");

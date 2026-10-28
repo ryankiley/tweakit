@@ -1,5 +1,6 @@
 /* The page scan on load is opt-in. Importing tweakit, tweakit/core or tweakit/single binds no [data-twk] host; the
- * tweakit/auto entry (dist/tweaks/auto.js) binds the page's hosts once it has parsed, as the bare import did up to 0.5. */
+ * tweakit/auto entry (dist/tweaks/auto.js) binds the page's hosts once it has parsed, as the bare import did up to
+ * 0.5. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
@@ -12,7 +13,10 @@ const host = (key) => {
   return el;
 };
 // The markup chunk loads asynchronously on the split build, so a bound host shows up a few ticks after the scan.
-const bound = async (el) => { for (let i = 0; i < 100 && !el._tw; i++) await wait(5); return !!el._tw; };
+const bound = async (el) => {
+  for (let i = 0; i < 100 && !el._tw; i++) await wait(5);
+  return !!el._tw;
+};
 
 test("the bare import and the single-file build bind nothing on load", async () => {
   const a = host("a");
@@ -27,7 +31,8 @@ test("the bare import and the single-file build bind nothing on load", async () 
   const b = host("b");
   await single.enhance(b);
   assert.ok(b._tw, "the single-file build's enhance() binds too");
-  a.remove(); b.remove();
+  a.remove();
+  b.remove();
 });
 
 test("tweakit/auto binds the page's [data-twk] hosts on load, and re-exports the API", async () => {

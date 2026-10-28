@@ -14,13 +14,24 @@ const { tweaks, gradientCss } = await loadSingle();
 const barCss = (p) => {
   const style = p.el.querySelector(".twk-gradient-grad").style;
   if (!Object.getOwnPropertyDescriptor(style, "background")) {
-    let last = style.background; Object.defineProperty(style, "background", { configurable: true, get: () => last, set: (v) => { last = v; } });
-    p.el.querySelector(".twk-gradient-ease").dispatchEvent(new Event("change", { bubbles: true })); // repaint through the accessor
+    let last = style.background;
+    Object.defineProperty(style, "background", {
+      configurable: true,
+      get: () => last,
+      set: (v) => {
+        last = v;
+      },
+    });
+    // repaint through the accessor
+    p.el.querySelector(".twk-gradient-ease").dispatchEvent(new Event("change", { bubbles: true }));
   }
   return String(style.background);
 };
 const easeSel = (p) => p.el.querySelector(".twk-gradient-ease");
-const pick = (sel, v) => { sel.value = v; sel.dispatchEvent(new Event("change", { bubbles: true })); };
+const pick = (sel, v) => {
+  sel.value = v;
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+};
 
 test("a gradient emits easing: linear by default, and its bar is gradientCss(value) verbatim", () => {
   const p = tweaks("G", { g: { type: "gradient" } });
@@ -30,12 +41,28 @@ test("a gradient emits easing: linear by default, and its bar is gradientCss(val
 });
 
 test("the easing menu sits beside the mode select, lists the CSS keywords, and a pick re-emits + repaints", () => {
-  const p = tweaks("G", { g: { type: "gradient", value: [["#ff0000", 0], ["#0000ff", 1]] } });
+  const p = tweaks("G", {
+    g: {
+      type: "gradient",
+      value: [
+        ["#ff0000", 0],
+        ["#0000ff", 1],
+      ],
+    },
+  });
   const sel = easeSel(p);
   assert.ok(sel && sel.tagName === "SELECT");
-  assert.equal(sel.previousElementSibling.className, "twk-color-mode", "right after the mode select, in the picker's mode row");
-  assert.deepEqual([...sel.options].map((o) => o.value), ["linear", "ease", "ease-in", "ease-out", "ease-in-out"]);
-  let emitted = 0; p.on(() => emitted++);
+  assert.equal(
+    sel.previousElementSibling.className,
+    "twk-color-mode",
+    "right after the mode select, in the picker's mode row",
+  );
+  assert.deepEqual(
+    [...sel.options].map((o) => o.value),
+    ["linear", "ease", "ease-in", "ease-out", "ease-in-out"],
+  );
+  let emitted = 0;
+  p.on(() => emitted++);
   pick(sel, "ease-in-out");
   assert.equal(emitted, 1);
   assert.equal(p.params.g.easing, "ease-in-out");
@@ -46,12 +73,49 @@ test("the easing menu sits beside the mode select, lists the CSS keywords, and a
 
 test("a value carrying easing opens on it; a bezier that isn't a keyword shows as Custom", () => {
   const p = tweaks("G", {
-    a: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "ease-out" } },
-    b: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "cubic-bezier(0.42,0,0.58,1)" } },
-    c: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "cubic-bezier(0.3, 0, 0.7, 1)" } },
-    d: { type: "gradient", value: { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "bogus) url(x" } },
+    a: {
+      type: "gradient",
+      value: {
+        stops: [
+          { color: "red", pos: 0 },
+          { color: "blue", pos: 1 },
+        ],
+        easing: "ease-out",
+      },
+    },
+    b: {
+      type: "gradient",
+      value: {
+        stops: [
+          { color: "red", pos: 0 },
+          { color: "blue", pos: 1 },
+        ],
+        easing: "cubic-bezier(0.42,0,0.58,1)",
+      },
+    },
+    c: {
+      type: "gradient",
+      value: {
+        stops: [
+          { color: "red", pos: 0 },
+          { color: "blue", pos: 1 },
+        ],
+        easing: "cubic-bezier(0.3, 0, 0.7, 1)",
+      },
+    },
+    d: {
+      type: "gradient",
+      value: {
+        stops: [
+          { color: "red", pos: 0 },
+          { color: "blue", pos: 1 },
+        ],
+        easing: "bogus) url(x",
+      },
+    },
   });
-  assert.equal(p.params.a.easing, "ease-out"); assert.equal(p.el.querySelectorAll(".twk-gradient-ease")[0].value, "ease-out");
+  assert.equal(p.params.a.easing, "ease-out");
+  assert.equal(p.el.querySelectorAll(".twk-gradient-ease")[0].value, "ease-out");
   assert.equal(p.params.b.easing, "cubic-bezier(0.42,0,0.58,1)"); // stored as written, not renamed
   assert.equal(p.params.c.easing, "cubic-bezier(0.3, 0, 0.7, 1)");
   const selC = p.el.querySelectorAll(".twk-gradient-ease")[2];
@@ -66,10 +130,31 @@ test("a value carrying easing opens on it; a bezier that isn't a keyword shows a
 });
 
 test("set() applies an easing it names and leaves one it doesn't; reset returns to the opened form", () => {
-  const p = tweaks("G", { g: { type: "gradient", value: [["#ff0000", 0], ["#0000ff", 1]] } });
-  p.set("g", { stops: [{ color: "red", pos: 0 }, { color: "blue", pos: 1 }], easing: "ease-in" });
-  assert.equal(p.params.g.easing, "ease-in"); assert.equal(easeSel(p).value, "ease-in");
-  p.set("g", { stops: [{ color: "lime", pos: 0 }, { color: "blue", pos: 1 }] }); // stops only — a host mirror-back without easing
+  const p = tweaks("G", {
+    g: {
+      type: "gradient",
+      value: [
+        ["#ff0000", 0],
+        ["#0000ff", 1],
+      ],
+    },
+  });
+  p.set("g", {
+    stops: [
+      { color: "red", pos: 0 },
+      { color: "blue", pos: 1 },
+    ],
+    easing: "ease-in",
+  });
+  assert.equal(p.params.g.easing, "ease-in");
+  assert.equal(easeSel(p).value, "ease-in");
+  // stops only — a host mirror-back without easing
+  p.set("g", {
+    stops: [
+      { color: "lime", pos: 0 },
+      { color: "blue", pos: 1 },
+    ],
+  });
   assert.equal(p.params.g.easing, "ease-in", "left as set, not silently reset");
   assert.equal(p.params.g.stops[0].color, "lime");
   p.reset();
@@ -79,11 +164,33 @@ test("set() applies an easing it names and leaves one it doesn't; reset returns 
 
 test("a stop added to an eased ramp samples the eased color, so it lands on the ramp the bar draws", () => {
   // Black → white, ease-in-out: at 25% the eased ramp is well below the straight blend's 25% gray.
-  const lin = tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "#000000", pos: 0 }, { color: "#ffffff", pos: 1 }] } } });
-  const eas = tweaks("G", { g: { type: "gradient", value: { stops: [{ color: "#000000", pos: 0 }, { color: "#ffffff", pos: 1 }], easing: "ease-in-out" } } });
+  const lin = tweaks("G", {
+    g: {
+      type: "gradient",
+      value: {
+        stops: [
+          { color: "#000000", pos: 0 },
+          { color: "#ffffff", pos: 1 },
+        ],
+      },
+    },
+  });
+  const eas = tweaks("G", {
+    g: {
+      type: "gradient",
+      value: {
+        stops: [
+          { color: "#000000", pos: 0 },
+          { color: "#ffffff", pos: 1 },
+        ],
+        easing: "ease-in-out",
+      },
+    },
+  });
   const L = (p) => +/oklch\(([\d.]+)/.exec(p.params.g.stops[1].color)[1];
   for (const p of [lin, eas]) {
-    const first = p.el.querySelector(".twk-gradient-stop"); first.focus(); // select the first stop
+    const first = p.el.querySelector(".twk-gradient-stop");
+    first.focus(); // select the first stop
     const bar = p.el.querySelector(".twk-gradient-bar");
     bar.getBoundingClientRect = () => ({ left: 0, width: 100, top: 0, bottom: 28, right: 100, height: 28 });
     p.el.querySelector(".twk-gradient-rail").getBoundingClientRect = bar.getBoundingClientRect;
@@ -95,11 +202,32 @@ test("a stop added to an eased ramp samples the eased color, so it lands on the 
 });
 
 test("a pasted gradient value copied onto the { type } form keeps its blend and easing, the value form still winning", () => {
-  const pasted = { stops: [{ color: "#ff0000", pos: 0 }, { color: "#0000ff", pos: 1 }], interpolation: "hsl", easing: "ease-in-out" };
-  const p = tweaks("GP", { g: { type: "gradient", ...pasted }, h: { type: "gradient", value: { ...pasted, interpolation: "srgb", easing: "ease" }, interpolation: "hsl", easing: "ease-in" } });
-  assert.deepEqual(p.params.g, pasted, "top-level interpolation and easing read, as AGENTS.md's paste step copies them");
-  assert.equal(p.params.h.interpolation, "srgb"); assert.equal(p.params.h.easing, "ease");
-  p.set("g", { ...pasted, interpolation: "srgb", easing: "linear" }); p.reset();
+  const pasted = {
+    stops: [
+      { color: "#ff0000", pos: 0 },
+      { color: "#0000ff", pos: 1 },
+    ],
+    interpolation: "hsl",
+    easing: "ease-in-out",
+  };
+  const p = tweaks("GP", {
+    g: { type: "gradient", ...pasted },
+    h: {
+      type: "gradient",
+      value: { ...pasted, interpolation: "srgb", easing: "ease" },
+      interpolation: "hsl",
+      easing: "ease-in",
+    },
+  });
+  assert.deepEqual(
+    p.params.g,
+    pasted,
+    "top-level interpolation and easing read, as AGENTS.md's paste step copies them",
+  );
+  assert.equal(p.params.h.interpolation, "srgb");
+  assert.equal(p.params.h.easing, "ease");
+  p.set("g", { ...pasted, interpolation: "srgb", easing: "linear" });
+  p.reset();
   assert.deepEqual(p.params.g, pasted, "reset restores the top-level pair");
   p.destroy();
 });
