@@ -119,13 +119,11 @@
 /* The footprint a lifted panel leaves in its old slot, so the host layout holds still. */
 .twk-lift-slot { display: block; flex: none; pointer-events: none; }
 /* The header is the drag handle. The negative margin (canceled by an equal padding-top)
- * stretches its hit area up through the panel's top padding to the edge; a floating header
- * reaches up too, to pin with its top space. Draggable panels only take the grab: a pinned
- * floating one keeps a plain cursor, and a swipe on its header scrolls it. */
+ * stretches its hit area up through the panel's top padding to the edge. Draggable panels
+ * only: a pinned floating one keeps a plain cursor, and a swipe on its header scrolls it. */
 .twk-panel[data-draggable="true"] > .twk-header,
 .twk-panel[data-draggable="true"] > .twk-header .twk-header-toggle { cursor: grab; }
-.twk-panel[data-draggable="true"] > .twk-header { touch-action: none; }
-.twk-panel:is([data-draggable="true"], [data-mode="floating"]) > .twk-header { margin-top: -10px; padding-top: 10px; }
+.twk-panel[data-draggable="true"] > .twk-header { touch-action: none; margin-top: -10px; padding-top: 10px; }
 /* A drop near an edge eases the rest of the way to the margin (panel.ts endDrag()). */
 .twk-panel.is-snapping { transition: left 0.32s var(--twk-ease-spring), top 0.32s var(--twk-ease-spring), right 0.32s var(--twk-ease-spring), bottom 0.32s var(--twk-ease-spring); }
 .twk-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--twk-shadow-panel-lifted); z-index: 99991; }
@@ -135,13 +133,14 @@
 .twk-panel[data-mode="floating"] { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
 .twk-panel[data-mode="floating"]::-webkit-scrollbar { display: none; } /* Safari before scrollbar-width */
 /* Scrolling, the header pins at the panel's edge, and each folder's header pins under it while its folder is in view, a
- * nested one a row lower (a third level pins with the second, under it). Sticky offsets count from inside the 10px
- * padding: the header's is -10px, and --twk-pin, its bottom, is its height (44px with the toolbar's 24px buttons, 37px
- * on the 17px title) less that. Keyboard focus scrolls clear of two pinned headers. A picked folder's band shows through
+ * nested one a row lower (a third level pins with the second, under it). The header reaches up through the 10px
+ * padding, as a draggable one does, to pin with its top space. Sticky offsets count from inside that padding: the
+ * header's is -10px, and --twk-pin, its bottom, is its height (44px with the toolbar's 24px buttons, 37px on the 17px
+ * title) less that. Keyboard focus scrolls clear of two pinned headers. A picked folder's band shows through
  * its header (--twk-band). */
 .twk-panel[data-mode="floating"] { --twk-pin: 34px; scroll-padding-top: calc(var(--twk-pin) + 10px + 2 * var(--twk-row-height)); }
 .twk-panel[data-mode="floating"]:not(:has(> .twk-header .twk-toolbar-btn)) { --twk-pin: 27px; }
-.twk-panel[data-mode="floating"] > .twk-header { position: sticky; top: -10px; z-index: 4; background: var(--twk-base); }
+.twk-panel[data-mode="floating"] > .twk-header { position: sticky; top: -10px; z-index: 4; margin-top: -10px; padding-top: 10px; background: var(--twk-base); }
 .twk-panel[data-mode="floating"] .twk-folder > .twk-folder-header { position: sticky; top: var(--twk-pin); z-index: 3; background: linear-gradient(var(--twk-band, transparent), var(--twk-band, transparent)) var(--twk-base); }
 .twk-panel[data-mode="floating"] .twk-folder .twk-folder > .twk-folder-header { top: calc(var(--twk-pin) + var(--twk-row-height)); }
 .twk-panel[data-mode="floating"] .twk-slider { touch-action: pan-y; }
