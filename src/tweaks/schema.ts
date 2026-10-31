@@ -85,6 +85,8 @@ interface Meta {
   view?: "graph" | "text";
   interval?: number;
   decimals?: number;
+  // Shadow: the subject's px width, [w, h], or markup's "w,h".
+  size?: number | readonly [number, number] | string;
   // Image (`options` and `cols` above).
   maxSize?: number;
   fit?: number | false;
