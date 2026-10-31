@@ -11,13 +11,11 @@ import {
   rangeStep,
   overlapsText,
   wireHoverClass,
-  onReady,
-  onLive,
   registerControl,
   rubberBand,
   rubberRelease,
 } from "../shared.js";
-import { dragGesture } from "../heavy.js";
+import { dragGesture, redrawOn } from "../heavy.js";
 import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -107,12 +105,10 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   };
 
   let rect: DOMRect | null = null,
-    scale = 1,
     active: "lo" | "hi" | null = null;
-  // Divide out any ancestor CSS transform (rect is visual px, offsetWidth layout px), as the single slider does.
+  // The rect is in the pointer's own px, so an ancestor transform cancels by itself, as on the single slider.
   const valFromX = (x: number) => {
-    const native = wrap.offsetWidth || rect.width;
-    const p = clamp((x - rect.left) / scale / native, 0, 1);
+    const p = clamp((x - rect.left) / rect.width, 0, 1);
     return clamp(min + p * (max - min), min, max);
   };
   const grab = (x: number) => {
@@ -125,7 +121,6 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     onDown: (e) => {
       e.preventDefault();
       rect = wrap.getBoundingClientRect();
-      scale = rect.width / (wrap.offsetWidth || rect.width);
       track.style.transition = ""; // a re-press mid spring-home stretches 1:1
       track.classList.add("is-active", "is-dragging");
       active = null;
@@ -147,16 +142,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   wireHoverClass(track, render); // re-run the dodge with the real track width on hover
   // Recompute once layout and fonts settle (a web-font swap shifts the widths the dodge measures) and on track-width
   // change.
-  onReady(render);
-  // twk-reflow: a tab page revealing this re-measures it
-  onLive(
-    track,
-    [
-      [window, "resize"],
-      [window, "twk-reflow"],
-    ],
-    render,
-  );
+  redrawOn(track, render);
 
   // Home/End snap a handle to its neighbor-or-limit, so the two can't cross.
   const page = (max - min) / 10 || step * 10; // PageUp/Down: a tenth of the range, as the slider jumps

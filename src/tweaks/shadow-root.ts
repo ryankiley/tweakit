@@ -35,8 +35,8 @@ const addPageRules = () => {
 // adopts: no download, and a bundler's dev server that moves the module can't lose the file. A rule comes along when it
 // names the kit (twk-): the kit's own, inside @media, @supports and @layer and through @import, and any of the page's
 // rules aimed at the kit's classes, which then style a shadow panel too; a rule aimed at the page's own elements
-// (`#app button`) can't reach in. A @keyframes block comes whole. It's this build's when it has the :host copy of the
-// tokens. Looked for again by each panel until found, so a stylesheet that arrives later is still used.
+// (`#app button`) can't reach in. A @keyframes block comes whole. It's this build's when it has the kit's :host rules.
+// Looked for again by each panel until found, so a stylesheet that arrives later is still used.
 let kitSheet: CSSStyleSheet | null = null;
 const kitRules = (rules: CSSRuleList, found: { host: boolean }): string[] =>
   [...rules].flatMap((r) => {

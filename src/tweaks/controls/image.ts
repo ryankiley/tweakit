@@ -72,22 +72,31 @@ export const animated = async (file: Blob) => {
 // picture shows, so a turned one gets a bare Exif back holding only that tag. A redraw needs none of this: a canvas
 // writes no Exif.
 // Each parser hands back the bytes left, or null to keep the file whole: nothing to cut, or a block it can't read.
-const orientation = (t: Uint8Array) => {
+// The first IFD of a TIFF header (Exif's, MPF's): `each` sees every 12-byte entry's offset, with the view and the byte
+// order, and may answer true to stop at it; null when the header or an offset doesn't read, else true.
+const ifd0 = (t: Uint8Array, each: (v: DataView, e: number, le: boolean) => boolean | void) => {
   const le = ascii(t, 0, "II"),
     v = new DataView(t.buffer, t.byteOffset, t.byteLength);
   if (!le && !ascii(t, 0, "MM")) return null;
   // an offset past the end
   try {
     const ifd = v.getUint32(4, le);
-    for (let k = 0, n = v.getUint16(ifd, le); k < n; k++)
-      if (v.getUint16(ifd + 2 + k * 12, le) === 0x112) {
-        const o = v.getUint16(ifd + 10 + k * 12, le);
-        return o > 1 && o <= 8 ? o : 1;
-      }
-    return 1;
+    for (let k = 0, n = v.getUint16(ifd, le); k < n; k++) if (each(v, ifd + 2 + k * 12, le)) break;
+    return true;
   } catch {
     return null;
   }
+};
+const orientation = (t: Uint8Array) => {
+  let o = 1;
+  return (
+    ifd0(t, (v, e, le) => {
+      if (v.getUint16(e, le) !== 0x112) return;
+      const x = v.getUint16(e + 8, le);
+      o = x > 1 && x <= 8 ? x : 1;
+      return true; // the first Orientation entry counts
+    }) && o
+  );
 };
 // A big-endian TIFF header and one IFD with the one entry: Orientation, a SHORT.
 const bareExif = (o: number) =>
@@ -128,29 +137,19 @@ const gainMapOnly = (b: Uint8Array) => {
 // doesn't read is left as it was. The images after the first are left whole, their own Exif or XMP with them: the MP
 // index and the gain-map XMP's Item:Length both record their sizes, so cutting into them means rewriting both, and a
 // gain map's XMP is its HDR.
-const mpfShift = (seg: Uint8Array, by: number) => {
-  const le = ascii(seg, 0, "II"),
-    v = new DataView(seg.buffer, seg.byteOffset, seg.byteLength);
-  if (!le && !ascii(seg, 0, "MM")) return;
-  try {
-    const ifd = v.getUint32(4, le);
-    for (let k = 0, n = v.getUint16(ifd, le); k < n; k++) {
-      // MPEntry: 16 bytes an image, its offset at 8
-      const e = ifd + 2 + k * 12;
-      if (v.getUint16(e, le) !== 0xb002) continue;
-      const list = v.getUint32(e + 8, le),
-        count = v.getUint32(e + 4, le) >>> 4;
-      if (count) v.getUint32(list + count * 16 - 4, le); // the whole list is in the segment, or nothing is written
-      for (let j = 0; j < count; j++) {
-        const o = list + j * 16 + 8,
-          off = v.getUint32(o, le);
-        if (off > by) v.setUint32(o, off - by, le);
-      }
+const mpfShift = (seg: Uint8Array, by: number) =>
+  ifd0(seg, (v, e, le) => {
+    // MPEntry: 16 bytes an image, its offset at 8
+    if (v.getUint16(e, le) !== 0xb002) return;
+    const list = v.getUint32(e + 8, le),
+      count = v.getUint32(e + 4, le) >>> 4;
+    if (count) v.getUint32(list + count * 16 - 4, le); // the whole list is in the segment, or nothing is written
+    for (let j = 0; j < count; j++) {
+      const o = list + j * 16 + 8,
+        off = v.getUint32(o, le);
+      if (off > by) v.setUint32(o, off - by, le);
     }
-  } catch {
-    /* an offset past the segment */
-  }
-};
+  });
 const jpegCut = (b: Bytes) => {
   if (b[0] !== 0xff || b[1] !== 0xd8) return null;
   const out: Bytes[] = [];
@@ -363,30 +362,30 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     shrink(file, fit, quality).then(async (url) => {
       if (gen !== at) return;
       if (url) return commit(url);
-      const fr = new FileReader();
-      fr.onload = () => {
-        if (gen === at) commit(String(fr.result));
-      };
-      fr.onerror = () => say(tr("unreadable", "Couldn't read the file"));
-      fr.readAsDataURL(await strip(file));
+      dataUrl(await strip(file)).then(
+        (u) => {
+          if (gen === at) commit(u);
+        },
+        () => say(tr("unreadable", "Couldn't read the file")),
+      );
     });
   };
-  // `zone` takes the drop and `over` wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the
-  // children doesn't drop the outline.
+  // `zone` takes the drop and wears [data-over] meanwhile. dragover re-asserts each tick, so crossing the children
+  // doesn't drop the outline.
   // A disabled control's root stays hit-testable (only its children go inert), so the zone checks for itself; on the
   // control's root, since the gallery's pane is portaled out of the panel while open.
-  const dropZone = (zone: HTMLElement, over: HTMLElement) => {
+  const dropZone = (zone: HTMLElement) => {
     const off = () => !!root.closest(".is-disabled");
     zone.addEventListener("dragover", (e) => {
       if (off()) return;
       e.preventDefault();
-      over.dataset.over = "true";
+      zone.dataset.over = "true";
     });
     zone.addEventListener("dragleave", () => {
-      over.dataset.over = "false";
+      zone.dataset.over = "false";
     });
     zone.addEventListener("drop", (e) => {
-      over.dataset.over = "false";
+      zone.dataset.over = "false";
       if (off()) return;
       e.preventDefault();
       load(e.dataTransfer?.files[0]);
@@ -418,7 +417,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       text.textContent = value ? tr("replace", "Replace") : tr("dropOrChoose", "Drop or choose");
     };
     row.trigger.addEventListener("click", () => input.click());
-    dropZone(row.trigger, row.trigger);
+    dropZone(row.trigger);
   } else {
     // The gallery: the row, with the chosen image's name, opens a pane of the tiles, as one radio group, over a foot
     // with the upload button and Clear. The row names the control, so the pane doesn't repeat it. The row and the pane
@@ -431,7 +430,6 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const pop = el("div", "twk-color-pop twk-image-pop twk-image-gallery");
     const upload = canUpload ? btn("twk-button twk-image-upload", ICON_UPLOAD) : null;
     const clear = txt("button", "twk-image-clear", tr("clear", "Clear"));
-    clear.type = "button";
     clear.setAttribute("aria-label", tr("clearImage", "{label}: clear the image", { label: meta.label }));
     // The foot folds like a folder: a row track holds the upload button and a column track holds Clear, so either can
     // ease shut without measuring. Clear folds away when there's nothing to clear; the foot folds when it's empty.
@@ -447,8 +445,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const cols = Math.min(6, Math.max(1, meta.cols! | 0 || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
     grid.style.setProperty("--twk-img-cols", String(cols));
     const tile = (v: string, label: string) => {
-      const b = radioButton("twk-image-tile", v, () => commit(v));
-      b.textContent = "";
+      const b = radioButton("twk-image-tile", { value: v, label: "" }, () => commit(v)); // the picture is the label
       b.setAttribute("aria-label", label);
       b.style.backgroundImage = urlCss(v);
       return b;
@@ -534,8 +531,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       upload.addEventListener("click", () => input.click());
       footRow.append(upload);
       root.append(input);
-      dropZone(row.trigger, row.trigger);
-      dropZone(pop, pop);
+      dropZone(row.trigger);
+      dropZone(pop);
     }
     if (canClear) footRow.append(slot);
     popover(root, row.trigger, pop, { fallbackH: 220, initialFocus: () => all().find((b) => b.tabIndex === 0) });
