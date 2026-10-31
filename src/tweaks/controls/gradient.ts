@@ -11,7 +11,6 @@ import type { OnChange } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control, GradientStop, GradientEasing } from "../types.js";
 
-const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 /** The name an easing is stored under: trimmed and lowercased when parseEasing knows it, else "linear". */
 const easingName = (e: unknown): GradientEasing =>
   parseEasing(e) ? ((e as string).trim().toLowerCase() as GradientEasing) : "linear";
@@ -19,7 +18,7 @@ const easingName = (e: unknown): GradientEasing =>
 /** The blend progress at a position, linear between samples exactly as the browser draws the
  *  stops, so a stop inserted at x takes the color the ramp really shows. Null is the identity. */
 function easingAt(b: Bez | null, x: number): number {
-  x = clamp01(x); // outside the segment is its end; never extrapolate
+  x = clamp(x, 0, 1); // outside the segment is its end; never extrapolate
   if (!b) return x;
   const s = easingSamples(b);
   for (let k = 1; k < s.length; k++) {
@@ -132,6 +131,10 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     );
   };
   const emit = () => onChange(value());
+  const change = () => {
+    paint();
+    emit();
+  };
 
   // the rail holds only stop handles
   const handleFor = (s: GradientStop) =>
@@ -143,16 +146,12 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     {
       value: selStop.color,
       mode: interpolationMode(interp0 || "oklch"),
-      onMode: () => {
-        paint();
-        emit();
-      },
+      onMode: change,
     },
     (c) => {
       selStop.color = c;
       handleFor(selStop)?.style.setProperty("--stop", c);
-      paint();
-      emit();
+      change();
     },
   );
   // Easing sits beside the mode: both are "how the ramp blends".
@@ -183,8 +182,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   easeSel.addEventListener("change", () => {
     easing = easeSel.value as GradientEasing;
     reflectEase();
-    paint();
-    emit();
+    change();
   });
   body.el.querySelector(".twk-color-mode")!.after(easeSel); // after the mode select, before the gamut tag
   reflectEase();
@@ -212,8 +210,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     h._stop.pos = clamp(pos, 0, 1);
     h.style.left = h._stop.pos * 100 + "%";
     labelStop(h);
-    paint();
-    emit();
+    change();
   };
   const renderHandles = () => {
     rail.replaceChildren();
@@ -311,10 +308,9 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
     if (i < 0) return; // a stale reference (rebuilt via set) must not splice(-1)
     stops.splice(i, 1);
     const next = selStop === s ? stops[Math.max(0, i - 1)] : selStop;
-    paint();
     select(next, true);
     reflectCount();
-    emit();
+    change();
     handleFor(selStop)?.focus(); // keep focus on a handle so Delete can chain
   };
   // Insert a stop at `pos`, colored by sampling the gradient there, and select it. Shared by the +
@@ -322,10 +318,9 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const insertStopAt = (pos: number) => {
     const s = { color: colorAt(pos), pos: clamp(pos, 0, 1) };
     stops.push(s);
-    paint();
     select(s, true);
     reflectCount();
-    emit();
+    change();
   };
   // Midway toward the next stop, or toward the previous from the last. There are always two stops at least (the
   // normalizer's default pair, removeStop's floor), and the selected one is always among them.

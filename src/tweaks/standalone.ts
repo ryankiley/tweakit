@@ -22,15 +22,20 @@ import type { PickerBody, PickerOptions } from "./controls/color.js";
 
 // Outside a .twk-panel the cascade delivers none of the kit's tokens, so the wrapper carries .twk-portal.
 const scope = (cls: string) => el("div", `${cls} twk-standalone twk-portal`);
-// Run `build` once the lazy module has landed (synchronously when none is missing); the handled fork keeps a failed
-// chunk out of the unhandled-rejection channel.
-const whenLoaded = <H>(metas: Array<Pick<Meta, "type">>, build: () => void, handle: H): Promise<H> => {
+// Run `build` once the lazy module has landed (synchronously when none is missing), and settle `ready` once a shadow
+// host's dressing (isolate) has too; the handled fork keeps a failed chunk or dressing out of the unhandled-rejection
+// channel.
+const whenLoaded = <H>(
+  metas: Array<Pick<Meta, "type">>,
+  build: () => void,
+  handle: H,
+  dressed?: Promise<unknown>,
+): Promise<H> => {
   const pend = ensureForMetas(metas);
-  if (!pend) {
-    build();
-    return Promise.resolve(handle);
-  }
-  const ready = pend.then(build).then(() => handle);
+  const built = pend ? pend.then(build) : (build(), null);
+  const all = dressed ? Promise.all([built, dressed]) : built;
+  if (!all) return Promise.resolve(handle);
+  const ready = all.then(() => handle);
   ready.catch(() => {});
   return ready;
 };
@@ -109,9 +114,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     },
     ready: null,
   };
-  handle.ready = whenLoaded([meta], build, handle);
-  // the handled fork whenLoaded keeps
-  if (iso.dressed) (handle.ready = Promise.all([handle.ready, iso.dressed]).then(() => handle)).catch(() => {});
+  handle.ready = whenLoaded([meta], build, handle, iso.dressed);
   return handle;
 }
 
@@ -173,7 +176,6 @@ export function createColorPicker(opts: ColorPickerOptions = {}): ColorPicker {
     },
     ready: null,
   };
-  picker.ready = whenLoaded([{ type: "color" }], build, picker);
-  if (iso.dressed) (picker.ready = Promise.all([picker.ready, iso.dressed]).then(() => picker)).catch(() => {});
+  picker.ready = whenLoaded([{ type: "color" }], build, picker, iso.dressed);
   return picker;
 }

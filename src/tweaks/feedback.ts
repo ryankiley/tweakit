@@ -1,7 +1,7 @@
 /* Panel feedback chrome — the toolbar button factories (copy / reset and their one-shot
  * animations), the hint tooltip and the clipboard helper. The screen-reader announcer they
  * speak through lives in shared.ts, where the lazy controls reach it too. */
-import { el, btn, carrySkin, placeBelow, announce, portalTo, words } from "./shared.js";
+import { el, btn, carrySkin, placeBelow, announce, portalTo } from "./shared.js";
 import type { Tr } from "./shared.js";
 import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 
@@ -22,7 +22,7 @@ const toolbarBtn = (cls: string, icon: string, label: string): ToolbarBtn => {
 /** Copy: puts `text(changedOnly)` on the clipboard and confirms with the check swap, and to a screen reader in words.
  *  `text` returns the payload and a count (-1 for the full snapshot; 0 copies nothing).
  *  Both handlers bail while `disabled`: a synthetic dispatchEvent(click) reaches a disabled button. */
-const makeCopyBtn = (text: (changedOnly: boolean) => [string, number], tr: Tr = words()) => {
+const makeCopyBtn = (text: (changedOnly: boolean) => [string, number], tr: Tr) => {
   const b = toolbarBtn(
     "twk-toolbar-btn--swap",
     `<span class="twk-toolbar-btn__icons">${ICON_COPY}${ICON_CHECK}</span>`,
@@ -43,7 +43,7 @@ const makeCopyBtn = (text: (changedOnly: boolean) => [string, number], tr: Tr = 
   return b;
 };
 /** Reset: runs `onReset` behind the icon's one-shot spin. */
-const makeResetBtn = (onReset: () => void, tr: Tr = words()) => {
+const makeResetBtn = (onReset: () => void, tr: Tr) => {
   const b = toolbarBtn("twk-toolbar-btn--reset", ICON_RESET, tr("reset", "Reset"));
   b.addEventListener("click", () => {
     if (b.disabled) return;
@@ -204,15 +204,4 @@ async function copyText(text: string) {
   return ok;
 }
 
-export {
-  toolbarBtn,
-  makeCopyBtn,
-  makeResetBtn,
-  flashCopied,
-  copyText,
-  spinReset,
-  announce,
-  hideHintNow,
-  addHintMarker,
-  LABEL_SEL,
-};
+export { toolbarBtn, makeCopyBtn, makeResetBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };

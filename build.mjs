@@ -26,54 +26,46 @@ await rm(p("dist"), { recursive: true, force: true });
 await mkdir(p("dist"), { recursive: true });
 
 const esbuild = await import("esbuild");
-const sourcemap = "linked"; // a .map beside each script, in the package too: a user's stack trace names src/ lines
-// The package ships src/ once, which the maps point at, rather than a copy of it inside every map (two builds,
-// ~825 KB).
-const sourcesContent = false;
-
-// 1) code-split chunks → dist/tweaks/; the metafile finds the shared chunk for the size report
-const splitBuild = await esbuild.build({
-  entryPoints: [p("src/tweaks/core.ts")],
-  outdir: p("dist/tweaks"),
-  bundle: true,
-  splitting: true,
+// What every script build shares. sourcemap: a .map beside each script, in the package too, so a user's stack trace
+// names src/ lines; the package ships src/ once, which the maps point at, rather than a copy of it inside every map
+// (two builds, ~825 KB).
+const JS = {
   format: "esm",
   minify: true,
   target: "es2020",
   legalComments: "none",
+  sourcemap: "linked",
+  sourcesContent: false,
+};
+
+// 1) code-split chunks → dist/tweaks/; the metafile finds the shared chunk for the size report
+const splitBuild = await esbuild.build({
+  ...JS,
+  entryPoints: [p("src/tweaks/core.ts")],
+  outdir: p("dist/tweaks"),
+  bundle: true,
+  splitting: true,
   define: { TW_SPLIT: "true" },
   metafile: true,
-  sourcemap,
-  sourcesContent,
 });
 
 // 1b) tweakit/auto → dist/tweaks/auto.js: core re-exported, plus enhance(document) on load. Unbundled, so it imports
 // ./core.js as written and leaves the split build's chunks as they are.
 await esbuild.build({
+  ...JS,
   entryPoints: [p("src/tweaks/auto.ts")],
   outfile: p("dist/tweaks/auto.js"),
   bundle: false,
-  format: "esm",
-  minify: true,
-  target: "es2020",
-  legalComments: "none",
-  sourcemap,
-  sourcesContent,
 });
 
 // 2) single self-contained file → dist/tweaks.js, the drop-in that needs no bundler
 await esbuild.build({
+  ...JS,
   entryPoints: [p("src/tweaks/single.ts")],
   outfile: p("dist/tweaks.js"),
   bundle: true,
   splitting: false,
-  format: "esm",
-  minify: true,
-  target: "es2020",
-  legalComments: "none",
   define: { TW_SPLIT: "false" },
-  sourcemap,
-  sourcesContent,
   // The copyable file carries the notice the MIT license requires in every copy.
   banner: {
     js: "/* tweakit — MIT © Ryan Kiley. Toolbar and control icons from Hugeicons (MIT); see THIRD-PARTY-NOTICES.md in the tweakit package. */",
@@ -82,18 +74,10 @@ await esbuild.build({
 
 // 3) panel CSS → dist/tweaks.css, minified. Both schemes live in one token block as light-dark() pairs.
 {
-  // A shadow root (opts.shadow) takes the token rule again on its host, a <twk-host> or a portal host, where the page's
-  // own --twk-* on that host override it; the panel and portals inside skip the original. Only the kit's own hosts: a
-  // page's web component that loads this stylesheet keeps its display and its tokens. What inherits is what a light
-  // panel inherits.
-  const src = await readFile(p("src/tweaks.css"), "utf8"),
-    TOKENS = ":where(.twk-panel, .twk-portal):not(.twk-in-shadow) {";
-  const at = src.indexOf(TOKENS),
-    end = src.indexOf("\n}", at);
-  if (at < 0 || end < 0)
-    throw new Error("tweaks.css: the token rule's selector changed; build.mjs copies that rule onto :host");
-  const css = `${src.slice(0, end + 2)}\n:host(.twk-host), :host(.twk-portal-host) { display: block;${src.slice(at + TOKENS.length, end)}\n}\n:host(.twk-host[hidden]) { display: none; }${src.slice(end + 2)}`;
-  const { code } = await esbuild.transform(css, { minify: true, loader: "css" });
+  const { code } = await esbuild.transform(await readFile(p("src/tweaks.css"), "utf8"), {
+    minify: true,
+    loader: "css",
+  });
   await writeFile(p("dist/tweaks.css"), code);
   // So a TS consumer can `import "tweakit/css"` without TS2307; a subpath isn't matched by a *.css ambient.
   await writeFile(

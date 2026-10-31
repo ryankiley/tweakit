@@ -22,12 +22,14 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
 
   // ── Trigger row — label + value + a mini pad preview. ──
   // ??: an explicit "" label renders none
-  const { root, trigger, right } = triggerRow("twk-point", meta.label ?? tr("point", "Point"));
-  const valueEl = el("span", "twk-trigger-value");
-  const preview = el("div", "twk-trigger-chip twk-point-preview");
+  const {
+    root,
+    trigger,
+    chip: preview,
+    valueEl,
+  } = triggerRow("twk-point", meta.label ?? tr("point", "Point"), "twk-point-preview");
   const previewDot = el("div", "twk-point-preview-dot");
   preview.append(previewDot);
-  right.append(preview, valueEl); // chip first, as every chip row
 
   // ── Popover — the 2D pad over the component fields. ──
   const pop = el("div", "twk-color-pop twk-point-pop");

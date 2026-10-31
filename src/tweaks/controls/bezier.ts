@@ -1,6 +1,6 @@
 // ── Cubic bezier — interactive easing-curve editor. Lazy.
-import { el, btn, txt, clamp, onReady, onLive, registerControl, words } from "../shared.js";
-import { dragGesture, numField, svgEl, arrowStep } from "../heavy.js";
+import { el, btn, txt, clamp, registerControl, words } from "../shared.js";
+import { dragGesture, numField, svgEl, arrowStep, redrawOn } from "../heavy.js";
 import { parseEasing } from "../easing.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta } from "../schema.js";
@@ -111,6 +111,12 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
     return fld;
   });
   const syncFields = () => flds.forEach((fld, k) => fld.set(v[SPECS[k].i]));
+  // A handle moved, by drag or key: the graph, the fields and the value follow.
+  const changed = () => {
+    drawGraph();
+    syncFields();
+    onChange(v.slice());
+  };
 
   const drag = (handle: HTMLButtonElement, idx: number) => {
     let rect: DOMRect | null = null,
@@ -137,9 +143,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
         const y = clamp(view[0] + ((gh - PAD - gy) / (gh - 2 * PAD)) * (view[1] - view[0]), YMIN, YMAX);
         v[idx * 2] = +x.toFixed(2);
         v[idx * 2 + 1] = +y.toFixed(2);
-        drawGraph();
-        syncFields();
-        onChange(v.slice());
+        changed();
       },
       onEnd: () => {
         rect = null;
@@ -155,9 +159,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
       if (e.key === "Home") {
         e.preventDefault();
         v = def.slice();
-        drawGraph();
-        syncFields();
-        onChange(v.slice());
+        changed();
         return;
       }
       const [dx, dy] = arrowStep(e);
@@ -167,24 +169,13 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
         i = idx * 2;
       if (dx) v[i] = +clamp(v[i] + dx * k, 0, 1).toFixed(2);
       if (dy) v[i + 1] = +clamp(v[i + 1] + dy * k, YMIN, YMAX).toFixed(2);
-      drawGraph();
-      syncFields();
-      onChange(v.slice());
+      changed();
     });
   };
   drag(h1, 0);
   drag(h2, 1);
 
-  onReady(drawGraph);
-  // twk-reflow: a tab page revealing this re-measures it
-  onLive(
-    root,
-    [
-      [window, "resize"],
-      [window, "twk-reflow"],
-    ],
-    drawGraph,
-  );
+  redrawOn(root, drawGraph);
   // the build's clamp, so get() agrees with the handles
   return {
     el: root,

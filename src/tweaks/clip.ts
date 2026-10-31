@@ -6,7 +6,7 @@ import type { Entry, Snapshot } from "./panel.js";
 import type { PanelState } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { announce } from "./feedback.js";
-import { isObj, isColorStr, optValue, hasOwn, isReservedKey, words } from "./shared.js";
+import { isObj, isColorStr, optValue, hasOwn, isReservedKey } from "./shared.js";
 import type { Tr } from "./shared.js";
 
 /** Where a pasted value can land: a control's path, its current value, its meta and its row (a disabled one takes
@@ -21,7 +21,7 @@ export interface Slot {
 export interface Report {
   announce: typeof announce;
   alive: () => boolean;
-  tr?: Tr;
+  tr: Tr;
 }
 /** What a panel lends the paste. */
 export interface ClipCtx extends Report {
@@ -35,16 +35,19 @@ export type Scope = { kind: "row"; entry: Entry; label: string } | { kind: "fold
 const atPath = (obj: unknown, path: string[]): unknown =>
   path.reduce<any>((o, k) => (isObj(o) && hasOwn(o, k) ? o[k] : undefined), obj);
 
+// Write `v` at `path` in a nested snapshot, making the folders on the way; a non-object in the way is replaced.
+const setAt = (out: Snapshot, path: string[], v: unknown) => {
+  let o = out;
+  for (const s of path.slice(0, -1)) o = isObj(o[s]) ? o[s] : (o[s] = {});
+  o[path[path.length - 1]] = v;
+};
 /** ⇧-copy's output is a flat map by dotted path; nested, "folder.child" lands where set() would put it. A reserved
  *  segment is dropped, so a pasted "__proto__.x" can't write onto Object.prototype. */
 const unflatten = (flat: Record<string, unknown>): Snapshot => {
   const out: Snapshot = {};
   for (const k of Object.keys(flat)) {
     const path = k.split(".");
-    if (path.some(isReservedKey)) continue;
-    let o = out;
-    for (const s of path.slice(0, -1)) o = isObj(o[s]) ? o[s] : (o[s] = {});
-    o[path[path.length - 1]] = flat[k];
+    if (!path.some(isReservedKey)) setAt(out, path, flat[k]);
   }
   return out;
 };
@@ -84,11 +87,7 @@ export const pick = <S extends Slot>(slots: S[], values: unknown, base: string[]
 // Only what fits is written, through fromJSON: a bag key or a value set() would coerce stays as it is.
 const write = (ctx: ClipCtx, hits: Array<[Entry, unknown]>) => {
   const out: Snapshot = {};
-  for (const [e, v] of hits) {
-    let o = out;
-    for (const k of e.path.slice(0, -1)) o = o[k] ||= {};
-    o[e.path[e.path.length - 1]] = v;
-  }
+  for (const [e, v] of hits) setAt(out, e.path, v);
   ctx.fromJSON({ values: out });
 };
 
@@ -133,7 +132,7 @@ export function pasteInto(text: string | null, apply: (text: string) => number |
     try {
       n = apply(text);
     } catch {}
-  const tr = r.tr || words();
+  const tr = r.tr;
   r.announce(
     !n
       ? text === null

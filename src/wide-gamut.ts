@@ -336,7 +336,7 @@ const SLACK = 0.000075;
 const inRange = (rgb: Vec3) => rgb.every((c) => c >= -SLACK && c <= 1 + SLACK);
 const inGamut = (oklch: Vec3, gamut: Gamut) => inRange(convert(oklch, "oklch", gamut));
 // map() on a tuple reads back as an array
-const clip = (rgb: Vec3) => rgb.map((c) => Math.min(1, Math.max(0, c))) as Vec3;
+const clip = (rgb: Vec3) => rgb.map((c) => clamp(c, 0, 1)) as Vec3;
 const deltaEOK = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 /** Map OKLCH into an RGB gamut (CSS Color 4 chroma reduction + local clip). */
 export function toGamut(oklch: Vec3, dest: Gamut): Vec3 {
@@ -430,7 +430,7 @@ export function chromaCeil(probe: (L: number, C: number) => boolean, L: number, 
 // ── hex ──
 /** One 0–1 channel → a 2-digit hex byte (also the alpha suffix for #RRGGBBAA), upper-case as the readout shows it. */
 export const hexByte = (n: number) =>
-  Math.round(Math.min(1, Math.max(0, n)) * 255)
+  Math.round(clamp(n, 0, 1) * 255)
     .toString(16)
     .padStart(2, "0")
     .toUpperCase();
@@ -558,17 +558,19 @@ const digitsFor = (step: number) => (step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0
 
 // Display coords for `mode` from canonical OKLCH. sRGB-bound modes read off the same
 // chroma-reduced sRGB hex uses, so every narrow-gamut mode agrees on the color.
-const modeCoords = (oklch: Vec3, sid: Space, mode: ColorMode): Vec3 =>
-  sid === "oklch"
+const modeCoords = (oklch: Vec3, mode: ColorMode): Vec3 => {
+  const sid = modeSpaceId(mode);
+  return sid === "oklch"
     ? [oklch[0], oklch[1], oklch[2]]
     : SRGB_BOUND.includes(mode)
       ? sid === "srgb"
         ? toGamut(oklch, "srgb")
         : convert(toGamut(oklch, "srgb"), "srgb", sid)
       : convert(oklch, "oklch", sid);
+};
 /** Display-unit channel values for `mode` from canonical OKLCH. */
 export function channelValues(oklch: Vec3, mode: ColorMode) {
-  const c = modeCoords(oklch, modeSpaceId(mode), mode);
+  const c = modeCoords(oklch, mode);
   return MODE_CHANNELS[mode].map((ch, i) => {
     const v = num(c[i]) * ch.scale;
     return clamp(Math.abs(v) < 0.5 * ch.step ? 0 : v, ch.min, ch.max);
@@ -577,7 +579,7 @@ export function channelValues(oklch: Vec3, mode: ColorMode) {
 /** New OKLCH with channel `index` of `mode` set to `displayValue`. */
 export function withChannel(oklch: Vec3, mode: ColorMode, index: number, displayValue: number): Vec3 {
   const sid = modeSpaceId(mode);
-  const c = modeCoords(oklch, sid, mode).map(num) as Vec3;
+  const c = modeCoords(oklch, mode).map(num) as Vec3;
   c[index] = displayValue / MODE_CHANNELS[mode][index].scale;
   const k = convert(c, sid, "oklch");
   return [num(k[0]), num(k[1]), num(k[2])];
@@ -635,7 +637,7 @@ const wrapCss = (t: string, mode: ColorMode) =>
 // as 100% and a hue.
 function precise(oklch: Vec3, mode: ColorMode) {
   const chans = MODE_CHANNELS[mode],
-    c = modeCoords(oklch, modeSpaceId(mode), mode);
+    c = modeCoords(oklch, mode);
   // + 0: no -0
   const v = chans.map((ch, i) => {
     const d = digitsFor(ch.step) + 1,

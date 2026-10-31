@@ -96,10 +96,9 @@ const load = (key: string) =>
   });
 /** One image by its ref (a preset another tab saved after this panel loaded); null when it isn't there. */
 const get = (key: string, ref: string) =>
-  run("readonly", (s) => {
-    const r = s.get([key, ref.slice(REF.length)]);
-    return r;
-  }).then((r) => (r && typeof r.result === "string" ? r.result : null));
+  run("readonly", (s) => s.get([key, ref.slice(REF.length)])).then((r) =>
+    r && typeof r.result === "string" ? r.result : null,
+  );
 const put = (key: string, ref: string, dataUrl: string) =>
   run("readwrite", (s) => {
     s.put(dataUrl, [key, ref.slice(REF.length)]);

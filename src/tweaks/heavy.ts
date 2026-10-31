@@ -17,6 +17,8 @@ import {
   icon,
   registerControl,
   announce,
+  onReady,
+  onLive,
   sayNow,
 } from "./shared.js";
 import type { Built, NumSpec, NumField, OnChange } from "./shared.js";
@@ -61,27 +63,6 @@ const accentColor = (node: Element) => {
   const r = getComputedStyle(node);
   const v = (n: string) => pickScheme(r.getPropertyValue(n).trim(), r);
   return v("--twk-accent") || v("--twk-text-primary") || "#fff";
-};
-// Select the whole value on focus (the hex field: you type a new color, never edit a digit).
-// Browsers collapse a focus-time selection on the click's own mouseup, so the first primary
-// mouseup after a pointer-initiated focus is swallowed while the whole value is still selected.
-const selectAllOnFocus = (input: HTMLInputElement) => {
-  let swallowUp = false;
-  input.addEventListener("pointerdown", (e) => {
-    swallowUp = e.button === 0 && activeIn(input) !== input;
-  });
-  input.addEventListener("focus", () => input.select());
-  input.addEventListener("mouseup", (e) => {
-    if (!swallowUp) return;
-    swallowUp = false;
-    if (
-      e.button === 0 &&
-      activeIn(input) === input &&
-      input.selectionStart === 0 &&
-      input.selectionEnd === input.value.length
-    )
-      e.preventDefault();
-  });
 };
 // Escape in an edited field restores `kept` and stops; otherwise it passes on and closes the pane. Without this,
 // closing blurred the field and committed the half-typed value.
@@ -224,16 +205,25 @@ const fitCanvas = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, max
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return [r.width, r.height];
 };
-// The modal-trigger row (color, gradient, point): a row button, label left, a preview cluster (`right`) the caller
-// fills.
-const triggerRow = (cls: string, label: string) => {
+// Draw once laid out (and again when fonts land), then on resize and when a tab page reveals the control (twk-reflow;
+// it built at 0×0 while hidden); `more` adds targets of the control's own. Released once the owner has left the DOM.
+const redrawOn = (owner: Element, fn: () => void, more: Array<[EventTarget, string]> = []) => {
+  onReady(fn);
+  onLive(owner, [[window, "resize"], [window, "twk-reflow"], ...more], fn);
+};
+// The modal-trigger row (color, gradient, point…): a row button, label left, a preview cluster (`right`) the caller
+// fills; with `chipCls`, the usual pair in it, the 18px chip of that class and the value readout after it.
+const triggerRow = (cls: string, label: string, chipCls?: string) => {
   const root = el("div", cls);
   const trigger = btn("twk-trigger");
   trigger.setAttribute("aria-expanded", "false");
   const right = el("span", "twk-trigger-right");
   trigger.append(txt("span", "twk-trigger-label", label), right);
   root.append(trigger);
-  return { root, trigger, right };
+  let chip: HTMLSpanElement | undefined, valueEl: HTMLSpanElement | undefined;
+  if (chipCls)
+    right.append((chip = el("span", "twk-trigger-chip " + chipCls)), (valueEl = el("span", "twk-trigger-value")));
+  return { root, trigger, right, chip, valueEl };
 };
 
 // A 2-bar drag handle (the icon sets' grips are dots).
@@ -610,10 +600,10 @@ export {
   svgEl,
   cssVar,
   accentColor,
-  selectAllOnFocus,
   grabSurface,
   boxFrac,
   fitCanvas,
+  redrawOn,
   triggerRow,
   springCurve,
   springSpan,

@@ -94,16 +94,17 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
 
   // ── Row — label, a mini curve, a summary. ──
   // ??: an explicit "" label renders none
-  const { root, trigger, right } = triggerRow("twk-motion", meta.label ?? tr("motion", "Motion"));
-  const chip = el("span", "twk-trigger-chip twk-motion-chip");
+  const { root, trigger, chip, valueEl } = triggerRow(
+    "twk-motion",
+    meta.label ?? tr("motion", "Motion"),
+    "twk-motion-chip",
+  );
   const chipSvg = svgEl("svg");
   chipSvg.setAttribute("viewBox", "0 0 100 100");
   chipSvg.setAttribute("preserveAspectRatio", "none");
   const chipPath = svgEl("path");
   chipSvg.append(chipPath);
   chip.append(chipSvg);
-  const valueEl = el("span", "twk-trigger-value");
-  right.append(chip, valueEl);
 
   // ── Popover — the mode switch, the preview, one editor at a time. ──
   const pop = el("div", "twk-color-pop twk-motion-pop"),
@@ -139,7 +140,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   const durFld = numField(
     { label: tr("duration", "Duration"), value: dur, step: 10, min: 0, max: DUR_MAX, unit: "ms" },
     (v) => {
-      dur = clamp(v, 0, DUR_MAX);
+      dur = v; // the field holds it to 0–DUR_MAX
       update();
       emit();
     },

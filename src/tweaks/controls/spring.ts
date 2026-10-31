@@ -1,7 +1,8 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/bounce) mode, over one settle-curve preview. Lazy. ──
-import { el, txt, onReady, onLive, clamp, createSegmented, registerControl, words } from "../shared.js";
+import { el, txt, clamp, createSegmented, registerControl, words } from "../shared.js";
 import {
   dragGesture,
+  redrawOn,
   numField,
   cssVar,
   accentColor,
@@ -94,15 +95,22 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
 
   // The preview and the emitted value both read this, so they can never disagree.
   const resolved = () => (mode === "time" ? timeToPhysics(time) : clampS(phys));
+  let sized = ""; // the "w×h@dpr" the bitmap was last made for
   const draw = () => {
     // Layout size: getBoundingClientRect includes the pop's entrance scale.
     const w = Math.max(1, viz.clientWidth),
       h = Math.max(1, viz.clientHeight);
     if (w < 2) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const dpr = window.devicePixelRatio || 1,
+      size = `${w}×${h}@${dpr}`;
+    // Sizing the canvas remakes its bitmap (and drops the transform) even at the same size, and a drag draws per
+    // move: only a change pays for it.
+    if (size !== sized) {
+      sized = size;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     ctx.clearRect(0, 0, w, h);
     const s = resolved();
     // Sample ~one point per device pixel so fast oscillations stay smooth, not angular.
@@ -234,20 +242,12 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     onEnd: () => viz.classList.remove("is-dragging"),
   });
   showMode();
-  onReady(draw);
-  // The canvas reads theme tokens at draw time: redraw on resize, on a tab page revealing it (twk-reflow; it built at
-  // 0×0 while hidden), on an OS scheme flip and on a host re-theme — CSS re-themes the SVG controls, a canvas keeps a
-  // stale color.
-  onLive(
-    canvas,
-    [
-      [window, "resize"],
-      [window, "twk-reflow"],
-      [matchMedia("(prefers-color-scheme: dark)"), "change"],
-      [window, "twk-retheme"],
-    ],
-    draw,
-  );
+  // The canvas reads theme tokens at draw time: besides resize and reveal, redraw on an OS scheme flip and on a host
+  // re-theme — CSS re-themes the SVG controls, a canvas keeps a stale color.
+  redrawOn(canvas, draw, [
+    [matchMedia("(prefers-color-scheme: dark)"), "change"],
+    [window, "twk-retheme"],
+  ]);
   // A host flipping [data-twk-scheme] re-themes through CSS alone; the canvas needs a redraw. Let go once mounted and
   // removed.
   // The redraw waits a frame, for a shadow panel's own observer to mirror the pin first.
