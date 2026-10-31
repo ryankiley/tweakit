@@ -95,7 +95,7 @@ export const examples = [
       in px or <code>[width, height]</code> (in markup, <code>data-size="440,440"</code>): a shadow made
       for a 440px plate then shows as it falls on the plate, where the preview's own 64px card would
       lose a large negative spread altogether. Without <code>size</code>, the card grows from 64px only
-      as far as the authored shadow needs to stay in view.</p>`,
+      as far as the shadow needs to stay in view, sized as the pane opens and held while you edit.</p>`,
     target: `<div class="sh-card">Card</div>`,
     css: `
       .sh-card { display: grid; place-items: center; width: 150px; height: 100px; border-radius: 18px;

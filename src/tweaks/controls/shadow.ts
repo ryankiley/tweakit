@@ -85,19 +85,28 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
     spread: field(tr("spread", "Spread"), num(init.spread, DEF.spread)),
   };
   const lengths = () => Object.values(F).map((f) => f.get());
-  // The subject, w × h: the element the shadow is for. The card draws it at that size and scales it into 64 × 40, since a
-  // transform scales the box-shadow with the box; lengths scaled on a small box lose a negative spread, which empties
-  // it. `size` is its width (at the card's 8:5) or `[w, h]`, markup's "w,h"; without one, the smallest from 64 wide up
-  // that keeps the authored shadow in view, so a small one looks as it always has.
-  let [w, h = w * 0.625] = String(meta.size).split(",").map(Number),
-    k = Math.min(64 / w, 40 / h);
-  if (!(Math.min(w, h, k) > 0 && k < 1 / 0)) {
-    // a spread up to a quarter of its height, an offset and blur to about the stage's edge
-    const [x, y, blur, spread] = lengths().map(Math.abs);
-    w = Math.max(64, 6.4 * spread, 2 * Math.max(x, y) + blur);
-    h = w * 0.625;
-    k = 64 / w;
-  }
+  // The subject, w × h: the element the shadow is for. The card is it scaled to fit 64 × 40, never up, in its shadow
+  // scaled as much: the element's own picture, shrunk. The lengths as written made the card a 64px subject, which a large
+  // negative spread empties; a scale() on a box the subject's size would tile the shadow in WebKit. `size` names it: a
+  // width at the card's 8:5 or `[w, h]` (markup "w,h"), 1 to 1e5 px. Without it, the smallest from 64 wide up that keeps
+  // the shadow in view, refit as the control builds, takes a value or opens, not while the pane edits it.
+  const z = meta.size;
+  const [sw, sh = sw * 0.625] = (Array.isArray(z) ? z : typeof z == "string" ? z.split(",") : [z]).map((n) =>
+    typeof n == "number" || typeof n == "string" ? +n : NaN,
+  );
+  const sized = Math.min(sw, sh) >= 1 && Math.max(sw, sh) <= 1e5;
+  let w = sw,
+    h = sh,
+    k = 1;
+  const fit = () => {
+    if (!sized) {
+      // a spread up to a quarter of its height, an offset and blur to about the stage's edge
+      const [x, y, blur, spread] = lengths().map(Math.abs);
+      w = Math.max(64, 6.4 * spread, 2 * Math.max(x, y) + blur);
+      h = w * 0.625;
+    }
+    k = Math.min(1, 64 / w, 40 / h);
+  };
   // The color row discloses the picker, so the pop opens compact.
   const colorRow = btn("twk-trigger twk-shadow-color");
   colorRow.setAttribute("aria-expanded", "false");
@@ -125,37 +134,48 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
   pop.append(stage, insetRow, fields, colorRow, body.el);
   root.append(pop);
 
-  const css = () =>
+  const cssAt = (s: number) =>
     `${inset ? "inset " : ""}${lengths()
-      .map((n) => `${fmt(n)}px`)
+      .map((n) => `${fmt(n * s)}px`)
       .join(" ")} ${body.get()}`;
   const value = (): ShadowValue => {
     const [x, y, blur, spread] = lengths().map((n) => +fmt(n));
-    return { inset, x, y, blur, spread, color: body.get(), css: css() };
+    return { inset, x, y, blur, spread, color: body.get(), css: cssAt(1) };
   };
   const emit = () => onChange(value());
-  // Sizes node as the subject × f, scaled by s to show with an r px radius; its painter centres it with its shadow, half
-  // the offset back (at most `room`), so a long offset stays in the frame. An inset shadow stays inside, so stays put.
-  const draw = (node: HTMLElement, f: number, s: number, r: number, room: number) => {
-    Object.assign(node.style, { width: `${w * f}px`, height: `${h * f}px`, borderRadius: `${r / s}px` });
-    return (x: number, y: number, c: string) => {
-      const mid = (n: number) => (inset ? 0 : Math.max(-room, Math.min(room, (-n * s) / 2)));
-      node.style.boxShadow = c;
-      node.style.transform = `translate(${mid(x)}px, ${mid(y)}px) scale(${s})`;
-    };
+  // The card, or the chip's tile at 12/64 of it: the subject × s, in its shadow × s. Centred with the shadow, half the
+  // offset back (at most `room`, in whole px), so a long one stays in the frame; an inset one stays inside, so stays put.
+  const draw = (node: HTMLElement, v: number, room: number) => (x: number, y: number) => {
+    const s = k * v,
+      mid = (n: number) => (inset ? 0 : Math.round(Math.max(-room, Math.min(room, (-n * s) / 2))));
+    Object.assign(node.style, {
+      width: `${fmt(w * s)}px`,
+      height: `${fmt(h * s)}px`,
+      boxShadow: cssAt(s),
+      transform: `translate(${mid(x)}px, ${mid(y)}px)`,
+    });
   };
-  // The chip's tile draws the subject at 5/8 size, so its shadow reads at 12px wide, as the lengths × 0.3 did.
-  const paint = [draw(card, 1, k, 9, 22), draw(chipTile, 0.625, k * 0.3, 2, 5)];
+  const paint = [draw(card, 1, 22), draw(chipTile, 0.1875, 5)];
   const update = () => {
     const [x, y, blur, spread] = lengths();
-    const c = css();
-    for (const p of paint) p(x, y, c);
+    for (const p of paint) p(x, y);
     valueEl.textContent = `${inset ? tr("inset", "in") + " " : ""}${fmt(x)} ${fmt(y)} ${fmt(blur)}${spread ? " " + fmt(spread) : ""}`;
     cSwatch.style.background = body.swatchCss();
     cText.textContent = body.valueText();
   };
-  const pop_ = popover(root, trigger, pop, { fallbackH: 300, onOpen: body.reflow, onReflow: body.reflow });
-  update();
+  const refit = () => {
+    fit();
+    update();
+  };
+  const pop_ = popover(root, trigger, pop, {
+    fallbackH: 300,
+    onOpen: () => {
+      refit();
+      body.reflow();
+    },
+    onReflow: body.reflow,
+  });
+  refit();
 
   // Set/restore: the object form or a strict box-shadow string; `css` is ignored, and the color goes through the
   // picker.
@@ -168,7 +188,7 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
     }
     for (const k of Object.keys(F) as (keyof typeof F)[]) if (inp[k] != null) F[k].set(num(inp[k], F[k].get()));
     if (typeof inp.color === "string" && isColor(inp.color)) body.set(inp.color);
-    update();
+    refit();
   };
   return { el: root, set, get: value };
 }

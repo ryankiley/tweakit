@@ -168,7 +168,7 @@ export type SchemaObject =
       type: "shadow";
       value?: ShadowInput | string;
       /** The element the shadow is for, in px: its width, or `[width, height]`. The preview draws the shadow on it,
-       *  scaled to fit, so it looks as it will there. */
+       *  scaled down to fit, so it looks as it will there. */
       size?: number | readonly [number, number];
     } & ShadowInput)
   | {

@@ -194,91 +194,124 @@ test("the four length fields sit two by two (X Y / Blur Spread), not four across
   p.destroy();
 });
 
-// The preview's card and the chip's tile, as drawn: the box's layout size and radius, its scale, its shift.
+// The preview's card and the chip's tile, as drawn: the box's size, its shift, and the lengths of the shadow it wears.
 const geom = (node) => {
-  const t = node.style.transform;
-  const [, tx, ty] = /translate\(([-\d.e]+)px, ([-\d.e]+)px\)/.exec(t);
+  const [, tx, ty] = /translate\(([-\d.e]+)px, ([-\d.e]+)px\)/.exec(node.style.transform);
   return {
     w: parseFloat(node.style.width),
     h: parseFloat(node.style.height),
-    r: parseFloat(node.style.borderRadius),
-    s: +/scale\(([\d.e-]+)\)/.exec(t)[1],
     tx: +tx,
     ty: +ty,
+    lens: [...node.style.boxShadow.matchAll(/(-?[\d.]+)px/g)].map((m) => +m[1]),
   };
 };
-const drawn = (p, key) => {
-  const root = [...p.el.querySelectorAll(".twk-shadow")][key];
+const drawn = (p, i) => {
+  const root = [...p.el.querySelectorAll(".twk-shadow")][i];
   const card = root.querySelector(".twk-shadow-card");
-  return { card, cardG: geom(card), chipG: geom(root.querySelector(".twk-shadow-chip-tile")) };
+  return { root, card, cardG: geom(card), chipG: geom(root.querySelector(".twk-shadow-chip-tile")) };
 };
-const near = (a, b, msg) => assert.ok(Math.abs(a - b) < 1e-6, `${msg}: ${a} ≠ ${b}`);
+const near = (a, b, msg, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${msg}: ${a} ≠ ${b}`);
+// The scale a drawn box shows the value at: its shadow's lengths against the value's, the larger ones (fmt rounds to 0.1).
+const scaleOf = (g, v) => g.lens[2] / v.blur;
 const PLATE = "0 40px 90px -28px rgba(0, 0, 0, 0.72)"; // a 440px plate's, which 0.7.1's 64px card lost to its spread
 
-test("the preview draws the shadow on the element it's for (size) and scales it to fit, so a big shadow keeps its spread", async () => {
+test("the preview is the element the shadow is for (size), scaled to fit, in its shadow scaled as much", async () => {
   const p = await mount({
     sq: { type: "shadow", value: PLATE, size: [440, 440] },
     wide: { type: "shadow", value: PLATE, size: 440 },
+    small: { type: "shadow", y: 2, blur: 6, size: [24, 24] },
   });
-  const sq = drawn(p, 0);
-  assert.deepEqual([sq.cardG.w, sq.cardG.h], [440, 440], "the card is the plate, at its size");
-  near(sq.cardG.s, 40 / 440, "scaled to fit the stage's 64 × 40");
-  near(sq.cardG.r * sq.cardG.s, 9, "its radius shows as the card's 9px");
-  assert.equal(
-    sq.card.style.boxShadow,
-    p.params.sq.css,
-    "wearing the shadow as the host applies it, not scaled numbers",
-  );
-  assert.ok(sq.cardG.h + 2 * p.params.sq.spread > 0, "the spread leaves a shape to cast");
-  assert.deepEqual([sq.chipG.w, sq.chipG.h], [275, 275], "the chip's tile draws it at 5/8");
-  near(sq.chipG.s, (0.3 * 40) / 440, "and scales it to its 12px");
+  const sq = drawn(p, 0),
+    v = p.params.sq;
+  assert.deepEqual([sq.cardG.w, sq.cardG.h], [40, 40], "the square plate, fit to the stage's 64 × 40");
+  near(scaleOf(sq.cardG, v), 40 / 440, "its shadow scaled as much", 0.01);
+  assert.ok(sq.cardG.h + 2 * sq.cardG.lens[3] > 0, "so the spread leaves a shape to cast");
+  assert.equal(sq.card.style.transform.includes("scale"), false, "no scale() transform: WebKit tiles a scaled shadow");
+  assert.deepEqual([sq.chipG.w, sq.chipG.h], [7.5, 7.5], "the chip's tile is the card at 12/64");
+  near(scaleOf(sq.chipG, v), (40 / 440) * 0.1875, "in the card's shadow at 12/64", 0.01);
   const wide = drawn(p, 1);
-  assert.deepEqual([wide.cardG.w, wide.cardG.h], [440, 275], "a bare width keeps the card's 8:5");
-  near(wide.cardG.s, 64 / 440, "scaled to the card's 64px");
+  assert.deepEqual([wide.cardG.w, wide.cardG.h], [64, 40], "a bare width keeps the card's 8:5");
+  near(scaleOf(wide.cardG, v), 64 / 440, "scaled to the card's 64px", 0.01);
+  const small = drawn(p, 2);
+  assert.deepEqual([small.cardG.w, small.cardG.h], [24, 24], "a subject smaller than the card shows at its own size");
+  assert.equal(small.card.style.boxShadow, p.params.small.css, "in the shadow as the host applies it");
   p.destroy();
 });
 
-test("without size, a small shadow is drawn as before: a 64 × 40 card at scale 1, the chip's lengths × 0.3", async () => {
+test("without size, a small shadow's card is as before: 64 × 40 in the value's own CSS; the chip is it at 12/64", async () => {
   const p = await mount({ s: { type: "shadow" }, docs: { type: "shadow", y: 12, blur: 32, spread: -4 } });
-  for (const i of [0, 1]) {
-    const { cardG, chipG } = drawn(p, i);
-    assert.deepEqual([cardG.w, cardG.h, cardG.r, cardG.s], [64, 40, 9, 1]);
-    assert.deepEqual([chipG.w * chipG.s, chipG.h * chipG.s, chipG.s], [12, 7.5, 0.3]);
-    near(chipG.r * chipG.s, 2, "the tile's 2px radius");
+  for (const [i, key] of [
+    [0, "s"],
+    [1, "docs"],
+  ]) {
+    const { card, cardG, chipG } = drawn(p, i);
+    assert.deepEqual([cardG.w, cardG.h], [64, 40]);
+    assert.equal(card.style.boxShadow, p.params[key].css);
+    assert.deepEqual([chipG.w, chipG.h], [12, 7.5]);
+    near(scaleOf(chipG, p.params[key]), 0.1875, "the chip's shadow at 12/64", 0.01);
   }
   p.destroy();
 });
 
-test("without size, a big authored shadow grows the card just enough to stay in view, and keeps it while edited", async () => {
-  const p = await mount({ s: { type: "shadow", value: PLATE } });
-  const { cardG } = drawn(p, 0);
-  near(cardG.w, 6.4 * 28, "the spread's need: a quarter of the height at most");
-  near(cardG.h, cardG.w * 0.625, "at the card's 8:5");
-  near(cardG.w * cardG.s, 64, "shown at the card's size");
-  assert.ok((cardG.h + 2 * -28) * cardG.s >= 20, "the shadow's shape is at least half the card");
-  assert.ok(40 * cardG.s <= 22, "its offset ends inside the stage");
-  p.set("s", { spread: -200, y: 120 });
-  assert.equal(drawn(p, 0).cardG.w, cardG.w, "the subject is the element's, not the edit's: it stays");
+test("without size, the card fits the shadow it's given, from any source, and holds still while the pane edits it", async () => {
+  const p = await mount({ authored: { type: "shadow", value: PLATE }, later: { type: "shadow" } });
+  const a = drawn(p, 0);
+  near(
+    scaleOf(a.cardG, p.params.authored),
+    64 / (6.4 * 28),
+    "the spread's need: a quarter of the height at most",
+    0.01,
+  );
+  assert.ok(a.cardG.h + 2 * a.cardG.lens[3] >= 20, "the shadow's shape is at least half the card");
+  assert.ok(a.cardG.lens[1] <= 22, "its offset ends inside the stage");
+  p.set("later", PLATE); // a restore, a preset, a paste: the same value, the same preview
+  assert.deepEqual(drawn(p, 1).cardG, a.cardG);
+  // An edit in the pane holds the card still, so the preview shows the edit, until the pane next opens.
+  const { root } = drawn(p, 1);
+  const spread = [...root.querySelectorAll(".twk-shadow-pop .twk-fields .twk-num")][3];
+  spread.value = "-80";
+  spread.dispatchEvent(new window.Event("change"));
+  assert.equal(p.params.later.spread, -80);
+  near(scaleOf(drawn(p, 1).cardG, p.params.later), scaleOf(a.cardG, p.params.authored), "held", 0.01);
+  const { card } = drawn(p, 1); // the pane leaves the row as it opens
+  root.querySelector(".twk-trigger").click();
+  await wait(40);
+  near(scaleOf(geom(card), p.params.later), 64 / (6.4 * 80), "refit as it opens", 0.01);
+  document.activeElement.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  await wait(220);
   p.destroy();
 });
 
-test("a size that names no element falls back to the fit; junk never reaches the style", async () => {
-  for (const size of [0, -440, "big", [0, 10], [440, -1], [Infinity, 1], Infinity, NaN, null, {}, "url(x)"]) {
+test("a size that names no element in 1 to 1e5 px falls back to the fit; nothing it holds can break the row", async () => {
+  const hostile = [
+    Object.create(null),
+    {
+      toString: () => {
+        throw new Error("no");
+      },
+    },
+  ];
+  for (const size of [0, 0.5, -440, 1e8, "big", "440px", [0, 10], [440, -1], Infinity, NaN, null, {}, ...hostile]) {
     const p = await mount({ s: { type: "shadow", size } });
     const { card, cardG } = drawn(p, 0);
-    assert.deepEqual([cardG.w, cardG.h, cardG.s], [64, 40, 1], `size: ${JSON.stringify(size)}`);
-    assert.doesNotMatch(card.getAttribute("style"), /url|NaN|Infinity/);
+    assert.deepEqual(
+      [cardG.w, cardG.h],
+      [64, 40],
+      `size: ${String(size?.constructor ? JSON.stringify(size) : "hostile")}`,
+    );
+    assert.doesNotMatch(card.getAttribute("style"), /NaN|Infinity|e\+/);
     p.destroy();
   }
 });
 
-test("the card is centred with its shadow, half the offset back and at most to the stage's edge; an inset stays put", async () => {
+test("the card is centred with its shadow, half the offset back in whole px, at most to the stage's edge; an inset stays put", async () => {
   const p = await mount({
     def: { type: "shadow" },
     long: { type: "shadow", x: -100, y: 100, size: 64 },
     inner: { type: "shadow", inset: true, y: 10 },
   });
   assert.deepEqual([drawn(p, 0).cardG.tx, drawn(p, 0).cardG.ty], [0, -4]);
+  assert.deepEqual([drawn(p, 0).chipG.tx, drawn(p, 0).chipG.ty], [0, -1], "the chip's, rounded to a whole px");
   assert.deepEqual([drawn(p, 1).cardG.tx, drawn(p, 1).cardG.ty], [22, -22]);
   assert.deepEqual([drawn(p, 2).cardG.tx, drawn(p, 2).cardG.ty], [0, 0]);
   p.set("inner", { inset: false });
@@ -288,13 +321,18 @@ test("the card is centred with its shadow, half the offset back and at most to t
 
 test("markup: data-size is the width, or the width and height", async () => {
   const holder = document.createElement("div");
-  holder.innerHTML = `<div data-twk="shadow" data-size="440,440" data-value="${PLATE}"></div><div data-twk="shadow" data-size="440"></div>`;
+  holder.innerHTML = `<div data-twk="shadow" data-size="440,440" data-value="${PLATE}"></div><div data-twk="shadow" data-size="150,100"></div><div data-twk="shadow" data-size="440"></div>`;
   document.body.append(holder);
   await enhance(holder);
-  const sizes = [...holder.querySelectorAll(".twk-shadow-card")].map((c) => [c.style.width, c.style.height]);
-  assert.deepEqual(sizes, [
-    ["440px", "440px"],
-    ["440px", "275px"],
-  ]);
+  const cards = [...holder.querySelectorAll(".twk-shadow-card")];
+  assert.deepEqual(
+    cards.map((c) => [c.style.width, c.style.height]),
+    [
+      ["40px", "40px"],
+      ["60px", "40px"],
+      ["64px", "40px"],
+    ],
+  );
+  assert.match(cards[2].style.boxShadow, /^0px 1\.2px 3\.5px 0px /, "the default shadow, scaled to a 440px subject");
   holder.remove();
 });
