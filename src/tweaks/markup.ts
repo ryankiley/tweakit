@@ -186,7 +186,7 @@ interface HostEl extends HTMLElement {
   _tw?: HostHandle;
 }
 
-// Echo a control's value onto its host's data-value, in the comma form schema.ts parses. A plain
+// Echo a control's value onto its host's data-value, in the comma form the parsers above read back. A plain
 // object (a point, a spring) would stringify as "[object Object]", so take its values in order.
 const writeDataValue = (host: HTMLElement, v: unknown) => {
   host.dataset.value =

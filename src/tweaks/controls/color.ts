@@ -1,16 +1,7 @@
 // ── Color — wide-gamut OKLCH picker. Lazy: dynamic-imported on first use, and
 // the only module that loads wide-gamut.js (so basic panels never pay for it).
 import { el, txt, clamp, rangeStep, popover, quietFocus, activeIn, registerControl, words, using } from "../shared.js";
-import {
-  escapeReverts,
-  numField,
-  grabSurface,
-  boxFrac,
-  arrowStep,
-  sayWhenKeysStop,
-  triggerRow,
-  selectAllOnFocus,
-} from "../heavy.js";
+import { escapeReverts, numField, grabSurface, boxFrac, arrowStep, sayWhenKeysStop, triggerRow } from "../heavy.js";
 import {
   oklchGamutProbe,
   chromaCeil,
@@ -390,6 +381,28 @@ const flavored = (s: string, f: Flavor | null, oklch: Vec3, A: number) => {
     : `${f.name}(${ch.join(" ")}${alpha && ` / ${alpha}`})`;
 };
 
+// Select the whole value on focus (the hex field: you type a new color, never edit a digit).
+// Browsers collapse a focus-time selection on the click's own mouseup, so the first primary
+// mouseup after a pointer-initiated focus is swallowed while the whole value is still selected.
+const selectAllOnFocus = (input: HTMLInputElement) => {
+  let swallowUp = false;
+  input.addEventListener("pointerdown", (e) => {
+    swallowUp = e.button === 0 && activeIn(input) !== input;
+  });
+  input.addEventListener("focus", () => input.select());
+  input.addEventListener("mouseup", (e) => {
+    if (!swallowUp) return;
+    swallowUp = false;
+    if (
+      e.button === 0 &&
+      activeIn(input) === input &&
+      input.selectionStart === 0 &&
+      input.selectionEnd === input.value.length
+    )
+      e.preventDefault();
+  });
+};
+
 // ── Picker body ──
 /** The editor surface: L×C plane, hue + alpha strips, mode dropdown + gamut label, and per-mode channel inputs.
  *  No trigger or popover of its own: the color control mounts one in its popover, the gradient editor re-points one at
@@ -566,8 +579,9 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
       hctx.fillRect(x, 0, 1, h);
     }
   };
+  const ceilAt = (l: number) => (chromaCurve ? sampleCurve(chromaCurve, l) : 0.4);
   const positionThumbs = () => {
-    const ceil = chromaCurve ? sampleCurve(chromaCurve, L) : 0.4; // thumb x is C as a fraction of the row's ceiling
+    const ceil = ceilAt(L); // thumb x is C as a fraction of the row's ceiling
     // The area thumb may overhang, so a color at the gamut boundary reads as fully selected.
     const at = (frac: number) => `${clamp(frac, 0, 1) * 100}%`;
     // The strip thumbs stay inside their track: the center runs from +w/2 at 0 to −w/2 at 1.
@@ -679,7 +693,6 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     refresh();
   };
 
-  const ceilAt = (l: number) => (chromaCurve ? sampleCurve(chromaCurve, l) : 0.4);
   const areaXY = (e: PointerEvent) => boxFrac(e, area);
   const setArea = (e: PointerEvent) => {
     const [fx, fy] = areaXY(e);
@@ -814,10 +827,12 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
 // ── Color control — a trigger row (label + swatch + value readout) that opens a picker body in a popover. ──
 function createColor(meta: Meta, onChange: OnChange): Control {
   // ??: an explicit "" label renders none
-  const { root, trigger, right } = triggerRow("twk-color", meta.label ?? words()("color", "Color"));
-  const swatch = el("span", "twk-trigger-chip twk-color-swatch");
-  const valueEl = el("span", "twk-trigger-value");
-  right.append(swatch, valueEl);
+  const {
+    root,
+    trigger,
+    chip: swatch,
+    valueEl,
+  } = triggerRow("twk-color", meta.label ?? words()("color", "Color"), "twk-color-swatch");
 
   const pop = el("div", "twk-color-pop");
   const paintTrigger = () => {

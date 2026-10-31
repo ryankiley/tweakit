@@ -132,7 +132,6 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   render();
 
   let rect: DOMRect | null = null,
-    scale = 1,
     downPos: { x: number; y: number } | null = null,
     isClick = true,
     snapTimer: number,
@@ -140,13 +139,18 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     downId: number | null = null;
   const GLIDE_FILL = `width 0.34s ${EASE_GLIDE}`;
   const GLIDE_HANDLE = `left 0.34s ${EASE_GLIDE}, opacity 0.15s, transform 0.2s ${EASE_SPRING}`;
+  // The press glide of a continuous slider: on at the press, off on the first move and once the press has landed.
+  const glide = (on: boolean) => {
+    fill.style.transition = on ? GLIDE_FILL : "";
+    handle.style.transition = on ? GLIDE_HANDLE : "";
+  };
   // Discrete detent: the value commits at 30% of the gap and the handle springs to the notch,
   // leaning toward the cursor. Driven by springFrame below, only while dragging or settling.
   const FINE_GAIN = 0.2;
+  // The rect is in the pointer's own px, so an ancestor transform cancels by itself.
   const valFromX = (clientX: number) => {
     if (!rect) return value;
-    const native = wrap.offsetWidth || rect.width;
-    const pct = clamp((clientX - rect.left) / scale / native, 0, 1);
+    const pct = clamp((clientX - rect.left) / rect.width, 0, 1);
     return clamp(min + pct * (max - min), min, max);
   };
   // a non-finite value is ignored; soft may exceed the range
@@ -257,18 +261,11 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     isClick = true;
     track.classList.add("is-active");
     rect = wrap.getBoundingClientRect();
-    scale = rect.width / (wrap.offsetWidth || rect.width);
     // Snap springs to the pressed notch; continuous glides there, the glide cleared on the first move so dragging stays
     // 1:1.
-    if (snap) {
-      fill.style.transition = "";
-      handle.style.transition = "";
-      springStart(e.clientX);
-    } else {
-      fill.style.transition = GLIDE_FILL;
-      handle.style.transition = GLIDE_HANDLE;
-      set(valFromX(e.clientX));
-    }
+    glide(!snap);
+    if (snap) springStart(e.clientX);
+    else set(valFromX(e.clientX));
   });
   track.addEventListener("pointermove", (e) => {
     if (!downPos || e.pointerId !== downId) return;
@@ -280,10 +277,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     if (isClick && Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > CLICK_THRESHOLD) {
       isClick = false;
       track.classList.add("is-dragging");
-      if (!snap) {
-        fill.style.transition = "";
-        handle.style.transition = "";
-      }
+      glide(false);
     }
     if (!isClick) {
       rubberBand(track, rect, e.clientX);
@@ -294,8 +288,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
         let raw: number;
         if (e.altKey) {
           if (!fineAnchor) fineAnchor = { x: e.clientX, v: value };
-          const native = wrap.offsetWidth || rect.width;
-          raw = clamp(fineAnchor.v + ((e.clientX - fineAnchor.x) / native) * (max - min) * FINE_GAIN, min, max);
+          raw = clamp(fineAnchor.v + ((e.clientX - fineAnchor.x) / rect.width) * (max - min) * FINE_GAIN, min, max);
         } else {
           fineAnchor = null;
           raw = valFromX(e.clientX);
@@ -313,10 +306,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       if (!sRAF) sRAF = requestAnimationFrame(springFrame);
     } else {
       // Drop the press glide once it's home.
-      snapTimer = setTimeout(() => {
-        fill.style.transition = "";
-        handle.style.transition = "";
-      }, 360);
+      snapTimer = setTimeout(() => glide(false), 360);
       track.classList.remove("is-active", "is-dragging");
     }
     rubberRelease(track);

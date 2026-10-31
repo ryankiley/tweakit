@@ -1,6 +1,6 @@
 // ── Plot — graph y=f(x) with a safe expression evaluator (compileExpr). Lazy.
-import { el, txt, clamp, onReady, onLive, quietFocus, registerControl, words } from "../shared.js";
-import { svgEl } from "../heavy.js";
+import { el, txt, clamp, quietFocus, registerControl, words } from "../shared.js";
+import { svgEl, redrawOn } from "../heavy.js";
 import type { OnChange, Built } from "../shared.js";
 import type { Meta } from "../schema.js";
 import type { Control } from "../types.js";
@@ -412,16 +412,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
       onChange(expr);
     });
 
-  onReady(draw);
-  // twk-reflow: a tab page revealing this re-measures it
-  onLive(
-    root,
-    [
-      [window, "resize"],
-      [window, "twk-reflow"],
-    ],
-    draw,
-  );
+  redrawOn(root, draw);
 
   return {
     el: root,

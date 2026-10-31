@@ -729,9 +729,6 @@ function popover(
   return { open: openPop, close, isOpen: () => open, reflow };
 }
 
-// Fuzzy match for the filter: `q` is a substring of `text`, or within a small edit distance
-// of a window of it ("blut" finds "blur"); the DP's zeroed first row lets a match start anywhere.
-
 const REDUCE_MOTION: { matches: boolean } =
   typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
 // ── Motion tokens — EASE_SPRING is the JS literal of the CSS --twk-ease-spring: WAAPI and
@@ -781,8 +778,7 @@ const RUBBER_DEAD = 32,
   RUBBER_MAX = 8;
 const rubberBand = (track: HTMLElement, rect: DOMRect, clientX: number) => {
   const over = clientX < rect.left ? clientX - rect.left : clientX > rect.right ? clientX - rect.right : 0;
-  const s =
-    Math.sign(over) * RUBBER_MAX * Math.sqrt(Math.min(Math.max(0, Math.abs(over) - RUBBER_DEAD) / RUBBER_RANGE, 1));
+  const s = Math.sign(over) * RUBBER_MAX * Math.sqrt(clamp((Math.abs(over) - RUBBER_DEAD) / RUBBER_RANGE, 0, 1));
   track.style.width = s ? `calc(100% + ${Math.abs(s)}px)` : "";
   track.style.transform = s < 0 ? `translateX(${s}px)` : "";
 };
@@ -1003,7 +999,7 @@ const restoreDefault = (ctrl: Pick<Control, "set">, raw: unknown, def: unknown) 
   ctrl.set(def);
   ctrl.set(raw);
 };
-// read by the spring and motion controls, and their markup
+// the spring's and motion's fields, as schema.ts and markup.ts read them off a verbose form
 const SPRING_KEYS = ["stiffness", "damping", "mass", "visualDuration", "bounce"];
 // ── Control registry — type → constructor. Core controls register on load; a lazy one when
 // its module is imported, so the loaded set drives what can be built. ──
@@ -1125,9 +1121,7 @@ export {
   applyThemeVars,
   carryScheme,
   carrySkin,
-  home,
   activeIn,
-  holds,
   portalTo,
   isolate,
   setCollapsed,

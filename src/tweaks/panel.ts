@@ -968,11 +968,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         ["pointermove", onMove],
         ["pointerup", endDrag],
         ["pointercancel", endDrag],
-      ] as Array<[string, (e: PointerEvent) => void]>)
-        on ? document.addEventListener(t, fn, true) : document.removeEventListener(t, fn, true);
-      on
-        ? document.addEventListener("keydown", onDragKey, true)
-        : document.removeEventListener("keydown", onDragKey, true);
+        ["keydown", onDragKey],
+      ] as Array<[string, (e: any) => void]>)
+        (on ? document.addEventListener : document.removeEventListener).call(document, t, fn, true);
     };
     // Escape mid-press cancels: the panel returns to where the drag began and the release's click is swallowed. Capture
     // phase, so it beats a pane's Escape.

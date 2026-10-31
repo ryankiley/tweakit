@@ -36,12 +36,13 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
 
   // ── Row — label, chip, summary. ──
   // ??: an explicit "" label renders none
-  const { root, trigger, right } = triggerRow("twk-shadow", meta.label ?? tr("shadow", "Shadow"));
-  const chip = el("span", "twk-trigger-chip twk-shadow-chip"),
-    chipTile = el("span", "twk-shadow-chip-tile");
+  const { root, trigger, chip, valueEl } = triggerRow(
+    "twk-shadow",
+    meta.label ?? tr("shadow", "Shadow"),
+    "twk-shadow-chip",
+  );
+  const chipTile = el("span", "twk-shadow-chip-tile");
   chip.append(chipTile);
-  const valueEl = el("span", "twk-trigger-value");
-  right.append(chip, valueEl);
 
   // ── Popover — a preview card, the position switch, the four lengths, the picker. ──
   const pop = el("div", "twk-color-pop twk-shadow-pop");
@@ -76,11 +77,14 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
     fields.append(f.el);
     return f;
   };
-  const fx = field("X", num(init.x, DEF.x)),
-    fy = field("Y", num(init.y, DEF.y)),
-    fb = field(tr("blur", "Blur"), num(init.blur, DEF.blur), 0),
-    fs = field(tr("spread", "Spread"), num(init.spread, DEF.spread));
-  const lengths = () => [fx, fy, fb, fs].map((f) => f.get());
+  // keyed as the value names them, in box-shadow's order
+  const F = {
+    x: field("X", num(init.x, DEF.x)),
+    y: field("Y", num(init.y, DEF.y)),
+    blur: field(tr("blur", "Blur"), num(init.blur, DEF.blur), 0),
+    spread: field(tr("spread", "Spread"), num(init.spread, DEF.spread)),
+  };
+  const lengths = () => Object.values(F).map((f) => f.get());
   // The color row discloses the picker, so the pop opens compact.
   const colorRow = btn("twk-trigger twk-shadow-color");
   colorRow.setAttribute("aria-expanded", "false");
@@ -137,16 +141,7 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
       inset = !!inp.inset;
       insetSeg.set(inset ? "inner" : "outer");
     }
-    (
-      [
-        ["x", fx],
-        ["y", fy],
-        ["blur", fb],
-        ["spread", fs],
-      ] as const
-    ).forEach(([k, f]) => {
-      if (inp[k] != null) f.set(num(inp[k], f.get()));
-    });
+    for (const k of Object.keys(F) as (keyof typeof F)[]) if (inp[k] != null) F[k].set(num(inp[k], F[k].get()));
     if (typeof inp.color === "string" && isColor(inp.color)) body.set(inp.color);
     update();
   };
