@@ -89,7 +89,13 @@ export const examples = [
       spread, inside or outside, and the color from the same picker, in one popover. The
       param is the fields plus <code>css</code>, the shadow as CSS, so
       <code>el.style.boxShadow = p.lift.css</code> is the whole wiring. Author it as fields
-      or as a <code>box-shadow</code> string.</p>`,
+      or as a <code>box-shadow</code> string.</p>
+      <p>The pane's preview draws the shadow on the element it's for, scaled down to fit, so it
+      reads there as it will on the page. Say how big that element is with <code>size</code>, its width
+      in px or <code>[width, height]</code> (in markup, <code>data-size="440,440"</code>): a shadow made
+      for a 440px plate then shows as it falls on the plate, where the preview's own 64px card would
+      lose a large negative spread altogether. Without <code>size</code>, the card grows from 64px only
+      as far as the shadow needs to stay in view, sized as the pane opens and held while you edit.</p>`,
     target: `<div class="sh-card">Card</div>`,
     css: `
       .sh-card { display: grid; place-items: center; width: 150px; height: 100px; border-radius: 18px;
@@ -98,7 +104,11 @@ export const examples = [
     run: ({ tweaks, mount, target }) => {
       const card = target.querySelector(".sh-card");
       const panel = tweaks("Shadow", {
-        lift: { type: "shadow", y: 12, blur: 32, spread: -4, color: "rgb(124 92 255 / 0.35)" },   // or { type: "shadow", value: "0 12px 32px -4px #7c5cff59" }
+        lift: {
+          type: "shadow", y: 12, blur: 32, spread: -4, color: "rgb(124 92 255 / 0.35)",
+          // or the line above as value: "0 12px 32px -4px #7c5cff59"
+          size: [150, 100],   // the card's, so the pane previews the shadow on it
+        },
       });
       mount.append(panel.el);
 

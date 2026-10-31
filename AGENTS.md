@@ -91,7 +91,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 | `radiogrid` | `options, value, cols` | the option's value |
 | `color` | `value`, `mode` | color string exactly as you wrote it (`"#7c5cff"` reads back `"#7c5cff"`) until it's edited; an edit writes the same notation, a digit finer than the readout, and a gray's hue as `none` (`0` in comma syntax) |
 | `gradient` | `stops: [[color, position], …]` | `{ stops: [{ color, pos }], interpolation, easing }`, which goes back in whole as `value`; `gradientCss(value, angle)` makes the CSS |
-| `shadow` | `x, y, blur, spread, color, inset`, or `value` as a `box-shadow` string | `{ x, y, blur, spread, color, inset, css }`; `css` is ready for `box-shadow` |
+| `shadow` | `x, y, blur, spread, color, inset`, or `value` as a `box-shadow` string; `size`, the px width or `[w, h]` of what it shadows, scales the preview | `{ x, y, blur, spread, color, inset, css }`; `css` is ready for `box-shadow` |
 | `image` | `value`; `options` (URLs or `{ value, label }`) makes a row opening a gallery pane, with `cols` (1 to 6), `maxSize, upload`, and `clear: false` to keep a value chosen; an upload past `fit` px (2560) on its long side, or over 1.5 MB, is redrawn in Display P3 where it can, as a PNG up to 1.5 MB, else JPEG at `quality` (0.85), or WebP for transparency; a GIF, SVG, or animated WebP or PNG is never redrawn, and a JPEG or PNG kept as it is loses its Exif and XMP (GPS), bar gain maps; `fit: false` never redraws | the chosen URL, the upload's data URL, or `""` |
 | `motion` | `mode: "easing"` with `curve` and `duration` (ms), or `mode: "spring"` with `stiffness, damping, mass` or `visualDuration, bounce` | `{ mode, …, duration, easing }`; `easing` is a `cubic-bezier(…)` or sampled `linear(…)` string for a CSS transition; a spring's `duration` is its settle time |
 | `spring` | `mode: "time"` or `"physics"`, `visualDuration, bounce, stiffness, damping, mass` | `{ stiffness, damping, mass }`, plus the time pair when tuned by feel; that pair resolves exactly as Motion's `{ visualDuration, bounce }` does, bounce −1 to 1 |
@@ -131,7 +131,7 @@ The panel's toolbar copy button puts JSON on the clipboard. A click copies the f
 { "radius": 22, "shadow.blur": 28, "tint": "oklch(72% 0.14 290)" }
 ```
 
-Tweakit never writes to source files. The person pastes that JSON to you; then:
+The person pastes that JSON to you; then:
 
 1. Find the `tweaks(name, …)` call whose schema holds those keys. The panel's title is its name.
 2. For each key, change the default in the schema: the first element of a slider tuple, the bare value, or `value:` in a `{ type }` form. A key like `shadow.blur` is `blur` inside the `shadow` folder. A control whose value is an object (shadow, sides, gradient, motion, spring, point) comes back whole under its own key: copy its fields onto the `{ type }` form, less the derived `css`, a motion's `easing` and spring `duration`.
@@ -154,7 +154,7 @@ The panel is dark by default and follows the system scheme; `data-twk-scheme="li
 - It never edits source files, and it persists only when `persist` is set: values to localStorage, as `{ v: 1, values }` (0.5's bare object is ignored), and uploaded images to IndexedDB, with their refs in localStorage. A panel that persists an image control restores its other values as it builds, and its images by `panel.ready`; an upload with nowhere else to go (no IndexedDB, or the store refused it) saves inline in localStorage when it fits, and otherwise is left out with its row saying "Not saved". Values leave through the clipboard, `panel.changes()` or `panel.toJSON()`.
 - It has no production switch. Gate the panel in your code, for example behind `import.meta.env.DEV`.
 - It is not a framework component. In React, Vue, Svelte or Solid, create the panel once in a mount effect, append `panel.el` to a ref, set state in `panel.on()`, and `panel.destroy()` on unmount.
-- `params` is a plain object updated in place. Subscribe with `on()`; do not poll it.
+- `params` is a plain object, updated in place: subscribe with `on()`.
 
 ## Example requests
 

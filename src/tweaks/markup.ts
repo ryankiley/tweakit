@@ -92,8 +92,8 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
       min: num(d.min),
       max: num(d.max),
     }),
-    // a box-shadow string, or data-x / -y / -blur / -color
-    shadow: (d) => ({ value: d.value ?? { ...d, inset: flag(d.inset) } }),
+    // a box-shadow string, or data-x / -y / -blur / -color; data-size="440" or "440,275"
+    shadow: (d) => ({ value: d.value ?? { ...d, inset: flag(d.inset) }, size: d.size }),
     spring: springData,
     // plus data-curve and data-duration
     motion: (d) => ({

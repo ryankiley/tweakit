@@ -143,6 +143,14 @@ hv.params.sise;
 const heldChecked = { drop: { type: "shadow", blur: 12 } } satisfies Schema;
 const hc = tweaks("HeldChecked", heldChecked);
 expect<Equal<typeof hc.params.drop, ShadowValue>>(); // satisfies keeps the verbose type
+// A shadow's size is the element it's for: a px width, or [width, height].
+const sized = tweaks("Sized", {
+  a: { type: "shadow", size: 440 },
+  b: { type: "shadow", value: "0 40px 90px -28px #000b", size: [440, 440] },
+});
+expect<Equal<typeof sized.params, { a: ShadowValue; b: ShadowValue }>>();
+// @ts-expect-error a size is px, as a number
+tweaks("Sized", { c: { type: "shadow", size: "440" } });
 
 // hint / disabled / render are a nested folder's chrome only: at the root and on a tab page they are controls.
 const rc = tweaks("Chrome", {
