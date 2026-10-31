@@ -232,6 +232,142 @@ test("long options, long tab titles, a wide button group and a long label stay i
   await page.close();
 });
 
+// A panel of its own on the fixture page, built by the test so the shared panels the others count stay as they are.
+const build = (page, name, schema, opts) =>
+  page.evaluate(
+    async ([n, s, o]) => {
+      const { tweaks } = await import("/tweaks/core.js");
+      const p = tweaks(n, s, o);
+      document.body.append(p.el);
+      await p.ready;
+      (window.built ||= {})[n] = p;
+    },
+    [name, schema, opts],
+  );
+
+test("a radio grid's pill lands on the picked cell, along a row and down the grid; a label-less row fills it in equal cells", async () => {
+  const { page, errors } = await fixture();
+  await build(page, "Grids", {
+    align: { type: "radiogrid", cols: 3, options: ["TL", "T", "TR", "L", "C", "R", "BL", "B", "BR"], value: "C" },
+    ratio: { type: "segmented", label: "", options: ["16:9", "1:1", "9:16", "Free"], value: "1:1" },
+  });
+  const grids = panelOf(page, "Grids");
+  // the pill's box against the picked cell's, once the slide has settled
+  const off = () =>
+    grids.locator(".twk-radiogrid-grid").evaluateAll((gs) =>
+      gs.map((g) => {
+        const a = g.querySelector(".twk-radiogrid-pill").getBoundingClientRect(),
+          b = g.querySelector('[data-active="true"]').getBoundingClientRect();
+        return Math.max(...[a.left - b.left, a.top - b.top, a.width - b.width, a.height - b.height].map(Math.abs));
+      }),
+    );
+  for (const cell of ["TR", "BL", "9:16"]) {
+    await grids.getByRole("radio", { name: cell, exact: true }).click();
+    await page.waitForTimeout(400);
+    for (const d of await off()) assert.ok(d <= 0.5, `after ${cell}, the pill is ${d}px off its cell`);
+  }
+  // a cleared pick shows no pill
+  const shown = () =>
+    grids.locator(".twk-radiogrid-pill").evaluateAll((ps) => ps.map((p) => getComputedStyle(p).display));
+  await page.evaluate(() => window.built.Grids.set("align", null));
+  assert.deepEqual(await shown(), ["none", "block"]);
+  await page.evaluate(() => window.built.Grids.set("align", "C"));
+  assert.deepEqual(await shown(), ["block", "block"]);
+  const ratio = await grids
+    .locator(".twk-radiogrid", { has: page.getByRole("radio", { name: "Free" }) })
+    .evaluate((r) => [
+      r.getBoundingClientRect().width,
+      ...[...r.querySelectorAll(".twk-radiogrid-btn")].map((b) => b.getBoundingClientRect().width),
+    ]);
+  assert.equal(ratio.length, 5, "four cells on one line");
+  for (const w of ratio.slice(2)) assert.ok(Math.abs(w - ratio[1]) <= 0.5, `equal cells: ${ratio.slice(1)}`);
+  assert.ok(
+    ratio.slice(1).reduce((a, b) => a + b) + 3 * 4 >= ratio[0] - 8 - 0.5,
+    "the cells fill the row inside its 4px frame",
+  );
+  // Set while their tab page was hidden, a grid's pill and a toggle's are on the pick the frame the page shows, not
+  // growing to it.
+  await build(page, "Paged", {
+    tabs: {
+      type: "tabs",
+      pages: { One: { x: [1, 0, 2, 0.1] }, Two: { pick: { type: "radiogrid", options: ["a", "b", "c"] }, on: false } },
+    },
+  });
+  const revealed = await panelOf(page, "Paged").evaluate(async (p) => {
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const tabs = p.querySelectorAll(".twk-tabs-tab");
+    tabs[1].click();
+    await frame();
+    tabs[0].click();
+    await frame();
+    window.built.Paged.setMany({ "tabs.two.pick": "c", "tabs.two.on": true });
+    tabs[1].click();
+    await frame();
+    return [".twk-radiogrid", ".twk-seg"].map((g) => {
+      const a = p.querySelector(`${g} [class$="-pill"]`).getBoundingClientRect(),
+        b = p.querySelector(`${g} [data-active="true"]`).getBoundingClientRect();
+      return Math.max(...[a.left - b.left, a.width - b.width].map(Math.abs));
+    });
+  });
+  for (const d of revealed) assert.ok(d <= 0.5, `a pill is ${d}px off its pick as the page shows: ${revealed}`);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test("a floating panel that scrolls pins its header, and the open folder's header under its hairline, a nested one a row lower", async () => {
+  const { page, errors } = await open("/fixture/fixture.html", { width: 1280, height: 420 });
+  await page.waitForSelector("body[data-ready]");
+  const sliders = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`s${i}`, [i, 0, 20, 1]]));
+  // long enough to scroll in a 420px window, with a nested folder at its end
+  await build(
+    page,
+    "Pinned",
+    { a: sliders, b: sliders, c: { k: [1, 0, 2, 0.1], d: sliders } },
+    { floating: { x: 1000, y: 16 } },
+  );
+  const at = (scroll) =>
+    panelOf(page, "Pinned").evaluate(async (p, s) => {
+      p.scrollTop = s;
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const top = p.getBoundingClientRect().top,
+        head = p.querySelector(":scope > .twk-header").getBoundingClientRect(),
+        // the folder headers in view below the header, top first
+        folders = [...p.querySelectorAll(".twk-folder-header")]
+          .map((f) => [f.textContent.trim(), f.getBoundingClientRect().top - top])
+          .filter(([, y]) => y >= head.bottom - top - 0.5)
+          .sort((a, b) => a[1] - b[1]);
+      return { scrolled: p.scrollTop, head: [head.top - top, head.bottom - top], folders };
+    }, scroll);
+  const rest = await at(0);
+  assert.equal(Math.round(rest.head[0]), 0, "the header reaches the panel's top edge");
+  const mid = await at(120);
+  assert.ok(mid.scrolled > 0, "the panel scrolls");
+  assert.deepEqual(mid.head.map(Math.round), rest.head.map(Math.round), "the header stays put");
+  assert.equal(mid.folders[0][0], "A", "folder A's header is pinned");
+  assert.ok(Math.abs(mid.folders[0][1] - mid.head[1]) <= 0.5, `right under the hairline, at ${mid.folders[0][1]}`);
+  // a toolbar-less header is shorter, and its folders pin under it all the same
+  await build(page, "Plain", { a: sliders, b: sliders }, { floating: { x: 700, y: 16 }, toolbar: false });
+  const plain = await panelOf(page, "Plain").evaluate(async (p) => {
+    p.scrollTop = 120;
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const head = p.querySelector(":scope > .twk-header").getBoundingClientRect(),
+      a = p.querySelector(".twk-folder-header").getBoundingClientRect();
+    return [head.height, a.top - head.bottom];
+  });
+  assert.deepEqual(plain.map(Math.round), [37, 0]);
+  const end = await at(1e5);
+  assert.deepEqual(
+    end.folders.slice(0, 2).map(([t, y]) => [t, Math.round(y - end.head[1])]),
+    [
+      ["C", 0],
+      ["D", 32],
+    ],
+    "at the end, C pins under the header and its nested D a row lower",
+  );
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
 test("a floating panel follows a header drag, and a click on the header folds it", async () => {
   const { page, errors } = await fixture();
   const panel = panelOf(page, "Float");

@@ -11,6 +11,8 @@ import {
   registerControl,
   REDUCE_MOTION,
   words,
+  announce,
+  copyText,
 } from "../shared.js";
 import { numField, triggerRow, svgEl, springCurve, springRun, timeFromSpring, notice, SPRING_DUR } from "../heavy.js";
 import { KEYWORDS } from "../easing.js";
@@ -65,7 +67,8 @@ const springTime = (v: MotionInput) => {
   return out;
 };
 // A stiffness and damping the host wrote, kept as written rather than resolved through the editor's time pair, which
-// rounds and clamps: unless a time pair rides along that isn't the one they resolve to (this control's own value back).
+// rounds and clamps: unless a time pair rides along that isn't the one they resolve to (this control's own value back),
+// and one that is stays as written too.
 const exactSpring = (v: MotionInput): SpringOut | null => {
   if (!has(v.stiffness) || !has(v.damping)) return null;
   const k = +v.stiffness!,
@@ -76,11 +79,20 @@ const exactSpring = (v: MotionInput): SpringOut | null => {
     off = (a: unknown, b: number) => has(a) && Math.abs(+a! - b) > 1e-6 * Math.max(1, Math.abs(b));
   return off(v.visualDuration, t.visualDuration) || off(v.bounce, t.bounce)
     ? null
-    : { stiffness: k, damping: d, mass: m, ...t };
+    : {
+        stiffness: k,
+        damping: d,
+        mass: m,
+        visualDuration: has(v.visualDuration) ? +v.visualDuration! : t.visualDuration,
+        bounce: has(v.bounce) ? +v.bounce! : t.bounce,
+      };
 };
 // a curve that doesn't parse is no reason to switch
 const modeOf = (v: MotionInput, keep: Mode): Mode =>
   v.mode === "spring" || v.mode === "easing" ? v.mode : springKeys(v) ? "spring" : curveOf(v.curve) ? "easing" : keep;
+// The page's one copied motion, which any motion's Paste takes: kept here, since reading the clipboard back asks for
+// permission.
+let held: MotionValue | null = null;
 
 function createMotion(meta: Meta, onChange: OnChange): Control {
   const tr = words();
@@ -172,7 +184,34 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
   );
   const typeRow = el("div", "twk-row");
   typeRow.append(txt("span", "twk-row-label", tr("type", "Type")), modeSeg.el);
-  body.append(typeRow, easingPane, springPane, stage);
+  // Copy and paste a whole motion between transitions, easing or spring, which a paste switches to. The copy lands on
+  // the clipboard too, as JSON, for a picked row's ⌘V or source.
+  const clip = getControl("buttongroup")!(
+    {
+      buttons: [
+        {
+          label: tr("copyMotion", "Copy"),
+          action: () => {
+            held = value();
+            pasteBtn.disabled = false;
+            copyText(JSON.stringify(held));
+            announce(tr("rowCopied", "{label} copied", { label: meta.label || tr("motion", "Motion") }));
+          },
+        },
+        {
+          label: tr("pasteMotion", "Paste"),
+          action: () => {
+            set(held);
+            emit();
+            announce(tr("pasted", "1 value pasted", { n: 1 }));
+          },
+        },
+      ],
+    } as Meta,
+    () => {},
+  );
+  const pasteBtn = clip.el.querySelectorAll("button")[1];
+  body.append(typeRow, easingPane, springPane, stage, clip.el);
   root.append(pop);
 
   const value = (): MotionValue => {
@@ -273,6 +312,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
     fallbackH: 380,
     onOpen: () => {
       modeSeg.set(mode);
+      pasteBtn.disabled = !held;
       resync();
       replay(true);
     },

@@ -13,6 +13,7 @@ import {
   overlapsText,
   optValue,
   optLabel,
+  titleCase,
   json,
   popover,
   radioButton,
@@ -20,6 +21,7 @@ import {
   activeIndex,
   navIndex,
   createSegmented,
+  addPill,
   blade,
   foldBody,
   quietFocus,
@@ -67,7 +69,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   // The readout is a text node plus a muted unit suffix; the param stays the bare number.
   const unit = typeof meta.unit === "string" ? meta.unit.trim() : "",
     numText = document.createTextNode("");
-  const joined = !unit ? "" : /^[%°]$/.test(unit) ? unit : " " + unit; // "50%", "90°", but "24 px", "300 ms"
+  const joined = !unit ? "" : /^[%°×]$/.test(unit) ? unit : " " + unit; // "50%", "90°", "1.5×", but "24 px", "300 ms"
   valueEl.append(numText);
   if (unit) valueEl.append(txt("span", "twk-slider-unit", joined));
   // A format that throws or returns a non-string falls back to the digits, so it can't blank the slider.
@@ -443,27 +445,32 @@ function createToggle(meta: Meta, onChange: OnChange): Control {
   return { el: row, set: (v: unknown) => seg.set(v ? "on" : "off"), get: () => seg.get() === "on" };
 }
 
-// ── Radio grid — a segmented control wrapped into a 2- or 3-column grid for a small set of short presets. ──
+// ── Radio grid — a segmented control wrapped into a 2- or 3-column grid for a small set of short presets. With no
+// label it takes the whole row in equal cells, and four fit on one line. ──
 function createRadiogrid(meta: Meta, onChange: OnChange): Control {
   const options: Option[] = meta.options || [];
-  const cols = Math.min(
-    3,
-    Math.max(2, meta.cols || (options.length <= 3 ? options.length : options.length === 4 ? 2 : 3)),
-  );
+  const n = options.length,
+    max = meta.label ? 3 : 4;
+  const cols = Math.min(max, Math.max(2, meta.cols || (n <= max ? n : n === 4 ? 2 : 3)));
   // several rows keep equal columns
-  const row = el("div", options.length > cols ? "twk-radiogrid is-grid" : "twk-radiogrid");
+  const row = el("div", n > cols ? "twk-radiogrid is-grid" : "twk-radiogrid");
   const grid = el("div", "twk-radiogrid-grid");
   grid.style.setProperty("--twk-rg-cols", cols);
   grid.setAttribute("role", "radiogroup");
-  grid.setAttribute("aria-label", meta.label);
+  grid.setAttribute("aria-label", meta.label || titleCase(meta.key));
   let value = meta.value ?? optValue(options[0]);
+  // A pill slides to the pick, along a row or down the grid; until it's measured the picked cell keeps its own fill.
+  const measure = addPill(grid, "twk-radiogrid-pill");
   // lazy `set` — it's declared below
   const btns = options.map((o) => {
     const b = radioButton("twk-radiogrid-btn", o, (v) => set(v));
     grid.append(b);
     return b;
   });
-  const reflect = () => setRadioActive(btns, value);
+  const reflect = () => {
+    setRadioActive(btns, value);
+    measure(true);
+  };
   // null clears the selection; an unknown value is ignored, bar the default written off the options, so reset()
   // restores it
   const set = (v: unknown, fire = true) => {

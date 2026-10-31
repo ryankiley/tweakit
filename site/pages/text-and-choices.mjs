@@ -130,9 +130,10 @@ export const examples = [
     id: "radiogrid",
     title: "Radio grid",
     prose: `<p>A single-select laid out as buttons: <code>{ type: "radiogrid" }</code>
-      (alias <code>"segmented"</code>) with <code>cols</code> (2 or 3) to shape the grid. Nine
-      alignment options, three columns, and the value drops straight into
-      <code>place-items</code>.</p>`,
+      (alias <code>"segmented"</code>) with <code>cols</code> (2 or 3) to shape the grid; a pill
+      slides to the pick. With <code>label: ""</code> the row is all buttons, equal widths across
+      it, and four fit on one line. Nine alignment options, three columns, and the value drops
+      straight into <code>place-items</code>.</p>`,
     target: `<div class="rg-frame"><div class="rg-chip"></div></div>`,
     css: `
       .rg-frame { display: grid; place-items: center center; width: 220px; height: 180px; padding: 14px;

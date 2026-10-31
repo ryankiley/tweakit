@@ -71,10 +71,13 @@ const sameShape = (cur: unknown, v: unknown, col: boolean): boolean => {
     (!col || !isColorStr(cur) || isCssColor(v))
   );
 };
+// A motion takes either mode's shape, which its set() switches to.
 const fits = (s: Slot, v: unknown) =>
   v != null &&
   !s.el?.closest(".is-disabled") &&
-  sameShape(s.get(), v, s.m.type === "color" || s.m.type === "gradient") &&
+  (s.m.type === "motion"
+    ? isObj(v) && (v.mode === "easing" || v.mode === "spring")
+    : sameShape(s.get(), v, s.m.type === "color" || s.m.type === "gradient")) &&
   (!s.m.options || s.m.options.some((o) => JSON.stringify(optValue(o)) === JSON.stringify(v)));
 
 /** The values in `values` that fit their slots, each slot read at its path below `base`. */

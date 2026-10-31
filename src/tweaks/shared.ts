@@ -748,17 +748,31 @@ const stretchPill = (pill: HTMLElement, dir: number) => {
     easing: EASE_SPRING,
   });
 };
-// Slide a pill to the active child of `container`. The box reads come before the writes so a
-// measure can't force an extra layout; the stretch runs on a real move.
+// Slide a pill to the active child of `container`, along a row or down a grid. The box reads come before the writes so
+// a measure can't force an extra layout; a move along a row gets the stretch.
 const measurePill = (container: Element, pill: HTMLElement, animate?: boolean) => {
   const a = container.querySelector<HTMLElement>('[data-active="true"]');
   if (!a) return;
-  const left = a.offsetLeft,
-    width = a.offsetWidth,
-    prev = parseFloat(pill.style.left);
-  pill.style.left = left + "px";
-  pill.style.width = width + "px";
-  if (animate && Number.isFinite(prev) && prev !== left) stretchPill(pill, left > prev ? 1 : -1);
+  const x = a.offsetLeft,
+    y = a.offsetTop,
+    w = a.offsetWidth,
+    h = a.offsetHeight,
+    px = parseFloat(pill.style.left);
+  if (animate && y === parseFloat(pill.style.top) && x !== px) stretchPill(pill, x > px ? 1 : -1);
+  Object.assign(pill.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+};
+// A pill in `box` that follows the box's size: laid out, fonts landed, a tab page revealed or a row narrowed. `is-ready`
+// marks it measured and showing; it drops while the box is hidden, so a pick made then lands on reveal rather than
+// sliding from where it was measured last. Returns the measure, for a pick to slide it.
+const addPill = (box: HTMLElement, cls: string) => {
+  const pill = el("div", cls);
+  box.append(pill);
+  if (typeof ResizeObserver === "function")
+    new ResizeObserver(() => {
+      measurePill(box, pill);
+      box.classList.toggle("is-ready", !!box.offsetWidth);
+    }).observe(box);
+  return (animate?: boolean) => measurePill(box, pill, animate);
 };
 // Slider rubber-band (slider + interval): dragged past an end by more than a 32px dead zone, the
 // track widens toward the cursor, up to 8px on a sqrt falloff over the next 200px. rect is the wrap's box at press.
@@ -909,8 +923,7 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
   seg.setAttribute("role", sw ? "switch" : "radiogroup");
   if (ariaLabel) seg.setAttribute("aria-label", ariaLabel);
   if (sw) seg.tabIndex = 0;
-  const pill = el("div", "twk-seg-pill");
-  seg.append(pill);
+  const measure = addPill(seg, "twk-seg-pill");
   // lazy `set` — it's declared below; a clicked segment hands focus to the switch, never parks it hidden
   const btns = options.map((o) => {
     const b = radioButton("twk-seg-btn", o, (v) => set(v));
@@ -921,7 +934,6 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
     seg.append(b);
     return b;
   });
-  const measure = (animate?: boolean) => measurePill(seg, pill, animate);
   const reflect = () => {
     setRadioActive(btns, value);
     if (sw) {
@@ -958,13 +970,6 @@ function createSegmented(options: Option[], value: unknown, onChange: OnChange, 
     (sw ? seg : btns[j]).focus();
   });
   reflect();
-  // once laid out, again when fonts land
-  onReady(() => {
-    measure();
-    seg.classList.add("is-ready");
-  });
-  // A tab page revealing this control re-measures the pill, built at 0×0 while display:none.
-  onLive(seg, [[window, "twk-reflow"]], () => measure());
   return { el: seg, set: (v: unknown) => set(v, false), get: () => value };
 }
 
@@ -1066,6 +1071,27 @@ const announce = (msg: string) => {
     srEl!.textContent = msg;
   }, 100);
 };
+// Text onto the clipboard; resolves whether it got there.
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {}
+  // Fallback when the clipboard API is blocked (no user activation): textarea + execCommand.
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.top = "-9999px";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {}
+  document.body.removeChild(ta);
+  return ok;
+}
 
 export {
   titleCase,
@@ -1117,6 +1143,7 @@ export {
   blade,
   quietFocus,
   measurePill,
+  addPill,
   rubberBand,
   rubberRelease,
   REDUCE_MOTION,
@@ -1124,6 +1151,7 @@ export {
   EASE_GLIDE,
   icon,
   announce,
+  copyText,
   hasOwn,
   isReservedKey,
   valueChanged,

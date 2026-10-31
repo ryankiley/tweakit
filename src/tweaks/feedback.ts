@@ -1,7 +1,7 @@
 /* Panel feedback chrome — the toolbar button factories (copy / reset and their one-shot
- * animations), the hint tooltip and the clipboard helper. The screen-reader announcer they
- * speak through lives in shared.ts, where the lazy controls reach it too. */
-import { el, btn, carrySkin, placeBelow, announce, portalTo, words } from "./shared.js";
+ * animations) and the hint tooltip. The screen-reader announcer they speak through and the
+ * clipboard helper live in shared.ts, where the lazy controls reach them too. */
+import { el, btn, carrySkin, placeBelow, announce, copyText, portalTo, words } from "./shared.js";
 import type { Tr } from "./shared.js";
 import { ICON_COPY, ICON_CHECK, ICON_RESET, ICON_INFO } from "./icons.js";
 
@@ -182,26 +182,6 @@ function addHintMarker(node: Element, hint: string) {
     e.stopPropagation();
   });
   label.appendChild(mark);
-}
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {}
-  // Fallback when the clipboard API is blocked (no user activation): textarea + execCommand.
-  const ta = document.createElement("textarea");
-  ta.value = text;
-  ta.style.position = "fixed";
-  ta.style.top = "-9999px";
-  document.body.appendChild(ta);
-  ta.focus();
-  ta.select();
-  let ok = false;
-  try {
-    ok = document.execCommand("copy");
-  } catch {}
-  document.body.removeChild(ta);
-  return ok;
 }
 
 export {

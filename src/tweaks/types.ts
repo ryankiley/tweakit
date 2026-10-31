@@ -741,6 +741,8 @@ export interface Strings {
   /** "Spring" */ spring?: string;
   /** "Duration" */ duration?: string;
   /** "Replay the motion" */ replay?: string;
+  /** "Copy" — the motion pane's copy button */ copyMotion?: string;
+  /** "Paste" — the motion pane's paste button, live once a motion is copied */ pasteMotion?: string;
   /** "Easing · {ms} ms" */ easingSummary?: Word<{ ms: number }>;
   /** "Spring · {ms} ms" */ springSummary?: Word<{ ms: number }>;
   /** "Spring mode" */ springMode?: string;
