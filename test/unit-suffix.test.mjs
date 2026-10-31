@@ -54,17 +54,18 @@ test("markup: data-unit on a slider and a number", async () => {
   holder.remove();
 });
 
-test("% and ° close up against the number; other units take a space", async () => {
+test("%, ° and × close up against the number; other units take a space", async () => {
   const p = tweaks("U", {
     a: { type: "slider", value: 50, min: 0, max: 100, unit: "%" },
     b: { type: "slider", value: 90, min: 0, max: 360, unit: "°" },
     c: { type: "slider", value: 24, min: 0, max: 60, unit: "px" },
+    d: { type: "slider", value: 1.5, min: 0, max: 3, step: 0.1, unit: "×" },
   });
   document.body.append(p.el);
   await p.ready;
   const vals = [...p.el.querySelectorAll(".twk-slider-value")].map((e) => e.textContent),
     texts = [...p.el.querySelectorAll('[role="slider"]')].map((e) => e.getAttribute("aria-valuetext"));
-  assert.deepEqual(vals, ["50%", "90°", "24 px"]);
-  assert.deepEqual(texts, ["50%", "90°", "24 px"]);
+  assert.deepEqual(vals, ["50%", "90°", "24 px", "1.5×"]);
+  assert.deepEqual(texts, ["50%", "90°", "24 px", "1.5×"]);
   p.destroy();
 });

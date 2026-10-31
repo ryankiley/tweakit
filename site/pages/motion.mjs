@@ -23,8 +23,10 @@ export const examples = [
       one <code>transition</code> works in both modes. The spring's fields read in ms and %,
       but the value keeps <code>visualDuration</code> in seconds and <code>bounce</code> as
       −1 to 1, as the snippet writes them; a stiffness/damping/mass config is accepted and
-      mapped to the nearest pair. Tap anywhere on the stage and the box goes there with
-      the motion; make the spring bouncier, or switch to an easing.</p>`,
+      mapped to the nearest pair. Copy and Paste at the foot of the popover move a whole
+      motion to another transition, switching it to easing or spring as the copy is. Tap
+      anywhere on the stage and the box goes there with the motion; make the spring
+      bouncier, or switch to an easing.</p>`,
     target: `<div class="mo-stage"><div class="mo-box"></div></div>`,
     css: `
       .mo-stage { position: relative; width: 100%; height: 120px; border-radius: 16px; overflow: hidden; cursor: crosshair;

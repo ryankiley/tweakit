@@ -472,3 +472,39 @@ test("dragging a time-mode spring's preview spans bounce −100% to 100%, the mi
   assert.ok(p.params.s.damping > 2 * Math.sqrt(p.params.s.stiffness), "a negative bounce overdamps");
   p.destroy();
 });
+
+test("Copy and Paste carry a whole motion to another transition, switching easing and spring; Paste waits for a copy", async () => {
+  const p = await mount({
+    enter: { type: "motion", curve: [0.22, 1, 0.36, 1], duration: 420 },
+    exit: { type: "motion", visualDuration: 0.3, bounce: 0.2 },
+    land: { type: "motion", visualDuration: 0.45, bounce: 0.3 },
+  });
+  const seen = [];
+  p.on((_, k) => seen.push(k));
+  const [enter, exit, land] = p.el.querySelectorAll(".twk-motion");
+  const pane = async (row) => {
+    row.querySelector(".twk-trigger").click();
+    await wait(40);
+    const pop = document.body.querySelector(".twk-motion-pop.is-open");
+    const btn = (t) => [...pop.querySelectorAll(".twk-buttongroup-btn")].find((b) => b.textContent === t);
+    return { copy: btn("Copy"), paste: btn("Paste") };
+  };
+  // an open pane keeps the process alive: close it however the asserts go
+  try {
+    let b = await pane(exit);
+    assert.ok(b.paste.disabled, "nothing copied yet");
+    b = await pane(enter);
+    b.copy.click();
+    assert.ok(!b.paste.disabled, "a copy arms Paste at once");
+    b = await pane(exit);
+    assert.ok(!b.paste.disabled);
+    b.paste.click();
+    assert.deepEqual(p.params.exit, p.params.enter, "the whole motion, its mode switched to easing");
+    assert.deepEqual(seen, ["exit"], "one change, keyed to the row pasted into");
+    (await pane(land)).copy.click();
+    (await pane(enter)).paste.click();
+    assert.deepEqual(p.params.enter, p.params.land, "a spring, its numbers exactly as copied");
+  } finally {
+    await close(p);
+  }
+});

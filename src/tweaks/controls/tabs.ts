@@ -1,5 +1,5 @@
 // ── Tabs — group controls into pages; build() fills the page bodies. Lazy.
-import { el, txt, onReady, measurePill, navIndex, requestReflow, registerControl } from "../shared.js";
+import { el, txt, addPill, navIndex, requestReflow, registerControl } from "../shared.js";
 import type { Meta } from "../schema.js";
 
 /** The tabs handle: a page body per tab for build() to fill, and the active tab for the panel's UI state. */
@@ -16,8 +16,7 @@ function createTabs(meta: Meta): TabsControl {
   const root = el("div", "twk-tabs");
   const bar = el("div", "twk-tabs-bar");
   bar.setAttribute("role", "tablist");
-  const pill = el("div", "twk-tabs-pill");
-  bar.append(pill);
+  const measure = addPill(bar, "twk-tabs-pill"); // slides to the active tab
   const pagesWrap = el("div", "twk-tabs-pages");
   const bodies: HTMLDivElement[] = [];
   const tabs = meta.pages.map((page, i) => {
@@ -36,7 +35,6 @@ function createTabs(meta: Meta): TabsControl {
     return tab;
   });
   root.append(bar, pagesWrap);
-  const measure = (animate?: boolean) => measurePill(bar, pill, animate); // slide the pill to the active tab
   // The active tab and page; the roving tabindex is set from the build, not only after a switch.
   const mark = (i: number) => {
     tabs.forEach((b, k) => {
@@ -61,7 +59,6 @@ function createTabs(meta: Meta): TabsControl {
     activate(j);
     tabs[j].focus();
   });
-  onReady(measure);
   return { el: root, bodies, activate, active: () => tabs.findIndex((t) => t.dataset.active === "true") };
 }
 

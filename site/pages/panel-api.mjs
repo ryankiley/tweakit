@@ -301,9 +301,9 @@ export const examples = [
       <code>floating: true</code> or <code>{ x, y }</code> to start it floated, like a
       classic debug overlay, inset <code>x</code> and <code>y</code> px from the top-left.
       A floating panel never runs off the window: it caps at the viewport
-      with a gap of <code>y</code> at the far edge (8px once dragged) and scrolls, header and all, so a tall
-      panel reaches its last folder by scrolling and drags by its title once scrolled back
-      up. A pinned panel ignores a position <code>persist</code> saved; a draggable one
+      with a gap of <code>y</code> at the far edge (8px once dragged) and scrolls, so a tall panel
+      reaches its last folder by scrolling. Its header stays pinned, and the open folder's header
+      pins under it until the next folder takes its place. A pinned panel ignores a position <code>persist</code> saved; a draggable one
       restores it. With the title focused, ⌥+arrow keys move the panel 10px at a time (⇧: 50px),
       the keyboard's drag. A click anywhere on the header outside the toolbar folds the panel. A
       press becomes a drag only after a few pixels, and Escape mid-drag puts the panel back.</p>
