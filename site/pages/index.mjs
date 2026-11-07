@@ -51,7 +51,7 @@ export const examples = [
     foldCode: "The schema behind this pane",
     target: `
       <div class="sp-stage">
-        <h1 class="sp-text">Tweakit</h1>
+        <h1 class="sp-text" aria-label="Tweakit">Tweakit</h1>
         <p class="sp-about">${ABOUT}</p>
         <div class="hero-meta">${PILLS.map((p) => `<span class="hero-pill">${p}</span>`).join("")}</div>
         ${codeTabs("install", installTabs, "Install")}
@@ -87,12 +87,15 @@ export const examples = [
                       color: var(--demo-ink);
                       font-family: system-ui, -apple-system, sans-serif; font-weight: 300; letter-spacing: -0.04em;
                       text-wrap: balance; overflow-wrap: normal;
-                      -webkit-background-clip: text; background-clip: text; transform-origin: 50% 100%; }
+                      white-space: nowrap; -webkit-background-clip: text; background-clip: text; }
+      /* a letter for the run: padded past its glyph all round, without moving the line or its
+       * neighbors, since a sliced gradient only paints inside the box and tight tracking overhangs it */
+      .doc .sp-text span { display: inline-block; box-sizing: content-box; padding: 0.25em; margin: -0.25em; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; }
       .doc .sp-about { max-width: 52ch; margin: 0; font-size: 16px; }
       .sp-stage .hero-meta { margin-top: 16px; }
       .sp-stage .ex-tabs { width: 100%; max-width: 52ch; margin: 28px 0 0; } /* the install line, as wide as the copy */
       @media (max-width: 1000px) {
-        #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 0; margin-top: 40px; } /* room for the hop under the top bar */
+        #ex-specimen { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 0; margin-top: 40px; } /* room for the ripple under the top bar */
         #ex-specimen .ex-target { grid-row: 1; }
         #ex-specimen .ex-fold { grid-row: 2; margin: 22px 0 0; text-align: center; }
         #ex-specimen .ex-fold-body { grid-row: 3; }
@@ -105,7 +108,7 @@ export const examples = [
         .sp-stage .ex-tablist { justify-content: center; }
       }`,
     run: ({ tweaks, gradientCss, mount, target }) => {
-      const text = target.querySelector(".sp-text");
+      const text = target.querySelector(".sp-text"), word = text.textContent;
       const when = (style) => (get) => get("style") === style;   // show a row for one fill style
       const start = Math.max(48, Math.round(target.clientWidth / 3.4)); // most of the column
       const pageColor = () => getComputedStyle(target).color;          // the page's text color, per theme
@@ -124,15 +127,16 @@ export const examples = [
         },
         effects: {
           shadow: { type: "shadow", y: 6, blur: 20, color: "rgb(0 0 0 / 0.14)" },
-          bounce: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word hops on it
+          ripple: { type: "motion", visualDuration: 0.6, bounce: 0.5 },   // edit it and the word ripples on it
         },
         actions: {
-          play: { type: "button", label: "Bounce", action: () => hop() },
+          play: { type: "button", label: "Ripple", action: () => ripple() },
         },
       });
       mount.append(panel.el);
 
       const apply = ({ text: { size, weight, tracking }, fill, effects: { shadow } }) => {
+        rest();                                            // a run mid-air is sized for the old word
         const s = text.style, gradient = fill.style === "gradient";
         s.fontSize = `${size}px`;
         s.fontWeight = weight;
@@ -149,47 +153,61 @@ export const examples = [
           ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur / 2}px ${shadow.color})`
           : "none";
       };
-      let hopping = false, again = false;                  // an edit mid-hop replays it after
-      async function hop() {
+      // The word ripples on the motion row: each letter lifts in turn and settles on the row's curve.
+      // The letters are split only for the run, each as wide as it stood so the kerning holds, and a
+      // gradient goes on them in slices, since a word's fill can't follow a moved letter.
+      let letters = [], fill = "", again = false;          // an edit mid-run replays it after
+      const rest = () => {                                 // the plain word back, mid-run or after
+        if (!letters.length) return;
+        letters.forEach((l) => l.getAnimations().forEach((run) => run.cancel()));
+        letters = [];
+        text.textContent = word;
+        text.style.backgroundImage = fill;
+      };
+      async function ripple() {
         if (!text.animate) return;
-        if (matchMedia("(prefers-reduced-motion: reduce)").matches) {        // a fade, not a hop
+        if (matchMedia("(prefers-reduced-motion: reduce)").matches) {        // a fade, not a ripple
           text.animate([{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], { duration: 500, easing: "ease-in-out" });
           return;
         }
-        if (hopping) { again = true; return; }
-        hopping = true;
-        try {
-          const { duration, easing } = panel.params.effects.bounce;  // a spring resolves to linear(…)
-          // when the spring first reaches the ground: its first stop at or past 1 (the stops are evenly spaced)
-          const stops = easing.startsWith("linear(") ? easing.slice(7, -1).split(",").map(Number) : [];
-          const at = stops.findIndex((v) => v >= 1), land = duration * (at > 0 ? at / (stops.length - 1) : 1);
-          // hop about half the word's height, but never up under the phone's sticky top bar (when
-          // it shows): the room runs from the cap line (the box is padded above it) to 9px under
-          // the bar, less the 10% stretch
-          const cs = getComputedStyle(text), box = text.getBoundingClientRect();
-          const bar = document.querySelector(".topbar"), barBottom = bar && bar.offsetHeight ? bar.getBoundingClientRect().bottom : -Infinity;
-          const room = box.top + parseFloat(cs.paddingTop) - (barBottom + 9) - box.height * 0.1;
-          const lift = Math.min(0.45 * parseFloat(cs.fontSize), Math.max(8, room));
-          const up = `0 -${lift}px`;
-          await text.animate([                             // crouch, then spring up stretched
-            { translate: "0 0", scale: "1 1" },
-            { translate: "0 0", scale: "1.1 0.88", offset: 0.35 },
-            { translate: up, scale: "0.92 1.1" },
-          ], { duration: 320, easing: "ease-out" }).finished;
-          const fall = text.animate([{ translate: up }, { translate: "0 0" }], { duration, easing });
-          const squash = land + 320;                       // squash at impact, then 320 ms to recover
-          await Promise.all([fall.finished, text.animate([
-            { scale: "0.92 1.1" },
-            { scale: "1 1", offset: (land * 0.8) / squash },
-            { scale: "1.14 0.84", offset: land / squash, easing: "cubic-bezier(0.3, 1.6, 0.5, 1)" },
-            { scale: "1 1" },
-          ], { duration: squash }).finished]);
-        } catch {} finally {                               // a canceled run still frees the next one
-          hopping = false;
-          if (again) { again = false; hop(); }
+        if (letters.length) { again = true; return; }
+        const box = text.getBoundingClientRect(), cs = getComputedStyle(text), range = document.createRange();
+        const spots = [...word].map((_, i) => {
+          range.setStart(text.firstChild, i); range.setEnd(text.firstChild, i + 1);
+          return range.getBoundingClientRect();
+        });
+        fill = text.style.backgroundImage;
+        text.textContent = "";
+        text.style.backgroundImage = "none";
+        letters = spots.map(({ left, right }, i) => {
+          const l = document.createElement("span");
+          l.textContent = word[i];
+          l.style.width = `${(spots[i + 1]?.left ?? right) - left}px`;
+          return l;
+        });
+        text.append(...letters);
+        if (fill && fill !== "none") for (const l of letters) {
+          const { left, top } = l.getBoundingClientRect();
+          l.style.backgroundImage = fill;
+          l.style.backgroundSize = `${box.width}px ${box.height}px`;
+          l.style.backgroundPosition = `${box.left - left}px ${box.top - top}px`;
         }
+        // lift about a third of the word's height, but never up under the phone's sticky top bar
+        // (when it shows): the room runs from the cap line (the box is padded above it) to 9px under it
+        const bar = document.querySelector(".topbar"), barBottom = bar && bar.offsetHeight ? bar.getBoundingClientRect().bottom : -Infinity;
+        const room = box.top + parseFloat(cs.paddingTop) - (barBottom + 9);
+        const up = `0 -${Math.min(0.3 * parseFloat(cs.fontSize), Math.max(8, room))}px`;
+        const { duration, easing } = panel.params.effects.ripple, rise = 140;
+        const runs = letters.map((l, i) => l.animate([
+          { translate: "0 0", easing: "ease-out" },
+          { translate: up, offset: rise / (rise + duration), easing },
+          { translate: "0 0" },
+        ], { duration: rise + duration, delay: i * 48 }).finished);
+        try { await Promise.all(runs); } catch {}          // a canceled run has already put the word back
+        rest();
+        if (again) { again = false; ripple(); }
       }
-      panel.on((p, changed) => { apply(p); if (changed === "effects.bounce") hop(); });
+      panel.on((p, changed) => { if (changed === "effects.ripple") ripple(); else apply(p); });
       // The pane at the slot's middle, on its fullest height: measured only while it sits open in
       // the slot (not collapsed, not floated out), so a closed folder or a drag can't shift it.
       let fullHeight = 0;
@@ -203,7 +221,7 @@ export const examples = [
       const fromPage = new Set();                                     // the page colors the panel has held
       panel.ready.then(() => {                                        // the values exist from here
         fromPage.add(panel.params.fill.color);
-        apply(panel.params); center(); hop();
+        apply(panel.params); center(); ripple();
         setTimeout(center, 400);                                     // again once the folders finish opening
         window.addEventListener("resize", () => { apply(panel.params); center(); });
         // the device theme flips: a color still taken from the page moves to the new one;

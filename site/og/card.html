@@ -44,7 +44,7 @@
         angle: { type: "slider", value: 90, min: 0, max: 360, step: 1, unit: "°", render: when("gradient") },
       },
       effects: {
-        bounce: { type: "motion", mode: "spring", visualDuration: 0.6, bounce: 0.5 },
+        ripple: { type: "motion", mode: "spring", visualDuration: 0.6, bounce: 0.5 },
       },
     }, { theme: { "--twk-width": "300px" }, draggable: false });
     document.querySelector(".card").append(panel.el);
