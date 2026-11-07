@@ -170,14 +170,31 @@ function createMonitor(meta: Meta, perFrame = false) {
     const span = hi - lo || 1;
     strokeSeries(ctx, wrap, w, h, samples, idx, (s) => (s - lo) / span);
   };
+  // Drawn only while it can be seen: folded away, on a hidden tab page or scrolled off, it keeps sampling and paints
+  // nothing. The readout follows the draw, so the draw's colour read doesn't force a second style pass a frame. A fold is
+  // read off the DOM: it hides rows with a zero-height clip on one axis and opacity, and an IntersectionObserver sees
+  // neither.
+  let seen = true;
+  const io =
+    typeof IntersectionObserver === "function"
+      ? new IntersectionObserver((es) => (seen = es[es.length - 1].intersectionRatio > 0))
+      : null;
+  io?.observe(wrap);
+  const off = unwatch;
+  unwatch = () => {
+    off();
+    io?.disconnect();
+  };
   // a non-finite sample shows in the readout, not the graph
   poll((v) => {
-    readout(v);
-    if (typeof v === "number" && Number.isFinite(v)) {
+    const n = typeof v === "number" && Number.isFinite(v);
+    if (n) {
       samples[idx] = v;
       idx = (idx + 1) % N;
-      draw();
     }
+    if (!seen || wrap.closest(".is-collapsed")) return;
+    if (n) draw();
+    readout(v);
   });
   return blade(wrap, stop);
 }

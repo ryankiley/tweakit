@@ -134,7 +134,14 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   // The press on the track: none between presses, a click until it travels past the threshold, then a scrub. `fine`
   // anchors the scrub while Alt is held. `rect` is measured at each press and outlives it: a snap slider settles on it.
   let rect: DOMRect | null = null,
-    press: { id: number; x: number; y: number; scrub?: boolean; fine?: { x: number; v: number } | null } | null = null,
+    press: {
+      id: number;
+      x: number;
+      y: number;
+      v: number;
+      scrub?: boolean;
+      fine?: { x: number; v: number } | null;
+    } | null = null,
     snapTimer: number;
   const GLIDE_FILL = `width 0.34s ${EASE_GLIDE}`;
   const GLIDE_HANDLE = `left 0.34s ${EASE_GLIDE}, opacity 0.15s, transform 0.2s ${EASE_SPRING}`;
@@ -248,7 +255,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     // preventDefault suppressed click-to-focus; restore it without the keyboard ring (programmatic focus otherwise
     // reads as keyboard).
     track.focus({ focusVisible: false });
-    press = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    press = { id: e.pointerId, x: e.clientX, y: e.clientY, v: value };
     try {
       (e.target as Element).setPointerCapture(e.pointerId);
     } catch {}
@@ -292,8 +299,10 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       }
     }
   });
-  const up = (e?: PointerEvent) => {
+  // `cancel`: the browser took the press as a scroll (touch-action: pan-y), so the value it began from comes back.
+  const up = (e?: PointerEvent, cancel?: boolean) => {
     if (!press || (e && e.pointerId !== press.id)) return;
+    if (cancel) set((cursorVal = press.v));
     press = null;
     if (snap) {
       // Let the spring settle; springFrame drops is-active once it lands.
@@ -307,7 +316,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     rubberRelease(track);
   };
   track.addEventListener("pointerup", up);
-  track.addEventListener("pointercancel", up);
+  track.addEventListener("pointercancel", (e) => up(e, true));
   track.addEventListener("lostpointercapture", up); // capture loss ends the drag like a release
   wireHoverClass(track, render); // re-measure the dodge on first hover
   // Re-measure the dodge once fonts settle (a web-font swap shifts the widths) and on resize.

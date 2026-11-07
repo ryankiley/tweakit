@@ -116,6 +116,11 @@
 /* Registered as a <length>, so a host's --twk-float-gap in rem, vh or calc() computes to px for panel.ts to read; the
  * negative initial value reads as unset. */
 @property --twk-float-gap { syntax: "<length>"; inherits: true; initial-value: -1px; }
+/* Not inherited: a drag writes these on every move, and an inherited one restyles every row under the panel each time.
+ * Universal syntax, so an unset one still falls back as before. */
+@property --twk-float-x { syntax: "*"; inherits: false; }
+@property --twk-float-y { syntax: "*"; inherits: false; }
+@property --twk-float-max-h { syntax: "*"; inherits: false; }
 /* The footprint a lifted panel leaves in its old slot, so the host layout holds still. */
 .twk-lift-slot { display: block; flex: none; pointer-events: none; }
 /* The header is the drag handle. The negative margin (canceled by an equal padding-top)
@@ -128,8 +133,7 @@
 .twk-panel.is-snapping { transition: left 0.32s var(--twk-ease-spring), top 0.32s var(--twk-ease-spring), right 0.32s var(--twk-ease-spring), bottom 0.32s var(--twk-ease-spring); }
 .twk-panel.is-dragging { -webkit-user-select: none; user-select: none; box-shadow: var(--twk-shadow-panel-lifted); z-index: 99991; }
 /* A floating panel scrolls inside the height cap its position sets (--twk-float-max-h), its headers pinned. The scrollbar
- * is hidden: wheel, trackpad, touch and keyboard focus still scroll it. A slider covers its row and takes every touch;
- * here a vertical swipe pans, a sideways one scrubs. */
+ * is hidden: wheel, trackpad, touch and keyboard focus still scroll it. */
 .twk-panel[data-mode="floating"] { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
 .twk-panel[data-mode="floating"]::-webkit-scrollbar { display: none; } /* Safari before scrollbar-width */
 /* Scrolling, the header pins at the panel's edge, and each folder's header pins under it while its folder is in view, a
@@ -143,7 +147,6 @@
 .twk-panel[data-mode="floating"] > .twk-header { position: sticky; top: -10px; z-index: 4; margin-top: -10px; padding-top: 10px; background: var(--twk-base); }
 .twk-panel[data-mode="floating"] .twk-folder > .twk-folder-header { position: sticky; top: var(--twk-pin); z-index: 3; background: linear-gradient(var(--twk-band, transparent), var(--twk-band, transparent)) var(--twk-base); }
 .twk-panel[data-mode="floating"] .twk-folder .twk-folder > .twk-folder-header { top: calc(var(--twk-pin) + var(--twk-row-height)); }
-.twk-panel[data-mode="floating"] .twk-slider { touch-action: pan-y; }
 .twk-panel.is-dragging > .twk-header,
 .twk-panel.is-dragging > .twk-header .twk-header-toggle { cursor: grabbing; }
 
@@ -186,8 +189,11 @@
 }
 .twk-hint:focus-visible { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); outline-offset: 1px; border-radius: 999px; }
 .twk-hint svg { width: 13px; height: 13px; display: block; }
-.twk-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 8px 12px; font-size: 12px; line-height: 1.4; color: var(--twk-text-primary); background: var(--twk-dropdown-bg); border: 1px solid var(--twk-border); border-radius: 8px; box-shadow: var(--twk-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; }
-.twk-tip.is-open { opacity: 1; transform: none; }
+.twk-tip { position: fixed; z-index: 100000; max-width: 220px; padding: 8px 12px; font-size: 12px; line-height: 1.4; color: var(--twk-text-primary); background: var(--twk-dropdown-bg); border: 1px solid var(--twk-border); border-radius: 8px; box-shadow: var(--twk-shadow-dropdown); pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s; overflow-wrap: anywhere; }
+/* A pointer passing over a marker shows nothing: the tip waits a beat. Moving on to the next marker within the hide's
+ * grace keeps it open, so that one is instant. */
+.twk-tip.is-open { opacity: 1; transform: none; transition-delay: 0.25s; }
+@starting-style { .twk-tip.is-open { opacity: 0; transform: translateY(2px); } }
 /* The screen-reader status region (announce() in shared.ts): in the page, drawn as nothing. */
 .twk-sr, .twk-image-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
@@ -227,7 +233,7 @@
  * WebKit demotes the layer when a transform/filter animation ends and re-snaps the
  * raster to device pixels, which read as a ~1px icon shift. */
 .twk-toolbar-btn__icons { position: relative; display: block; width: 14px; height: 14px; }
-.twk-toolbar-btn__icons svg { position: absolute; inset: 0; will-change: transform, filter; filter: blur(0); transition: opacity 0.25s var(--twk-ease-inout), transform 0.25s var(--twk-ease-inout), filter 0.25s var(--twk-ease-inout); }
+.twk-toolbar-btn__icons svg { position: absolute; inset: 0; will-change: transform, filter; filter: blur(0); transition: opacity 0.2s var(--twk-ease-out), transform 0.25s var(--twk-ease-spring), filter 0.2s var(--twk-ease-out); }
 .twk-toolbar-btn__check { opacity: 0; transform: scale(0.25); filter: blur(2px); color: var(--twk-success); }
 .twk-toolbar-btn--swap.is-copied .twk-toolbar-btn__copy { opacity: 0; transform: scale(0.25); filter: blur(2px); }
 .twk-toolbar-btn--swap.is-copied .twk-toolbar-btn__check { opacity: 1; transform: none; filter: blur(0); }
@@ -274,8 +280,11 @@
 .twk-resettable { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* Hold-to-reset fill. A transition, so an early release drains it. Doubled class: targets
  * like .twk-slider-value declare their own `transition: color`, which would win on order. */
-.twk-resettable.twk-resettable { transition: color 0.15s, background-color 0.3s ease-out; }
-.twk-resettable.twk-reset-holding { border-radius: calc(var(--twk-radius) - 4px); background-color: var(--twk-surface-active); transition: color 0.15s, background-color 0.5s ease-out; }
+.twk-resettable.twk-resettable { transition: color 0.15s, background-color 0.2s var(--twk-ease-out); }
+.twk-resettable.twk-reset-holding { border-radius: calc(var(--twk-radius) - 4px); background-color: var(--twk-surface-active); transition: color 0.15s, background-color 0.5s linear; } /* the hold's own clock */
+
+/* A long press on a button (a tab, a segment, a header) mustn't select its words. */
+:is(.twk-panel, .twk-portal) button { -webkit-user-select: none; user-select: none; }
 
 /* ── Slider ── */
 .twk-slider-wrap { position: relative; height: var(--twk-row-height); }
@@ -283,7 +292,7 @@
   position: absolute; inset: 0;
   cursor: pointer; user-select: none; -webkit-user-select: none; overflow: hidden;
   background: var(--twk-surface); border-radius: var(--twk-radius);
-  touch-action: none;
+  touch-action: pan-y; /* a vertical swipe scrolls the page or panel past it, and the slider puts its value back */
 }
 .twk-slider-hashmarks { position: absolute; inset: 0; pointer-events: none; }
 .twk-slider-hashmark {
@@ -470,15 +479,14 @@
 
 /* ── Tabs — paged controls with a sliding pill ── */
 .twk-tabs { display: flex; flex-direction: column; gap: 8px; }
-.twk-tabs-bar { position: relative; display: flex; gap: 4px; padding: 4px; min-width: 0; /* the rows' 4px frame round 24px pills: a 32px row */ background: var(--twk-surface); border-radius: var(--twk-radius); }
+.twk-tabs-bar { position: relative; display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; min-width: 0; /* the rows' 4px frame round 24px pills: a 32px row */ background: var(--twk-surface); border-radius: var(--twk-radius); }
 .twk-tabs-pill { position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; background: var(--twk-surface-active); border-radius: calc(var(--twk-radius) - 2px); z-index: 0; transition: left 0.24s var(--twk-ease-out), width 0.24s var(--twk-ease-out); }
-.twk-tabs-tab { position: relative; z-index: 1; flex: 1; min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; color: var(--twk-text-label); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.15s, transform 0.24s var(--twk-ease-pop); }
+.twk-tabs-tab { position: relative; z-index: 1; flex: 1 0 auto; min-width: 0; max-width: 100%; /* titles wrap to a second row; one longer than the bar ellipsizes */ padding: 5px 8px; font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; color: var(--twk-text-label); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.15s, transform 0.24s var(--twk-ease-pop); }
 .twk-tabs-tab[data-active="true"] { color: var(--twk-text-primary); }
 .twk-tabs-tab:active { transform: scale(var(--twk-press-chip)); transition: color 0.15s, transform 0.08s ease-out; }
 .twk-tabs-page { display: none; flex-direction: column; gap: 6px; }
-/* The page's entrance replays on every activation (display flips). */
-.twk-tabs-page[data-active="true"] { display: flex; animation: twk-page-in 0.3s var(--twk-ease-out); }
-@keyframes twk-page-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+/* A switch shows the page at once: tabs are flipped back and forth to compare, and the pill already shows the move. */
+.twk-tabs-page[data-active="true"] { display: flex; }
 
 /* ── Select ── */
 .twk-select { position: relative; }
@@ -497,7 +505,7 @@
 }
 .twk-select-dropdown {
   padding: 4px; border-radius: calc(var(--twk-radius) + 2px); /* concentric: option (radius − 2) + padding 4 */
-  max-height: 60vh; overflow-y: auto;
+  max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; /* a scroll past the end stays here */
   transform-origin: top; transition-duration: 0.16s, 0.22s;
 }
 /* A pane matches its row, but never runs past the window's 8px margins. */
@@ -550,7 +558,7 @@
 @media (hover: hover) and (pointer: fine) {
   .twk-presets-savebtn:hover { background: var(--twk-surface-hover); }
 }
-.twk-presets-list { display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto; }
+.twk-presets-list { display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto; overscroll-behavior: contain; }
 .twk-presets-empty { padding: 8px; font-size: 12px; font-weight: 500; color: var(--twk-text-tertiary); text-align: center; }
 .twk-presets-row { display: flex; align-items: center; gap: 2px; }
 .twk-presets-load { flex: 1; min-width: 0; text-align: left; font: inherit; font-size: 12px; font-weight: 500; color: var(--twk-text-label); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px); padding: 6px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s; }
@@ -611,7 +619,7 @@
   min-width: 236px; /* the default panel's row width */
   display: flex; flex-direction: column; gap: 8px; padding: 10px;
   border-radius: calc(var(--twk-radius) + 10px); /* concentric: inner radius + padding 10 */
-  max-height: calc(100dvh - 16px); overflow-y: auto; overflow-x: clip; /* a short viewport scrolls the picker */
+  max-height: calc(100dvh - 16px); overflow-y: auto; overflow-x: clip; overscroll-behavior: contain; /* a short viewport scrolls the picker */
   transform-origin: top;
 }
 /* The picker body as one column, so the gradient pop can mount it under the stop bar. */
@@ -770,8 +778,8 @@
 /* round dots with a controllable gap (`dotted` packs them too tightly) */
 .twk-grab-line { position: fixed; height: 2px; border: 0; transform: translateY(-50%); background: radial-gradient(circle closest-side, var(--twk-text-label) 99%, transparent) 0 50% / var(--twk-grab-gap, 7px) 2px repeat-x; }
 .twk-grab-dot { position: fixed; width: 5px; height: 5px; border-radius: 50%; background: var(--twk-text-label); transform: translate(-50%, -50%); }
-.twk-grab-bubble { position: fixed; transform: translate(-50%, -100%); padding: 2px 7px; border-radius: calc(var(--twk-radius) - 2px); background: var(--twk-dropdown-bg); border: 1px solid var(--twk-border); box-shadow: var(--twk-shadow-dropdown); color: var(--twk-text-primary); font-size: 11px; font-weight: 500; white-space: nowrap; transform-origin: bottom center; animation: twk-bubble-in 0.18s var(--twk-ease-pop); }
-@keyframes twk-bubble-in { from { opacity: 0; transform: translate(-50%, -100%) scale(0.8); } to { opacity: 1; transform: translate(-50%, -100%) scale(1); } }
+.twk-grab-bubble { position: fixed; transform: translate(-50%, -100%); padding: 2px 7px; border-radius: calc(var(--twk-radius) - 2px); background: var(--twk-dropdown-bg); border: 1px solid var(--twk-border); box-shadow: var(--twk-shadow-dropdown); color: var(--twk-text-primary); font-size: 11px; font-weight: 500; white-space: nowrap; transform-origin: bottom center; animation: twk-bubble-in 0.18s var(--twk-ease-out); }
+@keyframes twk-bubble-in { from { opacity: 0; transform: translate(-50%, -100%) scale(0.95); } to { opacity: 1; transform: translate(-50%, -100%) scale(1); } }
 .twk-grab-arrow { position: fixed; width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 7px solid var(--twk-text-label); }
 
 /* ── Folder — collapsible titled group ── */
@@ -782,7 +790,7 @@
 .twk-controls > .twk-folder:first-child { border-top: none; }
 .twk-folder:last-child { border-bottom: none; }
 .twk-folder-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: var(--twk-row-height); padding: 0; background: none; border: none; cursor: pointer; color: inherit; font: inherit; text-align: left; }
-.twk-folder-title { font-size: 12px; font-weight: 600; color: var(--twk-text-section); letter-spacing: -0.01em; transition: color 0.15s; }
+.twk-folder-title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 600; color: var(--twk-text-section); letter-spacing: -0.01em; transition: color 0.15s; }
 @media (hover: hover) and (pointer: fine) {
   .twk-folder-header:hover .twk-folder-title { color: var(--twk-text-primary); }
   .twk-folder-header:hover .twk-chevron { color: var(--twk-text-primary); }
@@ -961,9 +969,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .twk-panel, .twk-panel *, .twk-portal, .twk-portal * { transition: none !important; }
+  /* Gentler, not none: the panes and the tip still fade, without moving, so they don't pop. */
+  :is(.twk-select-dropdown, .twk-presets-menu, .twk-color-pop, .twk-tip) { transform: none !important; transition: opacity 0.16s var(--twk-ease-out) !important; }
+  .twk-tip.is-open { transition-delay: 0.25s !important; }
   /* the transition kill doesn't touch animations */
-  .twk-tabs-page[data-active="true"], .twk-grab-bubble { animation: none; }
+  .twk-grab-bubble { animation: none; }
 }
+/* What a key, an undo or a restore moves lands at once: a pill, or a pane opened or closed from the keyboard (measurePill
+ * and popover() in shared.ts). After the reduced-motion fade, so a keyboard pane is instant there too. */
+.is-still { transition: none !important; }
 
 /* Forced colors flatten every background, so state shown only by background needs an
  * outline or border in the system Highlight, which survives. */

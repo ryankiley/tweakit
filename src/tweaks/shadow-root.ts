@@ -16,7 +16,7 @@ type Host = HTMLElement & {
 // doesn't style.
 let pageRules = false;
 const PAGE_CSS =
-  '@property --twk-float-gap { syntax: "<length>"; inherits: true; initial-value: -1px; } .twk-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } .twk-lift-slot { display: block; flex: none; pointer-events: none; }';
+  '@property --twk-float-gap { syntax: "<length>"; inherits: true; initial-value: -1px; } @property --twk-float-x { syntax: "*"; inherits: false; } @property --twk-float-y { syntax: "*"; inherits: false; } @property --twk-float-max-h { syntax: "*"; inherits: false; } .twk-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } .twk-lift-slot { display: block; flex: none; pointer-events: none; }';
 const addPageRules = () => {
   if (pageRules) return;
   pageRules = true;

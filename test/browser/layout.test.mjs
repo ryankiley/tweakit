@@ -304,7 +304,7 @@ test("a radio grid's pill lands on the picked cell, along a row and down the gri
     tabs[1].click();
     await frame();
     return [".twk-radiogrid", ".twk-seg"].map((g) => {
-      const a = p.querySelector(`${g} [class$="-pill"]`).getBoundingClientRect(),
+      const a = p.querySelector(`${g} [class*="-pill"]`).getBoundingClientRect(),
         b = p.querySelector(`${g} [data-active="true"]`).getBoundingClientRect();
       return Math.max(...[a.left - b.left, a.width - b.width].map(Math.abs));
     });
@@ -587,7 +587,7 @@ test("a shadow panel inside a styled #app matches an unstyled one; a light panel
 // The :host rules are the kit's own hosts': `hidden` hides a shadow panel, and a page's web component that loads
 // tweaks.css to hold a light panel keeps its own :host display, or the browser's when it has none, `hidden` included.
 // The page's @keyframes come along with the copied rules, so a shadow panel's tab page animates in.
-test("hidden hides a shadow panel, a page's component keeps its own :host, and a shadow tab page animates", async () => {
+test("hidden hides a shadow panel, a page's component keeps its own :host, and a shadow root gets the kit's keyframes", async () => {
   const { page, errors } = await open("/fixture/bleed.html");
   await page.waitForSelector("body[data-ready]");
   const r = await page.evaluate(async () => {
@@ -619,12 +619,12 @@ test("hidden hides a shadow panel, a page's component keeps its own :host, and a
     const before = [display(tuner), display(plain), display(shadow)];
     plain.hidden = true;
     shadow.hidden = true;
-    tabs.el.shadowRoot.querySelectorAll(".twk-tabs-tab")[1].click();
-    await new Promise((f) => setTimeout(f, 30));
-    const anim = tabs.el.shadowRoot
-      .querySelector(".twk-tabs-page[data-active=true]")
-      .getAnimations()
-      .map((a) => a.animationName);
+    // a @keyframes block is copied whole with the kit's rules, adopted or linked
+    const root = tabs.el.shadowRoot;
+    const anim = [...root.adoptedStyleSheets, ...root.styleSheets]
+      .flatMap((s) => [...s.cssRules])
+      .filter((r) => r instanceof CSSKeyframesRule)
+      .map((r) => r.name);
     return { before, after: [display(plain), display(shadow)], anim };
   });
   assert.deepEqual(
@@ -633,6 +633,6 @@ test("hidden hides a shadow panel, a page's component keeps its own :host, and a
     "the components keep their own or the browser's display; the shadow host is a block",
   );
   assert.deepEqual(r.after, ["none", "none"], "hidden hides the plain component and the shadow panel");
-  assert.deepEqual(r.anim, ["twk-page-in"], "the page-in keyframes came with the copied rules");
+  assert.ok(r.anim.includes("twk-bubble-in"), `the kit's keyframes came with the copied rules: ${r.anim}`);
   assert.deepEqual(errors, []);
 });

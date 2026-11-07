@@ -630,6 +630,7 @@ function popover(
     const fading = pop.parentNode === home(root);
     st.moved = false;
     byPointer = pointerModality;
+    pop.classList.toggle("is-still", !byPointer); // opened from the keyboard: no entrance
     pop.inert = false;
     if (!fading) portalTo(pop, root);
     if (!dragBound && opts.movable !== false) {
@@ -702,6 +703,7 @@ function popover(
     // Focus stranded inside the pop returns to the trigger before the node is removed.
     if (pop.contains(activeIn(pop))) refocus();
     open = st.open = false;
+    pop.classList.toggle("is-still", !pointerModality); // closed by a key: gone at once
     root.classList.remove("is-open");
     pop.classList.remove("is-open");
     pop.inert = true;
@@ -738,15 +740,16 @@ const EASE_GLIDE = "cubic-bezier(0.34, 1.2, 0.64, 1)"; // press glide with a lig
 // Liquid pill stretch (segmented + tabs): a one-shot scaleX overshoot, origin pinned to the
 // trailing edge so it reads directional. dir>0 = moving right.
 const stretchPill = (pill: HTMLElement, dir: number) => {
-  if (REDUCE_MOTION.matches || typeof pill.animate !== "function") return;
+  if (REDUCE_MOTION.matches) return;
   pill.style.transformOrigin = dir > 0 ? "left center" : "right center";
-  pill.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(1.18)" }, { transform: "scaleX(1)" }], {
+  pill.animate?.([{ transform: "scaleX(1)" }, { transform: "scaleX(1.18)" }, { transform: "scaleX(1)" }], {
     duration: 300,
     easing: EASE_SPRING,
   });
 };
 // Slide a pill to the active child of `container`, along a row or down a grid. The box reads come before the writes so
-// a measure can't force an extra layout; a move along a row gets the stretch.
+// a measure can't force an extra layout; a move along a row gets the stretch. Only a pick by pointer moves: one by a key,
+// an undo or a restore, and every re-measure, lands at once (.is-still).
 const measurePill = (container: Element, pill: HTMLElement, animate?: boolean) => {
   const a = container.querySelector<HTMLElement>('[data-active="true"]');
   if (!a) return;
@@ -755,6 +758,8 @@ const measurePill = (container: Element, pill: HTMLElement, animate?: boolean) =
     w = a.offsetWidth,
     h = a.offsetHeight,
     px = parseFloat(pill.style.left);
+  animate &&= pointerModality;
+  pill.classList.toggle("is-still", !animate);
   if (animate && y === parseFloat(pill.style.top) && x !== px) stretchPill(pill, x > px ? 1 : -1);
   Object.assign(pill.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
 };
