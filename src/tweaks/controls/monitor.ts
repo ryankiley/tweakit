@@ -58,6 +58,7 @@ function createMonitor(meta: Meta, perFrame = false) {
   let timer = 0,
     raf = 0,
     unwatch = () => {},
+    io: IntersectionObserver | undefined,
     wasConnected = false;
   // toFixed throws past 100; a missing value reads as a dash.
   const decimals = Number.isFinite(+meta.decimals) ? Math.min(20, Math.max(0, Math.floor(+meta.decimals))) : 2;
@@ -78,6 +79,7 @@ function createMonitor(meta: Meta, perFrame = false) {
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
     unwatch();
+    io?.disconnect();
   };
   // Never-mounted-yet idles the tick; only a mount-then-remove, or destroy(), stops it. The next frame is booked before
   // the read, so a stop() inside the tick cancels it.
@@ -175,16 +177,8 @@ function createMonitor(meta: Meta, perFrame = false) {
   // read off the DOM: it hides rows with a zero-height clip on one axis and opacity, and an IntersectionObserver sees
   // neither.
   let seen = true;
-  const io =
-    typeof IntersectionObserver === "function"
-      ? new IntersectionObserver((es) => (seen = es[es.length - 1].intersectionRatio > 0))
-      : null;
-  io?.observe(wrap);
-  const off = unwatch;
-  unwatch = () => {
-    off();
-    io?.disconnect();
-  };
+  if (typeof IntersectionObserver === "function")
+    (io = new IntersectionObserver((es) => (seen = es[es.length - 1].intersectionRatio > 0))).observe(wrap);
   // a non-finite sample shows in the readout, not the graph
   poll((v) => {
     const n = typeof v === "number" && Number.isFinite(v);
