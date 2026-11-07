@@ -23,8 +23,7 @@ import type { PickerBody, PickerOptions } from "./controls/color.js";
 // Outside a .twk-panel the cascade delivers none of the kit's tokens, so the wrapper carries .twk-portal.
 const scope = (cls: string) => el("div", `${cls} twk-standalone twk-portal`);
 // Run `build` once the lazy module has landed (synchronously when none is missing), and settle `ready` once a shadow
-// host's dressing (isolate) has too; the handled fork keeps a failed chunk or dressing out of the unhandled-rejection
-// channel.
+// host's dressing (isolate) has too; the handled fork keeps a failed chunk out of the unhandled-rejection channel.
 const whenLoaded = <H>(
   metas: Array<Pick<Meta, "type">>,
   build: () => void,

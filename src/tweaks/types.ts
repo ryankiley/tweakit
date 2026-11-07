@@ -869,8 +869,9 @@ export interface Panel<P = any> {
   el: HTMLElement;
   /** Live values, updated in place as controls change. */
   params: P;
-  /** Resolves once any lazily-loaded controls have hydrated and, for a panel that persists an image control, its
-   *  stored images have loaded (resolves immediately when there's neither). */
+  /** Resolves once any lazily-loaded controls have hydrated, a panel that persists an image control has its stored
+   *  images, and a `shadow` panel is styled (a dressing that fails is logged, and the panel shows unstyled). Rejects
+   *  when a control's chunk fails to load or the lazy build throws, and the panel's API is inert from then on. */
   ready: Promise<Panel<P>>;
   /** Subscribe to changes; `last` is the changed control's dotted path (`size`, `card.size`), as `set()` and
    * `changes()`

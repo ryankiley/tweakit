@@ -157,6 +157,8 @@ const bind = (
     console.warn("[tweaks] persist: an image a preset holds didn't fit in storage — the preset keeps the rest");
   };
   return {
+    /** The data URL this panel holds for `ref`, if it holds it. */
+    url: (ref: string) => known.get(ref),
     /** The ref `row`'s image saves as, or null to save it inline (the store refused it). Written once, and again
      * whenever
      *  `stored` (what storage holds now) no longer names it: a tab that replaced it may have pruned the record. */

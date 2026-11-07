@@ -80,6 +80,18 @@ export interface Entry {
 /** A values snapshot — params as JSON round-trips it. */
 export type Snapshot = Record<string, any>;
 
+// A panel's lifecycle, in one place. The order matters: before Live, calls queue; past it, they do nothing.
+//   Loading → Building → Live   the chunks land, assemble() runs, the controls exist
+//   Loading, Building → Failed   a chunk or the build failed, on the lazy path: the API is inert for good
+//   any → Destroyed   destroy(), which nothing leaves
+// (A non-lazy build that throws, throws out of tweaks(): there is no panel to be in a phase.)
+const enum Phase {
+  Loading,
+  Building,
+  Live,
+  Failed,
+  Destroyed,
+}
 let topFloating: HTMLElement | null = null; // the floating panel raised last (raise())
 const liveKeys = new Map<string, number>(); // persist keys of the panels alive now, for the shared-key warning
 let picked: [HTMLElement, () => void] | null = null; // the panel holding the page's one pick, and how to drop it
@@ -112,18 +124,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const listeners = new Set<(p: Params, last?: string) => void>();
   const own = new Set<(p: Params, last?: string) => void>(); // undo + conditionals: all a silent write calls
   const cleanups: Array<() => void> = []; // releases for destroy(): document/window listeners, timers
-  let destroyed = false; // set by destroy(): assemble() bails, mutators go silent
-  let assembled = false; // set at the end of assemble(); no controls exist before
+  let phase = Phase.Loading as Phase;
+  // A call, as tsc would narrow a read, and a listener can destroy the panel partway through a function that asked.
+  const destroyed = () => phase === Phase.Destroyed;
   // The lazy window: a mutating API call made before the controls exist queues here and replays in order once
   // assemble() has built them.
   const queue: Array<() => void> = [];
-  let failed = false; // the chunks failed: the panel can never be built
-  let built = -1; // cleanups.length as assemble() enters build()
-  // the failed build already said why
+  let built = 0; // cleanups.length as assemble() enters build()
+  // failed: the failed build already said why
   const later = (fn: () => void) => {
-    if (destroyed) return;
-    if (failed) return;
-    assembled ? fn() : queue.push(fn);
+    if (phase === Phase.Live) fn();
+    else if (phase < Phase.Live) queue.push(fn);
   };
   let liftSlot: HTMLSpanElement | null = null; // the placeholder a lifted panel leaves in its slot
   // what the lift carried from the slot's context (lift()), under the panel's own theme
@@ -206,17 +217,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     for (const e of entries) if (!e.persist) drop(snap, e);
     return snap;
   };
-  // ── Images in IndexedDB (image-store.ts): what storage holds for an uploaded image is its ref, and `savedImages` maps this
+  // ── Images in IndexedDB (image-store.ts): what storage holds for an uploaded image is its ref, and `imgs` maps this
   // panel's refs to their data URLs. The build doesn't wait for them: every other value restores as it builds, and a
   // stored image waits in `waiting` until the store answers, then fills in (restoreImages), by `ready`. With no store
   // to hold an upload (not answered yet, unavailable, or it refused that image), the data URL saves inline, as 0.5
   // saved it, and moves to the store on a later save; a write storage refuses then leaves the inline images out. With
   // no store, a stored ref
   // stays saved as it was until its row is written. ──
-  // both null without IndexedDB
-  let imgs: ReturnType<(typeof import("./image-store.js"))["bind"]> | null = null,
-    savedImages: Map<string, string> | null = null;
-  let imagesReady = false; // the store has answered, or failed to load
+  // The store once it has answered; null until then, and for good without IndexedDB.
+  let imgs: ReturnType<(typeof import("./image-store.js"))["bind"]> | null = null;
   // a row's stored ref, and the value it held while the store loaded or the image was fetched
   const waiting = new Map<Entry, [string, unknown]>();
   // image-store.ts's ref, readable before that chunk loads
@@ -230,7 +239,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     e.note?.(tr("notSaved", "Not saved"));
   };
   const toRefs = (snap: Snapshot) => {
-    const stored = imagesReady && imgs ? readStore(persistKey!) : undefined; // undefined: no store to hold an upload
+    const stored = imgs ? readStore(persistKey!) : undefined; // undefined: no store to hold an upload
     for (const e of imageEntries()) {
       const o: any = atPath(snap, e.path.slice(0, -1)),
         v = o?.[e.key],
@@ -252,7 +261,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // An image a restore names by ref: from the store's answer, or once it answers; a ref the store has never seen here
   // (a preset another tab saved) is fetched. It lands only on a row the host and the person left alone meanwhile.
   const late = (e: Entry, held: unknown, url: string) => {
-    if (destroyed || valueChanged(held, e.get()) || !tryAssign(e, url)) return false;
+    if (destroyed() || valueChanged(held, e.get()) || !tryAssign(e, url)) return false;
     undoApi?.patch(e.path, held, e.get()); // not a step of its own: ⌘Z mustn't take a restored image back out
     return true;
   };
@@ -263,7 +272,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       for (const e of imageEntries()) {
         const v = atPath(snap, e.path);
         if (!isRef(v)) continue;
-        const url = savedImages?.get(v);
+        const url = imgs?.url(v);
         if (url) (atPath(snap, e.path.slice(0, -1)) as any)[e.key] = url;
         else {
           drop(snap, e);
@@ -279,7 +288,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       // a write meanwhile settles it, even back to the value held
       const w: [string, unknown] = [ref, e.get()];
       waiting.set(e, w);
-      if (!imagesReady || !imgs) continue; // no store: the ref stays saved until the row is written
+      if (!imgs) continue; // no store: the ref stays saved until the row is written
       imgs.fetch(ref).then((url) => {
         if (waiting.get(e) !== w) return;
         waiting.delete(e);
@@ -291,16 +300,16 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     }
   };
   // The store answered: each waiting row the host and the person left alone takes its image, in one notify.
-  const restoreImages = () => {
-    imagesReady = true;
+  const restoreImages = (store: typeof imgs) => {
+    imgs = store;
     // not built yet: the build resolves refs itself
-    if (!assembled || destroyed || failed) {
+    if (phase !== Phase.Live) {
       waiting.clear();
       return;
     }
     let changed = false;
     for (const [e, [ref, held]] of [...waiting]) {
-      const url = savedImages?.get(ref);
+      const url = imgs?.url(ref);
       if (url && late(e, held, url)) changed = true;
     }
     // no store: each ref stays waiting, so no save writes the default over it and no later session prunes it
@@ -358,7 +367,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         console.error("[tweaks] listener threw:", e);
       }
     });
-    if (!destroyed) persist();
+    if (!destroyed()) persist();
   };
   // The one write path behind restores and set(). A function/symbol/bigint is no control value (JSON can't carry
   // those).
@@ -447,7 +456,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       undoApi?.flush();
     },
     announce,
-    alive: () => !destroyed,
+    alive: () => !destroyed(),
     tr,
   };
   const resetBtn = makeResetBtn(resetAll, tr);
@@ -468,8 +477,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   for (const b of toolbarBtns) b.disabled = true;
   // swallowClick lives on the header, not the title: once the header holds pointer capture, the click ending a drag is
   // dispatched there.
-  let dragMoved = false,
-    swallowClick = false;
+  let swallowClick = false;
   header.addEventListener(
     "click",
     (e) => {
@@ -583,7 +591,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     gap = Math.round(gap * k);
   };
   const reclamp = () => {
-    if (!destroyed && panel.dataset.mode === "floating" && panel.isConnected) {
+    if (!destroyed() && panel.dataset.mode === "floating" && panel.isConnected) {
       clampPos();
       apply();
     }
@@ -792,11 +800,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
 
   // ── Snapshots in: persisted sessions, presets, fromJSON, undo. Per-entry isolation: a control whose
   // set() throws on hostile stored data (a corrupt snapshot, a hand-edited preset) costs only its own value. ──
-  const applySnapshot = (snap: Snapshot | null, silent?: boolean) => {
+  // `history`: undo and redo. A step that holds what a waiting row holds isn't a write, or it would settle the row and
+  // the next save would put the row's value over its stored image.
+  const applySnapshot = (snap: Snapshot | null, silent?: boolean, history?: boolean) => {
     if (!snap || typeof snap !== "object") return;
     for (const e of entries) {
       const v = atPath(snap, e.path);
-      if (v === undefined) continue;
+      if (v === undefined || (history && waiting.has(e) && !valueChanged(v, e.get()))) continue;
       tryAssign(e, v);
     }
     last = undefined;
@@ -955,11 +965,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       if (posKey) writeStore(posKey, { x: px, y: py });
     };
 
-    let dragId: number | null = null,
-      sx = 0,
-      sy = 0,
-      ox = 0,
-      oy = 0,
+    // The press on the header: none, a click until it travels past the slop, then a drag, once `from` holds where the
+    // panel started.
+    let press: { id: number; x: number; y: number; from?: [number, number] } | null = null,
       snapT = 0;
     // Document listeners (capture, so the panel's own pointer-stop can't hide them) for the press's duration.
     // Capture is taken only past the threshold: on the press it would retarget a plain click off the title.
@@ -975,19 +983,18 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Escape mid-press cancels: the panel returns to where the drag began and the release's click is swallowed. Capture
     // phase, so it beats a pane's Escape.
     const onDragKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || dragId === null) return;
+      if (e.key !== "Escape" || !press) return;
       e.preventDefault();
       e.stopPropagation();
       // before the release, so a lostpointercapture finds no drag to end
-      const id = dragId;
-      dragId = null;
+      const { id, from } = press;
+      press = null;
       listen(false);
       try {
         header.releasePointerCapture(id);
       } catch {}
-      if (dragMoved) {
-        px = ox;
-        py = oy;
+      if (from) {
+        [px, py] = from;
         apply();
       }
       panel.classList.remove("is-dragging");
@@ -1004,12 +1011,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (draggable)
       header.addEventListener("pointerdown", (e) => {
         // draggable:false keeps lift/clamp, never the press
-        if (e.button !== 0 || dragId !== null || (e.target as Element).closest(".twk-toolbar, input, textarea, select"))
-          return;
-        dragId = e.pointerId;
-        sx = e.clientX;
-        sy = e.clientY;
-        dragMoved = false;
+        if (e.button !== 0 || press || (e.target as Element).closest(".twk-toolbar, input, textarea, select")) return;
+        press = { id: e.pointerId, x: e.clientX, y: e.clientY };
         listen(true);
         // Regrab mid–edge-snap: pick the panel up where it visually is, not the parked target.
         if (panel.classList.contains("is-snapping")) {
@@ -1040,43 +1043,42 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         savePos();
       });
     const onMove = (e: PointerEvent) => {
-      if (e.pointerId !== dragId) return;
+      if (!press || e.pointerId !== press.id) return;
       // The window lost the pointer: bail as every other drag surface does.
       if (e.buttons === 0) {
         endDrag(e);
         return;
       }
-      const dx = e.clientX - sx,
-        dy = e.clientY - sy;
-      if (!dragMoved) {
+      const dx = e.clientX - press.x,
+        dy = e.clientY - press.y;
+      if (!press.from) {
         // Drag slop: quick clicks wander a few px, fingers more. Collapsing is common and moving rare, so favor the
         // click.
         if (Math.hypot(dx, dy) < (e.pointerType === "mouse" ? 6 : 10)) return;
-        dragMoved = true;
         grab();
-        ox = px;
-        oy = py; // the (possibly just-lifted) origin, once the drag starts
+        if (!press) return; // the lift's blur commits an open editor, and a listener on that can end the press
+        press.from = [px, py]; // the (possibly just-lifted) origin, once the drag starts
         try {
-          header.setPointerCapture(dragId);
+          header.setPointerCapture(press.id);
         } catch {}
         panel.classList.add("is-dragging");
       }
-      moveTo(ox, oy, dx, dy);
+      moveTo(press.from[0], press.from[1], dx, dy);
     };
     const endDrag = (e: PointerEvent) => {
-      if (e.pointerId !== dragId) return;
+      if (!press || e.pointerId !== press.id) return;
       try {
-        header.releasePointerCapture(dragId);
+        header.releasePointerCapture(press.id);
       } catch {}
-      dragId = null;
+      const dragged = !!press.from;
+      press = null;
       listen(false);
       // Swallow exactly the click that follows the release; let the flag lapse in case none comes (a pointercancel).
-      swallowClick = dragMoved;
-      if (swallowClick)
+      swallowClick = dragged;
+      if (dragged) {
         setTimeout(() => {
           swallowClick = false;
         }, 0);
-      if (dragMoved) {
         // Edge magnetism: a drop near a side eases the rest of the way to the margin.
         const { maxX, maxY } = bounds();
         if (px <= MARGIN + SNAP) px = MARGIN;
@@ -1114,7 +1116,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     const load = () =>
       (menu ||= import("./presets.js").then(
         (m) => {
-          if (destroyed) throw 0;
+          if (destroyed()) throw 0;
           made = true;
           return m.presetsMenu(
             b,
@@ -1173,7 +1175,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     ? createUndo(
         panel,
         snapshot,
-        applySnapshot,
+        (s) => applySnapshot(s, false, true),
         atPath,
         (t) => inEditable(t),
         (fn) => {
@@ -1294,7 +1296,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       k === "c" ? JSON.stringify(s.kind === "row" ? s.entry.get() : atPath(snapshot(), s.path), replacer, 2) : "";
     // words for a screen reader; the toolbar's copy button stays as it is
     const copied = (ok: boolean) => {
-      if (!destroyed)
+      if (!destroyed())
         announce(ok ? tr("rowCopied", "{label} copied", { label: s.label }) : tr("copyFailed", "Copy failed"));
     };
     const band = pick?.[0],
@@ -1343,7 +1345,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Build the controls, then everything that needs them: the conditionals' first pass, the persisted restore,
   // the undo seed, the queued API calls. Synchronous when every control type is registered, else behind panel.ready.
   const assemble = () => {
-    if (destroyed) return; // destroy() before the chunks landed: nothing to build
+    if (phase !== Phase.Loading) return; // destroyed or failed before the chunks landed: nothing to build
+    phase = Phase.Building;
     built = cleanups.length;
     using(opts.strings, () => build(controls, metas, params));
     if (conditionals.length) {
@@ -1381,8 +1384,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     }
     // Restore last session, notifying: on the lazy path a host may already have subscribed.
     if (persistKey) restore(unsaved(unwrap(readStore(persistKey), "values")));
-    if (destroyed) return; // a listener may have destroyed the panel on that notify
     undoApi?.arm();
+    // A listener on that notify, or a value's toJSON in that snapshot, may have destroyed the panel. Nothing below runs
+    // host code, so nothing can between here and `live`.
+    if (destroyed()) return;
     watchResize();
     // one document listener per panel for its keys
     cleanups.push(
@@ -1391,11 +1396,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         onClipKey(e);
       }),
     );
-    assembled = true;
+    phase = Phase.Live;
     // Replay after the restore, so an explicit host set() wins over a stored value; a destroy() mid-replay drops the
     // rest.
     for (const fn of queue.splice(0)) {
-      if (destroyed) break;
+      if (destroyed()) break;
       try {
         fn();
       } catch (e) {
@@ -1494,7 +1499,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     el: box,
     params,
     on(fn) {
-      if (destroyed) return () => {};
+      if (destroyed()) return () => {};
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
@@ -1526,17 +1531,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       });
     },
     reset() {
-      if (assembled && !destroyed) spinReset(resetBtn);
+      if (phase === Phase.Live) spinReset(resetBtn);
       later(resetAll);
     },
     // Whole-panel state — values + UI as a JSON-safe object (the standard toJSON hook). Before ready there
     // are no values yet. fromJSON applies one back: values (one notify), then the UI silently, outside undo.
     toJSON() {
-      return destroyed ? { values: {}, ui: {} } : { values: snapshot(), ui: collectUI() };
+      return destroyed() ? { values: {}, ui: {} } : { values: snapshot(), ui: collectUI() };
     },
     // empty in the lazy window too — no entries yet
     changes() {
-      return destroyed ? {} : changed();
+      return destroyed() ? {} : changed();
     },
     fromJSON(state, o) {
       if (!state || typeof state !== "object") return;
@@ -1552,7 +1557,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Live theming clears the prior theme first, so setTheme(null) reverts to the default look.
     // a rename never moves saved values or presets
     setName(n) {
-      if (destroyed) return;
+      if (destroyed()) return;
       title = String(n);
       titleEl.textContent = title;
       landmark(title);
@@ -1560,7 +1565,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // A lifted panel's carried context sits under the theme: a key the old theme set and the new one drops falls back
     // to it.
     setTheme(theme) {
-      if (destroyed) return;
+      if (destroyed()) return;
       applyThemeVars(panel, null);
       for (const k in carried) panel.style.setProperty(k, carried[k]);
       themeVars = resolveTheme(theme);
@@ -1571,7 +1576,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // Presets API (no-ops without opts.persist); before ready they queue like set() does.
     // queued before ready counts as saved; once built, whether storage took it
     savePreset: (nm) => {
-      if (destroyed || failed || !presetsKey || !nm) return false;
+      if (phase > Phase.Live || !presetsKey || !nm) return false;
       let ok = true;
       later(() => {
         ok = savePreset(nm);
@@ -1580,14 +1585,14 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     },
     // whether it's stored now; a save still queued before ready isn't yet
     loadPreset: (nm) => {
-      if (destroyed || failed || !listPresets()[nm]) return false;
+      if (phase > Phase.Live || !listPresets()[nm]) return false;
       later(() => loadPreset(nm));
       return true;
     },
     deletePreset: (nm) => {
       if (presetsKey) later(() => deletePreset(nm));
     },
-    presets: () => (destroyed ? [] : Object.keys(listPresets())),
+    presets: () => (destroyed() ? [] : Object.keys(listPresets())),
     // no-ops without opts.undo; queued before ready, in order
     undo: () => {
       if (undoApi) later(undoApi.undo);
@@ -1595,10 +1600,10 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     redo: () => {
       if (undoApi) later(undoApi.redo);
     },
-    // Teardown. Safe to call before ready resolves — assemble() sees the flag and bails.
+    // Teardown. Safe to call before ready resolves — assemble() sees the phase and bails.
     destroy() {
-      if (destroyed) return;
-      destroyed = true;
+      if (destroyed()) return;
+      phase = Phase.Destroyed;
       releaseKey();
       closeActivePopover(panel); // page-wide singletons: close only what's anchored here
       hideHintNow(panel);
@@ -1625,25 +1630,26 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     persistKey && scanTypes(metas).has("image")
       ? import("./image-store.js").then(
           async (m) => {
-            savedImages = await m.load(persistKey);
+            const saved = await m.load(persistKey);
             // A refused upload saves again, inline; after destroy() no save is armed, so it writes now while storage
             // still names that ref.
-            if (savedImages)
-              imgs = m.bind(
+            return (
+              saved &&
+              m.bind(
                 persistKey,
-                savedImages,
+                saved,
                 (ref) => {
-                  if (!destroyed) persist();
+                  if (!destroyed()) persist();
                   else if (JSON.stringify(readStore(persistKey)).includes(JSON.stringify(ref))) saveNow();
                 },
                 listPresets,
                 (v) => !!presetsKey && writePresets(v),
-              );
+              )
+            );
           },
-          () => {},
+          (): null => null,
         )
       : null;
-  if (!images) imagesReady = true;
   const imagesIn = images && images.then(restoreImages);
   // A shadow panel's dressing: `ready` waits for it, not for the stylesheet's download.
   const shadowIn = iso.dressed;
@@ -1653,11 +1659,13 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     // A failed chunk or a throwing build leaves the panel unbuildable: queued calls dropped, later calls refused,
     // ready rejects. A partway build must not leave live controls behind an inert API: release what it wired.
     const fail = (e: unknown) => {
-      failed = true;
+      const began = phase !== Phase.Loading,
+        gone = destroyed();
+      if (!gone) phase = Phase.Failed;
       queue.length = 0;
       releaseKey();
       // only what the build wired; the shell's stay for destroy()
-      if (built >= 0)
+      if (began)
         for (const fn of cleanups.splice(built)) {
           try {
             fn();
@@ -1669,9 +1677,9 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       entries.length = 0;
       controls.replaceChildren();
       // the chunk's own error is logged in lazy.ts
-      if (!destroyed)
+      if (!gone)
         console.warn(
-          `[tweaks] "${name}": the panel could not be built — ${built >= 0 ? "the build threw" : "its lazy controls failed to load"}; the API is inert`,
+          `[tweaks] "${name}": the panel could not be built — ${began ? "the build threw" : "its lazy controls failed to load"}; the API is inert`,
         );
       throw e;
     };

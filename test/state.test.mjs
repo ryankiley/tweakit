@@ -504,6 +504,32 @@ test("a stored image arriving late is no undo step, and an edit made before it s
   p.destroy();
 });
 
+test("undo can't settle a row still waiting for its stored image, but an explicit write back to its value can", async () => {
+  localStorage.setItem("tw:t-undo-wait", JSON.stringify({ v: 1, values: { x: 1, im: "tw-image:kept" } }));
+  const idb = globalThis.indexedDB;
+  globalThis.indexedDB = {
+    open() {
+      throw new DOMException("blocked", "SecurityError");
+    },
+  };
+  try {
+    const fresh = (await import(`${distUrl("tweaks.js").href}?no-store-undo`)).tweaks; // its own image store, never opened
+    const p = fresh("UW", IMG_S, { persist: "t-undo-wait", undo: true });
+    await p.ready;
+    p.set("x", 4);
+    await tick(420); // past undo's step and the save
+    p.undo();
+    await tick(250);
+    assert.deepEqual(saved("tw:t-undo-wait"), { x: 1, im: "tw-image:kept" }, "undo restored x and left the ref");
+    p.fromJSON({ values: { im: "" } });
+    await tick(250);
+    assert.equal(saved("tw:t-undo-wait").im, "", "a loaded value is still a write, even the one the row holds");
+    p.destroy();
+  } finally {
+    globalThis.indexedDB = idb;
+  }
+});
+
 test("an IndexedDB open that never settles reads as unavailable: ready resolves and an upload saves inline", async () => {
   const held = await new Promise((r) => {
     const q = indexedDB.open("tweakit", 1);

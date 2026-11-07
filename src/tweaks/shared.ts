@@ -458,20 +458,20 @@ const activeIn = (n: Node) => (n.getRootNode() as Document | ShadowRoot).activeE
 const holds = (box: Node, t: Node | null) => !!t && (box.contains(t) || t === (box.getRootNode() as ShadowRoot).host);
 // opts.shadow (a panel, mountControl, createColorPicker): `root` goes in a shadow root on a host of its own, hidden
 // until shadow-root.ts has styled it. Returns what goes in the page, the promise `ready` waits for (it holds the
-// dressing's own teardown), and the teardown, which waits for the dressing if a destroy() comes first.
+// dressing's own teardown), and the teardown, which waits for the dressing if a destroy() comes first. A dressing that
+// fails, its chunk or dress() itself, costs the styling and no more: the root shows, unstyled, and works.
 const isolate = (root: HTMLElement, shadow: boolean | { href?: string } | undefined) => {
   if (!shadow) return { box: root, end: () => {} };
   const box = el("twk-host" as "div", "twk-host");
   box.attachShadow({ mode: "open" }).append(root);
   root.classList.add("twk-in-shadow");
   box.style.visibility = "hidden";
-  const dressed = import("./shadow-root.js").then(
-    (m) => m.dress(box, root, shadow),
-    (e) => {
+  const dressed = import("./shadow-root.js")
+    .then((m) => m.dress(box, root, shadow))
+    .catch((e) => {
       box.style.visibility = "";
       console.error("[tweaks] shadow:", e);
-    },
-  );
+    });
   return {
     box,
     dressed,

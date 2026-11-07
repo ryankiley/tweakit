@@ -131,12 +131,11 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   };
   render();
 
+  // The press on the track: none between presses, a click until it travels past the threshold, then a scrub. `fine`
+  // anchors the scrub while Alt is held. `rect` is measured at each press and outlives it: a snap slider settles on it.
   let rect: DOMRect | null = null,
-    downPos: { x: number; y: number } | null = null,
-    isClick = true,
-    snapTimer: number,
-    fineAnchor: { x: number; v: number } | null = null,
-    downId: number | null = null;
+    press: { id: number; x: number; y: number; scrub?: boolean; fine?: { x: number; v: number } | null } | null = null,
+    snapTimer: number;
   const GLIDE_FILL = `width 0.34s ${EASE_GLIDE}`;
   const GLIDE_HANDLE = `left 0.34s ${EASE_GLIDE}, opacity 0.15s, transform 0.2s ${EASE_SPRING}`;
   // The press glide of a continuous slider: on at the press, off on the first move and once the press has landed.
@@ -173,7 +172,6 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   let sx = 0,
     sv = 0,
     sRAF = 0,
-    sDrag = false,
     sPrevEi: number | null = null,
     cursorVal = value,
     sPrevT = 0;
@@ -193,7 +191,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     const trackW = wrap.offsetWidth || (rect && rect.width) || 1;
     const ui = toIdx(clamp(cursorVal, min, max));
     const ei = clamp(Math.round(ui + C_COMMIT), 0, STEPS); // eager commit: 30% past the notch
-    const tx = sDrag ? ei + C_LEAN * clamp(ui - ei, -0.5, 0.5) : ei; // lean toward the cursor, then settle on the notch
+    const tx = press ? ei + C_LEAN * clamp(ui - ei, -0.5, 0.5) : ei; // lean toward the cursor, then settle on the notch
     // Reduced motion: the handle sits on its target every frame. The CSS kill-switch can't reach
     // this, since the detent drives left/width from rAF, not a transition. Read live.
     if (REDUCE_MOTION.matches) {
@@ -226,7 +224,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       sPrevEi = ei;
       onChange(q(value));
     }
-    if (!sDrag && Math.abs(sv) < 0.004 && Math.abs(sx - ei) < 0.004) {
+    if (!press && Math.abs(sv) < 0.004 && Math.abs(sx - ei) < 0.004) {
       sx = ei;
       sv = 0;
       pull = 0;
@@ -238,7 +236,6 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   const springStart = (clientX: number) => {
     sx = toIdx(value);
     sv = 0;
-    sDrag = true;
     sPrevEi = Math.round(toIdx(value));
     cursorVal = valFromX(clientX);
     if (!sRAF) sRAF = requestAnimationFrame(springFrame);
@@ -246,19 +243,17 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
 
   track.addEventListener("pointerdown", (e) => {
     if (valueEl.classList.contains("is-editing")) return;
-    if (e.button !== 0 || downPos) return; // primary button only; no second-pointer hijack
+    if (e.button !== 0 || press) return; // primary button only; no second-pointer hijack
     e.preventDefault();
     // preventDefault suppressed click-to-focus; restore it without the keyboard ring (programmatic focus otherwise
     // reads as keyboard).
     track.focus({ focusVisible: false });
-    downId = e.pointerId;
+    press = { id: e.pointerId, x: e.clientX, y: e.clientY };
     try {
       (e.target as Element).setPointerCapture(e.pointerId);
     } catch {}
     clearTimeout(snapTimer);
     track.style.transition = "";
-    downPos = { x: e.clientX, y: e.clientY };
-    isClick = true;
     track.classList.add("is-active");
     rect = wrap.getBoundingClientRect();
     // Snap springs to the pressed notch; continuous glides there, the glide cleared on the first move so dragging stays
@@ -268,18 +263,18 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     else set(valFromX(e.clientX));
   });
   track.addEventListener("pointermove", (e) => {
-    if (!downPos || e.pointerId !== downId) return;
+    if (!press || e.pointerId !== press.id) return;
     // Released outside the window: a captured pointerup never reaches us, so bail on the next move.
     if (e.buttons === 0) {
       up();
       return;
     }
-    if (isClick && Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > CLICK_THRESHOLD) {
-      isClick = false;
+    if (!press.scrub && Math.hypot(e.clientX - press.x, e.clientY - press.y) > CLICK_THRESHOLD) {
+      press.scrub = true;
       track.classList.add("is-dragging");
       glide(false);
     }
-    if (!isClick) {
+    if (press.scrub) {
       rubberBand(track, rect, e.clientX);
       if (snap) {
         cursorVal = valFromX(e.clientX); // read by the spring loop
@@ -287,10 +282,10 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
         // Alt = fine scrub: a low-gain relative drag, re-anchored when Alt engages.
         let raw: number;
         if (e.altKey) {
-          if (!fineAnchor) fineAnchor = { x: e.clientX, v: value };
-          raw = clamp(fineAnchor.v + ((e.clientX - fineAnchor.x) / rect.width) * (max - min) * FINE_GAIN, min, max);
+          const fine = (press.fine ||= { x: e.clientX, v: value });
+          raw = clamp(fine.v + ((e.clientX - fine.x) / rect.width) * (max - min) * FINE_GAIN, min, max);
         } else {
-          fineAnchor = null;
+          press.fine = null;
           raw = valFromX(e.clientX);
         }
         set(raw);
@@ -298,10 +293,10 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     }
   });
   const up = (e?: PointerEvent) => {
-    if (!downPos || (e && e.pointerId !== downId)) return;
+    if (!press || (e && e.pointerId !== press.id)) return;
+    press = null;
     if (snap) {
       // Let the spring settle; springFrame drops is-active once it lands.
-      sDrag = false;
       track.classList.remove("is-dragging");
       if (!sRAF) sRAF = requestAnimationFrame(springFrame);
     } else {
@@ -310,9 +305,6 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       track.classList.remove("is-active", "is-dragging");
     }
     rubberRelease(track);
-    downPos = null;
-    fineAnchor = null;
-    downId = null;
   };
   track.addEventListener("pointerup", up);
   track.addEventListener("pointercancel", up);
@@ -323,7 +315,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   onLive(track, [[window, "resize"]], render); // self-cleans once the panel leaves the DOM
   track.addEventListener("keydown", (e) => {
     if (e.target !== track) return; // keys typed into the inline editor are its own
-    if (downPos) return; // keys don't steer a pointer drag
+    if (press) return; // keys don't steer a pointer drag
     if (e.key === "Enter") {
       e.preventDefault();
       return openEditor();

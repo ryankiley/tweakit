@@ -122,6 +122,32 @@ test("a destroyed panel says nothing when its chunk later fails", async () => {
   }
 });
 
+test("a shadow dressing that throws leaves a working panel, shown and unstyled, lazy or not", () =>
+  quiet(async () => {
+    const real = Element.prototype.attachShadow;
+    // dress() opens the portal root; the panel's own root, in isolate(), still opens
+    Element.prototype.attachShadow = function (o) {
+      if (this.classList.contains("twk-portal-host")) throw new Error("no portal root");
+      return real.call(this, o);
+    };
+    try {
+      for (const schema of [{ v: { type: "interval", value: [1, 2], min: 0, max: 10 } }, { v: [1, 0, 10, 1] }]) {
+        const p = lazy.tweaks("Undressed", schema, { shadow: true }),
+          next = Array.isArray(schema.v) ? 4 : [3, 4];
+        document.body.append(p.el);
+        await p.ready;
+        assert.equal(p.el.style.visibility, "", "the host shows");
+        assert.equal(p.el.shadowRoot.querySelectorAll(".twk-controls > *").length, 1, "the control is built");
+        p.set("v", next);
+        assert.deepEqual(p.params.v, next, "and the API is live");
+        p.destroy();
+        await tick(); // an unhandled rejection from the teardown fails this file
+      }
+    } finally {
+      Element.prototype.attachShadow = real;
+    }
+  }));
+
 // A color value: a chunk nothing above has loaded.
 test("a listener that destroys the panel on the persisted restore leaves no listener behind", async () => {
   localStorage.clear();

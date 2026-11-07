@@ -320,7 +320,7 @@ test("fromJSON applies known value paths, skips stale ones, and notifies once", 
 });
 
 test("a header press released off the header can't leave the panel dragging on hover", () => {
-  // Regression: capture starts past the 4px threshold, so a release off the header left dragId set and the next hover
+  // Regression: capture starts past the 4px threshold, so a release off the header left the press open and the next hover
   // dragged.
   const p = tweaks("Drag", { a: [1, 0, 10, 1] });
   document.body.append(p.el);
