@@ -136,4 +136,6 @@ test("src/tweaks.css: what a drag rewrites isn't inherited, tabs switch at once,
     /\.twk-tabs-tab \{[^}]*flex: 1 0 auto[^}]*max-width: 100%/,
     "tab titles wrap, and one too long ellipsizes",
   );
+  // between wrapped rows the pill goes straight to the pick, as a grid's does, never along the row it left
+  assert.match(css, /\.twk-tabs-pill \{[^}]*transition:[^}]*\btop\b[^}]*\bheight\b/, "a tab pill eases its top too");
 });

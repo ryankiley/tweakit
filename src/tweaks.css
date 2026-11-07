@@ -480,7 +480,7 @@
 /* ── Tabs — paged controls with a sliding pill ── */
 .twk-tabs { display: flex; flex-direction: column; gap: 8px; }
 .twk-tabs-bar { position: relative; display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; min-width: 0; /* the rows' 4px frame round 24px pills: a 32px row */ background: var(--twk-surface); border-radius: var(--twk-radius); }
-.twk-tabs-pill { position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; background: var(--twk-surface-active); border-radius: calc(var(--twk-radius) - 2px); z-index: 0; transition: left 0.24s var(--twk-ease-out), width 0.24s var(--twk-ease-out); }
+.twk-tabs-pill { position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; background: var(--twk-surface-active); border-radius: calc(var(--twk-radius) - 2px); z-index: 0; transition: left 0.24s var(--twk-ease-out), top 0.24s var(--twk-ease-out), width 0.24s var(--twk-ease-out), height 0.24s var(--twk-ease-out); } /* titles that wrap: a move between rows goes straight there, as a grid's pill does, never along the row it left */
 .twk-tabs-tab { position: relative; z-index: 1; flex: 1 0 auto; min-width: 0; max-width: 100%; /* titles wrap to a second row; one longer than the bar ellipsizes */ padding: 5px 8px; font: inherit; font-size: 12px; line-height: 14px; font-weight: 500; color: var(--twk-text-label); background: transparent; border: none; border-radius: calc(var(--twk-radius) - 2px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.15s, transform 0.24s var(--twk-ease-pop); }
 .twk-tabs-tab[data-active="true"] { color: var(--twk-text-primary); }
 .twk-tabs-tab:active { transform: scale(var(--twk-press-chip)); transition: color 0.15s, transform 0.08s ease-out; }
