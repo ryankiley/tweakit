@@ -90,7 +90,7 @@ export const examples = [
                       white-space: nowrap; -webkit-background-clip: text; background-clip: text; }
       /* a letter for the run: padded past its glyph all round, without moving the line or its
        * neighbors, since a sliced gradient only paints inside the box and tight tracking overhangs it */
-      .doc .sp-text span { display: inline-block; box-sizing: content-box; padding: 0.25em; margin: -0.25em; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; }
+      .doc .sp-text span { display: inline-block; box-sizing: content-box; padding: 0.25em 0.1em; margin: -0.25em -0.1em; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; }
       .doc .sp-about { max-width: 52ch; margin: 0; font-size: 16px; }
       .sp-stage .hero-meta { margin-top: 16px; }
       .sp-stage .ex-tabs { width: 100%; max-width: 52ch; margin: 28px 0 0; } /* the install line, as wide as the copy */
