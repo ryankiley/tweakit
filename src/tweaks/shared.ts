@@ -74,6 +74,9 @@ const titleCase = (s: string) => {
 };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
+// A number, or a numeric string: not null, "", " ", true or [], each of which `+x` reads as 0 or 1.
+const numeric = (x: unknown) =>
+  typeof x === "number" ? Number.isFinite(x) : typeof x === "string" && x.trim() !== "" && Number.isFinite(+x);
 // Hex or any CSS color function: routes a schema string to the color control.
 const isColorStr = (v: unknown) =>
   typeof v === "string" &&
@@ -194,9 +197,7 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals
   }
   if (max < min) {
     if (label != null) notice("swap", label, min, max);
-    const t = min;
-    min = max;
-    max = t;
+    [min, max] = [max, min];
   }
   if (!(step > 0) || step > max - min) step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
   return { min, max, step };
@@ -223,13 +224,13 @@ const rangeStep = (e: KeyboardEvent, cur: number, step: number, lo: number, hi: 
   }
   return null;
 };
-// Does a handle's pixel span [hx, hx+hw] overlap the label or value text? `m` is a near-miss buffer.
-const overlapsText = (labelEl: HTMLElement, valueEl: HTMLElement, hx: number, hw: number, m = 0) => {
+// Does a handle's pixel span [hx, hx+hw] overlap the label or value text?
+const overlapsText = (labelEl: HTMLElement, valueEl: HTMLElement, hx: number, hw: number) => {
   const ll = labelEl.offsetLeft,
     lr = ll + labelEl.offsetWidth;
   const vl = valueEl.offsetLeft,
     vr = vl + valueEl.offsetWidth;
-  return (hx < lr && hx + hw > ll) || (hx < vr + m && hx + hw > vl - m);
+  return (hx < lr && hx + hw > ll) || (hx < vr && hx + hw > vl);
 };
 // Default range for a number with no bounds: 0–1 keeps 0–1, a positive spans 0–3× (100 as a
 // last resort), and a negative spans that much either side of zero, so it can still cross it
@@ -424,6 +425,14 @@ const applyThemeVars = (node: ThemedEl | null | undefined, vars: ThemeVars | nul
   node._twAppliedVars = vars ? Object.keys(vars) : null;
   if (vars) for (const k in vars) node.style.setProperty(k, vars[k]);
 };
+// Watch the page for a [data-twk-scheme] pin set, changed or dropped. CSS re-themes what the cascade reaches; what it
+// can't (a portal on <body>, a canvas, a shadow panel) follows through this. Returns the release.
+const watchScheme = (fn: MutationCallback) => {
+  if (typeof MutationObserver !== "function") return () => {};
+  const obs = new MutationObserver(fn);
+  obs.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["data-twk-scheme"] });
+  return () => obs.disconnect();
+};
 // Carry a forced scheme onto a node portaled to <body>, where the cascade can't reach. Copy
 // the WINNING scheme, not the nearest pin: pins resolve flat (light outranks dark; tweaks.css).
 const carryScheme = (portal: Element, anchor: Element | null | undefined) => {
@@ -513,7 +522,7 @@ function popover(
   } = {},
 ): Popover {
   let open = false,
-    schemeObs: MutationObserver | null = null,
+    unscheme = () => {},
     removeTimer: ReturnType<typeof setTimeout> | undefined,
     byPointer = false,
     sizeObs: ResizeObserver | null = null;
@@ -642,15 +651,7 @@ function popover(
     }
     carrySkin(pop, root);
     window.addEventListener("twk-retheme", recarry); // setTheme() while open
-    // host scheme flip while open
-    if (typeof MutationObserver === "function") {
-      schemeObs = new MutationObserver(onScheme);
-      schemeObs.observe(document.documentElement, {
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["data-twk-scheme"],
-      });
-    }
+    unscheme = watchScheme(onScheme); // host scheme flip while open
     // Place with transitions off: the recorded side and height set the closed state the entrance starts from.
     if (fading) place();
     else {
@@ -713,10 +714,7 @@ function popover(
     window.removeEventListener("scroll", follow, true);
     window.removeEventListener("resize", reflow);
     window.removeEventListener("twk-retheme", recarry);
-    if (schemeObs) {
-      schemeObs.disconnect();
-      schemeObs = null;
-    }
+    unscheme();
     sizeObs?.disconnect();
     sizeObs = null;
     removeTimer = setTimeout(() => {
@@ -991,6 +989,11 @@ const blade = (el: HTMLElement, destroy?: () => void): Control => ({
 
 // Own-key lookup for objects used as maps: "toString" must miss, not hit Object.prototype.
 const hasOwn = <T extends object>(o: T, k: PropertyKey): k is keyof T => Object.prototype.hasOwnProperty.call(o, k);
+// The value at `path` in a nested values object, by own keys only: a control keyed toString must not read
+// Object.prototype's. A primitive in the way ends the walk, so a string where a folder was saved (a text control since
+// made a folder) doesn't hand its `length` or its characters to the folder's controls.
+const atPath = (obj: unknown, path: string[]): unknown =>
+  path.reduce<any>((o, k) => (isObj(o) && hasOwn(o, k) ? o[k] : undefined), obj);
 // A key by one of these names would write through to Object.prototype on the params bag.
 const isReservedKey = (k: string) => k === "__proto__" || k === "constructor" || k === "prototype";
 // Identity for primitives, structural for the object-valued controls (a fresh object each
@@ -1098,11 +1101,11 @@ export {
   titleCase,
   clamp,
   isObj,
+  numeric,
   isColorStr,
   stepPrecision,
   gridEnds,
   roundToStep,
-  inferStep,
   defaultRange,
   normalizeRange,
   notice,
@@ -1126,10 +1129,11 @@ export {
   applyThemeVars,
   carryScheme,
   carrySkin,
+  watchScheme,
+  atPath,
   activeIn,
   portalTo,
   isolate,
-  setCollapsed,
   foldBody,
   setDisabled,
   activeIndex,
@@ -1141,7 +1145,6 @@ export {
   words,
   blade,
   quietFocus,
-  measurePill,
   addPill,
   rubberBand,
   rubberRelease,

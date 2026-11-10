@@ -13,6 +13,8 @@ import {
   words,
   announce,
   copyText,
+  SPRING_KEYS,
+  numeric as has,
 } from "../shared.js";
 import { numField, triggerRow, svgEl, springCurve, springRun, timeFromSpring, notice, SPRING_DUR } from "../heavy.js";
 import { KEYWORDS } from "../easing.js";
@@ -34,9 +36,6 @@ const DUR_DEF = 300,
   DUR_MAX = 10000,
   STAGE_PAD = 16; // ms; the stage's side padding (tweaks.css)
 const BOUNCE_MAX = 1; // Motion's whole range: its damping-ratio floor of 0.05 keeps a bounce of 1 settling
-// a number, or a numeric string — not `true`, `[]` or " "
-const has = (x: unknown) =>
-  typeof x === "number" ? Number.isFinite(x) : typeof x === "string" && x.trim() !== "" && Number.isFinite(+x);
 const curveOf = (c: unknown): Curve | null => {
   // the CSS keywords, linear's identity included; null-prototype, so "constructor" is not one
   if (typeof c === "string") {
@@ -49,8 +48,7 @@ const curveOf = (c: unknown): Curve | null => {
   }
   return null;
 };
-const springKeys = (v: MotionInput) =>
-  has(v.stiffness) || has(v.damping) || has(v.mass) || has(v.visualDuration) || has(v.bounce);
+const springKeys = (v: MotionInput) => SPRING_KEYS.some((k) => has(v[k as keyof MotionInput]));
 // Physics keys map to the visualDuration + bounce Motion would resolve to them (timeFromSpring). An explicit
 // duration/bounce wins.
 const springTime = (v: MotionInput) => {
@@ -351,7 +349,7 @@ function createMotion(meta: Meta, onChange: OnChange): Control {
     showMode();
     update();
   };
-  return { el: root, set, get: value, destroy: () => spring.destroy && spring.destroy() };
+  return { el: root, set, get: value, destroy: spring.destroy };
 }
 
 registerControl("motion", createMotion);

@@ -508,3 +508,24 @@ test("Copy and Paste carry a whole motion to another transition, switching easin
     await close(p);
   }
 });
+
+test('a spring reads null, "" and true as no value, where `+x` read them as 0 or 1', async () => {
+  // Regression: `visualDuration: null` coerced to 0, so the spring switched to time mode, clamped to 0.01 s and said so;
+  // a null stiffness in a set() floored the spring at 1.
+  const w = await warnings(async () => {
+    const p = await mount({
+      s: { type: "spring", stiffness: 200, damping: 20, mass: 1, visualDuration: null, bounce: "" },
+    });
+    const phys = () => [p.params.s.stiffness, p.params.s.damping, p.params.s.mass];
+    assert.ok(!("visualDuration" in p.params.s), "authored with a null duration, it stays a physics spring");
+    assert.deepEqual(phys(), [200, 20, 1]);
+    p.set("s", { visualDuration: null, bounce: true });
+    assert.ok(!("visualDuration" in p.params.s), "a set() with no usable key is ignored");
+    p.set("s", { stiffness: null, damping: 30 });
+    assert.deepEqual(phys(), [200, 30, 1], "a null stiffness keeps the one it had");
+    p.set("s", { visualDuration: "0.4", bounce: 0.1 });
+    assert.equal(p.params.s.visualDuration, 0.4, "a numeric string still counts");
+    p.destroy();
+  });
+  assert.deepEqual(w, [], "and nothing was clamped");
+});

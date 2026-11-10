@@ -4,7 +4,7 @@
  * (csswg-drafts#1332), so Larsen's "easing gradients" are generated here: the curve sampled
  * PARAMETRICALLY at 16 even t (x the position, y the blend), so any cubic-bezier works with
  * no x→t solve; each sample is a color-mix in the value's own blend space. */
-import type { GradientEasing, GradientStop, GradientValue } from "./types.js";
+import type { GradientStop, GradientValue } from "./types.js";
 
 /** cubic-bezier control points [x1, y1, x2, y2]. */
 export type Bez = [number, number, number, number];
@@ -63,7 +63,7 @@ const blend = (v: GradientValue) =>
 
 /** The stops a value can draw, sorted. A hand-built value can hold no stops, or stops without a
  *  color or a numeric pos, and any of those builds CSS the browser drops whole, silently;
- *  so they're set aside with a warning (heavy.ts badGradient, one per distinct fault). */
+ *  so they're set aside with a warning (heavy.ts NOTICES.badGradient, one per distinct fault). */
 function drawable(value: unknown, fn: string): GradientStop[] {
   const all: unknown = value && typeof value === "object" ? (value as GradientValue).stops : null;
   const ok = Array.isArray(all)
@@ -71,7 +71,7 @@ function drawable(value: unknown, fn: string): GradientStop[] {
     : [];
   if (!ok.length || ok.length < (all as unknown[]).length)
     import("./heavy.js").then(
-      (m) => m.badGradient(fn, value, all, ok.length),
+      (m) => m.notice("badGradient", [fn, value, all, ok.length]),
       () => {},
     );
   return ok.sort((a, b) => a.pos - b.pos);

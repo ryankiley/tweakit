@@ -1,5 +1,5 @@
 // ── Spring config — physics (stiffness/damping/mass) or a perceptual time (duration/bounce) mode, over one settle-curve preview. Lazy. ──
-import { el, txt, clamp, createSegmented, registerControl, words } from "../shared.js";
+import { el, txt, clamp, createSegmented, registerControl, words, watchScheme, numeric as has } from "../shared.js";
 import {
   dragGesture,
   redrawOn,
@@ -35,13 +35,13 @@ type SpringValue = Partial<Phys & SpringTime & { mode: SpringMode }>;
 function createSpring(meta: Meta, onChange: OnChange): Control {
   const tr = words();
   // The fields' floors, non-finite to the defaults: a stiffness or mass of 0 would divide the settle curve to NaN.
-  const cl = (v: unknown, lo: number, def: number) => (Number.isFinite(+v) ? Math.max(lo, +v) : def);
+  // (`has`: a number or a numeric string. A null or "" is no value, where `+v` would read it as 0.)
+  const cl = (v: unknown, lo: number, def: number) => (has(v) ? Math.max(lo, +v) : def);
   const clampS = (o: { stiffness?: unknown; damping?: unknown; mass?: unknown }): Phys => ({
     stiffness: cl(o.stiffness, 1, 300),
     damping: cl(o.damping, 0.5, 26),
     mass: cl(o.mass, 0.1, 1),
   });
-  const has = (x: unknown) => Number.isFinite(+x);
 
   // Time mode edits visualDuration + bounce (Motion's spring shorthand), mapped onto the physics the preview and emit
   // share exactly as Motion resolves them (springFromTime): stiffness = (2π / (visualDuration × 1.2))², ζ from bounce
@@ -251,32 +251,16 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   // A host flipping [data-twk-scheme] re-themes through CSS alone; the canvas needs a redraw. Let go once mounted and
   // removed.
   // The redraw waits a frame, for a shadow panel's own observer to mirror the pin first.
-  let schemeObs: MutationObserver | null = null,
-    wasMounted = false;
-  if (typeof MutationObserver === "function") {
-    schemeObs = new MutationObserver(() => {
-      if (canvas.isConnected) {
-        wasMounted = true;
-        requestAnimationFrame(draw);
-      } else if (wasMounted) {
-        schemeObs.disconnect();
-        schemeObs = null;
-      }
-    });
-    schemeObs.observe(document.documentElement, {
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-twk-scheme"],
-    });
-  }
+  let wasMounted = false;
+  const unscheme = watchScheme(() => {
+    if (canvas.isConnected) {
+      wasMounted = true;
+      requestAnimationFrame(draw);
+    } else if (wasMounted) unscheme();
+  });
   return {
     el: root,
-    destroy: () => {
-      if (schemeObs) {
-        schemeObs.disconnect();
-        schemeObs = null;
-      }
-    },
+    destroy: unscheme,
     // Silent set/restore: infer the mode from the keys, update caches and fields, redraw without emitting.
     set: (v: SpringValue) => {
       if (!v || typeof v !== "object") return;
@@ -291,7 +275,8 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
       }
       // Restore the physics cache even alongside time keys (reset's default carries both), so a later toggle to Physics
       // shows the intended spring.
-      if (hasPhys) phys = clampS({ ...phys, ...v });
+      // A key that is no number (null, "") keeps the one the cache holds.
+      if (hasPhys) phys = clampS({ ...phys, ...Object.fromEntries(Object.entries(v).filter(([, x]) => has(x))) });
       modeToggle.set(mode);
       durFld.set(time.visualDuration * 1000);
       bounceFld.set(time.bounce * 100);

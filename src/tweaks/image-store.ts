@@ -4,7 +4,6 @@
 // an image control. Every call settles, never rejects: IndexedDB off or refused reads as null. ──
 
 const REF = "tw-image:";
-type Store = IDBObjectStore;
 let db: Promise<IDBDatabase | null> | null = null;
 // An open that never settles (another tab's pending delete or upgrade) reads as unavailable after 3s rather than
 // holding panel.ready forever. The connection closes for another tab's upgrade or delete, and one the browser drops is
@@ -48,7 +47,7 @@ const open = () =>
     }
   }));
 // One transaction; resolves with what `fn` returns once it commits, null if it fails.
-const run = <T>(mode: IDBTransactionMode, fn: (s: Store) => T) =>
+const run = <T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => T) =>
   open().then(
     (d) =>
       d &&
@@ -80,8 +79,6 @@ const hash = (s: string) => {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36) + s.length.toString(36);
 };
 
-const refFor = (dataUrl: string) => REF + hash(dataUrl);
-
 /** Every image stored under `key`, ref → data URL; null when IndexedDB can't be used. */
 const load = (key: string) =>
   run("readonly", (s) => {
@@ -94,33 +91,10 @@ const load = (key: string) =>
     };
     return out;
   });
-/** One image by its ref (a preset another tab saved after this panel loaded); null when it isn't there. */
-const get = (key: string, ref: string) =>
-  run("readonly", (s) => s.get([key, ref.slice(REF.length)])).then((r) =>
-    r && typeof r.result === "string" ? r.result : null,
-  );
-const put = (key: string, ref: string, dataUrl: string) =>
-  run("readwrite", (s) => {
-    s.put(dataUrl, [key, ref.slice(REF.length)]);
-    return true;
-  });
-/** Delete the images under `key` that `refs` name. */
-const prune = (key: string, refs: string[]) =>
-  run("readwrite", (s) => {
-    for (const r of refs) s.delete([key, r.slice(REF.length)]);
-    return true;
-  });
 
 /** Each ref a stored snapshot or preset names, read from its JSON whatever the schema: a renamed field's preset still
  * counts. */
 const refsIn = (v: unknown) => new Set<string>(JSON.stringify(v ?? null).match(/tw-image:[0-9a-z]+/g) || []);
-/** Delete the records under `key` this panel knows (`known`) that nothing in `named` names any more. */
-const pruneUnnamed = (key: string, known: Map<string, string>, named: unknown[]) => {
-  const keep = refsIn(named),
-    gone = [...known.keys()].filter((r) => !keep.has(r));
-  for (const r of gone) known.delete(r);
-  if (gone.length) prune(key, gone);
-};
 /** `presets` with `ref` swapped for `with` everywhere it appears, or null when nothing names it. */
 const swapRef = (presets: unknown, ref: string, withText: string) => {
   const text = JSON.stringify(presets);
@@ -138,13 +112,14 @@ const bind = (
   readPresets: () => unknown,
   writePresets: (v: unknown) => boolean,
 ) => {
+  const id = (ref: string) => [key, ref.slice(REF.length)]; // a record's key
   const failed = new Set<string>(),
     hashed = new WeakMap<object, [string, string]>();
   // Each row's last data URL and its ref, so a save that didn't touch the image doesn't hash megabytes again.
   const refOf = (row: object, v: string) => {
     const c = hashed.get(row);
     if (c?.[0] === v) return c[1];
-    const r = refFor(v);
+    const r = REF + hash(v);
     hashed.set(row, [v, r]);
     return r;
   };
@@ -167,7 +142,7 @@ const bind = (
       if (failed.has(ref)) return null;
       if (!known.has(ref) || !refsIn(stored).has(ref)) {
         known.set(ref, v);
-        put(key, ref, v).then((ok) => {
+        run("readwrite", (s) => !!s.put(v, id(ref))).then((ok) => {
           if (ok) return;
           known.delete(ref);
           failed.add(ref);
@@ -177,14 +152,21 @@ const bind = (
       }
       return ref;
     },
-    prune: (named: unknown[]) => pruneUnnamed(key, known, named),
+    /** Delete the records this panel knows that nothing in `named` names any more. */
+    prune(named: unknown[]) {
+      const keep = refsIn(named),
+        gone = [...known.keys()].filter((r) => !keep.has(r));
+      for (const r of gone) known.delete(r);
+      if (gone.length) run("readwrite", (s) => gone.forEach((r) => s.delete(id(r))));
+    },
     /** A ref this panel hasn't seen (a preset another tab saved), read from the store. */
     fetch: (ref: string) =>
-      get(key, ref).then((url) => {
+      run("readonly", (s) => s.get(id(ref))).then((r) => {
+        const url = r && typeof r.result === "string" ? r.result : null;
         if (url) known.set(ref, url);
         return url;
       }),
   };
 };
 
-export { refFor, load, bind };
+export { load, bind };

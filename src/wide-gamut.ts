@@ -137,7 +137,6 @@ const XYZ_TO_LIN_A98: Mat3 = [
   [-851781 / 878810, 1648619 / 878810, 36519 / 878810],
   [16779 / 1248040, -147721 / 1248040, 1266979 / 1248040],
 ];
-const same = (c: number) => c;
 const XYZ_D65_TO_D50: Mat3 = [
   [1.0479298208405488, 0.022946793341019088, -0.05019222954313557],
   [0.029627815688159344, 0.990434484573249, -0.01707382502938514],
@@ -303,7 +302,7 @@ function fromXyz(xyz: Vec3, space: Space): Vec3 {
     case "a98-rgb":
       return xyzToRgb(xyz, a98Gam, XYZ_TO_LIN_A98);
     case "srgb-linear":
-      return xyzToRgb(xyz, same, XYZ_TO_LIN_SRGB);
+      return mul(XYZ_TO_LIN_SRGB, xyz);
     case "xyz-d65":
       return [xyz[0], xyz[1], xyz[2]];
     case "xyz-d50":
@@ -340,7 +339,8 @@ const clip = (rgb: Vec3) => rgb.map((c) => clamp(c, 0, 1)) as Vec3;
 const deltaEOK = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 /** Map OKLCH into an RGB gamut (CSS Color 4 chroma reduction + local clip). */
 export function toGamut(oklch: Vec3, dest: Gamut): Vec3 {
-  if (inGamut(oklch, dest)) return convert(oklch, "oklch", dest);
+  const direct = convert(oklch, "oklch", dest);
+  if (inRange(direct)) return direct;
   const L = oklch[0];
   if (L >= 1) return [1, 1, 1];
   if (L <= 0) return [0, 0, 0];
@@ -372,26 +372,19 @@ export function toGamut(oklch: Vec3, dest: Gamut): Vec3 {
   }
   return clipped;
 }
-// At a fixed hue OKLab→LMS collapses to p_i = L + C·d_i and LMS→XYZ→RGB to one matrix F, so the
-// two per-pixel helpers run trig- and allocation-free; identical to convert([L,C,hue], "oklch", gamut).
-const hueFold = (hue: number, gamut: Gamut) => {
+/** OKLCH→RGB at a fixed hue for per-pixel rasterizing; `(L, C, out)` writes into `out`.
+ *  At a fixed hue OKLab→LMS collapses to p_i = L + C·d_i and LMS→XYZ→RGB to one matrix F, so each pixel runs trig- and
+ *  allocation-free; identical to convert([L,C,hue], "oklch", gamut). */
+export function oklchToRgbFn(hue: number, gamut: Gamut) {
   const h = hue * RAD,
     cos = Math.cos(h),
     sin = Math.sin(h);
-  const d = OKLAB_TO_LMS.map((row) => cos * row[1] + sin * row[2]);
+  const [d0, d1, d2] = OKLAB_TO_LMS.map((row) => cos * row[1] + sin * row[2]);
   const F = mulMat(
     gamut === "p3" ? XYZ_TO_LIN_P3 : gamut === "rec2020" ? XYZ_TO_LIN_REC2020 : XYZ_TO_LIN_SRGB,
     LMS_TO_XYZ,
   );
-  return { d, F, gam: gamut === "rec2020" ? rec2020Gam : srgbGam };
-};
-/** OKLCH→RGB at a fixed hue for per-pixel rasterizing; `(L, C, out)` writes into `out`. */
-export function oklchToRgbFn(hue: number, gamut: Gamut) {
-  const {
-    d: [d0, d1, d2],
-    F,
-    gam,
-  } = hueFold(hue, gamut);
+  const gam = gamut === "rec2020" ? rec2020Gam : srgbGam;
   return (L: number, C: number, out: number[]) => {
     const p0 = L + C * d0,
       p1 = L + C * d1,
@@ -434,8 +427,7 @@ export const hexByte = (n: number) =>
     .toString(16)
     .padStart(2, "0")
     .toUpperCase();
-const rgbToHex = (rgb: Vec3) => `#${hexByte(rgb[0])}${hexByte(rgb[1])}${hexByte(rgb[2])}`;
-export const oklchToHex = (L: number, C: number, H: number) => rgbToHex(toGamut([L, C, H], "srgb"));
+export const oklchToHex = (L: number, C: number, H: number) => "#" + toGamut([L, C, H], "srgb").map(hexByte).join("");
 export function hexToOklch(hex: string): Vec3 {
   let h = String(hex).replace("#", "").trim();
   if (h.length === 3)
@@ -453,19 +445,6 @@ export function hexToOklch(hex: string): Vec3 {
 }
 
 // ── mode model ──
-export const EDIT_MODES: readonly ColorMode[] = [
-  "hex",
-  "srgb",
-  "css",
-  "hsl",
-  "hwb",
-  "oklch",
-  "oklab",
-  "lch",
-  "lab",
-  "p3",
-  "rec2020",
-];
 export const MODE_LABELS: Record<ColorMode, string> = {
   hex: "HEX",
   srgb: "RGB",
@@ -479,38 +458,21 @@ export const MODE_LABELS: Record<ColorMode, string> = {
   p3: "P3",
   rec2020: "Rec2020",
 };
+export const EDIT_MODES = Object.keys(MODE_LABELS) as readonly ColorMode[];
 const SRGB_BOUND: readonly ColorMode[] = ["srgb", "css", "hsl", "hwb", "hex"];
 export const showsGamutBoundary = (mode: ColorMode) => !SRGB_BOUND.includes(mode);
 const modeSpaceId = (mode: ColorMode): Space => (mode === "hex" || mode === "css" ? "srgb" : mode);
-// The CSS <color-interpolation-method> a gradient authored in each mode blends through.
-// Null-prototype, so a mode named "constructor" misses and falls to the default.
-const MODE_INTERP: Record<string, GradientInterpolation> = Object.assign(Object.create(null), {
-  hex: "srgb",
-  srgb: "srgb",
-  css: "srgb",
-  hsl: "hsl",
-  hwb: "hwb",
-  oklch: "oklch",
-  oklab: "oklab",
-  lch: "lch",
-  lab: "lab",
-  p3: "display-p3",
-  rec2020: "rec2020",
-});
-export const modeInterpolation = (mode: string) => MODE_INTERP[mode] || "oklch";
+// The CSS <color-interpolation-method> a gradient authored in each mode blends through: the mode's own space, P3 under
+// its CSS name. Anything that isn't a mode (a stored "bogus", "constructor") falls to the default.
+export const modeInterpolation = (mode: string): GradientInterpolation =>
+  !EDIT_MODES.includes(mode as ColorMode)
+    ? "oklch"
+    : mode === "p3"
+      ? "display-p3"
+      : (modeSpaceId(mode as ColorMode) as GradientInterpolation);
 // The reverse: the mode that produced a stored gradient's blend; unknown falls to OKLCH.
-const INTERP_MODE: Record<string, ColorMode> = Object.assign(Object.create(null), {
-  srgb: "srgb",
-  hsl: "hsl",
-  hwb: "hwb",
-  oklch: "oklch",
-  oklab: "oklab",
-  lch: "lch",
-  lab: "lab",
-  "display-p3": "p3",
-  rec2020: "rec2020",
-});
-export const interpolationMode = (interp: string) => INTERP_MODE[interp] || "oklch";
+export const interpolationMode = (interp: string): ColorMode =>
+  interp === "display-p3" ? "p3" : modeInterpolation(interp) === interp ? (interp as ColorMode) : "oklch";
 /** The picker's chroma ceiling: the C field's max and the parser's cap on any chroma it reads. */
 export const MAX_CHROMA = 0.5;
 // Each triple is shared by two modes and frozen, so a one-mode tweak can't leak into its twin.
@@ -560,13 +522,7 @@ const digitsFor = (step: number) => (step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0
 // chroma-reduced sRGB hex uses, so every narrow-gamut mode agrees on the color.
 const modeCoords = (oklch: Vec3, mode: ColorMode): Vec3 => {
   const sid = modeSpaceId(mode);
-  return sid === "oklch"
-    ? [oklch[0], oklch[1], oklch[2]]
-    : SRGB_BOUND.includes(mode)
-      ? sid === "srgb"
-        ? toGamut(oklch, "srgb")
-        : convert(toGamut(oklch, "srgb"), "srgb", sid)
-      : convert(oklch, "oklch", sid);
+  return SRGB_BOUND.includes(mode) ? convert(toGamut(oklch, "srgb"), "srgb", sid) : convert(oklch, "oklch", sid);
 };
 /** Display-unit channel values for `mode` from canonical OKLCH. */
 export function channelValues(oklch: Vec3, mode: ColorMode) {
@@ -621,15 +577,11 @@ const wrapCss = (t: string, mode: ColorMode) =>
       ? `rgb(${t})`
       : mode === "css"
         ? `rgba(${t}, 1)`
-        : mode === "hsl"
-          ? `hsl(${t})`
-          : mode === "hwb"
-            ? `hwb(${t})`
-            : mode === "p3"
-              ? `color(display-p3 ${t})`
-              : mode === "rec2020"
-                ? `color(rec2020 ${t})`
-                : `${mode}(${t})`;
+        : mode === "p3"
+          ? `color(display-p3 ${t})`
+          : mode === "rec2020"
+            ? `color(rec2020 ${t})`
+            : `${mode}(${t})`;
 // The value's channels, a digit finer than the readout (L 63.2%, C 0.257, H 29.2): rounded to the readout, 98% of
 // colors came back different (#939796's faint green read as a neutral gray). A powerless hue is `none`, as CSS Color 4
 // writes it: a float-noise hue on white (180, cyan) or a gray bent every oklch gradient and color-mix() through it.

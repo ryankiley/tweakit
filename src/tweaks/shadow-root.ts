@@ -155,6 +155,8 @@ export const dress = (host: Host, panel: HTMLElement, opt: boolean | { href?: st
   // changes.
   // A lifted panel reads it at the slot it left, as a light one carries it on the lift.
   const pin = () => carryScheme(panel, host._twSlot || host);
+  // One observer for the dressing's life, re-observed on a reconnect and never replaced: observers are told in the
+  // order they were made, and this one must run before an open pane's (shared.ts popover), which copies the panel's pin.
   const obs = typeof MutationObserver === "function" ? new MutationObserver(pin) : null;
   // A move disconnects and reconnects in one task, so letting go waits a microtask to see whether the host came back.
   host._twOn = (on) => {

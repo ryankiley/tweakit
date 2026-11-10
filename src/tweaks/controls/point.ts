@@ -98,13 +98,14 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
     paintValue();
   };
   const emit = () => onChange(read());
+  const changed = () => {
+    sync();
+    emit();
+  };
   const flds = comps.map((c, k) => {
     const fld = numField(
       { label: c.label ?? c.key, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max },
-      () => {
-        sync();
-        emit();
-      },
+      changed,
     );
     fields.append(fld.el);
     return fld;
@@ -150,8 +151,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
       const yFrac = meta.invertY ? fy : 1 - fy;
       flds[0].set(minX + fx * (maxX - minX));
       flds[1].set(minY + yFrac * (maxY - minY));
-      sync();
-      emit();
+      changed();
     };
     grabSurface(padHost, padSet);
     // Keyboard: a focusable group (no ARIA role fits a 2D point; the readout rides on aria-description). Arrows move a
@@ -172,8 +172,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
       if (e.key === "Home") {
         e.preventDefault();
         comps.forEach((c, k) => flds[k].set(c.value ?? 0));
-        sync();
-        emit();
+        changed();
         say();
         return;
       }
@@ -183,8 +182,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
       const k = e.shiftKey ? 10 : 1;
       if (dx) flds[0].set(clamp(flds[0].get() + dx * rx.nudge * k, minX, maxX));
       if (dy) flds[1].set(clamp(flds[1].get() + (meta.invertY ? -dy : dy) * ry.nudge * k, minY, maxY));
-      sync();
-      emit();
+      changed();
       say();
     });
   }

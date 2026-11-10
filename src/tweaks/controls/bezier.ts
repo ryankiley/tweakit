@@ -95,22 +95,17 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
     h2.style.top = p2y + "px";
   };
 
-  const SPECS = [
-    { label: "X1", i: 0, lo: 0, hi: 1 },
-    { label: "Y1", i: 1, lo: YMIN, hi: YMAX },
-    { label: "X2", i: 2, lo: 0, hi: 1 },
-    { label: "Y2", i: 3, lo: YMIN, hi: YMAX },
-  ];
-  const flds = SPECS.map((sp) => {
-    const fld = numField({ label: sp.label, value: v[sp.i], step: 0.01, min: sp.lo, max: sp.hi }, (val) => {
-      v[sp.i] = val;
+  // x within 0–1; y may overshoot
+  const flds = ["X1", "Y1", "X2", "Y2"].map((label, i) => {
+    const fld = numField({ label, value: v[i], step: 0.01, min: i % 2 ? YMIN : 0, max: i % 2 ? YMAX : 1 }, (val) => {
+      v[i] = val;
       drawGraph();
       onChange(v.slice());
     });
     fields.append(fld.el);
     return fld;
   });
-  const syncFields = () => flds.forEach((fld, k) => fld.set(v[SPECS[k].i]));
+  const syncFields = () => flds.forEach((fld, i) => fld.set(v[i]));
   // A handle moved, by drag or key: the graph, the fields and the value follow.
   const changed = () => {
     drawGraph();

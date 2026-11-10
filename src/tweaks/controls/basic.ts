@@ -278,7 +278,6 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     }
     if (!press.scrub && Math.hypot(e.clientX - press.x, e.clientY - press.y) > CLICK_THRESHOLD) {
       press.scrub = true;
-      track.classList.add("is-dragging");
       glide(false);
     }
     if (press.scrub) {
@@ -306,12 +305,11 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     press = null;
     if (snap) {
       // Let the spring settle; springFrame drops is-active once it lands.
-      track.classList.remove("is-dragging");
       if (!sRAF) sRAF = requestAnimationFrame(springFrame);
     } else {
       // Drop the press glide once it's home.
       snapTimer = setTimeout(() => glide(false), 360);
-      track.classList.remove("is-active", "is-dragging");
+      track.classList.remove("is-active");
     }
     rubberRelease(track);
   };

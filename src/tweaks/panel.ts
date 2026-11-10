@@ -5,7 +5,6 @@ import {
   btn,
   txt,
   clamp,
-  popover,
   closeActivePopover,
   stopPointerLeak,
   foldBody,
@@ -15,7 +14,6 @@ import {
   onLive,
   setDisabled,
   requestReflow,
-  quietFocus,
   activeIn,
   isolate,
   using,
@@ -27,21 +25,14 @@ import {
   isReservedKey,
   valueChanged,
   restoreDefault,
+  atPath,
+  copyText,
+  announce,
 } from "./shared.js";
 import { metaFor, VALUELESS } from "./schema.js";
 import { ensureForMetas, scanTypes } from "./lazy.js";
 import { createFolder, createControl } from "./controls/basic.js";
-import {
-  makeCopyBtn,
-  makeResetBtn,
-  toolbarBtn,
-  copyText,
-  spinReset,
-  announce,
-  hideHintNow,
-  addHintMarker,
-  LABEL_SEL,
-} from "./feedback.js";
+import { makeCopyBtn, makeResetBtn, toolbarBtn, spinReset, hideHintNow, addHintMarker, LABEL_SEL } from "./feedback.js";
 import { ICON_PRESETS, ICON_X } from "./icons.js";
 import { createUndo } from "./undo.js";
 import type {
@@ -62,7 +53,8 @@ import type { TabsControl } from "./controls/tabs.js";
 
 /** A params object or one of its folder/tabs sub-objects — the holder a control writes into. */
 type Target = Record<string, unknown>;
-/** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def) and its dotted path. */
+/** A valued control's wiring: where its value lives, its set/get, the reset pair (raw, def), its path, and that path
+ *  dotted (`id`), as set(), changes() and on() name it. */
 export interface Entry {
   target: Target;
   key: string;
@@ -71,6 +63,7 @@ export interface Entry {
   raw: unknown;
   def: unknown;
   path: string[];
+  id: string;
   persist: boolean;
   m: Meta;
   el: HTMLElement;
@@ -123,7 +116,19 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const valueless = new Map<string, string>();
   const listeners = new Set<(p: Params, last?: string) => void>();
   const own = new Set<(p: Params, last?: string) => void>(); // undo + conditionals: all a silent write calls
+  const watch = (fn: () => void) => {
+    listeners.add(fn);
+    own.add(fn);
+  };
   const cleanups: Array<() => void> = []; // releases for destroy(): document/window listeners, timers
+  // Run the releases from index `from` on, each isolated: one that throws can't keep the rest.
+  const release = (from = 0) => {
+    for (const fn of cleanups.splice(from)) {
+      try {
+        fn();
+      } catch {}
+    }
+  };
   let phase = Phase.Loading as Phase;
   // A call, as tsc would narrow a read, and a listener can destroy the panel partway through a function that asked.
   const destroyed = () => phase === Phase.Destroyed;
@@ -202,15 +207,15 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const unwrap = (s: any, k: string) => (s?.v === 1 ? s[k] : null);
   const writeValues = (snap: Snapshot) => writeStore(persistKey!, { v: 1, values: snap });
   const writePresets = (all: unknown) => writeStore(presetsKey!, { v: 1, presets: all });
-  // own keys only: a control keyed toString must not read Object.prototype's
-  const atPath = (obj: Snapshot | null, path: string[]): unknown =>
-    path.reduce<any>((o, k) => (o != null && hasOwn(o, k) ? o[k] : undefined), obj);
+  // The object in a snapshot that holds one entry's value under its key; null when the snapshot has none for it.
+  const holder = (snap: Snapshot | null, e: Entry): Snapshot | null => {
+    const o = atPath(snap, e.path.slice(0, -1));
+    return isObj(o) && hasOwn(o, e.key) ? o : null;
+  };
   // Take one entry's value out of a snapshot; true when it was there. Reflect: an undeletable key is left, not thrown.
   const drop = (snap: Snapshot | null, e: Entry) => {
-    const o: any = atPath(snap, e.path.slice(0, -1));
-    if (!o || typeof o !== "object" || !hasOwn(o, e.key)) return false;
-    Reflect.deleteProperty(o, e.key);
-    return true;
+    const o = holder(snap, e);
+    return !!o && (Reflect.deleteProperty(o, e.key), true);
   };
   // A control with `persist: false` stays out of what is saved and out of what is restored.
   const unsaved = (snap: Snapshot | null) => {
@@ -241,11 +246,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   const toRefs = (snap: Snapshot) => {
     const stored = imgs ? readStore(persistKey!) : undefined; // undefined: no store to hold an upload
     for (const e of imageEntries()) {
-      const o: any = atPath(snap, e.path.slice(0, -1)),
-        v = o?.[e.key],
+      const o = holder(snap, e);
+      if (!o) continue;
+      const v = o[e.key],
         w = waiting.get(e);
       // still loading or no store: keep the stored ref; a write since settles it
-      if (w && o && hasOwn(o, e.key)) {
+      if (w) {
         if (!valueChanged(w[1], v)) {
           o[e.key] = w[0];
           continue;
@@ -268,17 +274,17 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // A stored snapshot back to values, the way applySnapshot takes them: each known ref resolved, an unknown one left
   // out (its control keeps its value) and listed, so `restore` can fill it in once it arrives.
   const fromRefs = (snap: Snapshot | null, pending: [Entry, string][] = []) => {
-    if (snap && typeof snap === "object")
-      for (const e of imageEntries()) {
-        const v = atPath(snap, e.path);
-        if (!isRef(v)) continue;
-        const url = imgs?.url(v);
-        if (url) (atPath(snap, e.path.slice(0, -1)) as any)[e.key] = url;
-        else {
-          drop(snap, e);
-          pending.push([e, v]);
-        }
+    for (const e of imageEntries()) {
+      const o = holder(snap, e),
+        v = o?.[e.key];
+      if (!isRef(v)) continue;
+      const url = imgs?.url(v);
+      if (url) o![e.key] = url;
+      else {
+        drop(snap, e);
+        pending.push([e, v]);
       }
+    }
     return snap;
   };
   const restore = (snap: Snapshot | null, silent?: boolean) => {
@@ -384,7 +390,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       assign(e, v);
       return true;
     } catch (err) {
-      console.error(`[tweaks] restoring "${e.path.join(".")}" failed — value skipped:`, err);
+      console.error(`[tweaks] restoring "${e.id}" failed — value skipped:`, err);
       return false;
     }
   };
@@ -409,7 +415,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       try {
         assignDefault(e);
       } catch (err) {
-        console.error(`[tweaks] resetting "${e.path.join(".")}" failed — control skipped:`, err);
+        console.error(`[tweaks] resetting "${e.id}" failed — control skipped:`, err);
       }
     }
     last = undefined;
@@ -436,7 +442,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // The values moved off their defaults, keyed by dotted path — setMany()'s shape, for baking tuned values into source.
   const changed = (): Record<string, unknown> => {
     const out: Record<string, unknown> = {};
-    for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.path.join(".")] = e.get();
+    for (const e of entries) if (valueChanged(e.get(), e.def)) out[e.id] = e.get();
     return JSON.parse(JSON.stringify(out, replacer));
   };
   // ⇧-click copies the changed values only; reset restores every default or runs opts.onReset.
@@ -448,7 +454,6 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // A picked row's paste (pasteScope, in the lazy clip chunk) writes through the panel's own load path; ctx lends it.
   // A paste is its own undo step: what was pending commits first, the paste right after, so neither merges with a drag.
   const ctx: ClipCtx = {
-    panel,
     entries,
     fromJSON: (st) => {
       undoApi?.flush();
@@ -607,7 +612,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Per-control reset. The target is LABEL_SEL — the hint marker's list, so the two can't drift — or the root.
   const resetEntry = (e: Entry) => {
     assignDefault(e);
-    last = e.path.join(".");
+    last = e.id;
     notify();
   };
   const wireReset = (root: HTMLElement, entry: Entry) => {
@@ -783,6 +788,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
           raw: m.value,
           def,
           path: [...basePath, m.key],
+          id: dotted,
           persist: m.persist !== false,
           m,
           el: ctrl.el,
@@ -1178,10 +1184,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         (s) => applySnapshot(s, false, true),
         atPath,
         (t) => inEditable(t),
-        (fn) => {
-          listeners.add(fn);
-          own.add(fn);
-        },
+        watch,
       )
     : null;
 
@@ -1371,8 +1374,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         }
         if (revealed) requestReflow(); // built hidden it measured 0×0; shown, let it re-measure
       };
-      listeners.add(applyConditionals);
-      own.add(applyConditionals);
+      watch(applyConditionals);
       applyConditionals();
       // a fold chunk that fails to load leaves the rows toggling
       import("./fold.js").then(
@@ -1443,11 +1445,11 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Resolve a (possibly dotted) key, apply, report whether the leaf changed; never notifies, so setMany fires one
   // notify.
   const applySet = (key: string, v: unknown) => {
-    if (String(key).split(".").some(isReservedKey)) return false; // never write through to the prototype
-    const parts = String(key).split(".");
+    const parts = key.split(".");
+    if (parts.some(isReservedKey)) return false; // never write through to the prototype
     // The path exactly as changes() names it first, so a key holding a dot ("a.b", "f.a.b") is reachable; two controls
     // whose paths read the same (a top-level "a.b" beside folder a's b) are ambiguous, not a guess.
-    const exact = entries.filter((x) => x.path.join(".") === key);
+    const exact = entries.filter((x) => x.id === key);
     if (exact.length > 1) {
       notice("ambiguousPath", key, exact.length);
       return false;
@@ -1461,7 +1463,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     if (!e) {
       const matches = entries.filter((x) => x.key === key);
       if (matches.length > 1) {
-        notice("ambiguousKey", key, matches.length, matches[0].path.join("."));
+        notice("ambiguousKey", key, matches.length, matches[0].id);
         return false;
       }
       e = matches[0];
@@ -1490,7 +1492,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     }
     clampNote(e, key, v);
     if (!valueChanged(prev, e.target[e.key])) return false; // keeps a store-sync listener from echoing forever
-    last = e.path.join("."); // on((p, last)) sees programmatic sets like control edits
+    last = e.id; // on((p, last)) sees programmatic sets like control edits
     return true;
   };
 
@@ -1607,11 +1609,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       releaseKey();
       closeActivePopover(panel); // page-wide singletons: close only what's anchored here
       hideHintNow(panel);
-      for (const fn of cleanups.splice(0)) {
-        try {
-          fn();
-        } catch {}
-      }
+      release();
       listeners.clear();
       if (liftSlot) {
         liftSlot.remove();
@@ -1665,12 +1663,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
       queue.length = 0;
       releaseKey();
       // only what the build wired; the shell's stay for destroy()
-      if (began)
-        for (const fn of cleanups.splice(built)) {
-          try {
-            fn();
-          } catch {}
-        }
+      if (began) release(built);
       // detached below, they'd never see the panel's own mark
       for (const c of controls.children) (c as HTMLElement).dataset.twkDestroyed = "";
       listeners.clear();

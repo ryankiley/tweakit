@@ -95,8 +95,6 @@ const COLOR_FN_SPACES: Record<string, Space> = Object.assign(Object.create(null)
 // sRGB-family functions; no nested parens
 const SRGB_FN_RE = /^(rgba?|hsla?|hwb)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i;
 const ENGINE_FN_RE = /^(oklch|oklab|lch|lab|color)\([ \t\n\r\f]*([^)]*?)[ \t\n\r\f]*\)$/i; // the engine's own functions
-// color()'s predefined spaces
-const CSS_SPACES = /^(srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|xyz|xyz-d50|xyz-d65)$/i;
 const HEX_RE = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i; // 3/4/6/8 digits only; 5/7 is junk
 // The one scratch 2D context; null where the DOM has no canvas (jsdom), and that is cached too.
 let c2dCache: CanvasRenderingContext2D | null;
@@ -141,7 +139,6 @@ const TOK_NUM = new RegExp("^" + CSS_NUM + "$", "i"),
   CSS_WS = /[ \t\n\r\f]+/,
   NONE = /^none$/i;
 const cssTrim = (t: string) => t.replace(/^[ \t\n\r\f]+|[ \t\n\r\f]+$/g, "");
-const one = (t: string) => !!t && !CSS_WS.test(t); // exactly one token in the slot
 const tokKind = (t: string) =>
   NONE.test(t) ? "none" : TOK_NUM.test(t) ? "num" : TOK_PCT.test(t) ? "pct" : TOK_ANGLE.test(t) ? "angle" : null;
 // num() on both paths: Infinity % 360 is NaN, which would zero every channel.
@@ -162,7 +159,7 @@ function srgbFn(str: string): [Vec3, number] | null {
     // legacy: rgb()/hsl() only, no none, no mixed units
     if (fn === "hwb") return null;
     const parts = body.split(",").map(cssTrim);
-    if (parts.length < 3 || parts.length > 4 || !parts.every(one)) return null;
+    if (parts.length < 3 || parts.length > 4) return null;
     ch = parts.slice(0, 3);
     alpha = parts[3];
     kinds = ch.map(tokKind);
@@ -180,7 +177,7 @@ function srgbFn(str: string): [Vec3, number] | null {
     if (ch.length !== 3) return null;
     if (slash.length === 2) {
       alpha = cssTrim(slash[1]);
-      const ak = one(alpha) ? tokKind(alpha) : null;
+      const ak = tokKind(alpha);
       if (!ak || ak === "angle") return null;
     }
     kinds = ch.map(tokKind);
@@ -217,7 +214,7 @@ const engineFn = (str: string) => {
     slash = m[2].split("/");
   if (slash.length > 2) return false;
   const toks = slash[0].split(CSS_WS).filter(Boolean);
-  if (fn === "color" && !CSS_SPACES.test(toks.shift() || "")) return false;
+  if (fn === "color" && !COLOR_FN_SPACES[(toks.shift() || "").toLowerCase()]) return false;
   if (toks.length !== 3) return false;
   const hue = fn === "lch" || fn === "oklch";
   if (
@@ -228,8 +225,7 @@ const engineFn = (str: string) => {
   )
     return false;
   if (slash.length === 2) {
-    const a = cssTrim(slash[1]),
-      ak = one(a) ? tokKind(a) : null;
+    const ak = tokKind(cssTrim(slash[1]));
     if (!ak || ak === "angle") return false;
   }
   return true;
@@ -606,7 +602,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     // Filled rings: a grabbed thumb scales past its track, so each ring carries its own
     // color instead of revealing the dropdown bg in the slivers above and below the strip.
     areaThumb.style.background = `oklch(${L} ${C} ${H})`;
-    alphaThumb.style.background = `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), var(--twk-dropdown-bg)`;
+    alphaThumb.style.background = solid() + "var(--twk-dropdown-bg)";
     if (H !== hueRingH) {
       hueRingBg = vividHue(H);
       hueRingH = H;
@@ -614,6 +610,11 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     hueThumb.style.background = hueRingBg;
   };
   const hexText = () => serialize([L, C, H], "hex", A);
+  // the color over whatever is under it, as one layer
+  const solid = () => {
+    const c = `oklch(${L} ${C} ${H} / ${A})`;
+    return `linear-gradient(${c}, ${c}), `;
+  };
   const refresh = () => {
     // sRGB and P3 are names
     const g = gamutLabel([L, C, H], mode);
@@ -634,7 +635,6 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     renderArea();
     positionThumbs();
   };
-  const emit = () => onChange(colorStr());
   // renderArea bails on zero width, so an offscreen repaint is a cheap no-op.
   const sync = (repaint: boolean) => {
     if (repaint && H !== paintedHue) renderArea();
@@ -645,7 +645,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const commit = (repaint: boolean) => {
     raw = null;
     sync(repaint);
-    emit();
+    onChange(colorStr());
   };
 
   const renderChannels = () => {
@@ -693,14 +693,12 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     refresh();
   };
 
-  const areaXY = (e: PointerEvent) => boxFrac(e, area);
-  const setArea = (e: PointerEvent) => {
-    const [fx, fy] = areaXY(e);
+  grabSurface(area, (e) => {
+    const [fx, fy] = boxFrac(e, area);
     L = 1 - fy;
     C = fx * ceilAt(L);
     commit(false);
-  };
-  grabSurface(area, setArea);
+  });
   // Arrows move the thumb, not the raw channels: chroma steps as a fraction of its row, so a
   // vertical step stays in gamut. Home/End mean nothing for a 2D point and are swallowed so they don't scroll the page.
   const say = sayWhenKeysStop(area);
@@ -818,7 +816,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     },
     reflow,
     // The host paints its own trigger from these — the body carries no swatch/value of its own.
-    swatchCss: () => `linear-gradient(oklch(${L} ${C} ${H} / ${A}), oklch(${L} ${C} ${H} / ${A})), ${CHECKER}`,
+    swatchCss: () => solid() + CHECKER,
     valueText: () =>
       readout([L, C, H], mode) + (A < 0.999 ? (mode === "hex" ? hexByte(A) : ` / ${+A.toFixed(2)}`) : ""),
   };
@@ -865,9 +863,7 @@ function createColor(meta: Meta, onChange: OnChange): Control {
 
 /** An oklch() string at display precision, alpha appended only when translucent. */
 const oklchStr = (L: number, C: number, H: number, A: number) =>
-  A < 0.999
-    ? `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)} / ${+A.toFixed(3)})`
-    : `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)})`;
+  `oklch(${+L.toFixed(4)} ${+C.toFixed(4)} ${+H.toFixed(2)}${A < 0.999 ? ` / ${+A.toFixed(3)}` : ""})`;
 
 export { createPickerBody, parseColor, oklchStr, CHECKER };
 registerControl("color", createColor);

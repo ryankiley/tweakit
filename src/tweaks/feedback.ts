@@ -184,4 +184,4 @@ function addHintMarker(node: Element, hint: string) {
   label.appendChild(mark);
 }
 
-export { toolbarBtn, makeCopyBtn, makeResetBtn, copyText, spinReset, announce, hideHintNow, addHintMarker, LABEL_SEL };
+export { toolbarBtn, makeCopyBtn, makeResetBtn, spinReset, hideHintNow, addHintMarker, LABEL_SEL };

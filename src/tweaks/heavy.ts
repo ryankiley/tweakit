@@ -1,5 +1,5 @@
 /* Tweaks — what only the lazy controls use: the numeric field engine and its scrub, the
- * press-drag gesture, the SVG factory, canvas sizing and the modal-trigger row, kept out of
+ * press-drag gesture, the SVG factory and the modal-trigger row, kept out of
  * the shared chunk. It also registers the Number control, which no shorthand infers. */
 import {
   el,
@@ -8,7 +8,6 @@ import {
   clamp,
   carrySkin,
   portalTo,
-  activeIn,
   words,
   quietFocus,
   stepPrecision,
@@ -134,19 +133,25 @@ const dragPane = (pop: HTMLElement, st: { open: boolean; moved: boolean }, place
   });
 // Press-drag on a node: onDown on pointerdown (pointer captured), onMove per move, onEnd on
 // up/cancel/lost capture or when the button releases off the node (buttons===0).
+// A node taken out of the document mid-press (its pane closed by Escape, its panel destroyed) hears no more of it: the
+// browser tells the document the capture was lost, and the release lands wherever the pointer is. So the press also
+// listens there until it ends, or the gesture would never end: a scrub's guide stayed on the page, and the node,
+// re-appended with its pane, took no further press.
+const AWAY = ["lostpointercapture", "pointerup", "pointercancel"];
 function dragGesture(
   node: HTMLElement,
   {
     onDown,
     onMove,
     onEnd,
-  }: { onDown?: (e: PointerEvent) => void; onMove?: (e: PointerEvent) => void; onEnd?: (e: PointerEvent) => void } = {},
+  }: { onDown: (e: PointerEvent) => void; onMove: (e: PointerEvent) => void; onEnd: (e: PointerEvent) => void },
 ) {
   let activeId: number | null = null; // one captured pointer; a second finger can't fork the drag
   const end = (e: PointerEvent) => {
     if (activeId === null || e.pointerId !== activeId) return;
     activeId = null;
-    onEnd && onEnd(e);
+    for (const t of AWAY) document.removeEventListener(t, end, true);
+    onEnd(e);
   };
   node.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || activeId !== null) return;
@@ -154,12 +159,13 @@ function dragGesture(
     try {
       node.setPointerCapture(e.pointerId);
     } catch {}
-    onDown && onDown(e);
+    for (const t of AWAY) document.addEventListener(t, end, true);
+    onDown(e);
   });
   node.addEventListener("pointermove", (e) => {
     if (e.pointerId !== activeId) return;
     if (e.buttons === 0) return end(e);
-    onMove && onMove(e);
+    onMove(e);
   });
   node.addEventListener("pointerup", end);
   node.addEventListener("pointercancel", end);
@@ -196,15 +202,6 @@ const sayWhenKeysStop = (node: HTMLElement) => {
     }, 250);
   };
 };
-// Size a canvas to its CSS box × devicePixelRatio (capped) and scale the context to CSS pixels; returns [cssW, cssH].
-const fitCanvas = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, maxDpr = Infinity): [number, number] => {
-  const r = canvas.getBoundingClientRect();
-  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
-  canvas.width = r.width * dpr;
-  canvas.height = r.height * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return [r.width, r.height];
-};
 // Draw once laid out (and again when fonts land), then on resize and when a tab page reveals the control (twk-reflow;
 // it built at 0×0 while hidden); `more` adds targets of the control's own. Released once the owner has left the DOM.
 const redrawOn = (owner: Element, fn: () => void, more: Array<[EventTarget, string]> = []) => {
@@ -240,12 +237,12 @@ function makeGrabGuide() {
     x0 = 0,
     bx = 0;
   return {
-    show(x: number, atY: number, bubbleX: number | undefined, anchor: Element) {
+    show(x: number, atY: number, bubbleX: number, anchor: Element) {
       g = el("div", "twk-grab-guide twk-portal") as GuideEl;
       g.innerHTML = `<span class="twk-grab-line"></span><span class="twk-grab-dot"></span><span class="twk-grab-arrow"></span><span class="twk-grab-bubble"></span>`;
       y = atY;
       x0 = x;
-      bx = bubbleX ?? x; // bubble anchors over the field center, not the cursor
+      bx = bubbleX; // bubble anchors over the field center, not the cursor
       g.children[1].style.cssText = `left:${x}px;top:${y}px`;
       carrySkin(g, anchor); // the anchor panel's theme + scheme, like every portal
       portalTo(g, anchor);
@@ -267,49 +264,6 @@ function makeGrabGuide() {
   };
 }
 
-// Drag-to-scrub on a grab handle: 1px ≈ one step (Shift ×10, Alt ×0.1), re-anchoring on a
-// modifier change so the value never jumps. read() is the live value, text() the bubble label.
-function attachScrub(
-  grab: HTMLElement,
-  wrap: HTMLElement,
-  step: number,
-  read: () => number,
-  apply: (v: number) => void,
-  text: () => string,
-) {
-  let downX = 0,
-    downV = 0,
-    curK = 1;
-  const gd = makeGrabGuide();
-  // Every end path matters: capture lost mid-scrub must still hide the full-screen guide.
-  dragGesture(grab, {
-    onDown: (e) => {
-      e.preventDefault();
-      downX = e.clientX;
-      downV = read();
-      curK = 1;
-      grab.classList.add("is-dragging");
-      const br = wrap.getBoundingClientRect();
-      gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2, wrap);
-      gd.move(e.clientX, text());
-    },
-    onMove: (e) => {
-      const k = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
-      if (k !== curK) {
-        curK = k;
-        downX = e.clientX;
-        downV = read();
-      }
-      apply(downV + (e.clientX - downX) * step * k);
-      gd.move(e.clientX, text());
-    },
-    onEnd: () => {
-      grab.classList.remove("is-dragging");
-      gd.hide();
-    },
-  });
-}
-
 // ── The labeled numeric field — ONE numeric engine: a sanitized step, min-anchored
 // round-to-step, optional `soft`, a text input committing on change/Enter, and the grab
 // handle. Two chromes: the boxed field, and with `spec.row` the row that IS the Number control. ──
@@ -322,9 +276,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   // an inverted pair would clamp every value to one end
   if (Number.isFinite(min) && Number.isFinite(max) && max < min) {
     notice("swap", [spec.label ?? "number", min, max]);
-    const t = min;
-    min = max;
-    max = t;
+    [min, max] = [max, min];
   }
   const anchor = Number.isFinite(min) ? min : 0,
     decimals = stepPrecision(step); // min-anchored, like the slider
@@ -381,14 +333,38 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     const n = typed();
     set((Number.isFinite(n) ? n : value) + d * step * (e.shiftKey ? 10 : 1));
   });
-  attachScrub(
-    grab,
-    wrap,
-    step,
-    () => value,
-    set,
-    () => inp.value,
-  );
+  // Drag-to-scrub on the grab handle: 1px ≈ one step (Shift ×10, Alt ×0.1), re-anchoring on a modifier change so the
+  // value never jumps. Every end path matters: capture lost mid-scrub must still hide the full-screen guide.
+  let downX = 0,
+    downV = 0,
+    curK = 1;
+  const gd = makeGrabGuide();
+  dragGesture(grab, {
+    onDown: (e) => {
+      e.preventDefault();
+      downX = e.clientX;
+      downV = value;
+      curK = 1;
+      grab.classList.add("is-dragging");
+      const br = wrap.getBoundingClientRect();
+      gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2, wrap);
+      gd.move(e.clientX, inp.value);
+    },
+    onMove: (e) => {
+      const k = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+      if (k !== curK) {
+        curK = k;
+        downX = e.clientX;
+        downV = value;
+      }
+      set(downV + (e.clientX - downX) * step * k);
+      gd.move(e.clientX, inp.value);
+    },
+    onEnd: () => {
+      grab.classList.remove("is-dragging");
+      gd.hide();
+    },
+  });
   return { el: root, set: (val: number | string) => set(val, false), get: () => value, range: [lo, hi] };
 }
 
@@ -447,7 +423,7 @@ const springFromTime = (visualDuration: number, bounce: number) => {
   return { stiffness: k, damping: 2 * z * Math.sqrt(k), mass: 1 };
 };
 // Its inverse, for physics keys handed to a time-mode editor: the visualDuration + bounce Motion would resolve to them.
-const timeFromSpring = (k: number, d: number, m = 1) => {
+const timeFromSpring = (k: number, d: number, m: number) => {
   const z = d / (2 * Math.sqrt(k * m));
   return { visualDuration: (CRIT * overdampedScale(z)) / Math.sqrt(k / m), bounce: z > 1 ? 1 / z - 1 : 1 - z };
 };
@@ -471,8 +447,9 @@ const springAt = (k: number, d: number, m: number) => {
   return (t: number) => 1 - (a * Math.exp(-b * t) - b * Math.exp(-a * t)) / (a - b);
 };
 // N samples over the span, for drawing.
-function springCurve(k: number, d: number, m: number, N = 64, T = springSpan(k, d, m)) {
+function springCurve(k: number, d: number, m: number, N: number) {
   const x = springAt(k, d, m),
+    T = springSpan(k, d, m),
     out: number[] = [];
   for (let i = 0; i < N; i++) out.push(x((i / (N - 1)) * T));
   return out;
@@ -499,9 +476,9 @@ const springRun = (k: number, d: number, m: number) => {
 };
 
 // The name a typo is a single edit from (a letter added, dropped or changed), or that another library or an older
-// tweakit calls it by. It and the notices below are lazy, as only a mistake needs them. unknownType: a schema or markup
-// `type` no control answers to. Its list leaves out the color module's picker body, registered as a control but not a
-// type to write.
+// tweakit calls it by. It and the notices below are lazy, as only a mistake needs them. The unknownType notice: a schema
+// or markup `type` no control answers to. Its list leaves out the color module's picker body, registered as a control
+// but not a type to write.
 const SYNONYMS: Record<string, string> = Object.assign(Object.create(null), {
   bezier: "cubicbezier",
   "cubic-bezier": "cubicbezier",
@@ -536,29 +513,25 @@ const THEN: Record<string, string> = {
   folder: "builds a folder",
   markup: "is skipped",
 };
-const unknownType = (where: string, type: string, known: string[], then: "control" | "folder" | "markup") => {
-  const names = [...new Set(known)].filter((t) => t !== "folder" && t !== "colorpicker").sort(),
-    near = nearest(type, names);
-  console.warn(
-    `[tweaks] ${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${THEN[then]}. Types: ${names.join(", ")}`,
-  );
-};
-
-const warned = new Set<string>();
-const badGradient = (fn: string, value: unknown, all: unknown, n: number) => {
-  const why = !Array.isArray(all)
-    ? `expected { stops: [{ color, pos }] }, got ${value === null ? "null" : typeof value === "object" ? "an object without a stops array" : typeof value}`
-    : n < all.length
-      ? `skipped ${all.length - n} of ${all.length} stops without a CSS color and a numeric pos`
-      : "the gradient has no stops";
-  if (!warned.has(fn + why)) {
-    warned.add(fn + why);
-    console.warn(`[tweaks] ${fn}(): ${why}`);
-  }
-};
+const warned = new Set<string>(); // the gradient faults already said
 // The words for the core's notices (shared.ts notice()): what went wrong and the way out, downloaded only when one
-// fires.
-const NOTICES: Record<string, (...a: any[]) => string> = {
+// fires. One that returns nothing has been said before.
+const NOTICES: Record<string, (...a: any[]) => string | void> = {
+  unknownType: (where: string, type: string, known: string[], then: "control" | "folder" | "markup") => {
+    const names = [...new Set(known)].filter((t) => t !== "folder" && t !== "colorpicker").sort(),
+      near = nearest(type, names);
+    return `${where}: "${type}" isn't a control type${near ? ` — did you mean "${near}"?` : "."} It ${THEN[then]}. Types: ${names.join(", ")}`;
+  },
+  badGradient: (fn: string, value: unknown, all: unknown, n: number) => {
+    const why = !Array.isArray(all)
+      ? `expected { stops: [{ color, pos }] }, got ${value === null ? "null" : typeof value === "object" ? "an object without a stops array" : typeof value}`
+      : n < all.length
+        ? `skipped ${all.length - n} of ${all.length} stops without a CSS color and a numeric pos`
+        : "the gradient has no stops";
+    if (warned.has(fn + why)) return;
+    warned.add(fn + why);
+    return `${fn}(): ${why}`;
+  },
   clamp: (key, v, min, max, type) =>
     `set("${key}", ${JSON.stringify(v)}) clamped to ${min > -Infinity ? min : "−∞"}–${max < Infinity ? max : "∞"}; widen min/max${type === "slider" || type === "number" ? ", or set soft: true to allow it" : ""}`,
   sharedKey: (k) =>
@@ -583,18 +556,16 @@ const NOTICES: Record<string, (...a: any[]) => string> = {
       : `set("${key}") ignored — no control has that key`,
 };
 const notice = (kind: string, args: unknown[]) => {
-  const say = NOTICES[kind];
-  if (say) console.warn(`[tweaks] ${say(...args)}`);
+  const msg = NOTICES[kind]?.(...args);
+  if (msg) console.warn(`[tweaks] ${msg}`);
 };
 sayNow(notice);
 
 export {
   escapeReverts,
   dragPane,
-  badGradient,
   notice,
   decimalStep,
-  unknownType,
   numField,
   dragGesture,
   svgEl,
@@ -602,11 +573,9 @@ export {
   accentColor,
   grabSurface,
   boxFrac,
-  fitCanvas,
   redrawOn,
   triggerRow,
   springCurve,
-  springSpan,
   springRun,
   springFromTime,
   timeFromSpring,

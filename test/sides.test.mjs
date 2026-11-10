@@ -46,6 +46,13 @@ test("every input form, and the CSS shorthand the four collapse to", async () =>
   q.destroy();
 });
 
+test("a hole in a sparse array is not a side left off: it reads as it always has, not as its opposite", async () => {
+  // [1, , 3] has three entries, so the list stops short of `left` alone; the hole at `right` is no number.
+  const p = await mount({ s: { type: "sides", value: [1, , 3] } });
+  assert.deepEqual(four(p.params.s), [1, 0, 3, 0]);
+  p.destroy();
+});
+
 test("a string keeps its unit when its sides agree; an explicit unit wins; mixed units warn and read as px", async () => {
   let p;
   const quiet = await warnings(async () => {

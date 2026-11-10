@@ -1,7 +1,7 @@
 // ── Shadow — a box-shadow editor with the kit's own picker mounted inline (popover() is single-open). The value carries
 // the CSS as `css`, built only from the numbers and a color the picker accepted as one color token (isColor) — a host
 // string reaching a `style` sink could splice in a url(). Lazy. ──
-import { el, txt, popover, createSegmented, registerControl, btn, icon, isObj, words } from "../shared.js";
+import { el, txt, popover, createSegmented, registerControl, icon, isObj, words } from "../shared.js";
 import { numField, triggerRow } from "../heavy.js";
 import { createPickerBody, isColor } from "./color.js";
 import type { OnChange, NumField } from "../shared.js";
@@ -108,14 +108,14 @@ function createShadow(meta: Meta, onChange: OnChange): Control {
     k = Math.min(1, 64 / w, 40 / h);
   };
   // The color row discloses the picker, so the pop opens compact.
-  const colorRow = btn("twk-trigger twk-shadow-color");
-  colorRow.setAttribute("aria-expanded", "false");
-  const cSwatch = el("span", "twk-trigger-chip twk-color-swatch"),
-    cText = el("span", "twk-trigger-value"),
-    cRight = el("span", "twk-trigger-right");
-  cRight.append(cSwatch, cText);
+  const {
+    trigger: colorRow,
+    right: cRight,
+    chip: cSwatch,
+    valueEl: cText,
+  } = triggerRow("", tr("color", "Color"), "twk-color-swatch");
+  colorRow.classList.add("twk-shadow-color");
   cRight.insertAdjacentHTML("beforeend", CHEVRON);
-  colorRow.append(txt("span", "twk-trigger-label", tr("color", "Color")), cRight);
   const body = createPickerBody(
     { value: typeof init.color === "string" && isColor(init.color) ? init.color : DEF.color, onMode: () => update() },
     () => {

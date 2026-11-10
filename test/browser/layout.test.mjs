@@ -636,3 +636,96 @@ test("hidden hides a shadow panel, a page's component keeps its own :host, and a
   assert.ok(r.anim.includes("twk-bubble-in"), `the kit's keyframes came with the copied rules: ${r.anim}`);
   assert.deepEqual(errors, []);
 });
+
+test("a shadow panel's open pane keeps following the page's scheme pin after its host is moved", async () => {
+  // Regression: the panel mirrors the page's pin through a MutationObserver, and an open pane copies the panel's through
+  // its own. Observers are told in the order they were made, so the panel's must be the older one for the pane's whole
+  // life. Made afresh on each reconnect, it ran after the pane's, and the pane stayed one flip behind.
+  const { page, errors } = await fixture();
+  const r = await page.evaluate(async () => {
+    const tick = (ms = 100) => new Promise((f) => setTimeout(f, ms));
+    const { tweaks } = await import("/tweaks/core.js");
+    const a = document.createElement("div"),
+      b = document.createElement("div");
+    document.body.append(a, b);
+    const p = tweaks("Moved", { tint: "#7c5cff" }, { shadow: true });
+    a.append(p.el);
+    await p.ready;
+    await tick();
+    const panel = p.el.shadowRoot.querySelector(".twk-panel");
+    panel.querySelector(".twk-trigger").click();
+    await tick(300);
+    b.append(p.el); // disconnect and reconnect in one task, as a keyed list reorders
+    await tick();
+    const pane = () => document.querySelector(".twk-portal-host").shadowRoot.querySelector(".twk-portal.is-open");
+    const seen = [];
+    for (const pin of ["light", "dark", null]) {
+      if (pin) document.documentElement.setAttribute("data-twk-scheme", pin);
+      else document.documentElement.removeAttribute("data-twk-scheme");
+      await tick();
+      seen.push([panel.getAttribute("data-twk-scheme"), pane()?.getAttribute("data-twk-scheme")]);
+    }
+    p.destroy();
+    return seen;
+  });
+  assert.deepEqual(
+    r,
+    [
+      ["light", "light"],
+      ["dark", "dark"],
+      [null, null],
+    ],
+    "panel and pane, pinned light, then dark, then unpinned",
+  );
+  assert.deepEqual(errors, []);
+});
+
+test("a scrub whose field leaves the page mid-drag still ends: no guide is left, and the field scrubs again", async () => {
+  // Regression: a press's end was heard on the node alone. Escape closing the pane mid-scrub, or destroy(), takes the node
+  // out of the document, where it hears neither the lost capture nor the release: the guide stayed on <body>, and the
+  // grab, back with its pane, refused every later press.
+  const { page, errors } = await fixture();
+  await page.evaluate(async () => {
+    const { tweaks } = await import("/tweaks/core.js");
+    const p = (window.scrub = tweaks("Scrub", {
+      at: { type: "point", value: { x: 0, y: 0 } },
+      n: { type: "number", value: 3 },
+    }));
+    document.body.append(p.el);
+    await p.ready;
+  });
+  const panel = panelOf(page, "Scrub"),
+    guides = () => page.evaluate(() => document.querySelectorAll(".twk-grab-guide").length),
+    x = () => page.evaluate(() => window.scrub.params.at.x);
+  const grab = page.locator(".twk-portal.is-open .twk-num-grab").first();
+  const press = async (dx) => {
+    const b = await grab.boundingBox();
+    await page.mouse.move(b.x + 3, b.y + 3);
+    await page.mouse.down();
+    await page.mouse.move(b.x + 3 + dx, b.y + 3, { steps: 4 });
+  };
+  await panel.locator(".twk-trigger").click();
+  await page.waitForTimeout(300);
+  await press(8);
+  assert.equal(await guides(), 1, "the guide shows while scrubbing");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400); // the pane has faded and left
+  await page.mouse.up();
+  assert.equal(await guides(), 0, "closed mid-scrub, the guide is gone once the press is over");
+  const before = await x();
+  await panel.locator(".twk-trigger").click();
+  await page.waitForTimeout(300);
+  await press(30);
+  await page.mouse.up();
+  assert.notEqual(await x(), before, "and the same field scrubs again");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  const b = await panel.locator(".twk-num-grab").boundingBox();
+  await page.mouse.move(b.x + 3, b.y + 3);
+  await page.mouse.down();
+  await page.mouse.move(b.x + 12, b.y + 3, { steps: 3 });
+  await page.evaluate(() => window.scrub.destroy());
+  await page.mouse.up();
+  assert.equal(await guides(), 0, "destroyed mid-scrub, the guide is gone too");
+  assert.deepEqual(errors, []);
+});

@@ -112,17 +112,17 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   const sorted = () => [...stops].sort((a, b) => a.pos - b.pos);
   // body.mode() is the single source of truth for the blend space, so the bar, preview and emitted
   // interpolation can't drift. (Stops keep their own notation; CSS lets `in srgb` carry oklch() stops.)
-  const interp = () => modeInterpolation(body.mode());
   const value = () => ({
     stops: sorted().map((s) => ({ color: s.color, pos: +s.pos.toFixed(4) })),
-    interpolation: interp(),
+    interpolation: modeInterpolation(body.mode()),
     easing,
   });
   // Both draw gradientCss(value()), so the editor can't show a ramp a host templating through it won't get.
-  const paint = () => {
-    const css = gradientCss(value());
+  const paint = (v = value()) => {
+    const css = gradientCss(v);
     grad.style.background = css;
     preview.style.background = `${css}, ${CHECKER}`;
+    return v;
   };
   const reflectCount = () => {
     preview.setAttribute(
@@ -130,11 +130,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
       tr("stops", (v) => `${v.n} stop${v.n === 1 ? "" : "s"}`, { n: stops.length }),
     );
   };
-  const emit = () => onChange(value());
-  const change = () => {
-    paint();
-    emit();
-  };
+  const change = () => onChange(paint());
 
   // the rail holds only stop handles
   const handleFor = (s: GradientStop) =>
@@ -235,7 +231,7 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
           offBar = false;
         },
         onMove: (e) => {
-          // One rail rect for X and the off-bar Y test; the X math is posFromX inlined.
+          // One rail rect for X and the off-bar Y test.
           const r = rail.getBoundingClientRect();
           moveStop(h, (e.clientX - r.left) / (r.width || 1));
           // Dragging ~24px clear of the bar removes the stop (floored at two).
@@ -269,11 +265,6 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
       selStop = s;
     }
     rerender ? renderHandles() : reflectSel();
-  };
-
-  const posFromX = (x: number) => {
-    const r = rail.getBoundingClientRect();
-    return clamp((x - r.left) / (r.width || 1), 0, 1);
   };
 
   // A new stop's color: the bracketing stops interpolated in OKLCH at the EASED progress, so it lands invisibly on the
@@ -324,21 +315,19 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
   };
   // Midway toward the next stop, or toward the previous from the last. There are always two stops at least (the
   // normalizer's default pair, removeStop's floor), and the selected one is always among them.
-  const addStop = () => {
+  addBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
     const ss = sorted(),
       i = ss.indexOf(selStop);
     insertStopAt(i < ss.length - 1 ? (ss[i].pos + ss[i + 1].pos) / 2 : (ss[i - 1].pos + ss[i].pos) / 2);
-  };
-  addBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    addStop();
   });
   // Double-click, not single, so it never fights grabbing a stop; a double-click on a stop falls through to its own
   // handler.
   bar.addEventListener("dblclick", (e) => {
     if ((e.target as Element).closest(".twk-gradient-stop")) return;
     e.preventDefault();
-    insertStopAt(posFromX(e.clientX));
+    const r = rail.getBoundingClientRect();
+    insertStopAt(clamp((e.clientX - r.left) / (r.width || 1), 0, 1));
   });
 
   // Delete / Backspace removes the selected stop, ignored while typing in a field and with Alt held (the panel's reset
@@ -384,15 +373,11 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
       if (next.length === stops.length) {
         // Same count (a host mirroring values back): update the stop objects in place, paired in
         // position order, so a live drag keeps its handle and the picker its stop.
-        sorted().forEach((s, i) => {
-          s.color = next[i].color;
-          s.pos = next[i].pos;
-          const h = handleFor(s);
-          if (h) {
-            h.style.left = s.pos * 100 + "%";
-            h.style.setProperty("--stop", s.color);
-          }
-        });
+        sorted().forEach((s, i) => Object.assign(s, next[i]));
+        for (const h of rail.children as HTMLCollectionOf<StopHandle>) {
+          h.style.left = h._stop.pos * 100 + "%";
+          h.style.setProperty("--stop", h._stop.color);
+        }
       } else {
         const selPos = selStop.pos;
         stops = next;

@@ -308,8 +308,6 @@ function createImage(meta: Meta, onChange: OnChange): Control {
       (o): o is { value: string; label: string } =>
         typeof o.value === "string" && !!o.value && !seen.has(o.value) && !!seen.add(o.value),
     );
-  // the plain row is the upload: there is nothing else to leave
-  const canUpload = meta.upload !== false || !options.length;
   const canClear = meta.clear !== false; // false: a required choice, with no Clear and no Delete to empty it
   const maxSize = +meta.maxSize! > 0 ? +meta.maxSize! : 10 * MB;
   // A number only: `fit: true` would read as 1 and draw every upload as one pixel.
@@ -428,7 +426,7 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     notes.push(rowNote);
     // The pane is the gallery, with no wrapper: its padding and the gaps between tiles and foot are its drag edge.
     const pop = el("div", "twk-color-pop twk-image-pop twk-image-gallery");
-    const upload = canUpload ? btn("twk-button twk-image-upload", ICON_UPLOAD) : null;
+    const upload = meta.upload !== false ? btn("twk-button twk-image-upload", ICON_UPLOAD) : null;
     const clear = txt("button", "twk-image-clear", tr("clear", "Clear"));
     clear.setAttribute("aria-label", tr("clearImage", "{label}: clear the image", { label: meta.label }));
     // The foot folds like a folder: a row track holds the upload button and a column track holds Clear, so either can
@@ -444,15 +442,11 @@ function createImage(meta: Meta, onChange: OnChange): Control {
     const n = options.length;
     const cols = Math.min(6, Math.max(1, meta.cols! | 0 || (n <= 3 ? Math.max(2, n) : n === 4 ? 2 : 3)));
     grid.style.setProperty("--twk-img-cols", String(cols));
-    const tile = (v: string, label: string) => {
-      const b = radioButton("twk-image-tile", { value: v, label: "" }, () => commit(v)); // the picture is the label
-      b.setAttribute("aria-label", label);
-      b.style.backgroundImage = urlCss(v);
-      return b;
-    };
     const names = options.map((o, i) => o.label || stem(o.value) || tr("imageN", "Image {n}", { n: i + 1 }));
-    const tiles = options.map((o, i) => {
-      const b = tile(o.value, names[i]);
+    const tiles = options.map(({ value: v }, i) => {
+      const b = radioButton("twk-image-tile", { value: v, label: "" }, () => commit(v)); // the picture is the label
+      b.setAttribute("aria-label", names[i]);
+      b.style.backgroundImage = urlCss(v);
       grid.append(b);
       return b;
     });
@@ -477,12 +471,8 @@ function createImage(meta: Meta, onChange: OnChange): Control {
         custom.remove();
       }
       // the roving tab stop: the chosen tile, else the first
-      const btns = all(),
-        stop = Math.max(
-          0,
-          btns.findIndex((b) => b._twVal === value),
-        );
-      btns.forEach((b, j) => {
+      const stop = k >= 0 ? k : value ? tiles.length : 0;
+      all().forEach((b, j) => {
         const on = !!value && b._twVal === value;
         b.dataset.active = String(on);
         b.setAttribute("aria-checked", String(on));

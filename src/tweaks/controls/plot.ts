@@ -66,56 +66,14 @@ export function parseExpr(src: unknown): Expr | string {
   // `5.` reads as 5, as `.5` reads as 0.5. An e is an exponent only with a digit right after it (and its sign): `2e+1`
   // is 20, while `2e+x` is the constant, 2·e + x, as `2e` alone is 2·e. Scientific notation never has a name for its
   // power.
-  const numRe = /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y,
-    idRe = /[A-Za-z_]\w*/y;
-  let i = 0;
-  while (i < s.length) {
-    const ch = s[i];
-    if (ch === " " || ch === "\t" || ch === "\n") {
-      i++;
-      continue;
-    }
-    if ((ch >= "0" && ch <= "9") || (ch === "." && s[i + 1] >= "0" && s[i + 1] <= "9")) {
-      numRe.lastIndex = i;
-      const m = numRe.exec(s);
-      if (!m || m.index !== i) return `unexpected "${ch}"`;
-      toks.push({ t: "num", v: parseFloat(m[0]) });
-      i = numRe.lastIndex;
-      continue;
-    }
-    if ((ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z") || ch === "_") {
-      idRe.lastIndex = i;
-      const m = idRe.exec(s);
-      toks.push({ t: "id", v: m[0] });
-      i = idRe.lastIndex;
-      continue;
-    }
-    if (ch === "*" && s[i + 1] === "*") {
-      toks.push({ t: "op", v: "^" });
-      i += 2;
-      continue;
-    }
-    if ("+-*/%^".includes(ch)) {
-      toks.push({ t: "op", v: ch });
-      i++;
-      continue;
-    }
-    if (ch === "(") {
-      toks.push({ t: "lp" });
-      i++;
-      continue;
-    }
-    if (ch === ")") {
-      toks.push({ t: "rp" });
-      i++;
-      continue;
-    }
-    if (ch === ",") {
-      toks.push({ t: "comma" });
-      i++;
-      continue;
-    }
-    return `unexpected "${ch}"`;
+  // One sticky pass: blanks, a number, a name, an operator (`**` reads as `^`), a bracket or comma.
+  const re = /[ \t\n]+|((?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)|([A-Za-z_]\w*)|(\*\*|[-+*\/%^])|([(),])/y;
+  for (let m, i; (i = re.lastIndex) < s.length;) {
+    if (!(m = re.exec(s))) return `unexpected "${s[i]}"`;
+    if (m[1]) toks.push({ t: "num", v: parseFloat(m[1]) });
+    else if (m[2]) toks.push({ t: "id", v: m[2] });
+    else if (m[3]) toks.push({ t: "op", v: m[3] === "**" ? "^" : m[3] });
+    else if (m[4]) toks.push({ t: m[4] === "(" ? "lp" : m[4] === ")" ? "rp" : "comma" });
   }
   let p = 0,
     why = "";
@@ -125,21 +83,20 @@ export function parseExpr(src: unknown): Expr | string {
     return null;
   };
   const peek = () => toks[p];
-  const eat = (t?: Tok["t"]) => {
-    const tok = toks[p];
-    if (!tok || (t && tok.t !== t)) return null;
-    p++;
-    return tok;
+  const eat = (t: Tok["t"]) => (toks[p]?.t === t ? toks[p++] : null);
+  // The operator at the cursor, taken, when it is one of `ops`; else "".
+  const op = (ops: string) => {
+    const t = toks[p];
+    return t && t.t === "op" && ops.includes(t.v) ? (p++, t.v as string) : "";
   };
   const add = (): Expr | null => {
     let a = mul();
     if (!a) return null;
-    while (peek() && peek().t === "op" && (peek().v === "+" || peek().v === "-")) {
-      const op = eat("op").v,
-        b = mul();
+    for (let o; (o = op("+-"));) {
+      const b = mul();
       if (!b) return null;
       const aa = a;
-      a = op === "+" ? (x) => aa(x) + b(x) : (x) => aa(x) - b(x);
+      a = o === "+" ? (x) => aa(x) + b(x) : (x) => aa(x) - b(x);
     }
     return a;
   };
@@ -153,34 +110,27 @@ export function parseExpr(src: unknown): Expr | string {
       // does: `2x^2` is 2·x².
       const prev = toks[p - 1].t,
         implied = (prev === "num" || prev === "id" || prev === "rp") && (t.t === "id" || t.t === "lp");
-      if (!implied && !(t.t === "op" && (t.v === "*" || t.v === "/" || t.v === "%"))) break;
-      const op = implied ? "*" : eat("op").v,
-        b = unary();
+      const o = implied ? "*" : op("*/%");
+      if (!o) break;
+      const b = unary();
       if (!b) return null;
       const aa = a;
-      a = op === "*" ? (x) => aa(x) * b(x) : op === "/" ? (x) => aa(x) / b(x) : (x) => aa(x) % b(x);
+      a = o === "*" ? (x) => aa(x) * b(x) : o === "/" ? (x) => aa(x) / b(x) : (x) => aa(x) % b(x);
     }
     return a;
   };
   const unary = (): Expr | null => {
-    if (peek() && peek().t === "op" && (peek().v === "-" || peek().v === "+")) {
-      const op = eat("op").v,
-        a = unary();
-      if (!a) return null;
-      return op === "-" ? (x) => -a(x) : a;
-    }
-    return pow();
+    const o = op("-+");
+    if (!o) return pow();
+    const a = unary();
+    return a && (o === "-" ? (x) => -a(x) : a);
   };
   const pow = (): Expr | null => {
     const a = atom();
     if (!a) return null;
-    if (peek() && peek().t === "op" && peek().v === "^") {
-      eat("op");
-      const b = unary();
-      if (!b) return null;
-      return (x) => Math.pow(a(x), b(x));
-    }
-    return a;
+    if (!op("^")) return a;
+    const b = unary();
+    return b && ((x) => Math.pow(a(x), b(x)));
   };
   const atom = (): Expr | null => {
     const tok = peek();
@@ -279,11 +229,7 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
     xMax = Number(meta.xMax ?? meta.max);
   if (!Number.isFinite(xMin)) xMin = -10;
   if (!Number.isFinite(xMax)) xMax = 10;
-  if (xMax < xMin) {
-    const t = xMin;
-    xMin = xMax;
-    xMax = t;
-  }
+  if (xMax < xMin) [xMin, xMax] = [xMax, xMin];
   if (xMax === xMin) {
     xMin -= 1;
     xMax += 1;
@@ -316,8 +262,8 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
     input.value = expr;
     input.spellcheck = false;
     input.autocapitalize = "off";
-    quietFocus(input);
-    /* click-to-edit stays ringless; Tab rings the field */ input.setAttribute(
+    quietFocus(input); // click-to-edit stays ringless; Tab rings the field
+    input.setAttribute(
       "aria-label",
       tr("expression", "{label} — expression in x", { label: meta.label || tr("plot", "Plot") }),
     );
@@ -325,6 +271,12 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
     // txt, not el(…, html): el's third arg is innerHTML
     field.append(txt("span", "twk-plot-fx", "y ="), input);
     root.append(field);
+    input.addEventListener("input", () => {
+      expr = input.value;
+      compiled = parseExpr(expr); // a reason string on a parse error → draw flags is-invalid
+      draw();
+      onChange(expr);
+    });
   }
 
   const PAD = 6;
@@ -403,14 +355,6 @@ function createPlot(meta: Meta, onChange: OnChange): Control {
       }
     curve.setAttribute("d", d);
   };
-
-  if (editable)
-    input.addEventListener("input", () => {
-      expr = input.value;
-      compiled = parseExpr(expr); // a reason string on a parse error → draw flags is-invalid
-      draw();
-      onChange(expr);
-    });
 
   redrawOn(root, draw);
 

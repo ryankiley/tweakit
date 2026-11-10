@@ -4,6 +4,7 @@
 import {
   titleCase,
   isObj,
+  numeric,
   isColorStr,
   optValue,
   getControl,
@@ -15,7 +16,7 @@ import {
   words,
 } from "./shared.js";
 import { LAZY_IMPORT } from "./lazy.js";
-import type { SchemaObject, Option, Get, Control } from "./types.js";
+import type { SchemaObject, Option, Get } from "./types.js";
 
 /** A point control's component spec, as the public verbose form declares it. */
 type PointComponent = Extract<
@@ -124,9 +125,20 @@ const radiogridMeta = (v: any): MetaFields =>
   Array.isArray(v.options) && {
     type: "radiogrid",
     options: v.options,
-    value: v.value ?? optValue(v.options[0]),
+    value: pick(v),
     cols: v.cols,
   };
+// A written default, else the first option's value.
+const pick = (v: any) => v.value ?? optValue(v.options[0]);
+// A plain object: isObj is true of an array.
+const plain = (v: unknown): v is Record<string, any> => isObj(v) && !Array.isArray(v);
+// `base`, or base-2, base-3… until no earlier one in `used` holds it: two can't share one param.
+const unique = (used: Set<string>, base: string) => {
+  let key = base;
+  for (let n = 2; used.has(key);) key = `${base}-${n++}`;
+  used.add(key);
+  return key;
+};
 // `??` semantics: an explicit "" (no label) survives where `||` fell back to the key.
 const ownLabel = (v: any, label: string) => (v.label == null ? label : String(v.label));
 const fnOf = (f: unknown) => (typeof f === "function" ? (f as any) : undefined);
@@ -151,7 +163,7 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
   checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
-  list: (v) => Array.isArray(v.options) && { options: v.options, value: v.value ?? optValue(v.options[0]) },
+  list: (v) => Array.isArray(v.options) && { options: v.options, value: pick(v) },
 
   text: (v) => ({ value: v.value ?? "", rows: v.rows, placeholder: v.placeholder }),
   // The config reads off the top level or a nested `value: {…}`, both published forms; the time
@@ -159,8 +171,8 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
   spring: (v) => {
     const s = isObj(v.value) ? v.value : v;
     const value: any = { stiffness: s.stiffness ?? 300, damping: s.damping ?? 26, mass: s.mass ?? 1 };
-    if (Number.isFinite(+s.visualDuration)) value.visualDuration = +s.visualDuration;
-    if (Number.isFinite(+s.bounce)) value.bounce = +s.bounce;
+    if (numeric(s.visualDuration)) value.visualDuration = +s.visualDuration;
+    if (numeric(s.bounce)) value.bounce = +s.bounce;
     const mode = v.mode ?? s.mode;
     if (mode === "time" || mode === "physics") value.mode = mode; // rides on the value, so a reset restores the mode
     return { value };
@@ -191,8 +203,7 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
       bad.push(k);
       return 0;
     };
-    const named =
-      isObj(v.value) && !Array.isArray(v.value) ? Object.keys(v.value).filter((k) => !isReservedKey(k)) : [];
+    const named = plain(v.value) ? Object.keys(v.value).filter((k) => !isReservedKey(k)) : [];
     if ((!Array.isArray(v.components) || !v.components.length) && named.length)
       v = { ...v, components: named.map((key) => ({ key })) };
     if (!Array.isArray(v.components) || !v.components.length) return false;
@@ -202,10 +213,7 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
       const label = c.label ? String(c.label).toLowerCase() : "";
       const base = String(c.key ?? ((isReservedKey(label) ? "" : label) || `c${k}`));
       if (isReservedKey(base)) return [];
-      let key = base,
-        n = 2;
-      while (used.has(key)) key = `${base}-${n++}`;
-      used.add(key);
+      const key = unique(used, base);
       const own = isObj(v.value) && hasOwn(v.value, key) ? num(key, v.value[key]) : undefined;
       return [{ ...c, key, ...(own !== undefined && { value: own }) }];
     });
@@ -228,18 +236,13 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
     const used = new Set<string>();
     return {
       pages: Object.entries(v.pages).map(([title, schema]: [string, any]) => {
-        const base =
-          title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "") || "tab";
-        let k = base,
-          n = 2;
-        while (used.has(k)) k = `${base}-${n++}`;
-        used.add(k);
+        const slug = title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
         // an empty title still gets a visible tab
         return {
-          key: k,
+          key: unique(used, slug || "tab"),
           title: title.trim() ? title : words()("tab", "Tab"),
           children: Object.entries(schema)
             .map(([ck, sv]) => metaFor(ck, sv, depth + 1))
@@ -262,7 +265,7 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   if (depth > 64) return null; // a pathological depth is skipped, not a RangeError
   const label = titleCase(key);
   const meta = (type: string, fields: Partial<Meta>, lab = label): Meta => ({ type, key, label: lab, ...fields });
-  if (isObj(value) && !Array.isArray(value) && hasOwn(TYPED_META, value.type)) {
+  if (plain(value) && hasOwn(TYPED_META, value.type)) {
     // own key only: "toString" must miss
     // A handler that throws or returns nothing for a malformed shape skips that control, not
     // the whole panel. The label is resolved here, once, so every verbose form honors `{ label }`.
@@ -289,8 +292,7 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   // A lazy control with no handler reads its own fields off the verbose form as given.
   // A folder and the color module's picker body are registered, but aren't types to write.
   else if (
-    isObj(value) &&
-    !Array.isArray(value) &&
+    plain(value) &&
     typeof value.type === "string" &&
     value.type !== "folder" &&
     value.type !== "colorpicker" &&
@@ -302,17 +304,17 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   // A `type` no control answers to (a typo, or another library's name for one). With a field only a control reads, it's
   // meant as one, and skipped: built as a folder, `bezier`'s value array would read as a slider's [value, min, max].
   // With none it's a folder with a child named `type` (`font: { type: "Inter", size: 12 }`). The words are lazy.
-  else if (isObj(value) && !Array.isArray(value) && typeof value.type === "string") {
+  else if (plain(value) && typeof value.type === "string") {
     const control = hasOwn(value, "value") || Array.isArray(value.options) || typeof value.action === "function";
-    import("./heavy.js").then(
-      (m) =>
-        m.unknownType(
-          `"${key}"`,
-          value.type,
-          [...Object.keys(TYPED_META), ...Object.keys(LAZY_IMPORT), ...controlTypes()],
-          control ? "control" : "folder",
-        ),
-      () => {},
+    // Said once the build is done, not during it: a console that throws can't cost the panel.
+    Promise.resolve().then(() =>
+      notice(
+        "unknownType",
+        `"${key}"`,
+        value.type,
+        [...Object.keys(TYPED_META), ...Object.keys(LAZY_IMPORT), ...controlTypes()],
+        control ? "control" : "folder",
+      ),
     );
     if (control) return null;
   }
@@ -330,8 +332,7 @@ function baseMetaFor(key: string, value: any, depth = 0): Meta | null {
   if (Array.isArray(value)) return meta("list", { options: value, value: optValue(value[0]) });
   if (isObj(value) && typeof value.action === "function")
     return meta("button", { action: value.action }, ownLabel(value, label));
-  if (isObj(value) && Array.isArray(value.options))
-    return meta("list", { options: value.options, value: value.value ?? optValue(value.options[0]) });
+  if (isObj(value) && Array.isArray(value.options)) return meta("list", { options: value.options, value: pick(value) });
   if (isColorStr(value)) return meta("color", { value });
   if (typeof value === "string") return meta("text", { value });
   // render / disabled / hint are the folder's chrome, not children.

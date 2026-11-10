@@ -101,4 +101,3 @@ export const createUndo = (
   };
   return { undo, redo, onKey, flush, arm, patch };
 };
-export type Undo = ReturnType<typeof createUndo>;

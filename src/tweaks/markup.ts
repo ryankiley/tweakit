@@ -10,6 +10,7 @@ import {
   getControl,
   titleCase,
   setMarkup,
+  notice,
   controlTypes,
   hasOwn,
   valueChanged,
@@ -155,15 +156,15 @@ const dataMeta = (kit: MarkupKit, host: HTMLElement) => {
       : null;
   // A typo (`data-twk="slidr"`) rendered nothing and said nothing. The list names what markup builds, so not tabs.
   if (!v) {
-    import("./heavy.js").then(
-      (m) =>
-        m.unknownType(
-          `data-twk="${type}"`,
-          String(type),
-          [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()].filter((t) => t !== "tabs"),
-          "markup",
-        ),
-      () => {},
+    // after the scan, as the schema's: a console that throws can't cost the hosts that follow
+    Promise.resolve().then(() =>
+      notice(
+        "unknownType",
+        `data-twk="${type}"`,
+        String(type),
+        [...Object.keys(DATA_VALUE), ...Object.keys(kit.LAZY_IMPORT), ...controlTypes()].filter((t) => t !== "tabs"),
+        "markup",
+      ),
     );
     return null;
   }

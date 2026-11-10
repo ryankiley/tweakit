@@ -122,7 +122,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
       e.preventDefault();
       rect = wrap.getBoundingClientRect();
       track.style.transition = ""; // a re-press mid spring-home stretches 1:1
-      track.classList.add("is-active", "is-dragging");
+      track.classList.add("is-active");
       active = null;
       grab(e.clientX);
       // preventDefault killed click-to-focus; focus without a ring
@@ -136,7 +136,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
       rubberRelease(track);
       rect = null;
       active = null;
-      track.classList.remove("is-active", "is-dragging");
+      track.classList.remove("is-active");
     },
   });
   wireHoverClass(track, render); // re-run the dodge with the real track width on hover

@@ -5,8 +5,7 @@
 import type { Entry, Snapshot } from "./panel.js";
 import type { PanelState } from "./types.js";
 import type { Meta } from "./schema.js";
-import type { announce } from "./feedback.js";
-import { isObj, isColorStr, optValue, hasOwn, isReservedKey } from "./shared.js";
+import { isObj, isColorStr, optValue, hasOwn, isReservedKey, atPath } from "./shared.js";
 import type { Tr } from "./shared.js";
 
 /** Where a pasted value can land: a control's path, its current value, its meta and its row (a disabled one takes
@@ -19,21 +18,17 @@ export interface Slot {
 }
 /** How a paste reports: the words a screen reader hears, and whether its panel is still there. */
 export interface Report {
-  announce: typeof announce;
+  announce: (msg: string) => void;
   alive: () => boolean;
   tr: Tr;
 }
 /** What a panel lends the paste. */
 export interface ClipCtx extends Report {
-  panel: HTMLElement;
   entries: Entry[];
   fromJSON: (state: PanelState) => void;
 }
 /** What a scoped ⌘C / ⌘V acts on: one row, or every row under a folder's path. */
 export type Scope = { kind: "row"; entry: Entry; label: string } | { kind: "folder"; path: string[]; label: string };
-
-const atPath = (obj: unknown, path: string[]): unknown =>
-  path.reduce<any>((o, k) => (isObj(o) && hasOwn(o, k) ? o[k] : undefined), obj);
 
 // Write `v` at `path` in a nested snapshot, making the folders on the way; a non-object in the way is replaced.
 const setAt = (out: Snapshot, path: string[], v: unknown) => {
@@ -84,7 +79,7 @@ const fits = (s: Slot, v: unknown) =>
   (!s.m.options || s.m.options.some((o) => JSON.stringify(optValue(o)) === JSON.stringify(v)));
 
 /** The values in `values` that fit their slots, each slot read at its path below `base`. */
-export const pick = <S extends Slot>(slots: S[], values: unknown, base: string[] = []): Array<[S, unknown]> =>
+const pick = <S extends Slot>(slots: S[], values: unknown, base: string[] = []): Array<[S, unknown]> =>
   slots.map((s): [S, unknown] => [s, atPath(values, s.path.slice(base.length))]).filter(([s, v]) => fits(s, v));
 
 // Only what fits is written, through fromJSON: a bag key or a value set() would coerce stays as it is.

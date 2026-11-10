@@ -1,34 +1,7 @@
 // ── Monitor + FPS graph — live sparkline / readout. Lazy; registers both types.
 import { el, txt, clamp, blade, json, registerControl, words } from "../shared.js";
-import { fitCanvas, accentColor } from "../heavy.js";
+import { accentColor } from "../heavy.js";
 import type { Meta } from "../schema.js";
-
-// NaN means no sample yet: the pen lifts rather than drawing a false zero.
-const strokeSeries = (
-  ctx: CanvasRenderingContext2D,
-  node: Element,
-  w: number,
-  h: number,
-  samples: number[],
-  start: number,
-  frac: (s: number) => number,
-) => {
-  const N = samples.length;
-  ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = accentColor(node);
-  ctx.lineWidth = 1.5;
-  ctx.lineJoin = "round";
-  ctx.beginPath();
-  let pen = false;
-  for (let k = 0; k < N; k++) {
-    const s = samples[(start + k) % N];
-    if (Number.isNaN(s)) continue;
-    const x = (k / (N - 1)) * w,
-      y = h - clamp(frac(s), 0, 1) * h;
-    pen ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), (pen = true));
-  }
-  ctx.stroke();
-};
 
 // Manual, not onLive: these blades idle through the built-but-not-mounted window, which onLive would read as gone.
 const watchReflow = (fn: () => void) => {
@@ -140,8 +113,13 @@ function createMonitor(meta: Meta, perFrame = false) {
   let idx = 0,
     w = 0,
     h = 0;
+  // The canvas at its CSS box × devicePixelRatio (2 at most), the context scaled back to CSS pixels.
   const onResize = () => {
-    [w, h] = fitCanvas(canvas, ctx, 2);
+    const r = canvas.getBoundingClientRect(),
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = (w = r.width) * dpr;
+    canvas.height = (h = r.height) * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
   unwatch = watchReflow(onResize);
   const draw = () => {
@@ -170,7 +148,21 @@ function createMonitor(meta: Meta, perFrame = false) {
       if (hi == null) hi = mx + pad;
     }
     const span = hi - lo || 1;
-    strokeSeries(ctx, wrap, w, h, samples, idx, (s) => (s - lo) / span);
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = accentColor(wrap);
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    // NaN means no sample yet: the pen lifts rather than drawing a false zero.
+    let pen = false;
+    for (let k = 0; k < N; k++) {
+      const s = samples[(idx + k) % N];
+      if (Number.isNaN(s)) continue;
+      const x = (k / (N - 1)) * w,
+        y = h - clamp((s - lo) / span, 0, 1) * h;
+      pen ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), (pen = true));
+    }
+    ctx.stroke();
   };
   // Drawn only while it can be seen: folded away, on a hidden tab page or scrolled off, it keeps sampling and paints
   // nothing. The readout follows the draw, so the draw's colour read doesn't force a second style pass a frame. A fold is

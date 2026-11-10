@@ -18,14 +18,12 @@ const ICON_CORNER = icon('<path d="M3 13V8a5 5 0 0 1 5-5h5"/>', "", 1.5, 16);
 const ICON_EDGE = icon('<path d="M3 10V8a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2"/>', "", 1.5, 16);
 const LEN_RE = /^(-?\d*\.?\d+)([a-z%]*)$/i;
 const num = (v: unknown) => (v != null && v !== "" && Number.isFinite(+v) ? +v : null);
-const expand = (n: number[]) =>
-  n.length === 1
-    ? [n[0], n[0], n[0], n[0]]
-    : n.length === 2
-      ? [n[0], n[1], n[0], n[1]]
-      : n.length === 3
-        ? [n[0], n[1], n[2], n[1]]
-        : n.slice(0, 4);
+// One to four numbers in CSS order to all four: a side the list stops short of takes its opposite's, as the shorthand
+// does. By the list's length, not `??`: a hole in a sparse array is not a side left off.
+const expand = (n: number[]) => {
+  const k = n.length;
+  return [n[0], n[k > 1 ? 1 : 0], n[k > 2 ? 2 : 0], n[k > 3 ? 3 : k > 1 ? 1 : 0]];
+};
 // A shorthand string as one to four [number, unit] pairs, or null for anything else: calc(), var(), five lengths, junk.
 const lengths = (s: string) => {
   const m = s

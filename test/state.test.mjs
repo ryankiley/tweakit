@@ -70,6 +70,16 @@ test("toJSON escapes dotted folder keys injectively; fromJSON restores values + 
   assert.ok(q.el.querySelector(".twk-folder").classList.contains("is-collapsed"));
 });
 
+test("a restore doesn't walk into a string where a folder was saved: its length and characters aren't values", () => {
+  // A text control since made a folder leaves its string in storage; a string has own `length` and index keys, which
+  // the path reader took for the folder's controls of those names (`dash: "4 2 1 1"` set dash.length to 7).
+  const schema = { dash: { length: [4, 0, 20, 1], gap: 2 }, idx: { 0: "a", 1: "b" } };
+  const p = tweaks("StringParent", schema);
+  p.fromJSON({ values: { dash: "4 2 1 1", idx: "xyz" } });
+  assert.deepEqual(JSON.parse(JSON.stringify(p.params)), { dash: { length: 4, gap: 2 }, idx: { 0: "a", 1: "b" } });
+  p.destroy();
+});
+
 test("a restore reads only a snapshot's own keys: a control named for an Object.prototype member is left alone", () => {
   // Regression: applySnapshot's path reader followed inherited keys, so a control keyed toString / valueOf /
   // hasOwnProperty read the prototype's function out of any snapshot that lacked the key — a fromJSON({ values }) from
