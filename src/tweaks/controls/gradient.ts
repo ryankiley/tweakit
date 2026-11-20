@@ -238,8 +238,10 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
           offBar = stops.length > 2 && (e.clientY < r.top - 24 || e.clientY > r.bottom + 24);
           h.dataset.removing = String(offBar);
         },
+        // A drag that ends once its pane has closed (Escape, destroy(); fading out or gone) was let go of, not dropped
+        // off the bar.
         onEnd: () => {
-          if (offBar) removeStop(s);
+          if (offBar && !pop.inert && h.isConnected) removeStop(s);
           else h.dataset.removing = "false";
         },
       });
