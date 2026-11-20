@@ -316,6 +316,35 @@ test("an image IndexedDB refuses saves inline instead, and a preset holding its 
   }
 });
 
+// prune dropped a ref from what the panel knew before its delete committed, so a delete that failed left that record in
+// IndexedDB for good: no later prune knew to try again.
+test("a replaced image whose delete fails is deleted by the next prune instead of staying in IndexedDB", async () => {
+  const { IDBObjectStore } = await import("fake-indexeddb"),
+    del = IDBObjectStore.prototype.delete;
+  const img = (c) => "data:image/gif;base64," + c.repeat(2048);
+  const p = tweaks("Prune", { im: { type: "image" } }, { persist: "t-idb-prune" });
+  await p.ready;
+  p.set("im", img("J"));
+  await tick(250);
+  const first = (await records()).filter(([k]) => k === "tw:t-idb-prune");
+  assert.equal(first.length, 1, "the first image is stored");
+  IDBObjectStore.prototype.delete = function () {
+    throw new DOMException("nope", "UnknownError");
+  };
+  try {
+    p.set("im", img("K"));
+    await tick(250);
+  } finally {
+    IDBObjectStore.prototype.delete = del;
+  }
+  p.set("im", img("L"));
+  await tick(250);
+  const left = (await records()).filter(([k]) => k === "tw:t-idb-prune").map(([, r]) => r);
+  assert.equal(left.length, 1, "only the image in use is left");
+  assert.ok(!left.includes(first[0][1]), "the one whose delete failed is gone");
+  p.destroy();
+});
+
 // Each undo step was a deep clone of every value, so after an upload every later step held its own copy of it: a 4 MB
 // image and 20 slider edits grew the heap by ~80 MB, and history keeps 200 steps. A step now shares what didn't change
 // with the one before.

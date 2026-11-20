@@ -706,6 +706,7 @@ test("a scrub whose field leaves the page mid-drag still ends: no guide is left,
   };
   await panel.locator(".twk-trigger").click();
   await page.waitForTimeout(300);
+  const spot = await grab.boundingBox();
   await press(8);
   assert.equal(await guides(), 1, "the guide shows while scrubbing");
   await page.keyboard.press("Escape");
@@ -713,9 +714,19 @@ test("a scrub whose field leaves the page mid-drag still ends: no guide is left,
   await page.mouse.up();
   assert.equal(await guides(), 0, "closed mid-scrub, the guide is gone once the press is over");
   const before = await x();
-  await panel.locator(".twk-trigger").click();
+  // Reopened from the keyboard under a pointer already parked on the grab: a hover move first would end a stuck press
+  // by itself (a move with no buttons down does), so this presses with no move before it.
+  await page.mouse.move(spot.x + 3, spot.y + 3);
+  await panel.locator(".twk-trigger").focus();
+  await page.keyboard.press("Enter");
   await page.waitForTimeout(300);
-  await press(30);
+  const parked = await page.evaluate(
+    ([px, py]) => !!document.elementFromPoint(px, py)?.closest(".twk-portal.is-open .twk-num-grab"),
+    [spot.x + 3, spot.y + 3],
+  );
+  assert.ok(parked, "the pane reopens with the grab under the pointer");
+  await page.mouse.down();
+  await page.mouse.move(spot.x + 33, spot.y + 3, { steps: 4 });
   await page.mouse.up();
   assert.notEqual(await x(), before, "and the same field scrubs again");
   await page.keyboard.press("Escape");
@@ -727,5 +738,70 @@ test("a scrub whose field leaves the page mid-drag still ends: no guide is left,
   await page.evaluate(() => window.scrub.destroy());
   await page.mouse.up();
   assert.equal(await guides(), 0, "destroyed mid-scrub, the guide is gone too");
+  assert.deepEqual(errors, []);
+});
+
+test("a gradient stop dragged off the bar stays when its pane closes or its panel is destroyed mid-drag", async () => {
+  // Regression: once a press heard its end on the document, the capture lost to a closing pane ran the drag's end, which
+  // read the off-bar handle as dropped and removed its stop: from a pane already gone, and from a panel destroyed.
+  const { page, errors } = await fixture();
+  await page.evaluate(async () => {
+    const { tweaks } = await import("/tweaks/core.js");
+    const p = (window.grad = tweaks("Ramp", {
+      ramp: {
+        type: "gradient",
+        stops: [
+          ["#000000", 0],
+          ["#ff0000", 0.5],
+          ["#ffffff", 1],
+        ],
+      },
+    }));
+    window.gradChanges = 0;
+    p.on(() => window.gradChanges++);
+    document.body.append(p.el);
+    await p.ready;
+  });
+  const panel = panelOf(page, "Ramp"),
+    stops = () => page.evaluate(() => window.grad.params.ramp.stops.length),
+    middle = page.locator(".twk-portal.is-open .twk-gradient-stop").nth(1);
+  const open = async () => {
+    await panel.locator(".twk-trigger").click();
+    await page.waitForTimeout(300);
+  };
+  const dragOff = async () => {
+    const b = await middle.boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2 + 4, b.y + b.height / 2 + 80, { steps: 5 });
+    assert.equal(
+      await middle.getAttribute("data-removing"),
+      "true",
+      "dragged clear of the bar, the stop shows it would go",
+    );
+  };
+  const changes = () => page.evaluate(() => window.gradChanges);
+  await open();
+  await dragOff();
+  const seen = await changes();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  await page.mouse.up();
+  assert.equal(await stops(), 3, "Escape mid-drag keeps the stop");
+  assert.equal(await changes(), seen, "and sends no change once the pane is closing");
+  await open();
+  assert.equal(await middle.getAttribute("data-removing"), "false", "it reopens unmarked");
+  await dragOff();
+  await page.mouse.up();
+  assert.equal(await stops(), 2, "a stop dropped off the bar still goes");
+  await page.evaluate(() => {
+    const [a, b] = window.grad.params.ramp.stops;
+    window.grad.set("ramp", { ...window.grad.params.ramp, stops: [a, { color: "#ff0000", pos: 0.5 }, b] });
+  });
+  await page.waitForTimeout(50);
+  await dragOff();
+  await page.evaluate(() => window.grad.destroy());
+  await page.mouse.up();
+  assert.equal(await stops(), 3, "destroyed mid-drag, the stop stays");
   assert.deepEqual(errors, []);
 });

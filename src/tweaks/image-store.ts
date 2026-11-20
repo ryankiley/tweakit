@@ -152,12 +152,17 @@ const bind = (
       }
       return ref;
     },
-    /** Delete the records this panel knows that nothing in `named` names any more. */
+    /** Delete the records this panel knows that nothing in `named` names any more. They leave `known` at once, so a
+     *  save of the same image meanwhile writes it again, after the delete; a delete that fails puts them back, so the
+     *  next prune tries again instead of leaving them in the store for good. */
     prune(named: unknown[]) {
       const keep = refsIn(named),
-        gone = [...known.keys()].filter((r) => !keep.has(r));
-      for (const r of gone) known.delete(r);
-      if (gone.length) run("readwrite", (s) => gone.forEach((r) => s.delete(id(r))));
+        gone = [...known].filter(([r]) => !keep.has(r));
+      for (const [r] of gone) known.delete(r);
+      if (!gone.length) return;
+      run("readwrite", (s) => (gone.forEach(([r]) => s.delete(id(r))), true)).then((ok) => {
+        if (!ok) for (const [r, v] of gone) if (!known.has(r)) known.set(r, v);
+      });
     },
     /** A ref this panel hasn't seen (a preset another tab saved), read from the store. */
     fetch: (ref: string) =>
