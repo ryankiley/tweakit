@@ -681,7 +681,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
       channels.classList.remove("twk-color-channels--hex");
       const vals = channelValues([L, C, H], mode);
       MODE_CHANNELS[mode].forEach((ch, i) => {
-        const f = numField({ label: ch.k, value: vals[i], min: ch.min, max: ch.max, step: ch.step }, (v) => {
+        const f = numField({ label: ch.k, value: vals[i], min: ch.min, max: ch.max, step: ch.step, hold }, (v) => {
           [L, C, H] = withChannel([L, C, H], mode, i, clamp(v, ch.min, ch.max));
           commit(true);
         });
@@ -693,12 +693,25 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     refresh();
   };
 
-  grabSurface(area, (e) => {
-    const [fx, fy] = boxFrac(e, area);
-    L = 1 - fy;
-    C = fx * ceilAt(L);
-    commit(false);
-  });
+  // What a drag began from, raw string and all, so Escape gives back the color exactly as it was written.
+  const hold = () => {
+    const was: [number, number, number, number, string | null] = [L, C, H, A, raw];
+    return () => {
+      [L, C, H, A, raw] = was;
+      sync(true);
+      onChange(colorStr());
+    };
+  };
+  grabSurface(
+    area,
+    (e) => {
+      const [fx, fy] = boxFrac(e, area);
+      L = 1 - fy;
+      C = fx * ceilAt(L);
+      commit(false);
+    },
+    hold,
+  );
   // Arrows move the thumb, not the raw channels: chroma steps as a fraction of its row, so a
   // vertical step stays in gamut. Home/End mean nothing for a 2D point and are swallowed so they don't scroll the page.
   const say = sayWhenKeysStop(area);
@@ -734,7 +747,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     bar.setAttribute("aria-label", label);
     bar.setAttribute("aria-valuemin", "0");
     bar.setAttribute("aria-valuemax", String(max));
-    grabSurface(bar, (e) => put(boxFrac(e, bar)[0] * max));
+    grabSurface(bar, (e) => put(boxFrac(e, bar)[0] * max), hold);
     bar.addEventListener("keydown", (e) => {
       const nv = rangeStep(e, get(), step, 0, max);
       if (nv == null) return;

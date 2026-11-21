@@ -34,7 +34,33 @@ export const createUndo = (
       else if (!share(a[k], b[k])) same = false;
     return same;
   };
-  const commit = () => {
+  // A press holds the step open: a drag paused mid-way doesn't land half of itself, and one Escape took back lands as
+  // nothing, so ⌘Z after it can't bring back the value just cancelled. Capture phase: the panel stops presses leaking.
+  // Each primary press by its pointer, so a second finger's release doesn't end the first; not a ctrl-click, whose
+  // context menu can swallow the release, and a blur (that menu, a switch away) ends them all.
+  const presses = new Set<number>();
+  const onPress = (e: Event) => {
+    const p = e as PointerEvent;
+    if (p.type !== "pointerdown") presses.delete(p.pointerId);
+    else if (p.button === 0 && !p.ctrlKey) presses.add(p.pointerId);
+  };
+  const lift = () => presses.clear();
+  const PRESS = ["pointerdown", "pointerup", "pointercancel"];
+  for (const t of PRESS) document.addEventListener(t, onPress, true);
+  window.addEventListener("blur", lift);
+  // destroy(): a step still open is dropped, so no timer keeps rescheduling after the panel is gone
+  const release = () => {
+    for (const t of PRESS) document.removeEventListener(t, onPress, true);
+    window.removeEventListener("blur", lift);
+    clearTimeout(histTimer);
+    histTimer = 0;
+    lift();
+  };
+  const commit = (force?: boolean) => {
+    if (presses.size && !force) {
+      histTimer = setTimeout(commit, 350);
+      return;
+    }
     histTimer = 0;
     const snap = snapshot();
     if (share(snap, history[histIdx])) return; // unchanged
@@ -52,7 +78,7 @@ export const createUndo = (
   const flush = () => {
     if (histTimer) {
       clearTimeout(histTimer);
-      commit();
+      commit(true);
     }
   };
   watch(record);
@@ -94,10 +120,12 @@ export const createUndo = (
       if (o && typeof o === "object" && hasOwn(o, k) && !valueChanged(o[k], h)) o[k] = nv;
     }
   };
-  // the base step: the panel as built and restored
+  // the base step: the panel as built and restored, or as another tab's save left it
   const arm = () => {
+    clearTimeout(histTimer);
+    histTimer = 0;
     history = [snapshot()];
     histIdx = 0;
   };
-  return { undo, redo, onKey, flush, arm, patch };
+  return { undo, redo, onKey, flush, arm, patch, release };
 };

@@ -1,5 +1,5 @@
 // ── Point — 2D/3D/4D vector. Lazy.
-import { el, clamp, stepPrecision, defaultRange, popover, registerControl, words } from "../shared.js";
+import { el, clamp, defaultRange, popover, registerControl, words } from "../shared.js";
 import {
   numField,
   svgEl,
@@ -104,7 +104,7 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   };
   const flds = comps.map((c, k) => {
     const fld = numField(
-      { label: c.label ?? c.key, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max },
+      { label: c.label ?? c.key, value: c.value ?? 0, step: ranges[k].step, min: c.min, max: c.max, exact: true },
       changed,
     );
     fields.append(fld.el);
@@ -113,11 +113,10 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
   // the emitted map, straight off the fields
   const read = () => Object.fromEntries(comps.map((c, k) => [c.key, flds[k].get()]));
 
-  // Readout: the components at each step's precision, so a value reads "−1.00, −0.46" (steady columns), not
-  // "−1, −0.46".
-  const fmt = (v: number, step: number) => (+v).toFixed(stepPrecision(step));
+  // Readout: each field's own text, at its step's precision, so a value reads "−1.00, −0.46" (steady columns), not
+  // "−1, −0.46"; a default off the grid reads as written.
   const paintValue = () => {
-    valueEl.textContent = flds.map((f, k) => fmt(f.get(), ranges[k].step)).join(", ");
+    valueEl.textContent = flds.map((f) => f.text()).join(", ");
   };
   let positionPad = () => {
     previewDot.style.left = "50%";
@@ -143,17 +142,23 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
       // the pad's live readout for assistive tech
       padHost.setAttribute(
         "aria-description",
-        `${comps[0].label ?? comps[0].key} ${fmt(flds[0].get(), rx.step)}, ${comps[1].label ?? comps[1].key} ${fmt(flds[1].get(), ry.step)}`,
+        `${comps[0].label ?? comps[0].key} ${flds[0].text()}, ${comps[1].label ?? comps[1].key} ${flds[1].text()}`,
       );
     };
     const padSet = (e: PointerEvent) => {
       const [fx, fy] = boxFrac(e, padHost);
       const yFrac = meta.invertY ? fy : 1 - fy;
-      flds[0].set(minX + fx * (maxX - minX));
-      flds[1].set(minY + yFrac * (maxY - minY));
+      flds[0].set(flds[0].grid(minX + fx * (maxX - minX)));
+      flds[1].set(flds[1].grid(minY + yFrac * (maxY - minY)));
       changed();
     };
-    grabSurface(padHost, padSet);
+    grabSurface(padHost, padSet, () => {
+      const was = flds.map((f) => f.get());
+      return () => {
+        flds.forEach((f, i) => f.set(was[i]));
+        changed();
+      };
+    });
     // Keyboard: a focusable group (no ARIA role fits a 2D point; the readout rides on aria-description). Arrows move a
     // pad step (⇧ = ten), ↑ always up on screen; Home restores the default. Escape is the popover's — a blur here would
     // close it first.
@@ -180,8 +185,9 @@ function createPoint(meta: Meta, onChange: OnChange): Control {
       if (!dx && !dy) return;
       e.preventDefault();
       const k = e.shiftKey ? 10 : 1;
-      if (dx) flds[0].set(clamp(flds[0].get() + dx * rx.nudge * k, minX, maxX));
-      if (dy) flds[1].set(clamp(flds[1].get() + (meta.invertY ? -dy : dy) * ry.nudge * k, minY, maxY));
+      // as the fields' own arrows step: a default off the grid goes to the next grid point that way
+      if (dx) flds[0].stepBy(dx * rx.nudge * k);
+      if (dy) flds[1].stepBy((meta.invertY ? -dy : dy) * ry.nudge * k);
       changed();
       say();
     });

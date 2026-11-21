@@ -138,6 +138,15 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     mode === "time" ? { ...resolved(), visualDuration: time.visualDuration, bounce: time.bounce } : resolved();
   const emit = () => onChange(resolvedValue());
 
+  // What Escape mid-drag puts back, for the preview and every field: the whole spring as it was, not a field's
+  // rounding of it.
+  const hold = () => {
+    const was = { mode, ...time, ...phys };
+    return () => {
+      apply(was);
+      emit();
+    };
+  };
   const flds: Partial<Record<PhysKey, NumField>> = {};
   (
     [
@@ -146,7 +155,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
       ["mass", "Mass", 0.1],
     ] as const
   ).forEach(([key, lab, step]) => {
-    flds[key] = numField({ label: tr(key, lab), value: phys[key], step, min: step }, (v) => {
+    flds[key] = numField({ label: tr(key, lab), value: phys[key], step, min: step, hold }, (v) => {
       phys[key] = v;
       draw();
       emit();
@@ -162,6 +171,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
       min: DUR_MIN * 1000,
       max: DUR_MAX * 1000,
       unit: "ms",
+      hold,
     },
     (v) => {
       time.visualDuration = clampDur(v / 1000);
@@ -171,7 +181,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   );
   // shown as a percentage; the value stays Motion's −1–1
   const bounceFld = numField(
-    { label: tr("bounce", "Bounce"), value: time.bounce * 100, step: 5, min: -100, max: 100, unit: "%" },
+    { label: tr("bounce", "Bounce"), value: time.bounce * 100, step: 5, min: -100, max: 100, unit: "%", hold },
     (v) => {
       time.bounce = clampBounce(v / 100);
       draw();
@@ -232,6 +242,31 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     draw();
     emit();
   };
+  // Silent set/restore: infer the mode from the keys, update caches and fields, redraw without emitting.
+  const apply = (v: SpringValue) => {
+    if (!v || typeof v !== "object") return;
+    const ex = explicit(v.mode),
+      hasTime = has(v.visualDuration) || has(v.bounce),
+      hasPhys = has(v.stiffness) || has(v.damping) || has(v.mass);
+    if (!hasTime && !hasPhys && !ex) return;
+    mode = ex ?? (hasTime ? "time" : "physics"); // an explicit mode wins; else time, the authoring mode
+    if (hasTime) {
+      if (has(v.visualDuration)) time.visualDuration = clampDur(v.visualDuration);
+      if (has(v.bounce)) time.bounce = clampBounce(v.bounce);
+    }
+    // Restore the physics cache even alongside time keys (reset's default carries both), so a later toggle to Physics
+    // shows the intended spring.
+    // A key that is no number (null, "") keeps the one the cache holds.
+    if (hasPhys) phys = clampS({ ...phys, ...Object.fromEntries(Object.entries(v).filter(([, x]) => has(x))) });
+    modeToggle.set(mode);
+    durFld.set(time.visualDuration * 1000);
+    bounceFld.set(time.bounce * 100);
+    flds.stiffness.set(phys.stiffness);
+    flds.damping.set(phys.damping);
+    flds.mass.set(phys.mass);
+    showMode();
+    draw();
+  };
   dragGesture(viz, {
     onDown: (e) => {
       e.preventDefault();
@@ -240,6 +275,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
     },
     onMove: fromPointer,
     onEnd: () => viz.classList.remove("is-dragging"),
+    hold,
   });
   showMode();
   // The canvas reads theme tokens at draw time: besides resize and reveal, redraw on an OS scheme flip and on a host
@@ -261,31 +297,7 @@ function createSpring(meta: Meta, onChange: OnChange): Control {
   return {
     el: root,
     destroy: unscheme,
-    // Silent set/restore: infer the mode from the keys, update caches and fields, redraw without emitting.
-    set: (v: SpringValue) => {
-      if (!v || typeof v !== "object") return;
-      const ex = explicit(v.mode),
-        hasTime = has(v.visualDuration) || has(v.bounce),
-        hasPhys = has(v.stiffness) || has(v.damping) || has(v.mass);
-      if (!hasTime && !hasPhys && !ex) return;
-      mode = ex ?? (hasTime ? "time" : "physics"); // an explicit mode wins; else time, the authoring mode
-      if (hasTime) {
-        if (has(v.visualDuration)) time.visualDuration = clampDur(v.visualDuration);
-        if (has(v.bounce)) time.bounce = clampBounce(v.bounce);
-      }
-      // Restore the physics cache even alongside time keys (reset's default carries both), so a later toggle to Physics
-      // shows the intended spring.
-      // A key that is no number (null, "") keeps the one the cache holds.
-      if (hasPhys) phys = clampS({ ...phys, ...Object.fromEntries(Object.entries(v).filter(([, x]) => has(x))) });
-      modeToggle.set(mode);
-      durFld.set(time.visualDuration * 1000);
-      bounceFld.set(time.bounce * 100);
-      flds.stiffness.set(phys.stiffness);
-      flds.damping.set(phys.damping);
-      flds.mass.set(phys.mass);
-      showMode();
-      draw();
-    },
+    set: apply,
     get: () => resolvedValue(),
   };
 }

@@ -681,9 +681,10 @@ test("a shadow panel's open pane keeps following the page's scheme pin after its
 });
 
 test("a scrub whose field leaves the page mid-drag still ends: no guide is left, and the field scrubs again", async () => {
-  // Regression: a press's end was heard on the node alone. Escape closing the pane mid-scrub, or destroy(), takes the node
-  // out of the document, where it hears neither the lost capture nor the release: the guide stayed on <body>, and the
-  // grab, back with its pane, refused every later press.
+  // Regression: a press's end was heard on the node alone. The pane closing mid-scrub, or destroy(), takes the node out
+  // of the document, where it hears neither the lost capture nor the release: the guide stayed on <body>, and the grab,
+  // back with its pane, refused every later press. Escape mid-scrub takes the scrub back instead and leaves the pane
+  // open, so the pane is closed here by a click on its row, as a host's code might.
   const { page, errors } = await fixture();
   await page.evaluate(async () => {
     const { tweaks } = await import("/tweaks/core.js");
@@ -707,9 +708,17 @@ test("a scrub whose field leaves the page mid-drag still ends: no guide is left,
   await panel.locator(".twk-trigger").click();
   await page.waitForTimeout(300);
   const spot = await grab.boundingBox();
+  const start = await x();
   await press(8);
   assert.equal(await guides(), 1, "the guide shows while scrubbing");
+  assert.notEqual(await x(), start);
   await page.keyboard.press("Escape");
+  assert.equal(await x(), start, "Escape takes the scrub back");
+  assert.equal(await guides(), 0, "and ends it");
+  await page.mouse.up();
+  assert.ok(await page.locator(".twk-portal.is-open .twk-num-grab").count(), "with the pane still open");
+  await press(8);
+  await page.evaluate(() => window.scrub.el.querySelector(".twk-trigger").click());
   await page.waitForTimeout(400); // the pane has faded and left
   await page.mouse.up();
   assert.equal(await guides(), 0, "closed mid-scrub, the guide is gone once the press is over");
@@ -783,11 +792,18 @@ test("a gradient stop dragged off the bar stays when its pane closes or its pane
   const changes = () => page.evaluate(() => window.gradChanges);
   await open();
   await dragOff();
-  const seen = await changes();
   await page.keyboard.press("Escape");
-  await page.waitForTimeout(400);
   await page.mouse.up();
   assert.equal(await stops(), 3, "Escape mid-drag keeps the stop");
+  assert.equal(await middle.getAttribute("data-removing"), "false", "back on the bar");
+  assert.equal(await page.evaluate(() => window.grad.params.ramp.stops[1].pos), 0.5, "where it began");
+  // The pane closing under the drag (a click on its row, as a host's code might) ends it too.
+  await dragOff();
+  const seen = await changes();
+  await page.evaluate(() => window.grad.el.querySelector(".twk-trigger").click());
+  await page.waitForTimeout(400);
+  await page.mouse.up();
+  assert.equal(await stops(), 3, "closed mid-drag, the stop stays");
   assert.equal(await changes(), seen, "and sends no change once the pane is closing");
   await open();
   assert.equal(await middle.getAttribute("data-removing"), "false", "it reopens unmarked");

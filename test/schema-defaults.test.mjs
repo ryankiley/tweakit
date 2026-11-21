@@ -93,7 +93,7 @@ test("an inferred step across zero puts 0 on the grid", () => {
   i.destroy();
 });
 
-test("an inferred step fits the default, so a value is never snapped off what was written", () => {
+test("an inferred step fits the default, and a value finer than it is kept as written", () => {
   const p = tweaks("Fit", {
     neg: -23,
     dec: -2.3,
@@ -112,7 +112,7 @@ test("an inferred step fits the default, so a value is never snapped off what wa
   );
   assert.deepEqual(p.params.i, [-23, 37]);
   assert.deepEqual(p.params.e, [-2.3, 7.7]);
-  assert.equal(p.params.pi, 3.142, "a value finer than two tenths of the span's step still rounds");
+  assert.equal(p.params.pi, 3.14159, "a value finer than the span's step is kept as written");
   const [neg] = p.el.querySelectorAll("[role=slider]");
   assert.deepEqual(
     [neg.getAttribute("aria-valuemin"), neg.getAttribute("aria-valuemax")],
@@ -139,7 +139,7 @@ test("an explicit range narrower than the finest band steps within itself", () =
   assert.ok(p.params.t > 7e-6 && p.params.t <= 1e-5, `an arrow moves within the span (${p.params.t})`);
   assert.equal(keep.getAttribute("aria-valuemax"), "0.001", "a span the bands reach steps as before");
   p.set("keep", 0.00042);
-  assert.equal(p.params.keep, 0.0004);
+  assert.equal(p.params.keep, 0.0004, "a set value lands on the grid; only the default is kept as written");
   p.destroy();
 });
 
@@ -663,14 +663,19 @@ test("a number with no step infers one its default sits on, 1 for a whole number
   await p.ready;
   assert.deepEqual(
     [p.params.half, p.params.pi, p.params.whole, p.params.given],
-    [0.5, 3.14159, 7, 1],
-    "an explicit step still wins",
+    [0.5, 3.14159, 7, 0.5],
+    "a value off an explicit step is kept as written",
   );
-  const [half, pi, whole] = p.el.querySelectorAll(".twk-num");
+  const [half, pi, whole, given] = p.el.querySelectorAll(".twk-num");
   press(half, "ArrowUp");
   press(pi, "ArrowUp");
   press(whole, "ArrowUp");
-  assert.deepEqual([p.params.half, p.params.pi, p.params.whole], [0.6, 3.1416, 8]);
+  press(given, "ArrowUp");
+  assert.deepEqual(
+    [p.params.half, p.params.pi, p.params.whole, p.params.given],
+    [0.6, 3.1416, 8, 1],
+    "and an arrow takes it to the next step that way",
+  );
   p.destroy();
   const host = document.createElement("div");
   host.innerHTML = '<div data-twk="number" data-value="0.5"></div>';
@@ -681,7 +686,7 @@ test("a number with no step infers one its default sits on, 1 for a whole number
 });
 
 // A computed default fitted exactly at 12 digits: 1/3 stepped by 1e-12, so an arrow showed "0.333333333334".
-test("a number or point with a computed default steps at its fourth digit, as a slider rounds it", async () => {
+test("a number or point keeps a computed default as written, and an arrow steps it at its fourth digit", async () => {
   const p = tweaks("Rep", {
     third: { type: "number", value: 1 / 3 },
     pi: { type: "number", value: Math.PI },
@@ -693,14 +698,19 @@ test("a number or point with a computed default steps at its fourth digit, as a 
   await p.ready;
   assert.deepEqual(
     [p.params.third, p.params.pi, p.params.big, p.params.kept, p.params.pt.x, p.params.s],
-    [0.3333, 3.142, 66.67, 1234.5678, 0.3333, 0.3333],
-    "eight written digits still fit exactly",
+    [1 / 3, Math.PI, 200 / 3, 1234.5678, 1 / 3, 1 / 3],
+    "a computed default is kept as written",
   );
   const [third, pi, big] = p.el.querySelectorAll(".twk-row .twk-num");
+  assert.equal(third.value, "0.3333333333", "its readout to ten significant digits");
   press(third, "ArrowUp");
   press(pi, "ArrowUp");
   press(big, "ArrowUp");
-  assert.deepEqual([p.params.third, p.params.pi, p.params.big, third.value], [0.3334, 3.143, 66.68, "0.3334"]);
+  assert.deepEqual(
+    [p.params.third, p.params.pi, p.params.big, third.value],
+    [0.3334, 3.142, 66.67, "0.3334"],
+    "an arrow takes each to the next step up",
+  );
   p.destroy();
 });
 

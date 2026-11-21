@@ -244,7 +244,8 @@ export const examples = [
     id: "presets",
     title: "Persistence & presets",
     prose: `<p><code>{ persist: "key" }</code> saves values, and a floated panel's position,
-      to localStorage (reload this page and the panel comes back as you left it) and unlocks
+      to localStorage (reload this page and the panel comes back as you left it; open it in a
+      second tab and each tab's values follow the other's saves) and unlocks
       presets: a presets menu
       appears in the toolbar, and <code>savePreset</code> / <code>loadPreset</code> /
       <code>deletePreset</code> / <code>presets()</code> drive the same store from code.

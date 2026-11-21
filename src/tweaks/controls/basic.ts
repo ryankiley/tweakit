@@ -5,9 +5,12 @@ import {
   btn,
   txt,
   clamp,
-  stepPrecision,
   gridEnds,
   roundToStep,
+  onGrid,
+  readNum,
+  asWritten,
+  stepToward,
   normalizeRange,
   rangeStep,
   overlapsText,
@@ -53,11 +56,14 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   // range.
   if (!meta.soft) [min, max] = gridEnds(min, max, step);
   const snap = (max - min) / step <= 6; // past ~6 stops, snapping at every step felt notchy
-  const seed = Number.isFinite(+meta.value) ? +meta.value : min; // a non-finite seed → min
+  const seed = Number.isFinite(+meta.value) ? asWritten(+meta.value, min, step) : min; // a non-finite seed → min
   // A soft slider keeps an out-of-range default, as set() does; pull is the detent's tension offset read by render().
   let value = meta.soft && !snap ? seed : clamp(seed, min, max),
-    pull = 0;
-  const decimals = stepPrecision(step);
+    pull = 0,
+    // The default reads back as written, between steps too, and so does a write of that same value (a reset, a
+    // restore); any other write, a press, a drag or a notch lands on the grid (shared.ts onGrid). `exact`: the value is
+    // the default, as written.
+    exact = true;
 
   const wrap = el("div", "twk-slider-wrap");
   const track = el("div", "twk-slider");
@@ -82,7 +88,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
         if (typeof s === "string" && s) return s;
       } catch {}
     }
-    return v.toFixed(decimals);
+    return readNum(v, min, step);
   };
   track.append(hashes, fill, handle, labelEl, valueEl);
   wrap.append(track);
@@ -94,6 +100,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   track.setAttribute("aria-valuemax", String(max));
 
   const q = (v: number) => roundToStep(v, min, step); // min/max sit on the grid, so a clamped value rounds inside
+  const out = () => (exact ? value : q(value)); // what it reads back as
   const marks = snap
     ? Array.from(
         { length: Math.max(0, Math.round((max - min) / step) - 1) },
@@ -114,7 +121,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     const edge = `${pct}%${off}`;
     fill.style.width = pull ? `calc(${edge})` : pct + "%";
     handle.style.left = `max(5px, calc(${edge} - 9px))`; // the inset hairline rides just inside the fill edge
-    const qv = q(value),
+    const qv = out(),
       qvText = show(qv);
     numText.data = qvText;
     track.setAttribute("aria-valuenow", String(qv));
@@ -139,6 +146,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       x: number;
       y: number;
       v: number;
+      exact: boolean; // v was the default, as written
+      at: Element; // what took the pointer capture
       scrub?: boolean;
       fine?: { x: number; v: number } | null;
     } | null = null,
@@ -160,12 +169,28 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     return clamp(min + pct * (max - min), min, max);
   };
   // a non-finite value is ignored; soft may exceed the range
-  const set = (v: number | string, fire = true) => {
+  const set = (v: number | string, fire = true, written = false) => {
     v = +v;
     if (!Number.isFinite(v)) return;
-    value = snap ? clamp(q(v), min, max) : meta.soft ? v : clamp(v, min, max);
+    const keep = written && asWritten(v, min, step) === seed;
+    // a write while a notch is still settling: the spring would put the old notch back on its next frame
+    if (written && !press && sRAF) {
+      springStop();
+      pull = 0;
+      track.classList.remove("is-active");
+    }
+    exact = keep;
+    value = keep
+      ? meta.soft && !snap
+        ? seed
+        : clamp(seed, min, max)
+      : snap
+        ? clamp(q(v), min, max)
+        : meta.soft
+          ? v
+          : clamp(v, min, max);
     render();
-    if (fire) onChange(q(value));
+    if (fire) onChange(out());
   };
 
   // ── Spring-commit detent (snap sliders) ──
@@ -225,11 +250,12 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     }
     pull = (((sx - ei) * step) / (max - min || 1)) * trackW; // spring offset from the committed notch, in px
     value = clamp(min + ei * step, min, max);
+    exact = false;
     render();
     // emit once per commit, not per frame
     if (ei !== sPrevEi) {
       sPrevEi = ei;
-      onChange(q(value));
+      onChange(out());
     }
     if (!press && Math.abs(sv) < 0.004 && Math.abs(sx - ei) < 0.004) {
       sx = ei;
@@ -243,7 +269,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   const springStart = (clientX: number) => {
     sx = toIdx(value);
     sv = 0;
-    sPrevEi = Math.round(toIdx(value));
+    sPrevEi = exact && !onGrid(value, min, step) ? null : Math.round(toIdx(value)); // a default between notches: the first notch is a change
     cursorVal = valFromX(clientX);
     if (!sRAF) sRAF = requestAnimationFrame(springFrame);
   };
@@ -255,7 +281,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     // preventDefault suppressed click-to-focus; restore it without the keyboard ring (programmatic focus otherwise
     // reads as keyboard).
     track.focus({ focusVisible: false });
-    press = { id: e.pointerId, x: e.clientX, y: e.clientY, v: value };
+    press = { id: e.pointerId, x: e.clientX, y: e.clientY, v: value, exact, at: e.target as Element };
     try {
       (e.target as Element).setPointerCapture(e.pointerId);
     } catch {}
@@ -298,12 +324,19 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       }
     }
   });
-  // `cancel`: the browser took the press as a scroll (touch-action: pan-y), so the value it began from comes back.
+  // `cancel`: the browser took the press as a scroll (touch-action: pan-y), or Escape took it back, so the value it began
+  // from comes back.
   const up = (e?: PointerEvent, cancel?: boolean) => {
     if (!press || (e && e.pointerId !== press.id)) return;
-    if (cancel) set((cursorVal = press.v));
+    // A default between a snap slider's notches comes back as written, at once: the spring would settle it on one.
+    const between = !!cancel && snap && press.exact && !onGrid(press.v, min, step);
+    if (between) {
+      springStop();
+      pull = 0;
+    }
+    if (cancel) set((cursorVal = press.v), true, press.exact);
     press = null;
-    if (snap) {
+    if (snap && !between) {
       // Let the spring settle; springFrame drops is-active once it lands.
       if (!sRAF) sRAF = requestAnimationFrame(springFrame);
     } else {
@@ -322,7 +355,19 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   onLive(track, [[window, "resize"]], render); // self-cleans once the panel leaves the DOM
   track.addEventListener("keydown", (e) => {
     if (e.target !== track) return; // keys typed into the inline editor are its own
-    if (press) return; // keys don't steer a pointer drag
+    // Keys don't steer a pointer drag, but Escape takes it back to where it began, and is no pane's to close.
+    if (press) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        const { id, at } = press;
+        up(undefined, true);
+        try {
+          at.releasePointerCapture(id);
+        } catch {}
+      }
+      return;
+    }
     if (e.key === "Enter") {
       e.preventDefault();
       return openEditor();
@@ -336,7 +381,8 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       pull = 0;
       track.classList.remove("is-active");
     }
-    set(clamp(nv, min, max));
+    // The default off the grid goes to the next grid point that way; any other value moves a whole step.
+    set(clamp(exact ? stepToward(value, nv, min, step) : nv, min, max));
   });
 
   // value: hover 800ms → editable; click → inline input
@@ -365,7 +411,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     input.inputMode = parse ? "text" : "decimal";
     quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */
     // with a parse, the field edits the formatted text
-    input.value = parse ? show(q(value)) : q(value).toFixed(decimals);
+    input.value = parse ? show(out()) : readNum(out(), min, step);
     // read back: a text field drops line breaks
     const opened = input.value;
     input.style.width = opened.length + 1 + "ch";
@@ -387,7 +433,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
         try {
           p = parse ? parse(t) : Number(t.replace(unit, "").trim() || NaN);
         } catch {}
-      if (Number.isFinite(p)) set(meta.soft ? p : clamp(p, min, max));
+      if (Number.isFinite(p)) set(meta.soft ? p : clamp(p, min, max), true, true);
       restore();
     };
     input.addEventListener("pointerdown", (e) => e.stopPropagation());
@@ -413,7 +459,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     if (valueEl.classList.contains("is-editable")) openEditor();
   });
 
-  return { el: wrap, set: (v: number | string) => set(v, false), get: () => q(value), range: [min, max] };
+  return { el: wrap, set: (v: number | string) => set(v, false, true), get: out, range: [min, max] };
 }
 
 function createToggle(meta: Meta, onChange: OnChange): Control {
