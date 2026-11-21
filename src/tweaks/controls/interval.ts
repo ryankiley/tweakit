@@ -5,7 +5,9 @@ import {
   clamp,
   words,
   roundToStep,
-  stepPrecision,
+  readNum,
+  asWritten,
+  stepToward,
   gridEnds,
   normalizeRange,
   rangeStep,
@@ -31,17 +33,22 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   // handles).
   let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, [lo0, hi0], label);
   [min, max] = gridEnds(min, max, step); // the slider's rule: no value past an off-grid bound
-  const decimals = stepPrecision(step);
   const q = (v: number) => roundToStep(v, min, step);
   let lo = 0,
     hi = 0;
-  // ordered, on the grid, in bounds
-  const put = (a: number, b: number) => {
-    lo = clamp(q(Math.min(a, b)), min, max);
-    hi = clamp(q(Math.max(a, b)), min, max);
-  };
   // Missing tuple entries fall back to the bounds: value:[5] gives [5, max], not [5, NaN].
-  put(Number.isFinite(t0) ? t0 : min, Number.isFinite(t1) ? t1 : max);
+  const a0 = Number.isFinite(t0) ? t0 : min,
+    b0 = Number.isFinite(t1) ? t1 : max,
+    d0 = asWritten(Math.min(a0, b0), min, step),
+    d1 = asWritten(Math.max(a0, b0), min, step);
+  // Ordered and in bounds. An end at its default stays as written, between steps too (shared.ts onGrid); any other
+  // lands on the grid.
+  const end = (v: number, d: number) => (asWritten(v, min, step) === d ? d : q(v));
+  const put = (a: number, b: number) => {
+    lo = clamp(end(Math.min(a, b), d0), min, max);
+    hi = clamp(end(Math.max(a, b), d1), min, max);
+  };
+  put(a0, b0);
 
   const wrap = el("div", "twk-slider-wrap");
   const track = el("div", "twk-slider twk-interval");
@@ -77,7 +84,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     fill.style.width = Math.max(0, b - a) + "%";
     hLo.style.left = handleLeft(a);
     hHi.style.left = handleLeft(b);
-    valueEl.textContent = `${lo.toFixed(decimals)} – ${hi.toFixed(decimals)}`;
+    valueEl.textContent = `${readNum(lo, min, step)} – ${readNum(hi, min, step)}`;
     hLo.setAttribute("aria-valuenow", String(lo));
     hHi.setAttribute("aria-valuenow", String(hi));
     // Value-dodge (overlapsText), per handle: one sliding under the label or the readout yields so the text stays
@@ -95,6 +102,7 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
   render();
 
   const emit = () => onChange([lo, hi]);
+  // a press, a drag or a key lands on the grid
   const setLo = (v: number) => {
     lo = clamp(Math.min(q(v), hi), min, max);
     render();
@@ -138,6 +146,14 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
       active = null;
       track.classList.remove("is-active");
     },
+    hold: () => {
+      const was = [lo, hi];
+      return () => {
+        [lo, hi] = was;
+        render();
+        emit();
+      };
+    },
   });
   wireHoverClass(track, render); // re-run the dodge with the real track width on hover
   // Recompute once layout and fonts settle (a web-font swap shifts the widths the dodge measures) and on track-width
@@ -150,7 +166,9 @@ function createInterval(meta: Meta, onChange: OnChange): Control {
     const nv = which === "lo" ? rangeStep(e, lo, step, min, hi, page) : rangeStep(e, hi, step, lo, max, page);
     if (nv == null) return;
     e.preventDefault();
-    which === "lo" ? setLo(nv) : setHi(nv);
+    // an end at its off-grid default goes to the grid point that way
+    const v = stepToward(which === "lo" ? lo : hi, nv, min, step);
+    which === "lo" ? setLo(v) : setHi(v);
     emit();
   };
   hLo.addEventListener("keydown", onKey("lo"));

@@ -39,12 +39,19 @@ interface NumSpec {
   soft?: boolean;
   row?: boolean;
   unit?: string;
+  /** What Escape mid-scrub puts back, when the owner holds a finer value than the field shows (see dragGesture). */
+  hold?: () => () => void;
+  /** The control's value is this field's: its default stays as written (see onGrid). */
+  exact?: boolean;
 }
 /** The numeric field's handle: set() coerces and fits, get() reads the fitted number. */
 interface NumField {
   el: HTMLDivElement;
   set(v: number | string): void;
   get(): number;
+  grid(v: number): number;
+  stepBy(by: number): void;
+  text(): string;
   range: [number, number];
 }
 /** The popover shell's handle (popover). */
@@ -114,6 +121,23 @@ const gridEnds = (min: number, max: number, step: number, anchor = min): [number
   if (lo < min - eps) lo = r(lo + step);
   if (hi > max + eps) hi = r(hi - step);
   return lo > hi ? [min, min] : [lo, hi];
+};
+// A control's default is kept as written, on the step grid or off it, and so is a write of that same value (a reset,
+// a restore), until it's touched; any other value lands on the grid. These serve that: whether a value sits on the grid
+// (to float noise), its readout (the step's decimals on the grid, else ten significant digits, so a float's noise
+// doesn't fill the row), the value as kept (snapped when it's only noise off the grid, 0.1 * 3), and where a key aimed
+// at `to` lands from it: the grid point that way, never past the target (576.5 up by 1 is 577, as a number input
+// steps; Home is the bound).
+const onGrid = (v: number, anchor: number, step: number) =>
+  Math.abs(roundToStep(v, anchor, step) - v) <= Math.min(step * 1e-6, 1e-9 * Math.max(1, Math.abs(v)));
+const readNum = (v: number, anchor: number, step: number) =>
+  onGrid(v, anchor, step) ? v.toFixed(stepPrecision(step)) : String(+v.toPrecision(10));
+const asWritten = (v: number, anchor: number, step: number) =>
+  onGrid(v, anchor, step) ? roundToStep(v, anchor, step) : v;
+const stepToward = (v: number, to: number, anchor: number, step: number) => {
+  const q = roundToStep(to, anchor, step);
+  if (onGrid(v, anchor, step) || onGrid(to, anchor, step)) return q;
+  return roundToStep(to > v ? (q > to ? q - step : q) : q < to ? q + step : q, anchor, step);
 };
 // By the span, then finer, a tenth at a time and at most twice, until each value the range was built around sits on the
 // grid from min: a coarser grid would snap the default off what was written (37 over 0–110 to 40). A value finer still
@@ -362,8 +386,17 @@ const quietFocus = (input: HTMLElement) => {
   input.addEventListener("focus", () => input.classList.toggle("twk-focus-quiet", pointerModality));
   input.addEventListener("blur", () => input.classList.remove("twk-focus-quiet"));
 };
+// The part of the page on screen, as [left, top, right, bottom] in the px that getBoundingClientRect and position:
+// fixed use. Pinch zoom or an on-screen keyboard leaves it smaller than the window, so a pane placed by the window could
+// open off screen or under the keyboard.
+const onScreen = (): [number, number, number, number] => {
+  const v = window.visualViewport;
+  return v
+    ? [v.offsetLeft, v.offsetTop, v.offsetLeft + v.width, v.offsetTop + v.height]
+    : [0, 0, window.innerWidth, window.innerHeight];
+};
 /** Place a portaled popover under its trigger, flipping above when it won't fit, clamped into
- *  the viewport. width:"match" sizes it to the trigger; align:"end" lines up the right edges. */
+ *  the part of the page on screen. width:"match" sizes it to the trigger; align:"end" lines up the right edges. */
 export const placeBelow = (
   trigger: Element,
   pop: HTMLElement,
@@ -381,7 +414,8 @@ export const placeBelow = (
     prefer?: "above" | "below";
   } = {},
 ) => {
-  const r = trigger.getBoundingClientRect();
+  const r = trigger.getBoundingClientRect(),
+    [sl, st, sr, sb] = onScreen();
   if (width === "match") pop.style.width = r.width + "px";
   // drawn width, which min-width may hold above a match
   const w = pop.offsetWidth || (width === "match" ? r.width : width || 0);
@@ -389,10 +423,10 @@ export const placeBelow = (
   // panel's row.
   const end = align === "end" || (width === "match" && w > r.width + 0.5);
   const x = end ? r.right - w : align === "center" ? r.left + r.width / 2 - w / 2 : r.left;
-  pop.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + "px";
+  pop.style.left = Math.max(sl + 8, Math.min(x, sr - w - 8)) + "px";
   const h = pop.offsetHeight || fallbackH;
-  const below = window.innerHeight - r.bottom,
-    above = r.top,
+  const below = sb - r.bottom,
+    above = r.top - st,
     need = h + 12;
   // The preferred side if it fits, else the other if it fits, else whichever has more room.
   const fitsBelow = below >= need,
@@ -400,7 +434,8 @@ export const placeBelow = (
   const goAbove =
     prefer === "above" ? fitsAbove || (!fitsBelow && above >= below) : !fitsBelow && (fitsAbove || above > below);
   const top = goAbove ? r.top - h - gap : r.bottom + gap;
-  pop.style.top = clamp(top, gap, window.innerHeight - h - gap) + "px"; // clamp Y into the viewport
+  // onto the screen; one taller than the room keeps its top edge on it, so its start can be read and it scrolls
+  pop.style.top = Math.max(st + gap, Math.min(top, sb - h - gap)) + "px";
   // For the CSS entrance: the side it opened on, and its height.
   pop.dataset.side = goAbove ? "above" : "below";
   pop.style.setProperty("--twk-pop-h", String(h));
@@ -541,8 +576,10 @@ function popover(
   const st = { open: false, moved: false };
   let dragBound = false;
   const keepInView = () => {
-    pop.style.left = clamp(parseFloat(pop.style.left), 8, window.innerWidth - pop.offsetWidth - 8) + "px";
-    pop.style.top = clamp(parseFloat(pop.style.top), 8, window.innerHeight - pop.offsetHeight - 8) + "px";
+    const [sl, st, sr, sb] = onScreen();
+    // its top-left corner stays on screen when it's bigger than the room, as placeBelow keeps it
+    pop.style.left = Math.max(sl + 8, Math.min(parseFloat(pop.style.left), sr - pop.offsetWidth - 8)) + "px";
+    pop.style.top = Math.max(st + 8, Math.min(parseFloat(pop.style.top), sb - pop.offsetHeight - 8)) + "px";
   };
   const place = () => {
     if (st.moved) keepInView();
@@ -1106,6 +1143,10 @@ export {
   stepPrecision,
   gridEnds,
   roundToStep,
+  onGrid,
+  readNum,
+  asWritten,
+  stepToward,
   defaultRange,
   normalizeRange,
   notice,

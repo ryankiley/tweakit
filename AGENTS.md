@@ -69,7 +69,7 @@ panel.ready.then(() => apply(panel.params));
 | `{ x: 0, y: 10 }` | folder of controls | nested object |
 | `{ type: "…", … }` | that control, verbatim (next table) | per control |
 
-A missing step is 0.01 for a range up to 1 (a written span under 0.0001: a hundredth of its decade), 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, the min, or 0 in a range across zero would fall between steps, and for the max too when that reaches it (`37` steps by 1, not 10, `[1.25, 0.25, 4]` by 0.01, and `-45` reaches 0); a negative's derived range steps like its positive twin (`-0.5` by 0.01). A `number` or `point` with no step fits its default (`0.5` steps by 0.1, a whole `number` by 1, `1/3` by 0.0001). Keys become labels, humanised (`fontSize` reads "Font Size"); option strings show as written. `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
+A missing step is 0.01 for a range up to 1, 0.1 up to 10, 1 up to 100, else 10, and finer, to a hundredth of that at most, when the default, the min, or 0 in a range across zero would fall between steps, and for the max too when that reaches it (`37` steps by 1, not 10, `[1.25, 0.25, 4]` by 0.01, and `-45` reaches 0); a negative's derived range steps like its positive twin (`-0.5` by 0.01). A `number` or `point` with no step fits its default (`0.5` steps by 0.1, a whole `number` by 1, `1/3` by 0.0001). A default stays as written, off the grid too, until a press, drag, scrub or key moves it; any other write lands on the grid. Keys become labels, humanised (`fontSize` reads "Font Size"); option strings show as written. `label` overrides on a `{ type }` form and on `{ action }`, not on the `{ options, value }` shorthand.
 
 In TypeScript, a schema written inline types `params` from its shape: `radius: [18, 0, 60, 1]` is a `number`, `blend: ["normal", "multiply"]` is `"normal" | "multiply"`, and a typo such as `params.raduis` is an error. A schema held in a variable keeps its keys and its shorthands' types, but widens list options to `string` and a verbose form's `type` to `string`, which leaves that value `any`; write it `as const` to keep them all, or `satisfies Schema` to keep the verbose forms. A `type` that names no control (`{ type: "slidr" }`) is a compile error where it's written, in `mountControl()` too.
 
@@ -117,11 +117,11 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 - `panel.setTheme(theme)`, `panel.setName(name)`; `panel.undo()` and `panel.redo()` with `undo: true`; `savePreset`, `loadPreset`, `deletePreset` and `presets()` with `persist`.
 - `panel.destroy()`: removes it and releases every listener.
 
-Options, the third argument: `theme` (token overrides), `persist` (a localStorage key, or `true` to key by name; turns presets on; two live panels on one key overwrite each other, and the second warns), `presets: false`, `floating: true` or `{ x, y }`, `draggable: false` to pin, `toolbar: false`, `undo: true`, `onReset`, `strings` (its words, by key), and `shadow: true` (a shadow root the page's own rules can't reach; `el` is its host, themed by `--twk-*` there).
+Options, the third argument: `theme` (token overrides), `persist` (a localStorage key, or `true` to key by name; turns presets on; two live panels on one key overwrite each other, and the second warns; a tab on the same key follows its saves), `presets: false`, `floating: true` or `{ x, y }`, `draggable: false` to pin, `toolbar: false`, `undo: true`, `onReset`, `strings` (its words, by key), and `shadow: true` (a shadow root the page's own rules can't reach; `el` is its host, themed by `--twk-*` there).
 
-Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from the top-left. A click anywhere on the header outside its toolbar folds the panel; Escape mid-drag puts it back. Its placement is plain `.twk-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
+Every panel drags by its header and lifts into a floating layer on the first drag; `floating` starts it there, inset from the top-left. A click anywhere on the header outside its toolbar folds the panel. Its placement is plain `.twk-panel` CSS, so a class of yours loaded after `tweakit/css` overrides it.
 
-An open editor pane or the presets menu drags by its edge and keeps that spot until it closes. In a pane's field, Escape restores an unsaved edit and a second Escape closes the pane. Escapes the panel handles stop at the document.
+An open editor pane or the presets menu drags by its edge and keeps that spot until it closes. In a pane's field, Escape restores an unsaved edit and a second Escape closes the pane. Escape mid-drag, of the panel or any control, undoes it. Escapes the panel handles stop at the document.
 
 ## Copy and paste: how tuned values come back to you
 
@@ -151,7 +151,7 @@ The panel is dark by default and follows the system scheme; `data-twk-scheme="li
 
 ## What tweakit does not do
 
-- It never edits source files, and it persists only when `persist` is set: values to localStorage, as `{ v: 1, values }` (0.5's bare object is ignored), and uploaded images to IndexedDB, with their refs in localStorage. A panel that persists an image control restores its other values as it builds, and its images by `panel.ready`; an upload with nowhere else to go (no IndexedDB, or the store refused it) saves inline in localStorage when it fits, and otherwise is left out with its row saying "Not saved". Values leave through the clipboard, `panel.changes()` or `panel.toJSON()`.
+- It never edits source files, and it persists only when `persist` is set: values to localStorage, as `{ v: 1, values }`, and uploaded images to IndexedDB, with their refs in localStorage; an upload with nowhere else to go (no IndexedDB, or the store refused it) saves inline in localStorage when it fits, and otherwise is left out with its row saying "Not saved". Values leave through the clipboard, `panel.changes()` or `panel.toJSON()`.
 - It has no production switch. Gate the panel in your code, for example behind `import.meta.env.DEV`.
 - It is not a framework component. In React, Vue, Svelte or Solid, create the panel once in a mount effect, append `panel.el` to a ref, set state in `panel.on()`, and `panel.destroy()` on unmount.
 - `params` is a plain object, updated in place: subscribe with `on()`.

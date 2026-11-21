@@ -24,7 +24,7 @@ export const examples = [
       <p>Everything in the picker takes the keyboard: Tab to the plane and arrow it
       (↑/↓ lightness, ←/→ chroma, ⇧ for ×10, Page Up / Page Down for ten lightness steps), the hue
       and alpha strips are sliders (the arrow keys, Home/End), and the channel fields type or
-      arrow-step.</p>`,
+      arrow-step. Escape in the middle of a drag puts back the color it began from.</p>`,
     css: `
       #ex-color .ex-live { min-height: 200px; transition: background 0.1s; }`,
     run: ({ tweaks, mount }) => {

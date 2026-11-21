@@ -238,11 +238,19 @@ function createGradient(meta: Meta, onChange: OnChange): Control {
           offBar = stops.length > 2 && (e.clientY < r.top - 24 || e.clientY > r.bottom + 24);
           h.dataset.removing = String(offBar);
         },
-        // A drag that ends once its pane has closed (Escape, destroy(); fading out or gone) was let go of, not dropped
-        // off the bar.
+        // A drag that ends once its pane has closed (a click on its row, destroy(); fading out or gone) was let go of, not
+        // dropped off the bar.
         onEnd: () => {
           if (offBar && !pop.inert && h.isConnected) removeStop(s);
           else h.dataset.removing = "false";
+        },
+        // Escape puts the stop back where it was, and back on the bar: it isn't dropped off it.
+        hold: () => {
+          const was = s.pos;
+          return () => {
+            offBar = false;
+            moveStop(h, was);
+          };
         },
       });
       h.addEventListener("dblclick", (e) => {

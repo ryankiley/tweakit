@@ -22,7 +22,12 @@ export const examples = [
       shows rule lines. <code>soft: true</code> lets a typed or scripted value run past
       <code>min</code>/<code>max</code>; dragging stays within them. <code>unit: "px"</code>
       puts a unit after the readout; the param stays the bare number. For a readout of
-      your own, see the next example.</p>`,
+      your own, see the next example.</p>
+      <p>A default is kept exactly as written, even between steps: <code>576.5</code> on a step
+      of 1 stays <code>576.5</code>, and copying the panel's values gives it back unchanged.
+      Touching it puts it on the grid: a drag lands on a step, and an arrow key goes to the next
+      one that way. Any other value, set from code, typed or restored, lands on the grid as
+      before.</p>`,
     target: `<div class="num-tile"></div>`,
     css: `
       .num-tile { width: 132px; height: 132px; background: #7C5CFF;

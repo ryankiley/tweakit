@@ -95,13 +95,24 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
     h2.style.top = p2y + "px";
   };
 
+  // What Escape mid-drag puts back, for a handle or a field: the curve as it was, not a field's rounding of it.
+  const hold = () => {
+    const was = v.slice();
+    return () => {
+      v = was;
+      changed();
+    };
+  };
   // x within 0–1; y may overshoot
   const flds = ["X1", "Y1", "X2", "Y2"].map((label, i) => {
-    const fld = numField({ label, value: v[i], step: 0.01, min: i % 2 ? YMIN : 0, max: i % 2 ? YMAX : 1 }, (val) => {
-      v[i] = val;
-      drawGraph();
-      onChange(v.slice());
-    });
+    const fld = numField(
+      { label, value: v[i], step: 0.01, min: i % 2 ? YMIN : 0, max: i % 2 ? YMAX : 1, hold },
+      (val) => {
+        v[i] = val;
+        drawGraph();
+        onChange(v.slice());
+      },
+    );
     fields.append(fld.el);
     return fld;
   });
@@ -146,6 +157,7 @@ function createBezier(meta: Meta, onChange: OnChange): Control {
         held = false;
         drawGraph();
       },
+      hold,
     });
     // Keyboard: arrows nudge by 0.01 (⇧ = 0.1) on the drag's clamps and grid, Home restores the default, Escape drops
     // focus.

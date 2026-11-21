@@ -288,7 +288,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
     return snap;
   };
   const restore = (snap: Snapshot | null, silent?: boolean) => {
-    const pending: [Entry, string][] = [];
+    const pending: [Entry, string][] = [],
+      mirrored = mirroring; // an image another tab's save named lands unsaved too, when it arrives
     applySnapshot(fromRefs(snap, pending), silent);
     for (const [e, ref] of pending) {
       // a write meanwhile settles it, even back to the value held
@@ -300,7 +301,12 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         waiting.delete(e);
         if (url && late(e, w[1], url)) {
           last = undefined;
-          notify();
+          mirroring = mirrored;
+          try {
+            notify();
+          } finally {
+            mirroring = false;
+          }
         }
       });
     }
@@ -365,6 +371,8 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
   // Each listener runs isolated: a throwing callback can't break the others or skip persist().
   // `last` is read once, so a write one listener makes can't change the key the rest are told.
   // a listener may destroy() the panel: arm no save behind it
+  // `mirroring`: values another tab saved are coming in, and aren't saved back (see the storage listener in build).
+  let mirroring = false;
   const notify = (silent?: boolean, changed = last) => {
     (silent ? own : listeners).forEach((fn) => {
       try {
@@ -373,7 +381,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         console.error("[tweaks] listener threw:", e);
       }
     });
-    if (!destroyed()) persist();
+    if (!destroyed() && !mirroring) persist();
   };
   // The one write path behind restores and set(). A function/symbol/bigint is no control value (JSON can't carry
   // those).
@@ -1187,6 +1195,7 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         watch,
       )
     : null;
+  if (undoApi) cleanups.push(undoApi.release);
 
   // ── Pick and copy / paste — a press beside a row (in the panel's side padding, or a gap between rows) picks it, as
   // a layer is picked in a design tool; beside a folder's header, the folder. ⌘C / ⌘V (ctrl elsewhere) then act on the
@@ -1398,6 +1407,26 @@ export function tweaks(name: string, schema: Schema, opts: TweaksOptions = {}): 
         onClipKey(e);
       }),
     );
+    // Another tab saved values under this key: they come in as a restore does. Saving them back would race that tab's
+    // next save (a drag there writes every 150 ms) and hand it an older value, so they aren't. They start this tab's
+    // undo afresh, as a restore does: ⌘Z here mustn't take back the other tab's edit. A plain window listener, released
+    // by destroy(): a panel taken out of the page and put back keeps following.
+    if (persistKey) {
+      // read back, not off the event: storage holds what it carried, or something newer
+      const mirror = (e: StorageEvent) => {
+        const snap = e.key === persistKey ? unwrap(readStore(persistKey), "values") : null;
+        if (!snap) return;
+        mirroring = true;
+        try {
+          restore(unsaved(snap));
+        } finally {
+          mirroring = false;
+        }
+        undoApi?.arm();
+      };
+      window.addEventListener("storage", mirror);
+      cleanups.push(() => window.removeEventListener("storage", mirror));
+    }
     phase = Phase.Live;
     // Replay after the restore, so an explicit host set() wins over a stored value; a destroy() mid-replay drops the
     // rest.

@@ -13,6 +13,9 @@ import {
   stepPrecision,
   gridEnds,
   roundToStep,
+  asWritten,
+  readNum,
+  stepToward,
   icon,
   registerControl,
   announce,
@@ -137,6 +140,8 @@ const dragPane = (pop: HTMLElement, st: { open: boolean; moved: boolean }, place
 // browser tells the document the capture was lost, and the release lands wherever the pointer is. So the press also
 // listens there until it ends, or the gesture would never end: a scrub's guide stayed on the page, and the node,
 // re-appended with its pane, took no further press.
+// `hold` runs as the press lands, before onDown, and returns what puts the value back: Escape mid-drag calls that, then
+// ends the press with no event, as Escape puts back a moved pane. Capture phase, so the pane doesn't close as well.
 const AWAY = ["lostpointercapture", "pointerup", "pointercancel"];
 function dragGesture(
   node: HTMLElement,
@@ -144,14 +149,44 @@ function dragGesture(
     onDown,
     onMove,
     onEnd,
-  }: { onDown: (e: PointerEvent) => void; onMove: (e: PointerEvent) => void; onEnd: (e: PointerEvent) => void },
+    hold,
+  }: {
+    onDown: (e: PointerEvent) => void;
+    onMove: (e: PointerEvent) => void;
+    onEnd: () => void;
+    hold: () => () => void;
+  },
 ) {
-  let activeId: number | null = null; // one captured pointer; a second finger can't fork the drag
-  const end = (e: PointerEvent) => {
-    if (activeId === null || e.pointerId !== activeId) return;
+  let activeId: number | null = null, // one captured pointer; a second finger can't fork the drag
+    putBack = () => {};
+  const stop = () => {
     activeId = null;
     for (const t of AWAY) document.removeEventListener(t, end, true);
-    onEnd(e);
+    document.removeEventListener("keydown", key, true);
+  };
+  const end = (e: PointerEvent) => {
+    if (activeId === null || e.pointerId !== activeId) return;
+    stop();
+    onEnd();
+  };
+  // only listening while a press is on
+  const key = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    const id = activeId!,
+      here = node.isConnected; // gone (destroyed mid-press): nothing to put back, and the Escape is someone else's
+    stop();
+    if (here) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    try {
+      if (here) putBack();
+    } finally {
+      onEnd(); // even when a listener the put-back fired throws: the guide and the drag's classes still go
+      try {
+        node.releasePointerCapture(id);
+      } catch {}
+    }
   };
   node.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || activeId !== null) return;
@@ -160,6 +195,8 @@ function dragGesture(
       node.setPointerCapture(e.pointerId);
     } catch {}
     for (const t of AWAY) document.addEventListener(t, end, true);
+    putBack = hold();
+    document.addEventListener("keydown", key, true);
     onDown(e);
   });
   node.addEventListener("pointermove", (e) => {
@@ -172,7 +209,7 @@ function dragGesture(
   node.addEventListener("lostpointercapture", end); // capture lost mid-drag (popover unmounting) ends it too
 }
 // Press-drag flagging .is-grabbing on the surface for the gesture's run (the thumb-lift CSS keys off it).
-const grabSurface = (surface: HTMLElement, set: (e: PointerEvent) => void) =>
+const grabSurface = (surface: HTMLElement, set: (e: PointerEvent) => void, hold: () => () => void) =>
   dragGesture(surface, {
     onDown: (e) => {
       surface.classList.add("is-grabbing");
@@ -180,6 +217,7 @@ const grabSurface = (surface: HTMLElement, set: (e: PointerEvent) => void) =>
     },
     onMove: set,
     onEnd: () => surface.classList.remove("is-grabbing"),
+    hold,
   });
 // Pointer position inside a box as [x, y] fractions in 0–1.
 const boxFrac = (e: MouseEvent, box: Element): [number, number] => {
@@ -278,8 +316,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     notice("swap", [spec.label ?? "number", min, max]);
     [min, max] = [max, min];
   }
-  const anchor = Number.isFinite(min) ? min : 0,
-    decimals = stepPrecision(step); // min-anchored, like the slider
+  const anchor = Number.isFinite(min) ? min : 0; // min-anchored, like the slider
   // on-grid ends, so fit(fit(x)) === fit(x)
   const [lo, hi] = gridEnds(
     Number.isFinite(min) ? min : -Infinity,
@@ -287,10 +324,16 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     step,
     anchor,
   );
-  const fit = (val: number) => {
-    const n = roundToStep(val, anchor, step);
+  // `exact` (a control whose value is this field's): the default stays as written, between steps too, as does a write
+  // of that same value (a reset, a restore), until a key or the scrub moves it (shared.ts onGrid). Every other value
+  // lands on the grid; `onto` puts even the default there, as a key, a scrub or a press on the point's pad does.
+  const def = asWritten(+spec.value, anchor, step);
+  const fit = (val: number, onto = !spec.exact) => {
+    const w = asWritten(val, anchor, step),
+      n = !onto && w === def ? w : roundToStep(val, anchor, step);
     return spec.soft ? n : clamp(n, lo, hi);
   };
+  const shown = () => readNum(value, anchor, step);
   let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
   const root = el("div", spec.row ? "twk-row" : "twk-field");
   const wrap = el("div", "twk-num-wrap");
@@ -301,7 +344,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   inp.type = "text";
   inp.inputMode = "decimal";
   inp.setAttribute("aria-label", spec.unit ? `${spec.label} (${spec.unit})` : spec.label);
-  inp.value = value.toFixed(decimals);
+  inp.value = shown();
   quietFocus(inp); // click-to-edit stays ringless; Tab rings
   wrap.append(grab, inp);
   if (spec.unit) wrap.append(txt("span", "twk-num-unit", spec.unit));
@@ -310,7 +353,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     val = +val;
     if (!Number.isFinite(val)) return;
     value = fit(val);
-    inp.value = value.toFixed(decimals);
+    inp.value = shown();
     if (fire && onChange) onChange(value);
   };
   // Typed text is read strictly as a whole number, as the slider's editor reads it (not parseFloat, which takes "1,000"
@@ -321,9 +364,9 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   inp.addEventListener("change", () => {
     const n = typed();
     if (Number.isFinite(n) && fit(n) !== value) set(n);
-    else inp.value = value.toFixed(decimals);
+    else inp.value = shown();
   });
-  escapeReverts(inp, () => value.toFixed(decimals));
+  escapeReverts(inp, shown);
   // ↑/↓ step off the half-typed value (a typed "4" then ↑ reads 5), the keyboard twin of the scrub.
   inp.addEventListener("keydown", (e) => {
     if (e.key === "Enter") return inp.blur();
@@ -331,7 +374,9 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     if (!d) return;
     e.preventDefault();
     const n = typed();
-    set((Number.isFinite(n) ? n : value) + d * step * (e.shiftKey ? 10 : 1));
+    const from = Number.isFinite(n) ? n : value,
+      by = d * step * (e.shiftKey ? 10 : 1);
+    set(stepToward(from, from + by, anchor, step));
   });
   // Drag-to-scrub on the grab handle: 1px ≈ one step (Shift ×10, Alt ×0.1), re-anchoring on a modifier change so the
   // value never jumps. Every end path matters: capture lost mid-scrub must still hide the full-screen guide.
@@ -357,15 +402,33 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
         downX = e.clientX;
         downV = value;
       }
-      set(downV + (e.clientX - downX) * step * k);
+      set(fit(downV + (e.clientX - downX) * step * k, true));
       gd.move(e.clientX, inp.value);
     },
     onEnd: () => {
       grab.classList.remove("is-dragging");
       gd.hide();
     },
+    // An owner keeping a finer value than this field shows (a color channel, a spring, a curve) puts back its own;
+    // otherwise the field's value, and nothing when the scrub never moved it.
+    hold:
+      spec.hold ||
+      (() => {
+        const was = value;
+        return () => {
+          if (value !== was) set(was);
+        };
+      }),
   });
-  return { el: root, set: (val: number | string) => set(val, false), get: () => value, range: [lo, hi] };
+  return {
+    el: root,
+    set: (val: number | string) => set(val, false),
+    get: () => value,
+    grid: (v: number) => fit(v, true), // where the point's pad lands a press
+    stepBy: (by: number) => set(stepToward(value, value + by, anchor, step), false), // the pad's keys, as the field's arrows
+    text: shown,
+    range: [lo, hi],
+  };
 }
 
 // ── Number — numField in its row chrome. ──
@@ -389,7 +452,7 @@ const decimalStep = (v: unknown) => {
 // lazy chunk, so the basic panel carries none of it.
 registerControl("number", (meta: Meta, onChange?: OnChange) =>
   numField(
-    { ...meta, step: meta.step ?? Math.min(1, decimalStep(meta.value), decimalStep(meta.min)), row: true },
+    { ...meta, step: meta.step ?? Math.min(1, decimalStep(meta.value), decimalStep(meta.min)), row: true, exact: true },
     onChange,
   ),
 );
